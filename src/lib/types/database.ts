@@ -1,0 +1,128 @@
+// Types DB — saisie manuelle d'après le schéma utilisé par les anciens HTML.
+// À remplacer par `supabase gen types typescript` quand on aura la CLI liée.
+
+export type StatutIntervention =
+  | 'nouvelle'
+  | 'date_proposee'
+  | 'attente_confirmation'
+  | 'confirmee'
+  | 'realisee'
+  | 'rapport_disponible'
+  | 'facturee'
+  | 'cloturee'
+  | 'en_suspens';
+
+export const STATUT_PIPELINE: StatutIntervention[] = [
+  'nouvelle',
+  'date_proposee',
+  'attente_confirmation',
+  'confirmee',
+  'realisee',
+  'rapport_disponible',
+  'facturee',
+  'cloturee',
+];
+
+export type PrioriteIntervention = 'normale' | 'urgente';
+
+export type TypeIntervention =
+  | 'Fuite canalisation'
+  | 'Fuite chauffage'
+  | 'Fuite infiltration'
+  | 'Surconsommation eau'
+  | 'Autre';
+
+export type TypeOrganisation = 'syndic' | 'courtier';
+
+export interface Organisation {
+  id: string;
+  nom: string;
+  type: TypeOrganisation;
+  email: string;
+  contact: string | null;
+  telephone: string | null;
+  bce: string | null;
+  adresse: string | null;
+  created_at?: string;
+}
+
+export interface Acp {
+  id: string;
+  nom: string;
+  adresse: string | null;
+  ville: string | null;
+  code_postal: string | null;
+  bce: string | null;
+  email_rapport: string | null;
+  email_facturation: string | null;
+}
+
+export interface Utilisateur {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  email: string | null;
+}
+
+export interface Intervention {
+  id: string;
+  ref: string | null;
+  statut: StatutIntervention;
+  priorite: PrioriteIntervention;
+  type: string | null;
+  description: string | null;
+  creneau_debut: string | null;
+  updated_at: string;
+  created_at: string;
+  suspens_motif: string | null;
+  syndic_id: string | null;
+  acp_id: string | null;
+  technicien_id: string | null;
+  adresse: string | null;
+  nom_facturation: string | null;
+  email_facturation: string | null;
+  bce_facturation: string | null;
+  ref_bon_commande: string | null;
+  date_demande: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+export interface Rapport {
+  intervention_id: string;
+  degats: string;
+  inspection: string;
+  conclusion: string;
+  recommandations: string;
+  updated_at: string;
+}
+
+export interface Occupant {
+  id: string;
+  intervention_id: string;
+  appartement: string | null;
+  nom: string | null;
+  email: string | null;
+  telephone: string | null;
+  conf: 'confirme' | 'en_attente' | 'decline' | null;
+}
+
+// Vue jointe — utilisée par l'admin
+export interface InterventionRow extends Intervention {
+  acp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'> | null;
+  syndic: Pick<Organisation, 'id' | 'nom' | 'type' | 'email'> | null;
+  technicien: Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
+}
+
+// Libellés et couleurs des statuts
+export const STATUT_INFO: Record<StatutIntervention, { label: string; fg: string; bg: string }> = {
+  nouvelle:             { label: 'Nouvelle',          fg: '#6B6558', bg: '#EDEAE3' },
+  date_proposee:        { label: 'Date proposée',     fg: '#B8830A', bg: '#FBF3E0' },
+  attente_confirmation: { label: 'Attente conf.',     fg: '#2A5298', bg: '#D6E4F7' },
+  confirmee:            { label: 'Confirmée',         fg: '#1B3A6B', bg: '#D6E4F7' },
+  realisee:             { label: 'Réalisée',          fg: '#1B3A6B', bg: '#A8D4E8' },
+  rapport_disponible:   { label: 'Rapport dispo.',    fg: '#1F6B45', bg: '#D4EDE2' },
+  facturee:             { label: 'Facturée',          fg: '#8A5A1A', bg: '#F4E8D0' },
+  cloturee:             { label: 'Clôturée',          fg: '#6B6558', bg: '#E4DFD4' },
+  en_suspens:           { label: 'En suspens',        fg: '#C4622D', bg: '#F7EDE5' },
+};

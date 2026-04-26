@@ -1,26 +1,170 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────
+   PALETTE — variables thématisables.
+   Tailwind v4 lit ces tokens via @theme et génère bg-sand, text-ink, etc.
+   `:root` = thème clair (défaut). `.dark` = thème sombre.
+   next-themes pose la classe .dark sur <html>.
+   ───────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --color-sand:        #F5F2EC;  /* page bg */
+  --color-sand-mid:    #EDE8DF;
+  --color-sand-border: #DDD8CC;
+  --color-sand-hover:  #F8F4EE;
+  --color-cream:       #FDFBF7;  /* card bg */
+
+  /* Texte */
+  --color-ink:        #1C1A16;
+  --color-ink-mid:    #6B6558;
+  --color-ink-muted:  #A09A8E;
+
+  /* Marine — inchangé entre thèmes (logos, accents) */
+  --color-navy:       #1B3A6B;
+  --color-navy-dark:  #152D54;
+  --color-navy-deep:  #0F2040;
+  --color-navy-mid:   #2A5298;
+  --color-navy-light: #D6E4F7;
+  --color-navy-pale:  #EBF2FB;
+
+  /* Bleu ciel */
+  --color-sky-foxo:       #A8D4E8;
+  --color-sky-light-foxo: #E8F4FA;
+
+  /* Terracotta (alertes) */
+  --color-terra:       #C4622D;
+  --color-terra-light: #F7EDE5;
+  --color-terra-mid:   #E8C4AF;
+
+  /* Ambre */
+  --color-amber-foxo:  #B8830A;
+  --color-amber-light: #FBF3E0;
+
+  /* Succès */
+  --color-ok:       #1F6B45;
+  --color-ok-light: #E4F2EB;
+  --color-ok-mid:   #B8D9C8;
+
+  /* Sidebar (admin) */
+  --sidebar-bg:        linear-gradient(180deg, #2C2A24 0%, #1A1814 100%);
+  --sidebar-logo-bg:   #E2C9A1;
+  --sidebar-logo-fg:   #7A6A50;
+
+  /* Tech app outer chrome (gardé proche du navy d'origine en clair) */
+  --tech-bg:        #080F1A;
+  --tech-card:      #0F2040;
+  --tech-card-mid:  #152D54;
+  --tech-text:      #F0ECE4;
+  --tech-text-mid:  #8AAAC0;
+  --tech-text-mute: #5A7494;
+  --tech-border:    #1B3A6B;
+
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  /* Surfaces */
+  --color-sand:        #141210;
+  --color-sand-mid:    #1A1814;
+  --color-sand-border: #2C2A24;
+  --color-sand-hover:  #221E1A;
+  --color-cream:       #1C1A16;
+
+  /* Texte */
+  --color-ink:        #F0ECE4;
+  --color-ink-mid:    #8A8278;
+  --color-ink-muted:  #5A5650;
+
+  /* Pales/lights utilisés sur cartes — assombris pour rester lisibles */
+  --color-navy-pale:  #1A2540;
+  --color-navy-light: #2C4878;
+  --color-amber-light: #2A220E;
+  --color-terra-light: #2E1A12;
+  --color-terra-mid:   #5A2E18;
+  --color-ok-light:    #14281E;
+  --color-ok-mid:      #2A4F3A;
+
+  /* Sidebar (admin) — gradient légèrement plus sombre */
+  --sidebar-bg:      linear-gradient(180deg, #1A1814 0%, #0E0C0A 100%);
+  --sidebar-logo-bg: #C8A876;
+  --sidebar-logo-fg: #5A4A30;
+
+  /* Tech — déjà dark, légèrement décalé */
+  --tech-bg:        #050B14;
+  --tech-card:      #0A1830;
+  --tech-card-mid:  #122544;
+  --tech-text:      #F0ECE4;
+  --tech-text-mid:  #8AAAC0;
+  --tech-text-mute: #5A7494;
+  --tech-border:    #1B3A6B;
+
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─────────────────────────────────────────────────────────────────────────
+   Tailwind theme : mappe les tokens utilitaires sur les variables ci-dessus.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-sand:        var(--color-sand);
+  --color-sand-mid:    var(--color-sand-mid);
+  --color-sand-border: var(--color-sand-border);
+  --color-sand-hover:  var(--color-sand-hover);
+  --color-cream:       var(--color-cream);
+
+  --color-ink:        var(--color-ink);
+  --color-ink-mid:    var(--color-ink-mid);
+  --color-ink-muted:  var(--color-ink-muted);
+
+  --color-navy:       var(--color-navy);
+  --color-navy-dark:  var(--color-navy-dark);
+  --color-navy-deep:  var(--color-navy-deep);
+  --color-navy-mid:   var(--color-navy-mid);
+  --color-navy-light: var(--color-navy-light);
+  --color-navy-pale:  var(--color-navy-pale);
+
+  --color-sky-foxo:       var(--color-sky-foxo);
+  --color-sky-light-foxo: var(--color-sky-light-foxo);
+
+  --color-terra:       var(--color-terra);
+  --color-terra-light: var(--color-terra-light);
+  --color-terra-mid:   var(--color-terra-mid);
+
+  --color-amber-foxo:  var(--color-amber-foxo);
+  --color-amber-light: var(--color-amber-light);
+
+  --color-ok:       var(--color-ok);
+  --color-ok-light: var(--color-ok-light);
+  --color-ok-mid:   var(--color-ok-mid);
+
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Base
+   ───────────────────────────────────────────────────────────────────────── */
+html, body { height: 100%; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-sand);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Transitions thème — uniquement pendant le switch pour ne pas marcher sur
+   les transitions component-spécifiques (hover, etc.). La classe
+   `theme-transitioning` est posée sur <html> pendant 220ms par ThemeToggle.
+   ───────────────────────────────────────────────────────────────────────── */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition-property: background-color, background-image, border-color, color, fill, stroke !important;
+  transition-duration: 200ms !important;
+  transition-timing-function: ease !important;
+  transition-delay: 0s !important;
 }
