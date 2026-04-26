@@ -11,8 +11,17 @@ const SUBDOMAIN_PREFIX: Record<string, string> = {
   'auth.foxo.be':   '/auth',
 };
 
+const KNOWN_GROUP_PATHS = Object.values(SUBDOMAIN_PREFIX);
+
 function resolvePrefix(host: string): string | null {
   return SUBDOMAIN_PREFIX[host.toLowerCase()] ?? null;
+}
+
+// Vrai si le pathname cible déjà un groupe de routes (ex: /auth/login,
+// /admin/syndics). Dans ce cas, ne pas re-préfixer même si on est sur un
+// autre sous-domaine — sinon les redirections cross-app cassent.
+function startsWithKnownGroup(pathname: string): boolean {
+  return KNOWN_GROUP_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
 export async function proxy(request: NextRequest) {
@@ -59,26 +68,30 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 2. Re-écriture de sous-domaine (prod uniquement)
-  if (prefix && !pathname.startsWith(prefix)) {
+  // 2. Calcul du chemin effectif après rewrite éventuel.
+  let targetPathname = pathname;
+  if (prefix && !pathname.startsWith(prefix) && !startsWithKnownGroup(pathname)) {
+    if (prefix === '/auth' && pathname === '/') {
+      // auth.foxo.be n'a pas de page racine — on atterrit sur le login.
+      targetPathname = '/auth/login';
+    } else {
+      targetPathname = prefix + (pathname === '/' ? '' : pathname);
+    }
+  }
+
+  if (targetPathname !== pathname) {
     const url = request.nextUrl.clone();
-    url.pathname = prefix + (pathname === '/' ? '' : pathname);
+    url.pathname = targetPathname;
     const rewritten = NextResponse.rewrite(url, { request });
-    // Reporter les cookies set pendant le refresh sur la réponse rewrite
     response.cookies.getAll().forEach((c) => rewritten.cookies.set(c));
     response = rewritten;
   }
 
   // 3. Protection : routes /admin, /portal, /tech requièrent une session
-  // (l'effective pathname côté Next inclut le préfixe après rewrite)
-  const effective = prefix && !pathname.startsWith(prefix)
-    ? prefix + (pathname === '/' ? '' : pathname)
-    : pathname;
-
   const isProtected =
-    effective.startsWith('/admin') ||
-    effective.startsWith('/portal') ||
-    effective.startsWith('/tech');
+    targetPathname.startsWith('/admin') ||
+    targetPathname.startsWith('/portal') ||
+    targetPathname.startsWith('/tech');
 
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone();
@@ -93,16 +106,16 @@ export async function proxy(request: NextRequest) {
     const expected = role ? pathForRole(role) : null;
     if (
       expected &&
-      ((effective.startsWith('/admin')  && expected !== '/admin') ||
-       (effective.startsWith('/tech')   && expected !== '/tech')   ||
-       (effective.startsWith('/portal') && expected !== '/portal'))
+      ((targetPathname.startsWith('/admin')  && expected !== '/admin') ||
+       (targetPathname.startsWith('/tech')   && expected !== '/tech')   ||
+       (targetPathname.startsWith('/portal') && expected !== '/portal'))
     ) {
       const url = request.nextUrl.clone();
       url.pathname = expected;
       return NextResponse.redirect(url);
     }
     // Déjà connecté → la page de login redirige chez l'utilisateur
-    if (effective === '/auth/login') {
+    if (targetPathname === '/auth/login') {
       const url = request.nextUrl.clone();
       url.pathname = expected ?? '/portal';
       return NextResponse.redirect(url);
