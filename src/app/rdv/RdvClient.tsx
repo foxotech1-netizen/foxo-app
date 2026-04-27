@@ -53,6 +53,8 @@ export function RdvClient({ months }: { months: MonthData[] }) {
 
   const [accepted, setAccepted] = useState(false);
 
+  const [stepError, setStepError] = useState<string | null>(null);
+
   const formRef = useRef<HTMLDivElement>(null);
   const photosInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,20 +66,56 @@ export function RdvClient({ months }: { months: MonthData[] }) {
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function canProceed(): boolean {
+  // Retourne null si l'étape est OK, sinon le message à afficher.
+  function validateStep(): string | null {
     switch (step) {
       case 1:
-        return Boolean(prenom.trim() && nom.trim() && email.trim() && telephone.trim());
+        if (!prenom.trim()) return 'Indiquez votre prénom.';
+        if (!nom.trim()) return 'Indiquez votre nom.';
+        if (!email.trim()) return 'Indiquez votre email.';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Email invalide.';
+        if (!telephone.trim()) return 'Indiquez votre numéro de téléphone.';
+        return null;
       case 2:
-        return Boolean(
-          rue.trim() && codePostal.trim() && ville.trim() &&
-          type && description.trim().length >= 10,
-        );
+        if (!rue.trim() || !codePostal.trim() || !ville.trim()) {
+          return 'Adresse complète requise (rue, code postal, ville).';
+        }
+        if (!type) return 'Sélectionnez un type d\'intervention.';
+        if (description.trim().length < 10) {
+          return 'Décrivez le problème en 10 caractères minimum.';
+        }
+        return null;
       case 3:
-        return true;
+        return null; // créneau optionnel
       case 4:
-        return accepted;
+        if (!accepted) return 'Cochez la case pour confirmer votre demande.';
+        return null;
     }
+  }
+
+  function tryAdvance() {
+    const err = validateStep();
+    if (err) {
+      setStepError(err);
+      return;
+    }
+    setStepError(null);
+    setStep((s) => Math.min(4, s + 1) as Step);
+  }
+
+  function tryGoBack() {
+    setStepError(null);
+    setStep((s) => Math.max(1, s - 1) as Step);
+  }
+
+  function trySubmit() {
+    const err = validateStep();
+    if (err) {
+      setStepError(err);
+      return;
+    }
+    setStepError(null);
+    void handleSubmit();
   }
 
   function onPhotos(e: React.ChangeEvent<HTMLInputElement>) {
@@ -197,16 +235,16 @@ export function RdvClient({ months }: { months: MonthData[] }) {
             />
           )}
 
-          {serverError && (
-            <div className="mt-4 bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5 text-xs">
-              {serverError}
+          {(stepError || serverError) && (
+            <div className="mt-4 bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5 text-xs font-semibold">
+              {stepError ?? serverError}
             </div>
           )}
 
           <div className="flex justify-between gap-2 mt-5">
             <button
               type="button"
-              onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
+              onClick={tryGoBack}
               disabled={step === 1 || submitting}
               className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
             >
@@ -215,8 +253,8 @@ export function RdvClient({ months }: { months: MonthData[] }) {
             {step < 4 ? (
               <button
                 type="button"
-                onClick={() => setStep((s) => Math.min(4, s + 1) as Step)}
-                disabled={!canProceed()}
+                onClick={tryAdvance}
+                disabled={submitting}
                 className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
               >
                 Suivant →
@@ -224,8 +262,8 @@ export function RdvClient({ months }: { months: MonthData[] }) {
             ) : (
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={!canProceed() || submitting}
+                onClick={trySubmit}
+                disabled={submitting}
                 className="bg-navy text-white px-5 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
               >
                 {submitting ? 'Envoi…' : 'Confirmer ma demande'}
