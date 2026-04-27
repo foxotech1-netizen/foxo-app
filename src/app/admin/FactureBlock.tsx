@@ -89,7 +89,7 @@ export function FactureBlock({
         )}
         <button
           onClick={() => { setEditing(true); setFeedback(null); }}
-          className="mt-3 bg-sand-mid text-ink-mid px-3 py-1.5 rounded-md text-[11px] font-semibold"
+          className="mt-3 bg-[#A17244] text-white px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-[#8A613B]"
         >
           Ré-émettre / corriger
         </button>

@@ -201,7 +201,7 @@ export function RapportPanel({
                       'text-[10px] font-bold px-2 py-1 rounded-md ' +
                       (isActive
                         ? 'bg-terra text-white animate-pulse'
-                        : 'bg-[#152D54] text-[#A8D4E8] hover:bg-[#1B3A6B]')
+                        : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
                     }
                   >
                     {isActive ? '● Arrêter' : '🎙 Dicter'}
@@ -239,7 +239,7 @@ export function RapportPanel({
           <button
             onClick={() => doSave()}
             disabled={pending}
-            className="bg-[#152D54] text-[#A8D4E8] py-3 rounded-xl font-bold text-[13px] disabled:opacity-50 active:opacity-80"
+            className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50 active:opacity-80"
           >
             {pending ? '…' : 'Enregistrer brouillon'}
           </button>
@@ -261,7 +261,7 @@ export function RapportPanel({
       <button
         onClick={doDriveSync}
         disabled={pending}
-        className="w-full mt-2 bg-[#152D54] text-[#A8D4E8] py-2.5 rounded-xl text-[12px] font-semibold border border-navy disabled:opacity-50"
+        className="w-full mt-2 bg-[#A17244] text-white py-2.5 rounded-xl text-[12px] font-semibold hover:bg-[#8A613B] disabled:opacity-50"
       >
         ☁ Synchroniser vers Google Drive
       </button>

@@ -486,7 +486,7 @@ export function InterventionsClient({
                       <button
                         onClick={resendRapport}
                         disabled={emailPending}
-                        className="w-full bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                        className="w-full bg-[#A17244] text-white py-2.5 rounded-lg text-xs font-bold hover:bg-[#8A613B] disabled:opacity-50"
                       >
                         {emailPending ? 'Envoi…' : '✉ Envoyer le rapport au syndic'}
                       </button>

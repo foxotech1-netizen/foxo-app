@@ -61,9 +61,9 @@ export function DownloadButton({
         className="
           inline-flex items-center justify-center gap-2
           px-4 py-2.5 rounded-lg text-[13px] font-semibold
-          border border-[#1B3A6B] text-[#1B3A6B] bg-transparent
-          hover:bg-[#1B3A6B] hover:text-white
-          disabled:opacity-60 disabled:cursor-wait disabled:hover:bg-transparent disabled:hover:text-[#1B3A6B]
+          border border-[#A17244] text-[#A17244] bg-transparent
+          hover:bg-[#A17244] hover:text-white
+          disabled:opacity-60 disabled:cursor-wait disabled:hover:bg-transparent disabled:hover:text-[#A17244]
           transition-colors
         "
       >
