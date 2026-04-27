@@ -174,13 +174,13 @@ export function RapportPanel({
   }
 
   return (
-    <section className="bg-[#0F2040] border border-navy rounded-2xl p-4">
+    <section className="bg-cream border border-sand-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] font-bold text-[#5A7494] uppercase tracking-widest">
+        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
           Rapport
         </div>
         {savedAt && (
-          <span className="text-[10px] text-[#5A7494] font-mono">
+          <span className="text-[10px] text-ink-muted font-mono">
             Enregistré {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
@@ -192,7 +192,7 @@ export function RapportPanel({
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[12px] font-bold text-[#A8D4E8]">{label}</label>
+                <label className="text-[12px] font-bold text-navy">{label}</label>
                 {supportsSpeech && !alreadyPublished && (
                   <button
                     type="button"
@@ -214,7 +214,7 @@ export function RapportPanel({
                 placeholder={placeholder}
                 rows={4}
                 disabled={alreadyPublished}
-                className="w-full bg-[#152D54] border border-navy rounded-lg px-3 py-2 text-[13px] text-[#F0ECE4] outline-none focus:border-navy-mid resize-y min-h-[80px] disabled:opacity-70"
+                className="w-full bg-white border border-sand-border rounded-lg px-3 py-2 text-[13px] text-ink outline-none focus:border-navy-mid resize-y min-h-[80px] disabled:opacity-70 disabled:bg-sand-mid"
               />
             </div>
           );
@@ -224,10 +224,10 @@ export function RapportPanel({
       {feedback && (
         <div
           className={
-            'text-[11px] rounded-md px-3 py-2 mt-3 border ' +
+            'text-[11px] rounded-md px-3 py-2 mt-3 border font-semibold ' +
             (feedback.kind === 'ok'
-              ? 'bg-ok/15 border-ok/40 text-[#8FD0AC]'
-              : 'bg-terra-light/10 border-terra/40 text-terra')
+              ? 'bg-ok-light border-ok-mid text-ok'
+              : 'bg-terra-light border-terra-mid text-terra')
           }
         >
           {feedback.msg}
@@ -253,7 +253,7 @@ export function RapportPanel({
           </button>
         </div>
       ) : (
-        <div className="bg-ok/15 border border-ok/40 rounded-md px-3 py-2 text-[11px] text-[#8FD0AC] mt-3 text-center">
+        <div className="bg-ok-light border border-ok-mid rounded-md px-3 py-2 text-[11px] text-ok mt-3 text-center font-semibold">
           ✓ Rapport déjà publié
         </div>
       )}
@@ -267,7 +267,7 @@ export function RapportPanel({
       </button>
 
       {!supportsSpeech && (
-        <p className="text-[10px] text-[#5A7494] mt-2 leading-relaxed">
+        <p className="text-[10px] text-ink-muted mt-2 leading-relaxed">
           Dictée vocale indisponible sur ce navigateur. Chrome/Edge sur Android ou Safari iOS recommandé.
         </p>
       )}

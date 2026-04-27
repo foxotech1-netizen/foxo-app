@@ -65,8 +65,8 @@ export function TimerPanel({
   }
 
   return (
-    <section className="bg-[#0F2040] border border-navy rounded-2xl p-4">
-      <div className="text-[10px] font-bold text-[#5A7494] uppercase tracking-widest mb-3">
+    <section className="bg-cream border border-sand-border rounded-2xl p-4">
+      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-3">
         Suivi temps
       </div>
 
@@ -83,14 +83,14 @@ export function TimerPanel({
       {startedAt && !endedAt && (
         <>
           <div className="text-center mb-3">
-            <div className="text-[10px] text-[#5A7494] uppercase tracking-widest mb-1">
+            <div className="text-[10px] text-ink-muted uppercase tracking-widest mb-1">
               En cours
             </div>
-            <div className="text-3xl font-extrabold text-[#A8D4E8] font-mono tabular-nums">
+            <div className="text-3xl font-extrabold text-navy font-mono tabular-nums">
               {elapsed}
             </div>
-            <div className="text-[10px] text-[#5A7494] mt-1">
-              Démarré à {new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+            <div className="text-[10px] text-ink-muted mt-1">
+              Démarré à <span className="font-mono">{new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
           <button
@@ -104,24 +104,24 @@ export function TimerPanel({
       )}
 
       {endedAt && (
-        <div className="bg-[#152D54] rounded-xl p-3.5 text-center">
-          <div className="text-[10px] text-[#5A7494] uppercase tracking-widest mb-1">
+        <div className="bg-navy-pale border border-navy-light rounded-xl p-3.5 text-center">
+          <div className="text-[10px] text-ink-muted uppercase tracking-widest mb-1">
             Terminée
           </div>
-          <div className="text-2xl font-extrabold text-[#A8D4E8] font-mono tabular-nums">
+          <div className="text-2xl font-extrabold text-navy font-mono tabular-nums">
             {elapsed}
           </div>
-          <div className="text-[10px] text-[#8AAAC0] mt-1">
+          <div className="text-[10px] text-ink-mid mt-1 font-mono">
             {startedAt && new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
             {' — '}
             {new Date(endedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
           </div>
-          <div className="text-[11px] text-[#5A7494] mt-2">Statut actuel : {statut}</div>
+          <div className="text-[11px] text-ink-muted mt-2">Statut actuel : {statut}</div>
         </div>
       )}
 
       {error && (
-        <div className="text-[11px] text-terra bg-terra-light/10 border border-terra/30 rounded-md px-3 py-2 mt-2">
+        <div className="text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 mt-2 font-semibold">
           {error}
         </div>
       )}

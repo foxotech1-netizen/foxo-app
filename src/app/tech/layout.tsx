@@ -38,39 +38,26 @@ export default async function TechLayout({
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ background: 'var(--tech-bg)', color: 'var(--tech-text)' }}
-    >
+    <div className="min-h-screen flex flex-col bg-sand text-ink">
+      {/* Bannière logo cohérente avec portal/rdv/admin */}
       <header
-        className="px-4 h-14 flex items-center justify-between sticky top-0 z-50"
-        style={{
-          background: 'var(--tech-card)',
-          borderBottom: '1px solid var(--tech-border)',
-        }}
+        className="px-4 h-16 flex items-center justify-between sticky top-0 z-50 border-b border-[rgba(0,0,0,0.12)]"
+        style={{ background: 'var(--sidebar-logo-bg)' }}
       >
         <Link href="/tech" className="flex items-center gap-2.5">
-          <Logo size={32} priority />
+          <Logo size={36} variant="black" priority />
           <div>
-            <div
-              className="text-[15px] font-extrabold leading-none"
-              style={{ color: 'var(--tech-text)' }}
-            >FoxO</div>
-            <div
-              className="text-[9px] uppercase tracking-widest font-bold mt-0.5"
-              style={{ color: 'var(--tech-text-mute)' }}
-            >Technicien</div>
+            <div className="text-[10px] text-[#7A6A50] uppercase tracking-[.15em] font-semibold">
+              Technicien
+            </div>
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <ThemeToggle
-            className="w-8 h-8 rounded-md flex items-center justify-center text-[14px]"
-          />
+          <ThemeToggle className="w-8 h-8 rounded-md flex items-center justify-center text-[14px] hover:bg-black/5" />
           <form action="/auth/logout" method="POST">
             <button
               type="submit"
-              className="text-[11px] px-2 hover:opacity-80"
-              style={{ color: 'var(--tech-text-mute)' }}
+              className="text-[11px] px-2 text-ink-mid hover:text-ink"
             >
               Déconnexion
             </button>

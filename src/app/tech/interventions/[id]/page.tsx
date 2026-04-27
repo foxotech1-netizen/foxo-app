@@ -59,29 +59,29 @@ export default async function TechInterventionPage({
 
   return (
     <div className="space-y-4">
-      <Link href="/tech" className="text-xs text-[#A8D4E8] hover:underline">
+      <Link href="/tech" className="text-xs text-navy hover:underline font-semibold">
         ← Mes missions
       </Link>
 
       {/* En-tête */}
-      <header className="bg-[#0F2040] border border-navy rounded-2xl p-4">
+      <header className="bg-cream border border-sand-border rounded-2xl p-4">
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
-          <span className="font-mono text-[11px] text-[#8AAAC0]">{iv.ref ?? '—'}</span>
+          <span className="font-mono text-[11px] text-ink-muted">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light/20 border border-terra/40 rounded-full px-1.5 py-0.5">
+            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
               ⚡ URGENT
             </span>
           )}
         </div>
-        <h1 className="text-lg font-extrabold text-[#F0ECE4]">{acp?.nom ?? '—'}</h1>
-        <div className="text-xs text-[#8AAAC0] mt-1">
+        <h1 className="text-lg font-extrabold text-ink">{acp?.nom ?? '—'}</h1>
+        <div className="text-xs text-ink-mid mt-1">
           {[acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—'}
         </div>
         {iv.adresse && (
-          <div className="text-xs text-[#A8D4E8] font-semibold mt-1">📍 {iv.adresse}</div>
+          <div className="text-xs text-navy font-semibold mt-1">📍 {iv.adresse}</div>
         )}
         {iv.creneau_debut && (
-          <div className="text-[11px] text-[#5A7494] mt-2 font-mono capitalize">
+          <div className="text-[11px] text-ink-muted mt-2 font-mono capitalize">
             {fmtDateTime(iv.creneau_debut, true)}
           </div>
         )}
@@ -89,9 +89,9 @@ export default async function TechInterventionPage({
 
       {/* Problème déclaré */}
       <Block title="Problème déclaré">
-        <strong className="text-[#F0ECE4]">{iv.type ?? '—'}</strong>
+        <strong className="text-ink">{iv.type ?? '—'}</strong>
         {iv.description && (
-          <p className="text-[#8AAAC0] mt-1.5 whitespace-pre-wrap text-[13px]">{iv.description}</p>
+          <p className="text-ink-mid mt-1.5 whitespace-pre-wrap text-[13px]">{iv.description}</p>
         )}
       </Block>
 
@@ -100,15 +100,15 @@ export default async function TechInterventionPage({
         <Block title="Demandeur">
           <div className="flex justify-between items-center gap-2">
             <div>
-              <div className="font-semibold text-[#F0ECE4] text-[13px]">{syndic.nom}</div>
+              <div className="font-semibold text-ink text-[13px]">{syndic.nom}</div>
               {syndic.telephone && (
-                <div className="text-[11px] text-[#8AAAC0] font-mono">{syndic.telephone}</div>
+                <div className="text-[11px] text-ink-mid font-mono">{syndic.telephone}</div>
               )}
             </div>
             {syndic.telephone && (
               <a
                 href={`tel:${syndic.telephone}`}
-                className="bg-navy text-white px-3 py-1.5 rounded-md text-[11px] font-bold"
+                className="bg-navy text-white px-3 py-1.5 rounded-md text-[11px] font-bold hover:bg-navy-mid"
               >
                 Appeler
               </a>
@@ -120,20 +120,20 @@ export default async function TechInterventionPage({
       {/* Occupants */}
       {occupants.length > 0 && (
         <Block title={`Occupants (${occupants.length})`}>
-          <div className="divide-y divide-navy">
+          <div className="divide-y divide-sand-mid">
             {occupants.map((o) => (
               <div key={o.id} className="py-2 first:pt-0 last:pb-0 flex justify-between items-center gap-2">
                 <div>
-                  <div className="text-[13px] font-semibold text-[#F0ECE4]">{o.nom ?? '—'}</div>
-                  <div className="text-[11px] text-[#8AAAC0]">
+                  <div className="text-[13px] font-semibold text-ink">{o.nom ?? '—'}</div>
+                  <div className="text-[11px] text-ink-mid">
                     Apt. {o.appartement ?? '—'}
-                    {o.telephone ? <> · {o.telephone}</> : null}
+                    {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
                   </div>
                 </div>
                 {o.telephone && (
                   <a
                     href={`tel:${o.telephone}`}
-                    className="bg-[#152D54] text-[#A8D4E8] px-2.5 py-1 rounded-md text-[11px] font-bold"
+                    className="bg-sand-mid text-navy px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-sand-border"
                   >
                     📞
                   </a>
@@ -180,8 +180,8 @@ export default async function TechInterventionPage({
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="bg-[#0F2040] border border-navy rounded-2xl p-4">
-      <div className="text-[10px] font-bold text-[#5A7494] uppercase tracking-widest mb-2">
+    <section className="bg-cream border border-sand-border rounded-2xl p-4">
+      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-2">
         {title}
       </div>
       {children}

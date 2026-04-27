@@ -31,9 +31,9 @@ export default async function TechHome() {
 
   if (!u) {
     return (
-      <div className="bg-[#0F2040] border border-navy rounded-2xl p-6 text-center">
-        <h1 className="text-lg font-extrabold text-[#F0ECE4] mb-2">Compte non encodé</h1>
-        <p className="text-sm text-[#8AAAC0]">
+      <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center">
+        <h1 className="text-lg font-extrabold text-ink mb-2">Compte non encodé</h1>
+        <p className="text-sm text-ink-mid">
           {user?.email} n&apos;existe pas dans la table utilisateurs.<br />
           Contacte l&apos;administrateur pour finaliser ton accès.
         </p>
@@ -107,11 +107,11 @@ export default async function TechHome() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-xl font-extrabold text-[#F0ECE4]">
+        <h1 className="text-xl font-extrabold text-ink">
           Bonjour {u.prenom ?? ''} 👋
         </h1>
-        <p className="text-[11px] text-[#8AAAC0] capitalize mt-1">{todayLong()}</p>
-        <p className="text-xs text-[#5A7494] mt-1">
+        <p className="text-[11px] text-ink-muted capitalize mt-1">{todayLong()}</p>
+        <p className="text-xs text-ink-mid mt-1">
           {aujourdhui.length} mission(s) aujourd&apos;hui · {aVenir.length} à venir
           {enCoursCount > 0 ? ` · ${enCoursCount} en cours` : ''}
         </p>
@@ -126,11 +126,11 @@ export default async function TechHome() {
 function Section({ title, missions, empty }: { title: string; missions: Mission[]; empty: string }) {
   return (
     <section>
-      <h2 className="text-[11px] uppercase tracking-widest text-[#5A7494] font-bold mb-2.5">
+      <h2 className="text-[11px] uppercase tracking-widest text-ink-muted font-bold mb-2.5">
         {title}
       </h2>
       {missions.length === 0 ? (
-        <p className="text-xs text-[#5A7494] bg-[#0F2040] border border-navy rounded-xl p-4">
+        <p className="text-xs text-ink-mid bg-cream border border-sand-border rounded-xl p-4">
           {empty}
         </p>
       ) : (
@@ -150,42 +150,42 @@ function MissionCard({ m }: { m: Mission }) {
   return (
     <Link
       href={`/tech/interventions/${m.id}`}
-      className="block bg-[#0F2040] border border-navy rounded-xl p-3.5 hover:bg-[#152D54] active:bg-[#152D54] transition-colors"
+      className="block bg-cream border border-sand-border rounded-xl p-3.5 hover:bg-sand-hover active:bg-sand-hover transition-colors"
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[11px] font-semibold text-[#A8D4E8]">
+          <span className="font-mono text-[11px] font-semibold text-navy">
             {m.ref ?? '—'}
           </span>
           {m.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light/20 border border-terra/40 rounded-full px-1.5 py-0.5">
+            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
               ⚡ URGENT
             </span>
           )}
           {inProgress && (
-            <span className="text-[9px] font-bold text-[#F0ECE4] bg-ok/40 border border-ok rounded-full px-1.5 py-0.5">
+            <span className="text-[9px] font-bold text-ok bg-ok-light border border-ok-mid rounded-full px-1.5 py-0.5">
               ● EN COURS
             </span>
           )}
           {done && (
-            <span className="text-[9px] font-bold text-[#A8D4E8] bg-navy-light/20 border border-navy-mid rounded-full px-1.5 py-0.5">
+            <span className="text-[9px] font-bold text-navy bg-navy-pale border border-navy-light rounded-full px-1.5 py-0.5">
               ✓ TERMINÉE
             </span>
           )}
         </div>
         <StatutBadge statut={m.statut} />
       </div>
-      <div className="font-bold text-[14px] text-[#F0ECE4]">{m.acp_nom ?? '—'}</div>
-      <div className="text-[11px] text-[#8AAAC0] mt-0.5">
+      <div className="font-bold text-[14px] text-ink">{m.acp_nom ?? '—'}</div>
+      <div className="text-[11px] text-ink-mid mt-0.5">
         {[m.acp_adresse, m.acp_ville].filter(Boolean).join(', ') || '—'}
-        {m.adresse ? <> · <span className="text-[#A8D4E8]">{m.adresse}</span></> : null}
+        {m.adresse ? <> · <span className="text-navy font-semibold">{m.adresse}</span></> : null}
       </div>
-      <div className="text-[11px] text-[#5A7494] mt-1.5 flex items-center gap-2 font-mono">
+      <div className="text-[11px] text-ink-muted mt-1.5 flex items-center gap-2 font-mono">
         <span>{fmtDateTime(m.creneau_debut)}</span>
-        {m.type && <><span>·</span><span>{m.type}</span></>}
+        {m.type && <><span>·</span><span className="font-sans">{m.type}</span></>}
       </div>
       {m.syndic_nom && (
-        <div className="text-[11px] text-[#5A7494] mt-1">{m.syndic_nom}</div>
+        <div className="text-[11px] text-ink-muted mt-1">{m.syndic_nom}</div>
       )}
     </Link>
   );

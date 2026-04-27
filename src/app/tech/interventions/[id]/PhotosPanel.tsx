@@ -63,12 +63,12 @@ export function PhotosPanel({
   }
 
   return (
-    <section className="bg-[#0F2040] border border-navy rounded-2xl p-4">
+    <section className="bg-cream border border-sand-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] font-bold text-[#5A7494] uppercase tracking-widest">
+        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
           Photos terrain
         </div>
-        <span className="text-[11px] text-[#8AAAC0]">{photos.length}</span>
+        <span className="text-[11px] text-ink-mid">{photos.length}</span>
       </div>
 
       <input
@@ -86,7 +86,7 @@ export function PhotosPanel({
         htmlFor="photo-input"
         className={
           'block w-full text-center py-3.5 rounded-xl font-bold text-[14px] cursor-pointer ' +
-          (uploading ? 'bg-[#152D54] text-[#5A7494]' : 'bg-navy text-white active:bg-navy-mid')
+          (uploading ? 'bg-sand-mid text-ink-muted' : 'bg-navy text-white hover:bg-navy-mid active:bg-navy-mid')
         }
       >
         {uploading
@@ -95,7 +95,7 @@ export function PhotosPanel({
       </label>
 
       {error && (
-        <div className="text-[11px] text-terra bg-terra-light/10 border border-terra/30 rounded-md px-3 py-2 mt-2">
+        <div className="text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 mt-2 font-semibold">
           {error}
         </div>
       )}
@@ -108,7 +108,7 @@ export function PhotosPanel({
               href={p.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block aspect-square overflow-hidden rounded-md border border-navy bg-[#152D54]"
+              className="block aspect-square overflow-hidden rounded-md border border-sand-border bg-sand-mid"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
@@ -117,7 +117,7 @@ export function PhotosPanel({
         </div>
       )}
 
-      <p className="text-[10px] text-[#5A7494] mt-3 leading-relaxed">
+      <p className="text-[10px] text-ink-muted mt-3 leading-relaxed">
         Stockées dans Supabase Storage (bucket privé). Lien valide 24h pour la prévisualisation.
       </p>
     </section>

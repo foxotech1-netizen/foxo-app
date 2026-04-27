@@ -51,14 +51,14 @@
   --sidebar-logo-bg:   #E2C9A1;
   --sidebar-logo-fg:   #7A6A50;
 
-  /* Tech app outer chrome (gardé proche du navy d'origine en clair) */
-  --tech-bg:        #080F1A;
-  --tech-card:      #0F2040;
-  --tech-card-mid:  #152D54;
-  --tech-text:      #F0ECE4;
-  --tech-text-mid:  #8AAAC0;
-  --tech-text-mute: #5A7494;
-  --tech-border:    #1B3A6B;
+  /* Tech app — light theme aligné sur la palette générale */
+  --tech-bg:        #F5F2EC;
+  --tech-card:      #FDFBF7;
+  --tech-card-mid:  #EDE8DF;
+  --tech-text:      #1C1A16;
+  --tech-text-mid:  #6B6558;
+  --tech-text-mute: #A09A8E;
+  --tech-border:    #DDD8CC;
 
   color-scheme: light;
 }
@@ -90,14 +90,14 @@
   --sidebar-logo-bg: #C8A876;
   --sidebar-logo-fg: #5A4A30;
 
-  /* Tech — déjà dark, légèrement décalé */
-  --tech-bg:        #050B14;
-  --tech-card:      #0A1830;
-  --tech-card-mid:  #122544;
+  /* Tech — variantes sombres en dark mode */
+  --tech-bg:        #141210;
+  --tech-card:      #1C1A16;
+  --tech-card-mid:  #221E1A;
   --tech-text:      #F0ECE4;
-  --tech-text-mid:  #8AAAC0;
-  --tech-text-mute: #5A7494;
-  --tech-border:    #1B3A6B;
+  --tech-text-mid:  #8A8278;
+  --tech-text-mute: #5A5650;
+  --tech-border:    #2C2A24;
 
   color-scheme: dark;
 }
