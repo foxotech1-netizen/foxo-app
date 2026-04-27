@@ -34,6 +34,20 @@ export type TypeIntervention =
 
 export type TypeOrganisation = 'syndic' | 'courtier';
 
+export type DemandeurType = 'particulier' | 'syndic' | 'courtier';
+
+export interface ParticulierContact {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  adresse: {
+    rue: string;
+    code_postal: string;
+    ville: string;
+  };
+}
+
 export interface Organisation {
   id: string;
   nom: string;
@@ -86,6 +100,8 @@ export interface Intervention {
   date_demande: string | null;
   started_at: string | null;
   ended_at: string | null;
+  demandeur_type: DemandeurType | null;
+  particulier_contact: ParticulierContact | null;
 }
 
 export interface Rapport {

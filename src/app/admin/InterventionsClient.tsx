@@ -385,10 +385,40 @@ export function InterventionsClient({
                     <strong>{selected.type ?? '—'}</strong>
                     <p className="text-ink-mid mt-1.5">{selected.description ?? '—'}</p>
                   </Block>
-                  <Block title="Demandeur">
-                    <div className="font-bold text-[13px]">{selected.syndic?.nom ?? '—'}</div>
-                    <div className="text-[11px] text-ink-muted mt-0.5">{selected.syndic?.type ?? ''}</div>
-                  </Block>
+                  {selected.demandeur_type === 'particulier' && selected.particulier_contact ? (
+                    <Block title="Contact particulier">
+                      <div className="font-bold text-[14px]">
+                        {selected.particulier_contact.prenom} {selected.particulier_contact.nom}
+                      </div>
+                      <div className="mt-2 space-y-1 text-[13px]">
+                        <a
+                          href={`mailto:${selected.particulier_contact.email}`}
+                          className="block text-navy hover:underline font-mono text-xs"
+                        >
+                          ✉ {selected.particulier_contact.email}
+                        </a>
+                        <a
+                          href={`tel:${selected.particulier_contact.telephone.replace(/\s/g, '')}`}
+                          className="block text-navy hover:underline font-mono text-xs"
+                        >
+                          📞 {selected.particulier_contact.telephone}
+                        </a>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-sand-border text-[12px] text-ink-mid">
+                        <div className="text-[10px] text-ink-muted uppercase tracking-wider font-bold mb-1">
+                          Logement
+                        </div>
+                        📍 {selected.particulier_contact.adresse.rue}<br />
+                        {selected.particulier_contact.adresse.code_postal}{' '}
+                        {selected.particulier_contact.adresse.ville}
+                      </div>
+                    </Block>
+                  ) : (
+                    <Block title="Demandeur">
+                      <div className="font-bold text-[13px]">{selected.syndic?.nom ?? '—'}</div>
+                      <div className="text-[11px] text-ink-muted mt-0.5">{selected.syndic?.type ?? ''}</div>
+                    </Block>
+                  )}
                   <Block title="Technicien assigné">
                     {selected.technicien ? (
                       <span className="font-bold text-[13px]">
