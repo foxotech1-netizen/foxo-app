@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export type Reponse = 'confirme' | 'decline';
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -13,8 +13,10 @@ const STATUTS_ACCEPTANT_REPONSE = [
   'confirmee',
 ];
 
-// Met à jour la réponse d'un occupant. Public — pas d'auth requise.
-// On ne se fie qu'à l'UUID v4 dans l'URL pour l'identification.
+// Met à jour la réponse d'un occupant. Public — pas d'auth applicative.
+// L'identification se fait par l'UUID v4 dans l'URL (122 bits d'entropie,
+// non énumérable). Service-role obligatoire car RLS bloque les anonymes
+// sur la table occupants.
 export async function respondAsOccupant(
   occupantId: string,
   reponse: Reponse,
@@ -23,9 +25,14 @@ export async function respondAsOccupant(
     return { ok: false, error: 'Réponse invalide.' };
   }
 
-  const supabase = await createClient();
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { ok: false, error: 'Configuration serveur incomplète.' };
+  }
 
-  const { data: occ } = await supabase
+  const { data: occ } = await admin
     .from('occupants')
     .select('id, intervention_id')
     .eq('id', occupantId)
@@ -33,9 +40,7 @@ export async function respondAsOccupant(
 
   if (!occ) return { ok: false, error: 'Lien invalide ou expiré.' };
 
-  // Vérifier que l'intervention est encore dans une phase qui accepte les
-  // confirmations. Au-delà (réalisée/clôturée), changer la réponse n'a plus de sens.
-  const { data: iv } = await supabase
+  const { data: iv } = await admin
     .from('interventions')
     .select('statut')
     .eq('id', occ.intervention_id)
@@ -46,7 +51,7 @@ export async function respondAsOccupant(
     return { ok: false, error: 'L\'intervention n\'accepte plus de modification de présence.' };
   }
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('occupants')
     .update({ conf: reponse })
     .eq('id', occupantId);

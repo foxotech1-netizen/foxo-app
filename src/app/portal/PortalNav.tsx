@@ -2,20 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-const TABS = [
-  { href: '/portal', label: 'Tableau de bord' },
-  { href: '/portal/interventions', label: 'Interventions' },
-  { href: '/portal/calendar', label: 'Disponibilités' },
-  { href: '/portal/nouveau', label: 'Nouvelle demande' },
-];
+import { useVocab } from './PortalContext';
 
 export function PortalNav() {
   const pathname = usePathname();
+  const v = useVocab();
+
+  const tabs = [
+    { href: '/portal', label: 'Tableau de bord' },
+    { href: '/portal/interventions', label: v.interventionsCap },
+    { href: '/portal/calendar', label: 'Disponibilités' },
+    { href: '/portal/nouveau', label: v.newRequestVerb.replace(/^\+\s*/, '') },
+  ];
+
   return (
     <nav className="bg-cream border-b border-sand-border sticky top-0 z-40">
       <div className="max-w-[1100px] mx-auto px-3 sm:px-6 flex items-center gap-1 overflow-x-auto">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active =
             pathname === tab.href ||
             (tab.href !== '/portal' && pathname.startsWith(tab.href + '/')) ||

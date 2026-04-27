@@ -4,6 +4,7 @@ import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { getMonthSlots } from '@/lib/portal/availability';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, fmtDateTime, todayLong } from '@/lib/format';
+import { vocabFor, type OrgType } from '@/lib/portal/vocab';
 import type { Intervention } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,12 @@ export default async function PortalDashboard() {
 
   const recent = interventions.slice(0, 4);
 
+  const orgType: OrgType = org.type === 'courtier' ? 'courtier' : 'syndic';
+  const v = vocabFor(orgType);
+  const accentBg = orgType === 'courtier'
+    ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
+    : 'bg-navy hover:bg-navy-mid';
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -80,9 +87,9 @@ export default async function PortalDashboard() {
         </div>
         <Link
           href="/portal/nouveau"
-          className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-navy-mid"
+          className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
         >
-          + Nouvelle demande
+          {v.newRequestVerb}
         </Link>
       </div>
 
@@ -107,12 +114,12 @@ export default async function PortalDashboard() {
       <div className="grid md:grid-cols-2 gap-5">
         {/* Récentes */}
         <section>
-          <h2 className="text-sm font-bold text-ink mb-3">Interventions récentes</h2>
+          <h2 className="text-sm font-bold text-ink mb-3">{v.interventionsCap} récent{orgType === 'syndic' ? 'es' : 's'}</h2>
           {recent.length === 0 ? (
             <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4">
-              Aucune intervention pour l&apos;instant.{' '}
+              {v.emptyList} pour l&apos;instant.{' '}
               <Link href="/portal/nouveau" className="text-navy underline">
-                Créer la première
+                Créer le premier
               </Link>
               .
             </p>

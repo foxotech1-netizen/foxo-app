@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { Logo } from '@/components/Logo';
 import { DownloadButton } from '@/components/DownloadButton';
 import { fmtDateTime } from '@/lib/format';
@@ -17,7 +17,9 @@ export default async function OccupantPortal({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  // Public — pas de session. Service-role car RLS bloque les anonymes.
+  // L'UUID dans l'URL est l'authentification (impossible à énumérer).
+  const supabase = createAdminClient();
 
   const { data: occData } = await supabase
     .from('occupants')

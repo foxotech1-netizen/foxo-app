@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Acp, PrioriteIntervention, TypeIntervention } from '@/lib/types/database';
+import { useOrgType, useVocab } from '../PortalContext';
 import {
   searchAcp,
   createAcp,
@@ -21,8 +22,6 @@ const TYPES: TypeIntervention[] = [
 
 const HOURS = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
 
-const STEP_LABELS = ['ACP', 'Problème', 'Occupants', 'Créneau', 'Facturation'];
-
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export function NewRequestClient({
@@ -35,12 +34,23 @@ export function NewRequestClient({
   billingDefault: { nom: string; email: string; bce: string };
 }) {
   const router = useRouter();
+  const orgType = useOrgType();
+  const vocab = useVocab();
+  const isCourtier = orgType === 'courtier';
+  const accentBg = isCourtier
+    ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
+    : 'bg-navy hover:bg-navy-mid';
+
+  const STEP_LABELS = isCourtier
+    ? ['Sinistre', 'Problème', 'Occupants', 'Créneau', 'Facturation']
+    : ['ACP', 'Problème', 'Occupants', 'Créneau', 'Facturation'];
+
   const [step, setStep] = useState<Step>(1);
   const [pending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Step 1 : ACP
+  // Step 1 — Mode SYNDIC : ACP
   const [acpQuery, setAcpQuery] = useState('');
   const [acpResults, setAcpResults] = useState<Acp[]>([]);
   const [selectedAcp, setSelectedAcp] = useState<Acp | null>(null);
@@ -57,6 +67,13 @@ export function NewRequestClient({
     email_facturation: '',
   });
   const [adressePrecise, setAdressePrecise] = useState('');
+
+  // Step 1 — Mode COURTIER : assuré + adresse sinistre + ref compagnie
+  const [assureNom, setAssureNom] = useState('');
+  const [sinistreRue, setSinistreRue] = useState('');
+  const [sinistreCP, setSinistreCP] = useState('');
+  const [sinistreVille, setSinistreVille] = useState('');
+  const [refCompagnie, setRefCompagnie] = useState('');
 
   // Step 2 : Problème
   const [type, setType] = useState<TypeIntervention | ''>('');
@@ -136,16 +153,24 @@ export function NewRequestClient({
   // Validation par étape
   function canProceed(): boolean {
     switch (step) {
-      case 1: return Boolean(selectedAcp);
+      case 1:
+        if (isCourtier) {
+          return Boolean(
+            assureNom.trim() &&
+            sinistreRue.trim() && sinistreCP.trim() && sinistreVille.trim() &&
+            refCompagnie.trim()
+          );
+        }
+        return Boolean(selectedAcp);
       case 2: return Boolean(type) && description.trim().length > 5;
-      case 3: return true; // optionnel
-      case 4: return true; // optionnel
-      case 5: return true; // optionnel
+      case 3: return true;
+      case 4: return true;
+      case 5: return true;
     }
   }
 
   async function handleSubmit() {
-    if (!selectedAcp) return;
+    if (!isCourtier && !selectedAcp) return;
     setSubmitting(true);
     setSubmitError(null);
     let creneauIso: string | null = null;
@@ -154,11 +179,20 @@ export function NewRequestClient({
       creneauIso = new Date(`${creneauDate}T${heure}:00`).toISOString();
     }
     const res = await submitRequest({
-      acp_id: selectedAcp.id,
+      acp_id: isCourtier ? null : selectedAcp!.id,
+      adresse_precise: isCourtier ? '' : adressePrecise,
+      courtier: isCourtier
+        ? {
+            assure_nom: assureNom,
+            sinistre_rue: sinistreRue,
+            sinistre_code_postal: sinistreCP,
+            sinistre_ville: sinistreVille,
+            ref_compagnie: refCompagnie,
+          }
+        : undefined,
       type,
       description,
       priorite,
-      adresse_precise: adressePrecise,
       creneau_iso: creneauIso,
       facturation: { nom: factNom, email: factEmail, bce: factBce, ref_bon_commande: factRefBC },
       occupants,
@@ -174,34 +208,46 @@ export function NewRequestClient({
   return (
     <div className="space-y-5 max-w-[760px] mx-auto">
       <div>
-        <h1 className="text-xl font-extrabold text-ink">Nouvelle demande d&apos;intervention</h1>
+        <h1 className="text-xl font-extrabold text-ink">
+          {isCourtier ? 'Confier une mission' : 'Nouvelle demande d\'intervention'}
+        </h1>
         <p className="text-xs text-ink-mid mt-1">
           5 étapes — vous pouvez revenir en arrière à tout moment.
         </p>
       </div>
 
-      <StepIndicator step={step} />
+      <StepIndicator step={step} labels={STEP_LABELS} />
 
       <div className="bg-cream border border-sand-border rounded-2xl p-5">
         {step === 1 && (
-          <Step1
-            query={acpQuery}
-            setQuery={(v) => { setAcpQuery(v); if (selectedAcp) setSelectedAcp(null); }}
-            results={acpResults}
-            selectedAcp={selectedAcp}
-            adressePrecise={adressePrecise}
-            setAdressePrecise={setAdressePrecise}
-            onPick={pickAcp}
-            onClear={clearAcp}
-            searching={pending}
-            searchError={acpSearchError}
-            showCreate={showCreateAcp}
-            setShowCreate={setShowCreateAcp}
-            newAcp={newAcp}
-            setNewAcp={setNewAcp}
-            onCreate={handleCreateAcp}
-            creating={creatingAcp}
-          />
+          isCourtier ? (
+            <Step1Courtier
+              assureNom={assureNom} setAssureNom={setAssureNom}
+              rue={sinistreRue} setRue={setSinistreRue}
+              codePostal={sinistreCP} setCodePostal={setSinistreCP}
+              ville={sinistreVille} setVille={setSinistreVille}
+              refCompagnie={refCompagnie} setRefCompagnie={setRefCompagnie}
+            />
+          ) : (
+            <Step1
+              query={acpQuery}
+              setQuery={(v) => { setAcpQuery(v); if (selectedAcp) setSelectedAcp(null); }}
+              results={acpResults}
+              selectedAcp={selectedAcp}
+              adressePrecise={adressePrecise}
+              setAdressePrecise={setAdressePrecise}
+              onPick={pickAcp}
+              onClear={clearAcp}
+              searching={pending}
+              searchError={acpSearchError}
+              showCreate={showCreateAcp}
+              setShowCreate={setShowCreateAcp}
+              newAcp={newAcp}
+              setNewAcp={setNewAcp}
+              onCreate={handleCreateAcp}
+              creating={creatingAcp}
+            />
+          )
         )}
         {step === 2 && (
           <Step2
@@ -253,17 +299,19 @@ export function NewRequestClient({
           <button
             onClick={() => setStep((s) => Math.min(5, s + 1) as Step)}
             disabled={!canProceed()}
-            className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
             Suivant →
           </button>
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={submitting || !selectedAcp}
-            className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+            disabled={submitting || (!isCourtier && !selectedAcp)}
+            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
-            {submitting ? 'Envoi…' : 'Soumettre la demande ✓'}
+            {submitting
+              ? 'Envoi…'
+              : isCourtier ? 'Confier la mission ✓' : 'Soumettre la demande ✓'}
           </button>
         )}
       </div>
@@ -271,10 +319,10 @@ export function NewRequestClient({
   );
 }
 
-function StepIndicator({ step }: { step: Step }) {
+function StepIndicator({ step, labels }: { step: Step; labels: string[] }) {
   return (
     <div className="flex gap-1.5 sm:gap-2 items-center">
-      {STEP_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const n = (i + 1) as Step;
         const state = n < step ? 'done' : n === step ? 'active' : 'todo';
         return (
@@ -295,7 +343,7 @@ function StepIndicator({ step }: { step: Step }) {
             }>
               {label}
             </span>
-            {i < STEP_LABELS.length - 1 && (
+            {i < labels.length - 1 && (
               <div className={'flex-1 h-px ' + (n < step ? 'bg-ok' : 'bg-sand-border')} />
             )}
           </div>
@@ -623,6 +671,67 @@ function Step5({
         <Field label="Numéro BCE" value={bce} onChange={setBce} placeholder="BE0123.456.789" />
         <Field label="Référence bon de commande" value={refBC} onChange={setRefBC} placeholder="BC-2026-…" />
       </div>
+    </div>
+  );
+}
+
+// ── Step 1 COURTIER : sinistre ──────────────────────────────────────────
+
+function Step1Courtier({
+  assureNom, setAssureNom,
+  rue, setRue,
+  codePostal, setCodePostal,
+  ville, setVille,
+  refCompagnie, setRefCompagnie,
+}: {
+  assureNom: string; setAssureNom: (v: string) => void;
+  rue: string; setRue: (v: string) => void;
+  codePostal: string; setCodePostal: (v: string) => void;
+  ville: string; setVille: (v: string) => void;
+  refCompagnie: string; setRefCompagnie: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-bold" style={{ color: '#1D6FA4' }}>1. Sinistre</h3>
+
+      <Field label="Nom de l'assuré *" value={assureNom} onChange={setAssureNom} placeholder="ex : SPRL Dupont — Cabinet d'expertise" />
+
+      <div>
+        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+          Adresse du sinistre <span className="text-terra">*</span>
+        </label>
+        <input
+          value={rue}
+          onChange={(e) => setRue(e.target.value)}
+          placeholder="Rue et numéro"
+          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+        />
+        <div className="grid grid-cols-3 gap-2">
+          <input
+            value={codePostal}
+            onChange={(e) => setCodePostal(e.target.value)}
+            placeholder="Code postal"
+            className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+          />
+          <input
+            value={ville}
+            onChange={(e) => setVille(e.target.value)}
+            placeholder="Ville"
+            className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+          />
+        </div>
+      </div>
+
+      <Field
+        label="Référence compagnie *"
+        value={refCompagnie}
+        onChange={setRefCompagnie}
+        placeholder="Numéro de dossier interne (ex : SIN-2026-1234)"
+      />
+
+      <p className="text-[11px] text-ink-muted">
+        Cette référence vous permettra de retrouver le dossier dans votre liste et apparaîtra sur les rapports/factures.
+      </p>
     </div>
   );
 }

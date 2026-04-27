@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import type { StatutIntervention } from '@/lib/types/database';
 
@@ -14,21 +15,53 @@ export type AccessResult =
 //
 // - admin : autorisé pour toute intervention, tout statut
 // - tech  : seulement ses propres interventions, tout statut
-// - partner (syndic ou courtier) : interventions appartenant à son
-//     organisation (syndic_id == org.id), uniquement si statut publié
+// - partner syndic : interventions appartenant à son org (syndic_id == org.id),
+//     uniquement si statut publié
+// - partner courtier : direct via syndic_id OU indirect via dossiers_sinistres
+//     (courtier_id == org.id), uniquement si statut publié
 // - occupant : passé via param `occupantId`, vérification que l'occupant
 //     appartient à cette intervention, uniquement si statut publié
-//
-// TODO : ajouter le chemin "courtier via dossier_sinistre" quand on aura
-// précisé le schéma de la table dossiers_sinistres (colonnes courtier_id /
-// intervention_id).
+//     (bypass RLS via service-role car pas de session)
 export async function checkRapportAccess(
   interventionId: string,
   opts: { occupantId?: string | null },
 ): Promise<AccessResult> {
+  // Voie occupant : pas de session — service-role nécessaire pour bypass RLS.
+  // L'autorisation se fait par UUID v4 dans l'URL.
+  if (opts.occupantId) {
+    let admin;
+    try {
+      admin = createAdminClient();
+    } catch {
+      return { ok: false, status: 500, error: 'Configuration serveur incomplète.' };
+    }
+
+    const { data: iv } = await admin
+      .from('interventions')
+      .select('id, statut')
+      .eq('id', interventionId)
+      .maybeSingle();
+    if (!iv) return { ok: false, status: 404, error: 'Intervention introuvable.' };
+    const statut = iv.statut as StatutIntervention;
+    const isPublished = STATUTS_RAPPORT_PUBLIE.includes(statut);
+
+    const { data: occ } = await admin
+      .from('occupants')
+      .select('id, intervention_id')
+      .eq('id', opts.occupantId)
+      .maybeSingle();
+    if (!occ || occ.intervention_id !== interventionId) {
+      return { ok: false, status: 403, error: 'Lien invalide.' };
+    }
+    if (!isPublished) {
+      return { ok: false, status: 404, error: 'Rapport pas encore disponible.' };
+    }
+    return { ok: true, statut, via: 'occupant' };
+  }
+
+  // Voies authentifiées — RLS scopera selon les policies.
   const supabase = await createClient();
 
-  // Charge le statut une fois — on s'en sert pour les checks "publié"
   const { data: iv, error: ivErr } = await supabase
     .from('interventions')
     .select('id, statut, syndic_id, technicien_id')
@@ -39,7 +72,9 @@ export async function checkRapportAccess(
   const statut = iv.statut as StatutIntervention;
   const isPublished = STATUTS_RAPPORT_PUBLIE.includes(statut);
 
-  // Voie occupant — pas de session
+  // Voie occupant déjà gérée plus haut. Code mort ici mais préserve la
+  // structure existante au cas où l'opts.occupantId est passé en plus
+  // d'une session (cas pathologique).
   if (opts.occupantId) {
     const { data: occ } = await supabase
       .from('occupants')

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { STATUT_INFO, STATUT_PIPELINE, type StatutIntervention } from '@/lib/types/database';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDateTime, relTime } from '@/lib/format';
+import { useOrgType, useVocab } from '../PortalContext';
 import type { InterventionListItem } from './page';
 
 const STATUTS_FILTRE: ('tous' | StatutIntervention)[] = [
@@ -24,6 +25,13 @@ export function InterventionsListClient({
   initialQuery: string;
   loadError: string | null;
 }) {
+  const orgType = useOrgType();
+  const v = useVocab();
+  const isCourtier = orgType === 'courtier';
+  const accentBg = isCourtier
+    ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
+    : 'bg-navy hover:bg-navy-mid';
+
   const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<typeof STATUTS_FILTRE[number]>(
     (STATUTS_FILTRE as readonly string[]).includes(initialStatut)
@@ -36,7 +44,7 @@ export function InterventionsListClient({
     return items.filter((iv) => {
       const matchQuery =
         !q ||
-        [iv.ref, iv.acp_nom, iv.type, iv.description]
+        [iv.ref, iv.acp_nom, iv.type, iv.description, iv.ref_courtier, iv.adresse]
           .filter(Boolean)
           .some((s) => String(s).toLowerCase().includes(q));
       const matchFilter = filter === 'tous' || iv.statut === filter;
@@ -48,16 +56,16 @@ export function InterventionsListClient({
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Mes interventions</h1>
+          <h1 className="text-xl font-extrabold text-ink">{v.myInterventions}</h1>
           <p className="text-xs text-ink-muted mt-0.5">
             {items.length} au total
           </p>
         </div>
         <Link
           href="/portal/nouveau"
-          className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-navy-mid"
+          className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
         >
-          + Nouvelle demande
+          {v.newRequestVerb}
         </Link>
       </div>
 
@@ -71,7 +79,9 @@ export function InterventionsListClient({
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher — référence, ACP, type…"
+          placeholder={isCourtier
+            ? 'Rechercher — référence, assuré, type, ref courtier…'
+            : 'Rechercher — référence, ACP, type…'}
           className="flex-1 px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
         />
         <select
@@ -91,7 +101,7 @@ export function InterventionsListClient({
       <div className="md:hidden space-y-2">
         {filtered.length === 0 ? (
           <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
-            Aucune intervention
+            {v.emptyList}
           </p>
         ) : filtered.map((iv) => (
           <Link
@@ -101,7 +111,17 @@ export function InterventionsListClient({
           >
             <div className="flex justify-between items-start gap-3">
               <div className="min-w-0">
-                <div className="font-mono text-[11px] font-semibold text-navy">{iv.ref ?? '—'}</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-mono text-[11px] font-semibold text-navy">{iv.ref ?? '—'}</span>
+                  {iv.ref_courtier && (
+                    <span
+                      className="font-mono text-[10px] font-semibold text-white rounded px-1.5 py-0.5"
+                      style={{ background: '#1D6FA4' }}
+                    >
+                      {iv.ref_courtier}
+                    </span>
+                  )}
+                </div>
                 <div className="font-bold text-[13px] mt-0.5 truncate">{iv.acp_nom ?? '—'}</div>
                 <div className="text-[11px] text-ink-muted mt-0.5">{iv.type ?? '—'}</div>
               </div>
@@ -120,7 +140,10 @@ export function InterventionsListClient({
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-sand">
-              {['Réf.', 'ACP', 'Type', 'Créneau', 'Statut', 'Màj'].map((h) => (
+              {(isCourtier
+                ? ['Réf. FoxO', 'Réf. courtier', v.acpLabel, 'Type', 'Créneau', 'Statut', 'Màj']
+                : ['Réf.', v.acpLabel, 'Type', 'Créneau', 'Statut', 'Màj']
+              ).map((h) => (
                 <th
                   key={h}
                   className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
@@ -133,8 +156,8 @@ export function InterventionsListClient({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px]">
-                  Aucune intervention
+                <td colSpan={isCourtier ? 7 : 6} className="text-center py-12 text-ink-muted text-[13px]">
+                  {v.emptyList}
                 </td>
               </tr>
             ) : filtered.map((iv) => (
@@ -149,6 +172,18 @@ export function InterventionsListClient({
                     <span className="block mt-1 text-[9px] font-bold text-terra">⚡ URGENT</span>
                   )}
                 </td>
+                {isCourtier && (
+                  <td className="px-3.5 py-3">
+                    {iv.ref_courtier ? (
+                      <span
+                        className="font-mono text-[11px] font-semibold text-white rounded px-2 py-0.5"
+                        style={{ background: '#1D6FA4' }}
+                      >
+                        {iv.ref_courtier}
+                      </span>
+                    ) : <span className="text-ink-muted">—</span>}
+                  </td>
+                )}
                 <td className="px-3.5 py-3 font-bold text-[13px]">{iv.acp_nom ?? '—'}</td>
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid whitespace-nowrap">{iv.type ?? '—'}</td>
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
@@ -165,7 +200,7 @@ export function InterventionsListClient({
       </div>
 
       <p className="text-[11px] text-ink-muted">
-        {filtered.length} intervention(s)
+        {filtered.length} {v.countSuffix}
         {filtered.length !== items.length ? ` sur ${items.length}` : ''}
       </p>
     </div>
