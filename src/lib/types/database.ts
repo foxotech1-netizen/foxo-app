@@ -1,25 +1,25 @@
 // Types DB — saisie manuelle d'après le schéma utilisé par les anciens HTML.
 // À remplacer par `supabase gen types typescript` quand on aura la CLI liée.
 
+// Enum côté Postgres : intervention_statut
+// Source : Supabase, valeurs exactes (ne pas modifier sans ALTER TYPE).
 export type StatutIntervention =
   | 'nouvelle'
-  | 'date_proposee'
-  | 'attente_confirmation'
+  | 'attente'
   | 'confirmee'
   | 'realisee'
-  | 'rapport_disponible'
-  | 'facturee'
+  | 'rapport'
   | 'cloturee'
   | 'en_suspens';
 
+// Pipeline visuel (ordre dans la barre de progression).
+// `en_suspens` n'en fait pas partie — c'est un état "pause" hors-flow.
 export const STATUT_PIPELINE: StatutIntervention[] = [
   'nouvelle',
-  'date_proposee',
-  'attente_confirmation',
+  'attente',
   'confirmee',
   'realisee',
-  'rapport_disponible',
-  'facturee',
+  'rapport',
   'cloturee',
 ];
 
@@ -132,13 +132,11 @@ export interface InterventionRow extends Intervention {
 
 // Libellés et couleurs des statuts
 export const STATUT_INFO: Record<StatutIntervention, { label: string; fg: string; bg: string }> = {
-  nouvelle:             { label: 'Nouvelle',          fg: '#6B6558', bg: '#EDEAE3' },
-  date_proposee:        { label: 'Date proposée',     fg: '#B8830A', bg: '#FBF3E0' },
-  attente_confirmation: { label: 'Attente conf.',     fg: '#2A5298', bg: '#D6E4F7' },
-  confirmee:            { label: 'Confirmée',         fg: '#1B3A6B', bg: '#D6E4F7' },
-  realisee:             { label: 'Réalisée',          fg: '#1B3A6B', bg: '#A8D4E8' },
-  rapport_disponible:   { label: 'Rapport dispo.',    fg: '#1F6B45', bg: '#D4EDE2' },
-  facturee:             { label: 'Facturée',          fg: '#8A5A1A', bg: '#F4E8D0' },
-  cloturee:             { label: 'Clôturée',          fg: '#6B6558', bg: '#E4DFD4' },
-  en_suspens:           { label: 'En suspens',        fg: '#C4622D', bg: '#F7EDE5' },
+  nouvelle:    { label: 'Nouvelle',     fg: '#6B6558', bg: '#EDEAE3' },
+  attente:     { label: 'En attente',   fg: '#2A5298', bg: '#D6E4F7' },
+  confirmee:   { label: 'Confirmée',    fg: '#1B3A6B', bg: '#D6E4F7' },
+  realisee:    { label: 'Réalisée',     fg: '#1B3A6B', bg: '#A8D4E8' },
+  rapport:     { label: 'Rapport dispo.', fg: '#1F6B45', bg: '#D4EDE2' },
+  cloturee:    { label: 'Clôturée',     fg: '#6B6558', bg: '#E4DFD4' },
+  en_suspens:  { label: 'En suspens',   fg: '#C4622D', bg: '#F7EDE5' },
 };

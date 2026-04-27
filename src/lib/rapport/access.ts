@@ -4,7 +4,7 @@ import { roleForEmail } from '@/lib/auth/roles';
 import type { StatutIntervention } from '@/lib/types/database';
 
 // Statuts qui rendent le rapport "publié" — visible par les non-staff.
-const STATUTS_RAPPORT_PUBLIE: StatutIntervention[] = ['rapport_disponible', 'cloturee', 'facturee'];
+const STATUTS_RAPPORT_PUBLIE: StatutIntervention[] = ['rapport', 'cloturee'];
 
 export type AccessResult =
   | { ok: true; statut: StatutIntervention; via: 'admin' | 'tech' | 'partner' | 'occupant' }

@@ -54,7 +54,7 @@ export default async function InterventionDetail({
 
   const confirmedCount = occupants.filter((o) => o.conf === 'confirme').length;
 
-  const hasReport = ['rapport_disponible', 'cloturee'].includes(intervention.statut);
+  const hasReport = ['rapport', 'cloturee'].includes(intervention.statut);
 
   return (
     <div className="space-y-5">
@@ -171,7 +171,7 @@ export default async function InterventionDetail({
             <p className="text-ink-muted text-[12px]">Rapport pas encore publié.</p>
           )}
 
-          {(intervention.statut === 'facturee' || intervention.statut === 'cloturee') && (
+          {intervention.statut === 'cloturee' && (
             <DownloadButton
               href={`/api/facture/${intervention.id}`}
               filename={`facture-${intervention.ref ?? intervention.id}.pdf`}

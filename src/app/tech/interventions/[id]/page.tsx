@@ -172,7 +172,7 @@ export default async function TechInterventionPage({
           }
         }
         canPublish={Boolean(iv.ended_at)}
-        alreadyPublished={iv.statut === 'rapport_disponible' || iv.statut === 'cloturee'}
+        alreadyPublished={iv.statut === 'rapport' || iv.statut === 'cloturee'}
       />
     </div>
   );

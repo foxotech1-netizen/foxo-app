@@ -8,8 +8,7 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 
 const STATUTS_ACCEPTANT_REPONSE = [
   'nouvelle',
-  'date_proposee',
-  'attente_confirmation',
+  'attente',
   'confirmee',
 ];
 

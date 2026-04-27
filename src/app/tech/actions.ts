@@ -137,7 +137,7 @@ export async function publishRapport(
 
   const { error: ivErr } = await supabase
     .from('interventions')
-    .update({ statut: 'rapport_disponible', updated_at: new Date().toISOString() })
+    .update({ statut: 'rapport', updated_at: new Date().toISOString() })
     .eq('id', interventionId);
   if (ivErr) return { ok: false, error: ivErr.message };
 

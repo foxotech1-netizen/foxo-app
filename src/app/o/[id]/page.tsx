@@ -8,7 +8,7 @@ import { ConfirmActions } from './ConfirmActions';
 export const dynamic = 'force-dynamic';
 
 const STATUTS_ACCEPTANT_REPONSE = [
-  'nouvelle', 'date_proposee', 'attente_confirmation', 'confirmee',
+  'nouvelle', 'attente', 'confirmee',
 ];
 
 export default async function OccupantPortal({
@@ -54,7 +54,7 @@ export default async function OccupantPortal({
 
   const acceptsResponse = STATUTS_ACCEPTANT_REPONSE.includes(iv.statut);
   const currentConf = occupant.conf ?? 'en_attente';
-  const rapportPublie = ['rapport_disponible', 'cloturee', 'facturee'].includes(iv.statut);
+  const rapportPublie = ['rapport', 'cloturee'].includes(iv.statut);
 
   return (
     <div className="min-h-screen bg-sand py-8 px-4 flex items-start justify-center">

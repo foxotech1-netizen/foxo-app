@@ -53,10 +53,10 @@ export default async function PortalDashboard() {
   // Stats
   const stats = {
     enCours: interventions.filter((i) =>
-      ['confirmee', 'realisee', 'date_proposee', 'attente_confirmation'].includes(i.statut),
+      ['confirmee', 'realisee', 'attente'].includes(i.statut),
     ).length,
     enAttente: interventions.filter((i) => i.statut === 'nouvelle').length,
-    rapports: interventions.filter((i) => i.statut === 'rapport_disponible').length,
+    rapports: interventions.filter((i) => i.statut === 'rapport').length,
     cloturees: interventions.filter((i) => i.statut === 'cloturee').length,
   };
 
@@ -104,7 +104,7 @@ export default async function PortalDashboard() {
       {/* Banner rapport */}
       {stats.rapports > 0 && (
         <Link
-          href="/portal/interventions?statut=rapport_disponible"
+          href="/portal/interventions?statut=rapport"
           className="block bg-terra-light border border-terra-mid text-terra rounded-lg px-4 py-2.5 text-xs font-semibold hover:bg-[#F2DBC9]"
         >
           📄 {stats.rapports} rapport(s) disponible(s) — consulter

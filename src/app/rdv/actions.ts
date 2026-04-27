@@ -1,7 +1,6 @@
 'use server';
 
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRdvRateLimit, getRequestIp, recordRdvAttempt } from '@/lib/rate-limit';
 import { sendRdvConfirmation, sendRdvAdminNotification, type RdvEmailData } from '@/lib/email/rdv';
@@ -114,14 +113,13 @@ export async function submitRdv(formData: FormData): Promise<RdvSubmitResult> {
     };
   }
 
-  // 4. Création de l'intervention via service-role (anon key n'a pas le droit
-  // d'insert sans org). Le client n'a pas de session — c'est le bon usage.
+  // 4. Service-role obligatoire : aucune session côté client, RLS bloque
+  // les anon. La validation des champs au-dessus est notre garde.
   let admin;
   try {
     admin = createAdminClient();
   } catch {
-    // Sans service-role on retombe sur l'anon — fonctionne si RLS le permet.
-    admin = await createClient();
+    return { ok: false, error: 'Configuration serveur incomplète (SUPABASE_SERVICE_ROLE_KEY absente).' };
   }
 
   const ref = generateRef();

@@ -12,8 +12,7 @@ import type { Acp, Intervention, Organisation, StatutIntervention } from '@/lib/
 export type ActionState = { ok?: true; error?: string; data?: unknown };
 
 const STATUTS_VALIDES: StatutIntervention[] = [
-  'nouvelle','date_proposee','attente_confirmation','confirmee',
-  'realisee','rapport_disponible','facturee','cloturee','en_suspens',
+  'nouvelle','attente','confirmee','realisee','rapport','cloturee','en_suspens',
 ];
 
 export async function updateInterventionStatus(
@@ -178,18 +177,16 @@ export async function emitFacture(input: EmitFactureInput): Promise<EmitFactureR
     });
   if (upErr) return { error: 'Upload bucket : ' + upErr.message };
 
-  // MAJ statut → facturee si encore en amont
-  const targetStatuts: StatutIntervention[] = ['rapport_disponible', 'realisee', 'cloturee'];
-  const newStatut: StatutIntervention =
-    iv.statut === 'cloturee' ? 'cloturee' : 'facturee';
-
+  // MAJ statut → cloturee à l'émission de la facture (sauf statuts amont
+  // comme nouvelle/en_suspens qu'on laisse intacts).
+  const targetStatuts: StatutIntervention[] = ['rapport', 'realisee'];
   const update: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
-  if (targetStatuts.includes(iv.statut) || iv.statut === 'facturee') {
-    update.statut = newStatut;
+  if (targetStatuts.includes(iv.statut)) {
+    update.statut = 'cloturee';
   }
-  // (On ne touche pas le statut si l'intervention est en_suspens, nouvelle, etc.)
+  // (en_suspens, nouvelle, attente, confirmee : statut inchangé)
 
   await supabase.from('interventions').update(update).eq('id', input.interventionId);
 

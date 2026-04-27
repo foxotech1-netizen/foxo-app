@@ -13,12 +13,10 @@ import { FactureBlock } from './FactureBlock';
 const STATUTS_FILTRE: ('tous' | StatutIntervention)[] = [
   'tous',
   'nouvelle',
-  'date_proposee',
-  'attente_confirmation',
+  'attente',
   'confirmee',
   'realisee',
-  'rapport_disponible',
-  'facturee',
+  'rapport',
   'cloturee',
   'en_suspens',
 ];
@@ -123,10 +121,10 @@ export function InterventionsClient({
   // Stats
   const stats = useMemo(() => {
     const inProgress = rows.filter((r) =>
-      ['confirmee', 'realisee', 'date_proposee', 'attente_confirmation'].includes(r.statut),
+      ['confirmee', 'realisee', 'attente'].includes(r.statut),
     ).length;
     const suspended = rows.filter((r) => r.statut === 'en_suspens').length;
-    const reports = rows.filter((r) => r.statut === 'rapport_disponible').length;
+    const reports = rows.filter((r) => r.statut === 'rapport').length;
     const closed = rows.filter((r) => r.statut === 'cloturee').length;
     const urgent = rows.filter((r) => r.priorite === 'urgente' && r.statut !== 'cloturee').length;
     return { inProgress, suspended, reports, closed, urgent };
@@ -478,7 +476,7 @@ export function InterventionsClient({
                     )}
                   </Block>
 
-                  {(selected.statut === 'rapport_disponible' || selected.statut === 'cloturee' || selected.statut === 'facturee') && (
+                  {(selected.statut === 'rapport' || selected.statut === 'cloturee') && (
                     <Block title="Rapport au syndic">
                       <p className="text-[12px] text-ink-mid mb-2">
                         Renvoie le PDF du rapport à l&apos;email enregistré du syndic.

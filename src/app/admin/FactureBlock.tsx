@@ -26,7 +26,9 @@ export function FactureBlock({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
-  const facturee = statut === 'facturee' || statut === 'cloturee';
+  // Pas de statut "facturee" dans l'enum — on considère qu'une intervention
+  // clôturée a une facture émise (l'émission passe à cloturee).
+  const facturee = statut === 'cloturee';
   const [editing, setEditing] = useState(!facturee);
 
   const [items, setItems] = useState<FactureItem[]>([
