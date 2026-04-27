@@ -193,7 +193,7 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
         {/* Logo */}
         <div style={S.logoZone}>
           <Image
-            src="/foxo-logo-transparent.png"
+            src="/foxo-logo-noir-transparent.png"
             alt="FoxO"
             width={90}
             height={90}

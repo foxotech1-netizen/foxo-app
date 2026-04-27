@@ -20,7 +20,7 @@ export default async function PortalLayout({
         className="border-b border-[rgba(0,0,0,0.12)] py-5 px-4 flex flex-col items-center gap-2"
         style={{ background: 'var(--sidebar-logo-bg)' }}
       >
-        <Logo size={72} priority />
+        <Logo size={72} variant="black" priority />
         <div
           className="text-[10px] uppercase tracking-[.15em] font-semibold"
           style={{ color: 'var(--sidebar-logo-fg)' }}

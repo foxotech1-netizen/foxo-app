@@ -1,20 +1,28 @@
 import Image from 'next/image';
 
-// Le PNG est transparent, format carré 1024×1024.
-// Affichage carré contraint via height. Pas de fond — il s'adapte aux fonds
-// sable, navy, cream sans mise en boîte.
+// Deux variantes du logo selon le fond :
+//   - 'blue' (défaut) : logo bleu, pour fonds sombres (login navy, gradient
+//     sidebar) ou fonds clairs (cream, sand)
+//   - 'black' : logo noir, élégant sur le sable doré #E2C9A1
+//
+// Les deux PNG sont transparents 1024×1024 carré.
 export function Logo({
   size = 80,
   priority = false,
   className,
+  variant = 'blue',
 }: {
   size?: number;
   priority?: boolean;
   className?: string;
+  variant?: 'blue' | 'black';
 }) {
+  const src = variant === 'black'
+    ? '/foxo-logo-noir-transparent.png'
+    : '/foxo-logo-transparent.png';
   return (
     <Image
-      src="/foxo-logo-transparent.png"
+      src={src}
       alt="FoxO"
       width={size}
       height={size}

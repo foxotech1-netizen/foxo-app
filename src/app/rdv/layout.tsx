@@ -15,7 +15,7 @@ export default function RdvLayout({
         style={{ background: '#E2C9A1' }}
       >
         <div className="max-w-[900px] mx-auto flex items-center gap-3">
-          <Logo size={42} priority />
+          <Logo size={42} variant="black" priority />
           <div>
             <div className="text-base font-extrabold text-ink leading-none">FoxO</div>
             <div className="text-[10px] text-[#7A6A50] uppercase tracking-[.15em] font-semibold mt-1">
