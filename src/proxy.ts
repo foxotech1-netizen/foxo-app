@@ -27,12 +27,13 @@ function startsWithKnownGroup(pathname: string): boolean {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Bypass : assets statiques, API, fichiers Next, portail occupant public, RDV particulier
+  // Bypass : assets statiques, API, fichiers Next, portail occupant public, RDV particulier, preview design
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/o/') ||           // portail occupant — public, pas d'auth
     pathname === '/rdv' || pathname.startsWith('/rdv/') || // page RDV particulier — publique
+    pathname.startsWith('/preview/') ||     // pages design preview — temporaires
     pathname.includes('.') // .png, .ico, .svg…
   ) {
     return NextResponse.next();
