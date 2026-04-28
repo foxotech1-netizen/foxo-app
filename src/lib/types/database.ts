@@ -123,6 +123,30 @@ export interface Occupant {
   conf: 'confirme' | 'en_attente' | 'decline' | null;
 }
 
+export type StatutCreneau = 'libre' | 'reserve' | 'bloque';
+
+export interface CreneauDisponible {
+  id: string;
+  technicien_id: string | null;
+  date: string;            // YYYY-MM-DD
+  heure_debut: string;     // "HH:MM"
+  heure_fin: string;       // "HH:MM"
+  statut: StatutCreneau;
+  intervention_id: string | null;
+  google_event_id: string | null;
+  created_at: string;
+}
+
+export interface CreneauBloque {
+  id: string;
+  date: string;            // YYYY-MM-DD
+  heure: string | null;    // "HH:MM" ou null = journée entière
+  technicien_id: string | null;
+  motif: string | null;
+  google_event_id: string | null;
+  created_at: string;
+}
+
 // Vue jointe — utilisée par l'admin
 export interface InterventionRow extends Intervention {
   acp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'> | null;
