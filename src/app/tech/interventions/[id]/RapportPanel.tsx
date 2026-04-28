@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveRapport, publishRapport, triggerDriveSync, type RapportInput } from '../../actions';
+import { generateRapportSections } from './generate-action';
 import type { Rapport } from '@/lib/types/database';
 
 const SECTIONS: { key: keyof RapportInput; label: string; placeholder: string }[] = [
@@ -63,10 +64,18 @@ export function RapportPanel({
   });
   const [savedAt, setSavedAt] = useState<string | null>(initial.updated_at || null);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
-  const [activeDictation, setActiveDictation] = useState<keyof RapportInput | null>(null);
+  // 'brief' = clé virtuelle pour la dictée brute envoyée à Claude
+  const [activeDictation, setActiveDictation] = useState<keyof RapportInput | 'brief' | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const valuesRef = useRef(values);
   valuesRef.current = values;
+
+  // Brief / dictée brute envoyée à l'IA pour générer les 4 sections
+  const [brief, setBrief] = useState('');
+  const briefRef = useRef(brief);
+  briefRef.current = brief;
+  const [generating, startGenerateTransition] = useTransition();
+  const [generateMessage, setGenerateMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   const supportsSpeech = typeof window !== 'undefined' && Boolean(getRecognitionCtor());
 
@@ -74,7 +83,7 @@ export function RapportPanel({
     setValues((v) => ({ ...v, [key]: val }));
   }
 
-  function startDictation(key: keyof RapportInput) {
+  function startDictation(key: keyof RapportInput | 'brief') {
     const Ctor = getRecognitionCtor();
     if (!Ctor) {
       setFeedback({ kind: 'err', msg: 'Dictée non supportée par ce navigateur.' });
@@ -94,7 +103,12 @@ export function RapportPanel({
         const r = ev.results[i];
         if (r.isFinal) added += r[0].transcript;
       }
-      if (added) {
+      if (!added) return;
+      if (key === 'brief') {
+        const cur = briefRef.current ?? '';
+        const sep = cur && !cur.endsWith(' ') && !cur.endsWith('\n') ? ' ' : '';
+        setBrief(cur + sep + added.trim());
+      } else {
         const cur = valuesRef.current[key] ?? '';
         const sep = cur && !cur.endsWith(' ') && !cur.endsWith('\n') ? ' ' : '';
         update(key, cur + sep + added.trim());
@@ -164,6 +178,29 @@ export function RapportPanel({
     });
   }
 
+  function doGenerate() {
+    setGenerateMessage(null);
+    const trimmed = brief.trim();
+    if (trimmed.length < 20) {
+      setGenerateMessage({ kind: 'err', msg: 'Brief trop court (min. 20 caractères).' });
+      return;
+    }
+    startGenerateTransition(async () => {
+      const res = await generateRapportSections(interventionId, trimmed);
+      if (!res.ok) {
+        setGenerateMessage({ kind: 'err', msg: res.error });
+        return;
+      }
+      setValues({
+        degats: res.sections.degats,
+        inspection: res.sections.inspection,
+        conclusion: res.sections.conclusion,
+        recommandations: res.sections.recommandations,
+      });
+      setGenerateMessage({ kind: 'ok', msg: 'Sections générées — relis et corrige avant publication.' });
+    });
+  }
+
   function doDriveSync() {
     setFeedback(null);
     startTransition(async () => {
@@ -185,6 +222,62 @@ export function RapportPanel({
           </span>
         )}
       </div>
+
+      {!alreadyPublished && (
+        <div className="bg-white border border-sand-border rounded-xl p-3 mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[12px] font-bold text-navy">
+              Brief / Dictée pour Claude
+            </label>
+            {supportsSpeech && (
+              <button
+                type="button"
+                onClick={() =>
+                  activeDictation === 'brief' ? stopDictation() : startDictation('brief')
+                }
+                className={
+                  'text-[10px] font-bold px-2 py-1 rounded-md ' +
+                  (activeDictation === 'brief'
+                    ? 'bg-terra text-white animate-pulse'
+                    : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
+                }
+              >
+                {activeDictation === 'brief' ? '● Arrêter' : '🎙 Dicter'}
+              </button>
+            )}
+          </div>
+          <textarea
+            value={brief}
+            onChange={(e) => setBrief(e.target.value)}
+            placeholder="Dicte librement ce que tu as vu, fait, conclu et recommandé. Claude rédigera les 4 sections du rapport."
+            rows={5}
+            className="w-full bg-white border border-sand-border rounded-lg px-3 py-2 text-[13px] text-ink outline-none focus:border-navy-mid resize-y min-h-[100px]"
+          />
+          <button
+            type="button"
+            onClick={doGenerate}
+            disabled={generating || pending}
+            className="w-full mt-2 bg-navy text-white py-2.5 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50"
+          >
+            {generating ? 'Génération en cours…' : '✨ Générer avec Claude'}
+          </button>
+          {generateMessage && (
+            <div
+              className={
+                'text-[11px] rounded-md px-3 py-2 mt-2 border font-semibold ' +
+                (generateMessage.kind === 'ok'
+                  ? 'bg-ok-light border-ok-mid text-ok'
+                  : 'bg-terra-light border-terra-mid text-terra')
+              }
+            >
+              {generateMessage.msg}
+            </div>
+          )}
+          <p className="text-[10px] text-ink-muted mt-2 leading-relaxed">
+            Astuce : décris dégâts visibles, inspection menée (acoustique, traceur, thermo, capteur d&apos;humidité), conclusion sur l&apos;origine, et recommandations.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-3">
         {SECTIONS.map(({ key, label, placeholder }) => {

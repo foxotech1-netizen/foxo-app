@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
+  // S'assure que le .md du system prompt FoxO est packagé avec les fonctions
+  // serveur (sinon fs.readFileSync échoue en runtime sur Vercel).
+  outputFileTracingIncludes: {
+    '*': ['./src/lib/prompts/**/*.md'],
+  },
 };
 
 export default nextConfig;
