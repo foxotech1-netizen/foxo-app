@@ -88,7 +88,7 @@ const S = {
   nav: { padding: '10px 8px', flex: 1 },
   sectionLabel: {
     fontSize: 9,
-    color: '#5A5650',
+    color: '#8A8278',
     textTransform: 'uppercase' as const,
     letterSpacing: '.1em',
     fontWeight: 700,
@@ -107,8 +107,8 @@ const S = {
     borderRadius: 8,
     marginBottom: 2,
     fontSize: 13,
-    fontWeight: active ? 600 : 400,
-    color: active ? '#F0ECE4' : '#8A8278',
+    fontWeight: active ? 600 : 500,
+    color: active ? '#F0ECE4' : '#C8C2B8',
     background: active ? 'rgba(255,255,255,.09)' : 'transparent',
     cursor: 'pointer',
     textDecoration: 'none',
@@ -150,7 +150,7 @@ const S = {
     flexShrink: 0,
   },
   techName: { fontSize: 11, fontWeight: 600, color: '#C0BAB0' },
-  techSub:  { fontSize: 10, color: '#5A5650', marginTop: 1 },
+  techSub:  { fontSize: 10, color: '#8A8278', marginTop: 1 },
 
   // ── MOBILE bottom nav ──────────────────────────────────────────────────────
   bottomNav: {
@@ -424,11 +424,12 @@ export default function Sidebar({
         /* Hover desktop */
         @media (hover: hover) {
           .foxo-sidebar-desktop a:hover {
-            background: rgba(255,255,255,.05) !important;
-            color: #C8C2B8 !important;
+            background: rgba(255,255,255,.07) !important;
+            color: #F0ECE4 !important;
           }
           .foxo-theme-toggle-desktop:hover {
-            background: rgba(255,255,255,.1) !important;
+            background: rgba(255,255,255,.12) !important;
+            color: #F0ECE4 !important;
           }
         }
       `}</style>
@@ -538,8 +539,8 @@ function TechSidebarRow({
               width: 26,
               height: 26,
               borderRadius: '50%',
-              background: active ? '#A17244' : '#3D3A32',
-              color: active ? '#FFFFFF' : '#C0BAB0',
+              background: active ? '#A17244' : '#4A4640',
+              color: active ? '#FFFFFF' : '#F0ECE4',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -551,10 +552,10 @@ function TechSidebarRow({
             {initiales(tech.prenom, tech.nom)}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: active ? '#F0ECE4' : '#C0BAB0' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: active ? '#F0ECE4' : '#C8C2B8' }}>
               {shortName(tech.prenom, tech.nom)}
             </div>
-            <div style={{ fontSize: 10, color: '#5A5650', marginTop: 1 }}>
+            <div style={{ fontSize: 10, color: '#8A8278', marginTop: 1 }}>
               {active ? '● Tableau filtré' : 'En ligne'}
             </div>
           </div>

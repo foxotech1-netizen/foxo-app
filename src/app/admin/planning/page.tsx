@@ -97,8 +97,8 @@ export default async function PlanningPage({
             className={
               'px-4 py-2 rounded-t-lg text-[12px] font-bold border-b-2 ' +
               (tab === 'calendar'
-                ? 'bg-cream border-navy text-navy'
-                : 'border-transparent text-ink-muted hover:text-ink')
+                ? 'bg-cream border-navy text-navy dark:bg-[#1C1A16] dark:text-[#F0ECE4] dark:border-[#7AA8E8]'
+                : 'border-transparent text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4] dark:hover:border-[rgba(255,255,255,.2)]')
             }
           >
             Calendrier
@@ -108,8 +108,8 @@ export default async function PlanningPage({
             className={
               'px-4 py-2 rounded-t-lg text-[12px] font-bold border-b-2 ' +
               (tab === 'manage'
-                ? 'bg-cream border-navy text-navy'
-                : 'border-transparent text-ink-muted hover:text-ink')
+                ? 'bg-cream border-navy text-navy dark:bg-[#1C1A16] dark:text-[#F0ECE4] dark:border-[#7AA8E8]'
+                : 'border-transparent text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4] dark:hover:border-[rgba(255,255,255,.2)]')
             }
           >
             Gérer les disponibilités

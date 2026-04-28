@@ -174,15 +174,15 @@ export function Dashboard({
                         key={iv.id}
                         type="button"
                         onClick={() => onOpenIntervention(iv.id)}
-                        className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                        className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
                       >
-                        <span className="font-mono font-bold text-navy text-[11px]">
+                        <span className="font-mono font-bold text-navy text-[11px] dark:text-[#A8C4F2]">
                           {fmtTime(iv.creneau_debut)}
                         </span>
-                        <span className="font-bold text-ink truncate flex-1">
+                        <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
                           {iv.acp?.nom ?? iv.particulier_contact?.nom ?? '—'}
                         </span>
-                        <span className="text-[10px] text-ink-muted truncate">{iv.type ?? ''}</span>
+                        <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">{iv.type ?? ''}</span>
                       </button>
                     ))}
                   </div>
@@ -205,7 +205,7 @@ export function Dashboard({
                     {slots.map((s) => (
                       <span
                         key={s.id}
-                        className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold"
+                        className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]"
                       >
                         {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
                         {' · '}
@@ -238,15 +238,15 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
               >
-                <span className="font-mono text-[11px] text-navy font-bold">
+                <span className="font-mono text-[11px] text-navy font-bold dark:text-[#A8C4F2]">
                   {fmtTime(iv.creneau_debut)}
                 </span>
-                <span className="font-bold text-ink truncate flex-1">
+                <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
                   {iv.acp?.nom ?? '—'}
                 </span>
-                <span className="text-[10px] text-ink-muted">
+                <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
                   {iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}
                 </span>
               </button>
@@ -265,10 +265,10 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-white hover:bg-ok-light border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                className="w-full text-left bg-white hover:bg-ok-light border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
               >
-                <span className="font-mono text-[11px] text-ok font-bold">{iv.ref ?? '?'}</span>
-                <span className="font-bold text-ink truncate flex-1">
+                <span className="font-mono text-[11px] text-ok font-bold dark:text-[#7AC9A0]">{iv.ref ?? '?'}</span>
+                <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
                   {iv.acp?.nom ?? '—'}
                 </span>
               </button>
@@ -287,13 +287,13 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-white hover:bg-amber-light border border-sand-border rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
+                className="w-full text-left bg-white hover:bg-amber-light border border-sand-border rounded-md px-2.5 py-1.5 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] text-[#8A5A1A] font-bold">{iv.ref ?? '?'}</span>
-                  <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
+                  <span className="font-mono text-[11px] text-[#8A5A1A] font-bold dark:text-[#E8C896]">{iv.ref ?? '?'}</span>
+                  <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">{iv.acp?.nom ?? '—'}</span>
                 </div>
-                <div className="text-[10px] text-ink-muted mt-0.5">
+                <div className="text-[10px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
                   {pending.length} occupant(s) sans réponse
                 </div>
               </button>
@@ -352,20 +352,22 @@ function TodoCard({
   empty: string;
   children: React.ReactNode;
 }) {
+  // Mode clair : pastille pâle assortie. Mode sombre : on bascule sur un
+  // fond plus opaque + texte blanc pour atteindre le ratio AA WCAG.
   const headerStyle = {
-    navy: 'bg-navy-pale text-navy border-navy-light',
-    ok: 'bg-ok-light text-ok border-ok-mid',
-    amber: 'bg-amber-light text-[#8A5A1A] border-[#E8C896]',
+    navy:  'bg-navy-pale text-navy border-navy-light dark:bg-[#1B3A6B] dark:text-white dark:border-[#2A5298]',
+    ok:    'bg-ok-light text-ok border-ok-mid dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]',
+    amber: 'bg-amber-light text-[#8A5A1A] border-[#E8C896] dark:bg-[#A17244] dark:text-white dark:border-[#C4904F]',
   }[color];
   return (
-    <div className="bg-cream border border-sand-border rounded-2xl overflow-hidden">
+    <div className="bg-cream border border-sand-border rounded-2xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
       <div className={'px-4 py-2.5 flex items-center justify-between border-b ' + headerStyle}>
-        <span className="text-[11px] font-bold uppercase tracking-wider">{title}</span>
-        <span className="text-[12px] font-extrabold">{count}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider dark:text-white">{title}</span>
+        <span className="text-[12px] font-extrabold dark:text-white">{count}</span>
       </div>
       <div className="p-3 space-y-1.5 max-h-[240px] overflow-y-auto">
         {count === 0 ? (
-          <div className="text-[12px] text-ink-muted text-center py-4">{empty}</div>
+          <div className="text-[12px] text-ink-muted text-center py-4 dark:text-[#C8C2B8]">{empty}</div>
         ) : children}
       </div>
     </div>

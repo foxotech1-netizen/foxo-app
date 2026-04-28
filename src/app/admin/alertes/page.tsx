@@ -109,18 +109,30 @@ function Section({
   items: AlertItem[];
   empty: string;
 }) {
-  const accentBg = color === 'terra' ? 'bg-terra-light border-terra-mid' : color === 'amber' ? 'bg-amber-light border-[#E8C896]' : 'bg-navy-pale border-navy-light';
-  const accentFg = color === 'terra' ? 'text-terra' : color === 'amber' ? 'text-[#8A5A1A]' : 'text-navy';
+  // Light : pastille pâle + texte assorti.
+  // Dark : fond solide + texte blanc, ratio AA garanti même sur fond sombre.
+  const accentBg =
+    color === 'terra'
+      ? 'bg-terra-light border-terra-mid dark:bg-[#C4622D] dark:border-[#D87A45]'
+      : color === 'amber'
+      ? 'bg-amber-light border-[#E8C896] dark:bg-[#A17244] dark:border-[#C4904F]'
+      : 'bg-navy-pale border-navy-light dark:bg-[#1B3A6B] dark:border-[#2A5298]';
+  const accentFg =
+    color === 'terra'
+      ? 'text-terra dark:text-white'
+      : color === 'amber'
+      ? 'text-[#8A5A1A] dark:text-white'
+      : 'text-navy dark:text-white';
 
   return (
     <section>
-      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${accentBg} mb-3`}>
-        <span className="text-lg">{icon}</span>
+      <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${accentBg} mb-3`}>
+        <span className="text-xl leading-none">{icon}</span>
         <div className="flex-1">
-          <h2 className={`text-sm font-bold ${accentFg}`}>{title}</h2>
-          <p className="text-[11px] text-ink-mid">{subtitle}</p>
+          <h2 className={`text-sm font-bold ${accentFg} dark:text-[#F0ECE4]`}>{title}</h2>
+          <p className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">{subtitle}</p>
         </div>
-        <span className={`text-xs font-bold ${accentFg}`}>{items.length}</span>
+        <span className={`text-sm font-extrabold ${accentFg} dark:text-white`}>{items.length}</span>
       </div>
 
       {items.length === 0 ? (

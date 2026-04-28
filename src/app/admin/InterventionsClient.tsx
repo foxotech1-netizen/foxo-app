@@ -414,7 +414,7 @@ export function InterventionsClient({
                       </td>
                       <td className="px-3.5 py-2.5">
                         <div className="text-xs font-semibold">{iv.syndic?.nom ?? '—'}</div>
-                        <div className="text-[10px] text-ink-muted">{iv.syndic?.type ?? ''}</div>
+                        {iv.syndic?.type && <TypeBadge type={iv.syndic.type} />}
                       </td>
                       <td className="px-3.5 py-2.5 text-xs">
                         {iv.technicien ? (
@@ -535,7 +535,7 @@ export function InterventionsClient({
                   ) : (
                     <Block title="Demandeur">
                       <div className="font-bold text-[13px]">{selected.syndic?.nom ?? '—'}</div>
-                      <div className="text-[11px] text-ink-muted mt-0.5">{selected.syndic?.type ?? ''}</div>
+                      {selected.syndic?.type && <TypeBadge type={selected.syndic.type} />}
                     </Block>
                   )}
                   <Block title="Technicien assigné">
@@ -735,6 +735,19 @@ function StatCard({
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
     </div>
+  );
+}
+
+function TypeBadge({ type }: { type: string }) {
+  const isCourtier = type === 'courtier';
+  const bg = isCourtier ? '#A17244' : '#1B3A6B';
+  return (
+    <span
+      className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
+      style={{ background: bg }}
+    >
+      {isCourtier ? 'Courtier' : 'Syndic'}
+    </span>
   );
 }
 

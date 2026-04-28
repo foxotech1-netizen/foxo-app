@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Active le variant `dark:` Tailwind v4 sur la classe `.dark` posée par
+   next-themes sur <html>. Permet d'utiliser dark:text-white, etc. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─────────────────────────────────────────────────────────────────────────
    PALETTE — variables thématisables.
    Tailwind v4 lit ces tokens via @theme et génère bg-sand, text-ink, etc.
