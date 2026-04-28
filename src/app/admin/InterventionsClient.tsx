@@ -7,7 +7,8 @@ import {
   type InterventionRow,
   type StatutIntervention,
 } from '@/lib/types/database';
-import { updateInterventionStatus, resendRapportToSyndic } from './actions';
+import type { Utilisateur } from '@/lib/types/database';
+import { updateInterventionStatus, resendRapportToSyndic, assignTechnician } from './actions';
 import { FactureBlock } from './FactureBlock';
 
 const STATUTS_FILTRE: ('tous' | StatutIntervention)[] = [
@@ -86,9 +87,11 @@ function Pipebar({ statut }: { statut: StatutIntervention }) {
 
 export function InterventionsClient({
   initialRows,
+  techs,
   loadError,
 }: {
   initialRows: InterventionRow[];
+  techs: Utilisateur[];
   loadError: string | null;
 }) {
   const [rows, setRows] = useState(initialRows);
@@ -102,6 +105,10 @@ export function InterventionsClient({
   const [emailMessage, setEmailMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const [emailPending, startEmailTransition] = useTransition();
+  // Assignation technicien
+  const [pendingTechId, setPendingTechId] = useState<string>('');
+  const [assignMessage, setAssignMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [assignPending, startAssignTransition] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -136,11 +143,40 @@ export function InterventionsClient({
     setTab('dossier');
     setPendingStatut(iv?.statut ?? '');
     setSuspensMotif(iv?.suspens_motif ?? '');
+    setPendingTechId(iv?.technicien?.id ?? '');
     setStatusMessage(null);
+    setAssignMessage(null);
   }
   function closeDrawer() {
     setSelectedId(null);
     setStatusMessage(null);
+    setAssignMessage(null);
+  }
+
+  function applyAssignTech() {
+    if (!selected) return;
+    setAssignMessage(null);
+    const newTechId = pendingTechId || null;
+    const newTech = newTechId ? techs.find((t) => t.id === newTechId) ?? null : null;
+    startAssignTransition(async () => {
+      const res = await assignTechnician(selected.id, newTechId);
+      if (res.error) {
+        setAssignMessage({ kind: 'err', msg: 'Erreur : ' + res.error });
+        return;
+      }
+      // Optimistic local update
+      setRows((rs) =>
+        rs.map((r) =>
+          r.id === selected.id
+            ? { ...r, technicien_id: newTechId, technicien: newTech, updated_at: new Date().toISOString() }
+            : r,
+        ),
+      );
+      setAssignMessage({
+        kind: 'ok',
+        msg: newTech ? `✓ Assigné à ${newTech.prenom ?? ''} ${newTech.nom ?? ''}`.trim() : '✓ Désassigné',
+      });
+    });
   }
 
   function resendRapport() {
@@ -444,6 +480,60 @@ export function InterventionsClient({
 
               {tab === 'suivi' && (
                 <>
+                  <Block title="Technicien assigné">
+                    {selected.technicien ? (
+                      <div className="flex items-center gap-2 mb-3 bg-navy-pale border border-navy-light rounded-lg px-3 py-2">
+                        <div className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                          {((selected.technicien.prenom ?? '')[0] ?? '').toUpperCase() +
+                            ((selected.technicien.nom ?? '')[0] ?? '').toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-bold text-navy">
+                            {selected.technicien.prenom} {selected.technicien.nom}
+                          </div>
+                          <div className="text-[10px] text-navy/70">Actuellement assigné</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-[12px] text-terra font-semibold mb-3">
+                        ⚠ Aucun technicien assigné
+                      </div>
+                    )}
+
+                    <select
+                      value={pendingTechId}
+                      onChange={(e) => setPendingTechId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-lg border border-sand-border bg-sand text-xs"
+                    >
+                      <option value="">— Non assigné —</option>
+                      {techs.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {[t.prenom, t.nom].filter(Boolean).join(' ') || t.email || t.id}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={applyAssignTech}
+                      disabled={
+                        assignPending ||
+                        (pendingTechId || '') === (selected.technicien?.id ?? '')
+                      }
+                      className="w-full mt-2.5 bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                    >
+                      {assignPending ? 'Assignation…' : 'Assigner'}
+                    </button>
+
+                    {assignMessage && (
+                      <p className={
+                        'text-xs mt-2 font-semibold ' +
+                        (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                      }>
+                        {assignMessage.msg}
+                      </p>
+                    )}
+                  </Block>
+
                   <Block title="Changer le statut">
                     <select
                       value={pendingStatut}

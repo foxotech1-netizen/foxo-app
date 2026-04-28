@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { TECH_EMAILS } from '@/lib/auth/roles';
 import type { Acp, Intervention, Organisation, Utilisateur, InterventionRow } from '@/lib/types/database';
 import { InterventionsClient } from './InterventionsClient';
 
@@ -9,8 +10,6 @@ type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'>;
 export default async function AdminPipelinePage() {
   const supabase = await createClient();
 
-  // Charge en parallèle. Si une table manque ou RLS bloque, on encaisse
-  // proprement et on affiche une liste vide plutôt que de crasher.
   const [interventionsRes, acpsRes, orgsRes, usersRes] = await Promise.all([
     supabase
       .from('interventions')
@@ -18,7 +17,10 @@ export default async function AdminPipelinePage() {
       .order('created_at', { ascending: false }),
     supabase.from('acps').select('id,nom,adresse,ville'),
     supabase.from('organisations').select('id,nom,type,email'),
-    supabase.from('utilisateurs').select('id,prenom,nom,email'),
+    supabase
+      .from('utilisateurs')
+      .select('id,prenom,nom,email')
+      .in('email', TECH_EMAILS as unknown as string[]),
   ]);
 
   if (interventionsRes.error) {
@@ -41,5 +43,11 @@ export default async function AdminPipelinePage() {
     technicien: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
   }));
 
-  return <InterventionsClient initialRows={rows} loadError={interventionsRes.error?.message ?? null} />;
+  return (
+    <InterventionsClient
+      initialRows={rows}
+      techs={techs}
+      loadError={interventionsRes.error?.message ?? null}
+    />
+  );
 }

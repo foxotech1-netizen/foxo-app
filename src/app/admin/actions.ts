@@ -15,6 +15,26 @@ const STATUTS_VALIDES: StatutIntervention[] = [
   'nouvelle','attente','confirmee','realisee','rapport','cloturee','en_suspens',
 ];
 
+export async function assignTechnician(
+  interventionId: string,
+  technicienId: string | null,
+): Promise<ActionState> {
+  if (!interventionId) return { error: 'ID manquant.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('interventions')
+    .update({
+      technicien_id: technicienId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', interventionId);
+
+  if (error) return { error: error.message };
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
 export async function updateInterventionStatus(
   id: string,
   newStatut: StatutIntervention,
