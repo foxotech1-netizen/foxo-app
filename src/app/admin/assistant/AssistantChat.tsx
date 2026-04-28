@@ -132,7 +132,7 @@ export function AssistantChat({
             type="button"
             onClick={() => handleQuickAction(qa)}
             disabled={pending}
-            className="bg-white border border-sand-border hover:border-navy-mid hover:bg-navy-pale text-ink-mid hover:text-navy text-[11px] font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-50 transition-colors"
+            className="bg-white border border-sand-border hover:border-navy-mid hover:bg-navy-pale text-ink-mid hover:text-navy text-[11px] font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-50 transition-colors dark:bg-[rgba(255,255,255,.08)] dark:border-[rgba(255,255,255,.15)] dark:text-[#F0ECE4] dark:hover:bg-[rgba(255,255,255,.15)] dark:hover:border-[rgba(255,255,255,.25)] dark:hover:text-white"
           >
             {qa.icon ? `${qa.icon} ` : ''}{qa.label}
           </button>
@@ -141,7 +141,7 @@ export function AssistantChat({
           <button
             type="button"
             onClick={clearChat}
-            className="ml-auto bg-sand-mid text-ink-muted hover:text-terra text-[11px] font-semibold px-2.5 py-1.5 rounded-md"
+            className="ml-auto bg-sand-mid text-ink-muted hover:text-terra text-[11px] font-semibold px-2.5 py-1.5 rounded-md dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:hover:text-[#E8C896]"
           >
             ✕ Effacer
           </button>
@@ -149,12 +149,12 @@ export function AssistantChat({
       </div>
 
       {/* Zone messages */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto bg-white border border-sand-border rounded-xl p-3 mb-3 min-h-[260px]">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto bg-white border border-sand-border rounded-xl p-3 mb-3 min-h-[260px] dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         {messages.length === 0 && !pending && (
           <div className="h-full flex flex-col items-center justify-center text-center py-8">
             <div className="text-3xl mb-2">✨</div>
-            <div className="text-[14px] font-bold text-ink mb-1">{emptyTitle}</div>
-            <p className="text-[12px] text-ink-muted max-w-[400px]">{emptyHint}</p>
+            <div className="text-[14px] font-bold text-ink mb-1 dark:text-[#F0ECE4]">{emptyTitle}</div>
+            <p className="text-[12px] text-ink-muted max-w-[400px] dark:text-[#C8C2B8]">{emptyHint}</p>
           </div>
         )}
 
@@ -164,20 +164,20 @@ export function AssistantChat({
               key={i}
               className={
                 m.role === 'user'
-                  ? 'ml-8 bg-navy-pale border border-navy-light rounded-lg px-3 py-2'
-                  : 'mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2'
+                  ? 'ml-8 bg-navy-pale border border-navy-light rounded-lg px-3 py-2 dark:bg-[#1B3A6B] dark:border-[#2A5298]'
+                  : 'mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2 dark:bg-[#221E1A] dark:border-[#3D3A32]'
               }
             >
-              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted">
+              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted dark:text-[#C8C2B8]">
                 {m.role === 'user' ? 'Vous' : '✨ Claude'}
               </div>
-              <div className="text-[13px] text-ink whitespace-pre-wrap leading-relaxed">{m.content}</div>
+              <div className="text-[13px] text-ink whitespace-pre-wrap leading-relaxed dark:text-[#F0ECE4]">{m.content}</div>
               {m.role === 'assistant' && (
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
                     onClick={() => copyToClipboard(m.content)}
-                    className="text-[10px] text-ink-muted hover:text-navy underline"
+                    className="text-[10px] text-ink-muted hover:text-navy underline dark:text-[#C8C2B8] dark:hover:text-[#A8C4F2]"
                   >
                     Copier
                   </button>
@@ -185,7 +185,7 @@ export function AssistantChat({
                     <button
                       type="button"
                       onClick={pushSectionsToParent}
-                      className="text-[10px] text-ok hover:underline font-bold"
+                      className="text-[10px] text-ok hover:underline font-bold dark:text-[#7AC9A0]"
                     >
                       → Sauvegarder comme brouillon de rapport
                     </button>
@@ -195,11 +195,11 @@ export function AssistantChat({
             </div>
           ))}
           {pending && (
-            <div className="mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted">
+            <div className="mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted dark:text-[#C8C2B8]">
                 ✨ Claude
               </div>
-              <div className="text-[13px] text-ink-muted italic">Réflexion en cours…</div>
+              <div className="text-[13px] text-ink-muted italic dark:text-[#C8C2B8]">Réflexion en cours…</div>
             </div>
           )}
         </div>
@@ -219,7 +219,7 @@ export function AssistantChat({
           onChange={(e) => setInput(e.target.value)}
           placeholder={mode === 'global' ? 'Pose une question sur l\'activité FoxO…' : 'Pose une question sur ce dossier…'}
           disabled={pending}
-          className={inputClassName ?? 'flex-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid disabled:opacity-50'}
+          className={inputClassName ?? 'flex-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4] dark:placeholder:text-[#8A8278]'}
         />
         <button
           type="submit"
