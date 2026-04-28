@@ -11,7 +11,7 @@ export default function RdvLayout({
   return (
     <div className="min-h-screen bg-sand flex flex-col">
       <header
-        className="border-b border-[rgba(0,0,0,0.12)] py-4 px-4"
+        className="border-b border-[rgba(0,0,0,0.12)] py-4 px-4 sticky top-0 z-40"
         style={{ background: '#E2C9A1' }}
       >
         <div className="max-w-[900px] mx-auto flex items-center gap-3">

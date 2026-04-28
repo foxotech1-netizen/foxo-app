@@ -10,6 +10,7 @@ import {
 import type { Utilisateur } from '@/lib/types/database';
 import { updateInterventionStatus, resendRapportToSyndic, assignTechnician } from './actions';
 import { FactureBlock } from './FactureBlock';
+import { DocumentsBlock } from './DocumentsBlock';
 
 const STATUTS_FILTRE: ('tous' | StatutIntervention)[] = [
   'tous',
@@ -598,11 +599,7 @@ export function InterventionsClient({
               )}
 
               {tab === 'documents' && (
-                <Block title="Documents">
-                  <p className="text-ink-muted text-center py-2">
-                    Module documents à venir
-                  </p>
-                </Block>
+                <DocumentsBlock interventionId={selected.id} />
               )}
             </div>
           </div>

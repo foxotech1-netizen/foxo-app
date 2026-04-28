@@ -2,11 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { dispatchRapportToSyndic } from '@/lib/rapport/dispatch';
 import { roleForEmail } from '@/lib/auth/roles';
 import { generateFacturePdf } from '@/lib/pdf/generateFacture';
 import { computeTotals, type FactureItem } from '@/lib/pdf/FacturePdf';
 import { VENDOR } from '@/lib/constants/vendor';
+import { notifyStatusChange } from '@/lib/email/notifications';
 import type { Acp, Intervention, Organisation, StatutIntervention } from '@/lib/types/database';
 
 export type ActionState = { ok?: true; error?: string; data?: unknown };
@@ -52,6 +54,141 @@ export async function updateInterventionStatus(
 
   const { error } = await supabase.from('interventions').update(patch).eq('id', id);
   if (error) return { error: error.message };
+
+  // Email automatique sur changement de statut (best-effort)
+  try {
+    await notifyStatusChange(id, newStatut);
+  } catch (e) {
+    console.warn('[admin/updateInterventionStatus] notify failed:', e);
+  }
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+// ── Upload manuel de documents ─────────────────────────────────────
+
+export type DocumentKind = 'rapport' | 'facture';
+
+export type UploadedDocument = {
+  kind: DocumentKind;
+  name: string;
+  path: string;
+  size: number;
+  createdAt: string | null;
+};
+
+export async function getInterventionDocuments(
+  interventionId: string,
+): Promise<UploadedDocument[]> {
+  const supabase = await createClient();
+  const out: UploadedDocument[] = [];
+
+  // Rapport : documents/{id}/rapport.pdf
+  const { data: rapList } = await supabase.storage.from('documents').list(interventionId);
+  const rap = (rapList ?? []).find((f) => f.name === 'rapport.pdf');
+  if (rap) {
+    out.push({
+      kind: 'rapport',
+      name: 'rapport.pdf',
+      path: `${interventionId}/rapport.pdf`,
+      size: (rap.metadata as { size?: number } | null)?.size ?? 0,
+      createdAt: rap.created_at ?? null,
+    });
+  }
+
+  // Facture : invoices/{id}.pdf
+  const { data: facList } = await supabase.storage.from('invoices').list();
+  const fac = (facList ?? []).find((f) => f.name === `${interventionId}.pdf`);
+  if (fac) {
+    out.push({
+      kind: 'facture',
+      name: `${interventionId}.pdf`,
+      path: `${interventionId}.pdf`,
+      size: (fac.metadata as { size?: number } | null)?.size ?? 0,
+      createdAt: fac.created_at ?? null,
+    });
+  }
+
+  return out;
+}
+
+const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+export async function uploadInterventionDocument(formData: FormData): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return { error: 'Accès refusé.' };
+  }
+
+  const interventionId = String(formData.get('interventionId') ?? '').trim();
+  const kind = String(formData.get('kind') ?? '') as DocumentKind;
+  const file = formData.get('file');
+
+  if (!interventionId) return { error: 'ID manquant.' };
+  if (kind !== 'rapport' && kind !== 'facture') return { error: 'Type invalide.' };
+  if (!(file instanceof File)) return { error: 'Fichier manquant.' };
+  if (file.size === 0) return { error: 'Fichier vide.' };
+  if (file.size > MAX_PDF_BYTES) return { error: 'Fichier trop lourd (max 10 MB).' };
+  if (file.type && file.type !== 'application/pdf') return { error: 'Seuls les PDF sont acceptés.' };
+
+  const admin = createAdminClient();
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const bucket = kind === 'rapport' ? 'documents' : 'invoices';
+  const path = kind === 'rapport' ? `${interventionId}/rapport.pdf` : `${interventionId}.pdf`;
+
+  const { error: upErr } = await admin.storage
+    .from(bucket)
+    .upload(path, buffer, { contentType: 'application/pdf', upsert: true });
+  if (upErr) return { error: 'Upload : ' + upErr.message };
+
+  // Update statut selon type d'upload (sauf si plus avancé déjà)
+  const targetStatut: StatutIntervention = kind === 'rapport' ? 'rapport' : 'cloturee';
+  const amontRapport: StatutIntervention[] = ['nouvelle', 'attente', 'confirmee', 'realisee'];
+  const amontCloturee: StatutIntervention[] = ['nouvelle', 'attente', 'confirmee', 'realisee', 'rapport'];
+
+  const { data: iv } = await admin
+    .from('interventions')
+    .select('statut')
+    .eq('id', interventionId)
+    .maybeSingle();
+
+  const currentStatut = iv?.statut as StatutIntervention | undefined;
+  const shouldUpdate = currentStatut && (
+    (kind === 'rapport' && amontRapport.includes(currentStatut)) ||
+    (kind === 'facture' && amontCloturee.includes(currentStatut))
+  );
+
+  if (shouldUpdate) {
+    await admin
+      .from('interventions')
+      .update({ statut: targetStatut, updated_at: new Date().toISOString() })
+      .eq('id', interventionId);
+    try { await notifyStatusChange(interventionId, targetStatut); } catch {}
+  }
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+export async function deleteInterventionDocument(
+  interventionId: string,
+  kind: DocumentKind,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return { error: 'Accès refusé.' };
+  }
+
+  const admin = createAdminClient();
+  const bucket = kind === 'rapport' ? 'documents' : 'invoices';
+  const path = kind === 'rapport' ? `${interventionId}/rapport.pdf` : `${interventionId}.pdf`;
+
+  const { error } = await admin.storage.from(bucket).remove([path]);
+  if (error) return { error: 'Suppression : ' + error.message };
 
   revalidatePath('/admin');
   return { ok: true };
@@ -209,6 +346,11 @@ export async function emitFacture(input: EmitFactureInput): Promise<EmitFactureR
   // (en_suspens, nouvelle, attente, confirmee : statut inchangé)
 
   await supabase.from('interventions').update(update).eq('id', input.interventionId);
+
+  // Si on a transité vers cloturee, notifier le syndic avec la facture en pj
+  if (update.statut === 'cloturee') {
+    try { await notifyStatusChange(input.interventionId, 'cloturee'); } catch {}
+  }
 
   revalidatePath('/admin');
   return { ok: true, data: { numero, montantTTC: totals.ttc } };

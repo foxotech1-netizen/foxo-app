@@ -265,6 +265,18 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
         </div>
       </aside>
 
+      {/* ── MOBILE : header fixe en haut avec logo ──────────────────────────── */}
+      <header className="foxo-mobile-header">
+        <Image
+          src="/foxo-logo-noir-transparent.png"
+          alt="FoxO"
+          width={36}
+          height={36}
+          style={{ objectFit: 'contain' }}
+        />
+        <span className="foxo-mobile-header-label">Interface Admin</span>
+      </header>
+
       {/* ── MOBILE : toggle thème flottant en haut à droite ─────────────────── */}
       <ThemeToggle className="foxo-theme-toggle-mobile" />
 
@@ -298,6 +310,7 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
       <style>{`
         .foxo-sidebar-desktop { display: flex; }
         .foxo-sidebar-mobile  { display: none; }
+        .foxo-mobile-header   { display: none; }
 
         .foxo-theme-toggle-desktop {
           width: 32px;
@@ -321,6 +334,25 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
         @media (max-width: 768px) {
           .foxo-sidebar-desktop { display: none !important; }
           .foxo-sidebar-mobile  { display: flex !important; }
+          .foxo-mobile-header {
+            display: flex !important;
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 80;
+            background: #E2C9A1;
+            border-bottom: 1px solid rgba(0,0,0,.12);
+            padding: max(env(safe-area-inset-top, 8px), 8px) 16px 8px;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+          }
+          .foxo-mobile-header-label {
+            font-size: 9px;
+            color: #7A6A50;
+            text-transform: uppercase;
+            letter-spacing: .15em;
+            font-weight: 600;
+          }
           .foxo-theme-toggle-mobile {
             display: flex !important;
             position: fixed;
@@ -341,8 +373,11 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
             -webkit-backdrop-filter: blur(6px);
             font-family: inherit;
           }
-          /* Espace pour la bottom nav */
-          main { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important; }
+          /* Espace pour le header en haut + la bottom nav en bas */
+          main {
+            padding-top: calc(60px + env(safe-area-inset-top, 0px)) !important;
+            padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+          }
         }
 
         /* Hover desktop */

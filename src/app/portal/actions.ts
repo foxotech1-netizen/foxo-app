@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { notifyStatusChange } from '@/lib/email/notifications';
 import type { Acp } from '@/lib/types/database';
 
 // Service-role pour les inserts qui ont besoin de bypass RLS
@@ -208,6 +209,13 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       // l'intervention existe déjà. À surveiller en log.
       console.warn('[portal] occupants insert failed:', occErr.message);
     }
+  }
+
+  // Email automatique à info@foxo.be (best-effort)
+  try {
+    await notifyStatusChange(iv.id, 'nouvelle');
+  } catch (e) {
+    console.warn('[portal/submitRequest] notify failed:', e);
   }
 
   revalidatePath('/portal');

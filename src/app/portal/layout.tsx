@@ -26,9 +26,9 @@ export default async function PortalLayout({
       orgEmail={user.email ?? ''}
     >
       <div className="min-h-screen bg-sand flex flex-col">
-        {/* Bannière logo */}
+        {/* Bannière logo — sticky sur mobile pour rester visible au scroll */}
         <header
-          className="border-b border-[rgba(0,0,0,0.12)] py-5 px-4 flex flex-col items-center gap-2"
+          className="border-b border-[rgba(0,0,0,0.12)] py-5 px-4 flex flex-col items-center gap-2 sticky top-0 z-40"
           style={{ background: 'var(--sidebar-logo-bg)' }}
         >
           <Logo size={72} variant="black" priority />
