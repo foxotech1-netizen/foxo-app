@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { Organisation } from '@/lib/types/database';
+import { TypeBadge } from '@/components/TypeBadge';
 import { createOrganisation } from '../actions';
 
 export function SyndicsClient({
@@ -75,13 +76,7 @@ export function SyndicsClient({
                 <tr key={o.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-bold text-[13px]">{o.nom}</td>
                   <td className="px-3.5 py-3 text-xs">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      o.type === 'syndic'
-                        ? 'bg-navy-pale text-navy'
-                        : 'bg-amber-light text-[#8A5A1A]'
-                    }`}>
-                      {o.type}
-                    </span>
+                    <TypeBadge type={o.type} />
                   </td>
                   <td className="px-3.5 py-3 text-xs font-mono text-ink-mid">{o.email}</td>
                   <td className="px-3.5 py-3 text-xs">{o.contact ?? '—'}</td>

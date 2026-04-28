@@ -15,6 +15,7 @@ import { updateInterventionStatus, resendRapportToSyndic, assignTechnician, save
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
+import { TypeBadge } from '@/components/TypeBadge';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
   { icon: '📝', label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
@@ -414,7 +415,7 @@ export function InterventionsClient({
                       </td>
                       <td className="px-3.5 py-2.5">
                         <div className="text-xs font-semibold">{iv.syndic?.nom ?? '—'}</div>
-                        {iv.syndic?.type && <TypeBadge type={iv.syndic.type} />}
+                        {iv.syndic?.type && <TypeBadge type={iv.syndic.type} className="mt-1" />}
                       </td>
                       <td className="px-3.5 py-2.5 text-xs">
                         {iv.technicien ? (
@@ -535,7 +536,7 @@ export function InterventionsClient({
                   ) : (
                     <Block title="Demandeur">
                       <div className="font-bold text-[13px]">{selected.syndic?.nom ?? '—'}</div>
-                      {selected.syndic?.type && <TypeBadge type={selected.syndic.type} />}
+                      {selected.syndic?.type && <TypeBadge type={selected.syndic.type} className="mt-1" />}
                     </Block>
                   )}
                   <Block title="Technicien assigné">
@@ -735,19 +736,6 @@ function StatCard({
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
     </div>
-  );
-}
-
-function TypeBadge({ type }: { type: string }) {
-  const isCourtier = type === 'courtier';
-  const bg = isCourtier ? '#A17244' : '#1B3A6B';
-  return (
-    <span
-      className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
-      style={{ background: bg }}
-    >
-      {isCourtier ? 'Courtier' : 'Syndic'}
-    </span>
   );
 }
 
