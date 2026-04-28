@@ -32,9 +32,10 @@ const NAV_MAIN = [
 ]
 
 const NAV_GESTION = [
-  { href: '/admin/syndics',    icon: '👥', label: 'Syndics'    },
-  { href: '/admin/mails',      icon: '✉',  label: 'Mails'      },
-  { href: '/admin/parametres', icon: '⊙',  label: 'Paramètres' },
+  { href: '/admin/syndics',     icon: '👥', label: 'Syndics'     },
+  { href: '/admin/facturation', icon: '🧾', label: 'Facturation' },
+  { href: '/admin/mails',       icon: '✉',  label: 'Mails'      },
+  { href: '/admin/parametres',  icon: '⊙',  label: 'Paramètres' },
 ]
 
 function initiales(prenom: string | null, nom: string | null): string {
@@ -218,11 +219,11 @@ export default function Sidebar({
 
   // ── Mobile bottom nav ───────────────────────────────────────────────────────
   const BOTTOM_NAV = [
-    { href: '/admin',           icon: '▦', label: 'Tableau'   },
-    { href: '/admin/alertes',   icon: '◉', label: 'Alertes'   },
-    { href: '/admin/planning',  icon: '▷', label: 'Planning'  },
-    { href: '/admin/assistant', icon: '✨', label: 'Assistant' },
-    { href: '/admin/syndics',   icon: '👥', label: 'Syndics'  },
+    { href: '/admin',             icon: '▦', label: 'Tableau'    },
+    { href: '/admin/alertes',     icon: '◉', label: 'Alertes'    },
+    { href: '/admin/planning',    icon: '▷', label: 'Planning'   },
+    { href: '/admin/facturation', icon: '🧾', label: 'Factures'  },
+    { href: '/admin/assistant',   icon: '✨', label: 'Assistant'  },
   ]
 
   return (

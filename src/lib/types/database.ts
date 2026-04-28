@@ -147,6 +147,82 @@ export interface CreneauBloque {
   created_at: string;
 }
 
+// ─── Facturation ─────────────────────────────────────────────────────────
+
+export type StatutFacture = 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee';
+
+export interface FactureLigne {
+  description: string;
+  quantite: number;
+  prix_unitaire: number;     // HT
+  tva_pct: number;
+  notes?: string;            // ligne de détail en italic sous la description
+  article_code?: string;
+}
+
+export interface FactureDetailsIntervention {
+  ref_dossier?: string;
+  appartements?: string;
+  adresse_intervention?: string;
+  reference_assurance?: string;
+}
+
+export interface Facture {
+  id: string;
+  numero: string;
+  intervention_id: string | null;
+  organisation_id: string | null;
+  client_nom: string | null;
+  client_email: string | null;
+  client_adresse: string | null;
+  client_bce: string | null;
+  client_syndic: string | null;
+  lignes: FactureLigne[];
+  details_intervention: FactureDetailsIntervention;
+  remise_pct: number;
+  tva_pct: number;
+  montant_ht: number | null;
+  montant_tva: number | null;
+  montant_ttc: number | null;
+  notes: string | null;
+  remarques: string | null;
+  conditions_paiement: string;
+  reference: string | null;
+  reference_structuree: string | null;
+  statut: StatutFacture;
+  date_emission: string | null;
+  date_echeance: string | null;
+  date_paiement: string | null;
+  sent_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Article {
+  id: string;
+  code: string | null;
+  description: string;
+  prix_htva: number;
+  tva_pct: number;
+  actif: boolean;
+  created_at: string;
+}
+
+export interface Parametre {
+  id: string;
+  cle: string;
+  valeur: string | null;
+  updated_at: string;
+}
+
+export const STATUT_FACTURE_INFO: Record<StatutFacture, { label: string; fg: string; bg: string }> = {
+  brouillon: { label: 'Brouillon',  fg: '#6B6558', bg: '#EDEAE3' },
+  envoyee:   { label: 'Envoyée',    fg: '#1B3A6B', bg: '#D6E4F7' },
+  payee:     { label: 'Payée',      fg: '#1F6B45', bg: '#D4EDE2' },
+  en_retard: { label: 'En retard',  fg: '#C4622D', bg: '#F7EDE5' },
+  annulee:   { label: 'Annulée',    fg: '#A09A8E', bg: '#E4DFD4' },
+};
+
 // Vue jointe — utilisée par l'admin
 export interface InterventionRow extends Intervention {
   acp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'> | null;
