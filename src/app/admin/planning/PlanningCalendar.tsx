@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
+import { CreateInterventionModal } from './CreateInterventionModal';
+import { ReservedSlotModal } from './ReservedSlotModal';
+import { BlockedSlotModal } from './BlockedSlotModal';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -34,7 +38,11 @@ export function PlanningCalendar({
   prevHref: string;
   nextHref: string;
 }) {
+  const router = useRouter();
   const [techFilter, setTechFilter] = useState<string>('all');
+  const [openModal, setOpenModal] = useState<{ kind: 'free' | 'reserved' | 'blocked'; slot: Creneau } | null>(null);
+
+  function refresh() { router.refresh(); }
 
   const techColorMap = useMemo(() => {
     const m = new Map<string, typeof TECH_COLORS[number]>();
@@ -137,8 +145,51 @@ export function PlanningCalendar({
         <Legend swatch="bg-sand-mid border-sand-border" label="Bloqué" />
       </div>
 
+      {/* Modaux */}
+      {openModal?.kind === 'free' && (
+        <CreateInterventionModal
+          slot={{
+            id: openModal.slot.id,
+            date: openModal.slot.date,
+            heure_debut: openModal.slot.heure_debut,
+            heure_fin: openModal.slot.heure_fin,
+            technicien_id: openModal.slot.technicien_id,
+          }}
+          techs={techs}
+          onClose={() => setOpenModal(null)}
+          onCreated={refresh}
+        />
+      )}
+      {openModal?.kind === 'reserved' && openModal.slot.intervention_id && (
+        <ReservedSlotModal
+          slotId={openModal.slot.id}
+          interventionId={openModal.slot.intervention_id}
+          slotInfo={{
+            date: openModal.slot.date,
+            heure_debut: openModal.slot.heure_debut,
+            heure_fin: openModal.slot.heure_fin,
+          }}
+          techs={techs}
+          onClose={() => setOpenModal(null)}
+          onChanged={refresh}
+        />
+      )}
+      {openModal?.kind === 'blocked' && (
+        <BlockedSlotModal
+          slotId={openModal.slot.id}
+          slotInfo={{
+            date: openModal.slot.date,
+            heure_debut: openModal.slot.heure_debut,
+            heure_fin: openModal.slot.heure_fin,
+          }}
+          initialMotif={null}
+          onClose={() => setOpenModal(null)}
+          onChanged={refresh}
+        />
+      )}
+
       {/* Calendar */}
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
+      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <div className="grid grid-cols-7 gap-px bg-sand-border">
           {DAYS.map((d) => (
             <div key={d} className="bg-sand text-center py-2 text-[10px] font-bold text-ink-muted uppercase">
@@ -169,26 +220,30 @@ export function PlanningCalendar({
                   const time = cr.heure_debut.replace(':', 'h');
                   if (cr.statut === 'libre') {
                     return (
-                      <div
+                      <button
                         key={cr.id}
-                        className="text-[10px] font-semibold rounded px-1.5 py-0.5 truncate"
+                        type="button"
+                        onClick={() => setOpenModal({ kind: 'free', slot: cr })}
+                        className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                        title="Cliquer pour planifier une intervention"
                         style={
                           techColor
-                            ? { background: '#D4EDE2', color: '#1F6B45', borderLeft: `3px solid ${techColor.bg}` }
-                            : { background: '#D4EDE2', color: '#1F6B45' }
+                            ? { background: '#1F6B45', color: '#FFFFFF', borderLeft: `3px solid ${techColor.bg}` }
+                            : { background: '#1F6B45', color: '#FFFFFF' }
                         }
                       >
                         {time}
-                      </div>
+                      </button>
                     );
                   }
                   if (cr.statut === 'reserve') {
-                    const href = cr.intervention_id ? `/admin?id=${cr.intervention_id}` : '/admin';
                     return (
-                      <Link
+                      <button
                         key={cr.id}
-                        href={href}
-                        className="block text-[10px] font-semibold rounded px-1.5 py-0.5 truncate"
+                        type="button"
+                        onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
+                        className="w-full text-left block text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                        title="Cliquer pour modifier l'intervention"
                         style={
                           techColor
                             ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
@@ -196,16 +251,19 @@ export function PlanningCalendar({
                         }
                       >
                         {time} ✓
-                      </Link>
+                      </button>
                     );
                   }
                   return (
-                    <div
+                    <button
                       key={cr.id}
-                      className="text-[10px] font-semibold rounded px-1.5 py-0.5 truncate bg-sand-mid text-ink-muted"
+                      type="button"
+                      onClick={() => setOpenModal({ kind: 'blocked', slot: cr })}
+                      className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate bg-sand-mid text-ink-muted hover:bg-sand-border cursor-pointer dark:bg-[#3D3A32] dark:text-[#C8C2B8]"
+                      title="Cliquer pour modifier le motif ou débloquer"
                     >
                       {time}
-                    </div>
+                    </button>
                   );
                 })}
               </div>

@@ -159,6 +159,41 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Inputs / textarea / select en mode sombre — défaut universel.
+   Cible les champs qui n'ont PAS de classe explicite bg-* / text-* posée.
+   Les composants qui utilisent déjà bg-white / dark:bg-... gardent la
+   priorité (Tailwind utilities ont une spécificité supérieure).
+   ───────────────────────────────────────────────────────────────────────── */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="tel"],
+.dark input[type="number"],
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark input[type="password"],
+.dark input[type="search"],
+.dark input[type="url"],
+.dark input:not([type]),
+.dark textarea,
+.dark select {
+  background: #221E1A;
+  color: #F0ECE4;
+  border-color: #2C2A24;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #8A8278;
+  opacity: 1;
+}
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled {
+  background: #1A1814;
+  color: #8A8278;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Stats — chiffres mis en avant. Couleur boostée en mode sombre pour passer
    à #FFFFFF (texte principal #F0ECE4 reste plus doux pour les paragraphes).
    ───────────────────────────────────────────────────────────────────────── */
