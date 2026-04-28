@@ -47,9 +47,6 @@ export function Dashboard({
   onOpenIntervention: (id: string) => void;
 }) {
   const today = useMemo(() => new Date(), []);
-  const todayLabel = today.toLocaleDateString('fr-BE', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
 
   // ── Section 1 : stats temps réel ────────────────────────────────────────
   const stats = useMemo(() => {
@@ -105,12 +102,6 @@ export function Dashboard({
 
   return (
     <div className="space-y-5">
-      {/* Header date */}
-      <div>
-        <h2 className="text-lg font-extrabold text-ink">Dashboard opérationnel</h2>
-        <p className="text-[11px] text-ink-muted mt-0.5 capitalize">{todayLabel}</p>
-      </div>
-
       {/* ── Section 1 : Stats temps réel ─────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         <StatCard num={stats.nouvelles} label="Nouvelles demandes" />

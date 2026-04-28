@@ -266,7 +266,7 @@ export function InterventionsClient({
       {/* Topbar */}
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Interventions</h1>
+          <h1 className="text-xl font-extrabold text-ink">Tableau de bord</h1>
           <p className="text-[11px] text-ink-muted mt-0.5 capitalize">
             {new Date().toLocaleDateString('fr-BE', {
               weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',

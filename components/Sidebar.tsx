@@ -24,8 +24,8 @@ interface TechSummary {
 }
 
 const NAV_MAIN = [
-  { href: '/admin',           icon: '▦', label: 'Pipeline'    },
-  { href: '/admin/alertes',   icon: '◉', label: 'Alertes',  badge: true },
+  { href: '/admin',           icon: '▦', label: 'Tableau de bord' },
+  { href: '/admin/alertes',   icon: '◉', label: 'Alertes', badge: true },
   { href: '/admin/planning',  icon: '▷', label: 'Planning'    },
   { href: '/admin/assistant', icon: '✨', label: 'Assistant'   },
 ]
@@ -217,7 +217,7 @@ export default function Sidebar({
 
   // ── Mobile bottom nav ───────────────────────────────────────────────────────
   const BOTTOM_NAV = [
-    { href: '/admin',           icon: '▦', label: 'Pipeline'  },
+    { href: '/admin',           icon: '▦', label: 'Tableau'   },
     { href: '/admin/alertes',   icon: '◉', label: 'Alertes'   },
     { href: '/admin/planning',  icon: '▷', label: 'Planning'  },
     { href: '/admin/assistant', icon: '✨', label: 'Assistant' },
