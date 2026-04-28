@@ -8,9 +8,17 @@ import {
   type StatutIntervention,
 } from '@/lib/types/database';
 import type { Utilisateur } from '@/lib/types/database';
-import { updateInterventionStatus, resendRapportToSyndic, assignTechnician } from './actions';
+import { updateInterventionStatus, resendRapportToSyndic, assignTechnician, saveRapportDraftFromAdmin } from './actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
+import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
+
+const DRAWER_AI_ACTIONS: QuickAction[] = [
+  { icon: '📝', label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
+  { icon: '✉️', label: 'Email au syndic', prompt: 'Rédige un email professionnel au syndic adapté au statut actuel du dossier. Inclus l\'objet et le corps, prêt à copier-coller. Référence la ref FoxO et l\'ACP.' },
+  { icon: '👥', label: 'Email aux occupants', prompt: 'Rédige un message court, clair et bienveillant à envoyer aux occupants pour les informer (intervention prévue / replanifiée / clôturée selon le statut). Inclus l\'heure si elle est connue.' },
+  { icon: '🔎', label: 'Résumé du dossier', prompt: 'Donne-moi un résumé synthétique du dossier en 3 lignes maximum : la situation, où on en est, ce qui reste à faire.' },
+];
 
 const STATUTS_FILTRE: ('tous' | StatutIntervention)[] = [
   'tous',
@@ -99,7 +107,9 @@ export function InterventionsClient({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS_FILTRE[number]>('tous');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents'>('dossier');
+  const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia'>('dossier');
+  const [iaSaveMessage, setIaSaveMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [iaSavePending, startIaSaveTransition] = useTransition();
   const [pendingStatut, setPendingStatut] = useState<StatutIntervention | ''>('');
   const [suspensMotif, setSuspensMotif] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -152,6 +162,20 @@ export function InterventionsClient({
     setSelectedId(null);
     setStatusMessage(null);
     setAssignMessage(null);
+    setIaSaveMessage(null);
+  }
+
+  function handleAiRapportSave(sections: { degats: string; inspection: string; conclusion: string; recommandations: string }) {
+    if (!selected) return;
+    setIaSaveMessage(null);
+    startIaSaveTransition(async () => {
+      const res = await saveRapportDraftFromAdmin(selected.id, sections);
+      if (res.error) {
+        setIaSaveMessage({ kind: 'err', msg: res.error });
+      } else {
+        setIaSaveMessage({ kind: 'ok', msg: '✓ Brouillon sauvegardé. Le tech le verra dans son onglet Rapport.' });
+      }
+    });
   }
 
   function applyAssignTech() {
@@ -400,7 +424,7 @@ export function InterventionsClient({
             </header>
 
             <nav className="flex bg-cream px-5 border-b border-sand-border">
-              {(['dossier','suivi','documents'] as const).map((t) => (
+              {(['dossier','suivi','documents','ia'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -408,7 +432,7 @@ export function InterventionsClient({
                     tab === t ? 'text-navy border-navy font-bold' : 'text-ink-muted border-transparent hover:text-ink-mid'
                   }`}
                 >
-                  {t}
+                  {t === 'ia' ? '✨ Assistant IA' : t}
                 </button>
               ))}
             </nav>
@@ -600,6 +624,32 @@ export function InterventionsClient({
 
               {tab === 'documents' && (
                 <DocumentsBlock interventionId={selected.id} />
+              )}
+
+              {tab === 'ia' && (
+                <div className="bg-cream border border-sand-border rounded-2xl p-3 flex flex-col" style={{ minHeight: 480, height: 'calc(100vh - 320px)' }}>
+                  {iaSaveMessage && (
+                    <div className={
+                      'text-[12px] rounded-md px-3 py-2 mb-2 border font-semibold ' +
+                      (iaSaveMessage.kind === 'ok'
+                        ? 'bg-ok-light border-ok-mid text-ok'
+                        : 'bg-terra-light border-terra-mid text-terra')
+                    }>
+                      {iaSaveMessage.msg}
+                    </div>
+                  )}
+                  {iaSavePending && (
+                    <div className="text-[11px] text-ink-muted mb-2">Sauvegarde du brouillon…</div>
+                  )}
+                  <AssistantChat
+                    mode="intervention"
+                    interventionId={selected.id}
+                    quickActions={DRAWER_AI_ACTIONS}
+                    emptyTitle="Que veux-tu faire sur ce dossier ?"
+                    emptyHint="Je connais l'historique du dossier (statut, ACP, syndic, occupants, rapport actuel). Clique une action ou pose ta question."
+                    onSpecialResult={handleAiRapportSave}
+                  />
+                </div>
               )}
             </div>
           </div>

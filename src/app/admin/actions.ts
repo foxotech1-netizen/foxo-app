@@ -223,6 +223,37 @@ export async function createOrganisation(formData: FormData): Promise<ActionStat
   return { ok: true, data };
 }
 
+// Sauvegarde un brouillon de rapport généré par l'assistant IA depuis le drawer admin.
+// Le tech voit ensuite ce brouillon dans /tech/interventions/[id] et peut éditer avant publication.
+export async function saveRapportDraftFromAdmin(
+  interventionId: string,
+  sections: { degats: string; inspection: string; conclusion: string; recommandations: string },
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return { error: 'Accès refusé.' };
+  }
+  if (!interventionId) return { error: 'ID manquant.' };
+
+  const { error } = await supabase
+    .from('rapports')
+    .upsert(
+      {
+        intervention_id: interventionId,
+        degats: sections.degats,
+        inspection: sections.inspection,
+        conclusion: sections.conclusion,
+        recommandations: sections.recommandations,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'intervention_id' },
+    );
+  if (error) return { error: error.message };
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
 // Envoi manuel du rapport au syndic depuis l'admin (résend / 1ère fois si auto-send a échoué).
 export async function resendRapportToSyndic(interventionId: string): Promise<ActionState> {
   const supabase = await createClient();

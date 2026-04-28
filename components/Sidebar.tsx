@@ -12,9 +12,10 @@ import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 const NAV_MAIN = [
-  { href: '/admin',          icon: '▦', label: 'Pipeline'    },
-  { href: '/admin/alertes',  icon: '◉', label: 'Alertes',  badge: true },
-  { href: '/admin/planning', icon: '▷', label: 'Planning'    },
+  { href: '/admin',           icon: '▦', label: 'Pipeline'    },
+  { href: '/admin/alertes',   icon: '◉', label: 'Alertes',  badge: true },
+  { href: '/admin/planning',  icon: '▷', label: 'Planning'    },
+  { href: '/admin/assistant', icon: '✨', label: 'Assistant'   },
 ]
 
 const NAV_GESTION = [
@@ -179,11 +180,11 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
 
   // ── Mobile bottom nav ───────────────────────────────────────────────────────
   const BOTTOM_NAV = [
-    { href: '/admin',         icon: '▦', label: 'Pipeline' },
-    { href: '/admin/alertes', icon: '◉', label: 'Alertes'  },
-    { href: '/admin/planning',icon: '▷', label: 'Planning' },
-    { href: '/admin/syndics', icon: '👥', label: 'Syndics'  },
-    { href: '/admin/mails',   icon: '✉',  label: 'Mails'   },
+    { href: '/admin',           icon: '▦', label: 'Pipeline'  },
+    { href: '/admin/alertes',   icon: '◉', label: 'Alertes'   },
+    { href: '/admin/planning',  icon: '▷', label: 'Planning'  },
+    { href: '/admin/assistant', icon: '✨', label: 'Assistant' },
+    { href: '/admin/syndics',   icon: '👥', label: 'Syndics'  },
   ]
 
   return (
