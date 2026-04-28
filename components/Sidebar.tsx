@@ -24,6 +24,7 @@ interface TechSummary {
 }
 
 const NAV_MAIN = [
+  { href: '/admin/home',      icon: '⌂', label: 'Accueil'         },
   { href: '/admin',           icon: '▦', label: 'Tableau de bord' },
   { href: '/admin/alertes',   icon: '◉', label: 'Alertes', badge: true },
   { href: '/admin/planning',  icon: '▷', label: 'Planning'    },
