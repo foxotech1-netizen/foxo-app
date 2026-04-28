@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   STATUT_INFO,
   STATUT_PIPELINE,
@@ -103,6 +104,9 @@ export function InterventionsClient({
   techs: Utilisateur[];
   loadError: string | null;
 }) {
+  const searchParams = useSearchParams();
+  const techFilter = searchParams.get('tech');
+
   const [rows, setRows] = useState(initialRows);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS_FILTRE[number]>('tous');
@@ -130,9 +134,17 @@ export function InterventionsClient({
           .filter(Boolean)
           .some((s) => String(s).toLowerCase().includes(q));
       const matchFilter = filter === 'tous' || iv.statut === filter;
-      return matchQuery && matchFilter;
+      const matchTech = !techFilter || iv.technicien_id === techFilter;
+      return matchQuery && matchFilter && matchTech;
     });
-  }, [rows, query, filter]);
+  }, [rows, query, filter, techFilter]);
+
+  const techFilterName = useMemo(() => {
+    if (!techFilter) return null;
+    const t = techs.find((x) => x.id === techFilter);
+    if (!t) return null;
+    return [t.prenom, t.nom].filter(Boolean).join(' ') || t.email || 'Technicien';
+  }, [techFilter, techs]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
@@ -269,6 +281,21 @@ export function InterventionsClient({
         <StatCard num={stats.reports} label="Rapports dispo." accent />
         <StatCard num={stats.closed} label="Clôturées (total)" muted />
       </div>
+
+      {/* Banner filtre technicien actif */}
+      {techFilterName && (
+        <div className="mx-6 mt-3 px-4 py-2.5 bg-navy-pale border border-navy-light text-navy rounded-lg text-xs font-semibold flex items-center justify-between gap-2">
+          <span>
+            🔎 Pipeline filtré sur <strong>{techFilterName}</strong> · {filtered.length} intervention(s)
+          </span>
+          <a
+            href="/admin"
+            className="text-navy underline hover:no-underline text-[11px] whitespace-nowrap"
+          >
+            Retirer le filtre ✕
+          </a>
+        </div>
+      )}
 
       {/* Banner urgent */}
       {stats.urgent > 0 && (

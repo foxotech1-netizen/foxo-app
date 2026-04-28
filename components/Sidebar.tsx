@@ -7,9 +7,10 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import type { Utilisateur } from '@/lib/types/database'
 
 const NAV_MAIN = [
   { href: '/admin',           icon: '▦', label: 'Pipeline'    },
@@ -24,10 +25,18 @@ const NAV_GESTION = [
   { href: '/admin/parametres', icon: '⊙',  label: 'Paramètres' },
 ]
 
-const TECHNICIENS = [
-  { initiales: 'CM', nom: 'C. Mertens' },
-  { initiales: 'TR', nom: 'T. Renard'  },
-]
+function initiales(prenom: string | null, nom: string | null): string {
+  const p = (prenom ?? '').trim()
+  const n = (nom ?? '').trim()
+  return ((p[0] ?? '') + (n[0] ?? '')).toUpperCase() || '??'
+}
+
+function shortName(prenom: string | null, nom: string | null): string {
+  const p = (prenom ?? '').trim()
+  const n = (nom ?? '').trim()
+  if (p && n) return `${p[0]}. ${n}`
+  return n || p || '—'
+}
 
 // ─── Styles inline (pas de Tailwind JIT requis) ────────────────────────────────
 const S = {
@@ -165,10 +174,27 @@ const S = {
 }
 
 // ─── Composant ─────────────────────────────────────────────────────────────────
-export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
-  const pathname = usePathname()
-  const router   = useRouter()
-  const supabase = createClient()
+export default function Sidebar({
+  alertCount = 0,
+  techs = [],
+}: {
+  alertCount?: number
+  techs?: Utilisateur[]
+}) {
+  const pathname     = usePathname()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const supabase     = createClient()
+
+  const activeTech = searchParams.get('tech')
+
+  function handleTechClick(id: string) {
+    if (activeTech === id) {
+      router.push('/admin')
+    } else {
+      router.push(`/admin?tech=${id}`)
+    }
+  }
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -233,15 +259,51 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
         {/* Techniciens */}
         <div style={S.techSection}>
           <div style={S.sectionLabel}>Techniciens</div>
-          {TECHNICIENS.map(t => (
-            <div key={t.initiales} style={S.techRow}>
-              <div style={S.techAvatar}>{t.initiales}</div>
-              <div>
-                <div style={S.techName}>{t.nom}</div>
-                <div style={S.techSub}>En ligne</div>
-              </div>
-            </div>
-          ))}
+          {techs.length === 0 && (
+            <div style={{ ...S.techSub, padding: '4px 0' }}>Aucun technicien encodé.</div>
+          )}
+          {techs.map(t => {
+            const active = activeTech === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => handleTechClick(t.id)}
+                title={active ? 'Cliquer pour désactiver le filtre' : 'Filtrer le pipeline sur ce technicien'}
+                style={{
+                  ...S.techRow,
+                  width: '100%',
+                  background: active ? 'rgba(226, 201, 161, .14)' : 'transparent',
+                  border: active ? '1px solid #E2C9A1' : '1px solid transparent',
+                  borderRadius: 8,
+                  padding: '6px 8px',
+                  margin: '2px -2px',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  textAlign: 'left',
+                  transition: 'all .15s',
+                }}
+              >
+                <div
+                  style={{
+                    ...S.techAvatar,
+                    background: active ? '#E2C9A1' : '#3D3A32',
+                    color: active ? '#2C2A24' : '#C0BAB0',
+                  }}
+                >
+                  {initiales(t.prenom, t.nom)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ ...S.techName, color: active ? '#F0ECE4' : '#C0BAB0' }}>
+                    {shortName(t.prenom, t.nom)}
+                  </div>
+                  <div style={S.techSub}>
+                    {active ? '● Pipeline filtré' : 'Cliquer pour filtrer'}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
             <button
               onClick={handleLogout}

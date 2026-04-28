@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { roleForEmail, TECH_EMAILS } from '@/lib/auth/roles';
+import type { Utilisateur } from '@/lib/types/database';
 import Sidebar from '@components/Sidebar';
 
 export default async function AdminLayout({
@@ -16,17 +17,24 @@ export default async function AdminLayout({
     redirect('/auth/login?error=forbidden');
   }
 
-  // Compteur d'alertes : suspens + nouvelles non assignées
-  const { data: ivs } = await supabase
-    .from('interventions')
-    .select('statut, technicien_id');
-  const alertCount = (ivs ?? []).filter(
+  const [ivsRes, techsRes] = await Promise.all([
+    supabase.from('interventions').select('statut, technicien_id'),
+    supabase
+      .from('utilisateurs')
+      .select('id, prenom, nom, email')
+      .in('email', TECH_EMAILS as unknown as string[])
+      .order('prenom', { ascending: true }),
+  ]);
+
+  const alertCount = (ivsRes.data ?? []).filter(
     (i) => i.statut === 'en_suspens' || (i.statut === 'nouvelle' && !i.technicien_id),
   ).length;
 
+  const techs = (techsRes.data ?? []) as Utilisateur[];
+
   return (
     <div className="flex bg-sand min-h-screen">
-      <Sidebar alertCount={alertCount} />
+      <Sidebar alertCount={alertCount} techs={techs} />
       <main className="flex-1 flex flex-col min-w-0">{children}</main>
     </div>
   );
