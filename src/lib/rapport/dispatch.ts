@@ -23,7 +23,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   if (!ivData) return { ok: false, error: 'Intervention introuvable.' };
   const iv = ivData as Intervention;
 
-  const [acpRes, syndicRes, techRes, rapRes] = await Promise.all([
+  const [acpRes, syndicRes, techRes, rapRes, occRes] = await Promise.all([
     iv.acp_id
       ? supabase.from('acps').select('*').eq('id', iv.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -34,12 +34,16 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
       ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('rapports').select('*').eq('intervention_id', iv.id).maybeSingle(),
+    supabase.from('occupants').select('appartement').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
   ]);
 
   const acp = acpRes.data as Acp | null;
   const syndic = syndicRes.data as Pick<Organisation, 'id' | 'nom' | 'email' | 'type'> | null;
   const tech = techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
   const rapport = rapRes.data as Rapport | null;
+  const appartements = ((occRes.data ?? []) as { appartement: string | null }[])
+    .map((o) => o.appartement)
+    .filter((a): a is string => Boolean(a && a.trim()));
 
   if (!rapport) return { ok: false, error: 'Aucun rapport rédigé pour cette intervention.' };
 
@@ -60,6 +64,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     endedAt: iv.ended_at,
     syndicNom: syndic?.nom ?? null,
     technicienNom: techNom,
+    appartements,
     rapport: {
       degats: rapport.degats ?? '',
       inspection: rapport.inspection ?? '',

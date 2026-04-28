@@ -117,9 +117,12 @@ export interface Occupant {
   id: string;
   intervention_id: string;
   appartement: string | null;
+  prenom: string | null;
   nom: string | null;
   email: string | null;
   telephone: string | null;
+  etage: string | null;
+  instructions: string | null;
   conf: 'confirme' | 'en_attente' | 'decline' | null;
 }
 

@@ -64,7 +64,7 @@ export function CreateInterventionModal({
   const [orgResults, setOrgResults] = useState<Organisation[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
   const [occupants, setOccupants] = useState<SlotOccupant[]>([
-    { appartement: '', nom: '', email: '', telephone: '' },
+    { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '' },
   ]);
 
   // Particulier mode
@@ -108,7 +108,7 @@ export function CreateInterventionModal({
   }, [orgQuery, selectedOrg, demandeurType]);
 
   function addOccupant() {
-    setOccupants((arr) => [...arr, { appartement: '', nom: '', email: '', telephone: '' }]);
+    setOccupants((arr) => [...arr, { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '' }]);
   }
   function removeOccupant(i: number) {
     setOccupants((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
@@ -156,7 +156,7 @@ export function CreateInterventionModal({
                 acp_id: selectedAcp!.id,
                 syndic_id: selectedOrg!.id,
                 occupants: occupants.filter(
-                  (o) => o.appartement || o.nom || o.email || o.telephone,
+                  (o) => o.appartement || o.nom || o.prenom || o.email || o.telephone,
                 ),
               }
             : {
@@ -170,6 +170,9 @@ export function CreateInterventionModal({
                   // accès rangé en commentaire dans description si non vide
                   ...(accesNote ? {} : {}),
                 },
+                occupants: occupants.filter(
+                  (o) => o.appartement || o.nom || o.prenom || o.email || o.telephone,
+                ),
               },
       });
       if (!res.ok) { setError(res.error); return; }
@@ -341,31 +344,6 @@ export function CreateInterventionModal({
               )}
             </Section>
 
-            <Section title="Occupants concernés">
-              <div className="space-y-2">
-                {occupants.map((o, i) => (
-                  <div key={i} className="bg-white border border-sand-border rounded-lg p-2.5 space-y-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
-                        Occupant {i + 1}
-                      </span>
-                      {occupants.length > 1 && (
-                        <button onClick={() => removeOccupant(i)} className="text-[10px] text-terra hover:underline">Retirer</button>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <input value={o.appartement} onChange={(e) => updateOccupant(i, { appartement: e.target.value })} placeholder="Apt" className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]" />
-                      <input value={o.nom} onChange={(e) => updateOccupant(i, { nom: e.target.value })} placeholder="Nom" className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]" />
-                      <input value={o.email} onChange={(e) => updateOccupant(i, { email: e.target.value })} placeholder="Email" type="email" className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]" />
-                      <input value={o.telephone} onChange={(e) => updateOccupant(i, { telephone: e.target.value })} placeholder="Tél" type="tel" className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]" />
-                    </div>
-                  </div>
-                ))}
-                <button type="button" onClick={addOccupant} className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-md text-[11px] font-semibold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]">
-                  + Ajouter un occupant
-                </button>
-              </div>
-            </Section>
           </>
         ) : (
           <>
@@ -413,6 +391,123 @@ export function CreateInterventionModal({
             </Section>
           </>
         )}
+
+        {/* Appartements / unités à inspecter — commun syndic + particulier */}
+        <Section title={demandeurType === 'syndic' ? 'Appartements / unités concernés' : 'Autres unités à inspecter (optionnel)'}>
+          <div className="space-y-2">
+            {occupants.map((o, i) => (
+              <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+                    Unité {i + 1}
+                  </span>
+                  {occupants.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeOccupant(i)}
+                      className="text-[10px] text-terra hover:underline"
+                    >
+                      Retirer
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    value={o.appartement}
+                    onChange={(e) => updateOccupant(i, { appartement: e.target.value })}
+                    placeholder="Numéro / nom (Apt 3B, Cave 2, Communs…)"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                  <input
+                    value={o.etage ?? ''}
+                    onChange={(e) => updateOccupant(i, { etage: e.target.value })}
+                    placeholder="Étage (optionnel)"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input
+                    value={o.prenom}
+                    onChange={(e) => updateOccupant(i, { prenom: e.target.value })}
+                    placeholder="Prénom occupant"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                  <input
+                    value={o.nom}
+                    onChange={(e) => updateOccupant(i, { nom: e.target.value })}
+                    placeholder="Nom occupant"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                  <input
+                    value={o.telephone}
+                    onChange={(e) => updateOccupant(i, { telephone: e.target.value })}
+                    type="tel"
+                    placeholder="Téléphone"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                  <input
+                    value={o.email}
+                    onChange={(e) => updateOccupant(i, { email: e.target.value })}
+                    type="email"
+                    placeholder="Email (lien occupant /o/…)"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] mb-1">
+                    Statut accès
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(
+                      [
+                        { v: 'confirme', label: '✅ Confirmé' },
+                        { v: 'en_attente', label: '⏳ À confirmer' },
+                        { v: 'decline', label: '❌ Pas d\'accès' },
+                      ] as const
+                    ).map((opt) => (
+                      <label
+                        key={opt.v}
+                        className={
+                          'px-2 py-1.5 border rounded text-[11px] font-semibold cursor-pointer text-center ' +
+                          (o.conf === opt.v
+                            ? 'border-navy bg-navy-pale text-navy dark:bg-[#1B3A6B] dark:text-white dark:border-[#2A5298]'
+                            : 'border-sand-border bg-white text-ink-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]')
+                        }
+                      >
+                        <input
+                          type="radio"
+                          checked={o.conf === opt.v}
+                          onChange={() => updateOccupant(i, { conf: opt.v })}
+                          className="sr-only"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={o.instructions ?? ''}
+                  onChange={(e) => updateOccupant(i, { instructions: e.target.value })}
+                  placeholder="Instructions spécifiques (digicode, gardien, créneau d'accès…)"
+                  rows={2}
+                  className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none resize-y dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addOccupant}
+              className="w-full bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-semibold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+            >
+              + Ajouter un appartement
+            </button>
+            {demandeurType === 'particulier' && (
+              <p className="text-[10px] text-ink-muted dark:text-[#C8C2B8] italic mt-1">
+                Le particulier ci-dessus reste le contact principal. Cette section sert pour les unités annexes (cave, communs, voisin impacté, etc.).
+              </p>
+            )}
+          </div>
+        </Section>
 
         {error && (
           <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 font-semibold">

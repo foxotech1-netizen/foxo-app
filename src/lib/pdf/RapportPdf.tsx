@@ -14,6 +14,7 @@ export type RapportPdfData = {
   endedAt: string | null;
   syndicNom: string | null;
   technicienNom: string | null;
+  appartements?: string[];        // ex: ['App 1706', 'App 1806', 'Cave 2']
   rapport: {
     degats: string;
     inspection: string;
@@ -163,6 +164,11 @@ export function RapportPdf({ data }: { data: RapportPdfData }) {
           )}
         </View>
         <Text style={styles.subtitle}>{data.acpAdresse}</Text>
+        {data.appartements && data.appartements.length > 0 && (
+          <Text style={[styles.subtitle, { marginTop: 2, fontStyle: 'italic' }]}>
+            Unités inspectées : {data.appartements.join(' · ')}
+          </Text>
+        )}
 
         <View style={styles.metaGrid}>
           <View style={styles.metaCell}>

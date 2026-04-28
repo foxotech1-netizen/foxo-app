@@ -473,9 +473,22 @@ export async function loadInterventionForFacture(interventionId: string): Promis
     ? [t.acp.adresse, t.acp.code_postal, t.acp.ville].filter(Boolean).join(', ')
     : t.adresse;
 
+  // Charge la liste des appartements/unités inspectés pour pré-remplir
+  // le champ details.appartements ("App 1706 - 1806 - Cave 2").
+  const { data: occRows } = await supabase
+    .from('occupants')
+    .select('appartement')
+    .eq('intervention_id', interventionId)
+    .order('appartement', { ascending: true });
+  const appartements = ((occRows ?? []) as { appartement: string | null }[])
+    .map((o) => o.appartement)
+    .filter((a): a is string => Boolean(a && a.trim()))
+    .join(' - ');
+
   const details: FactureDetailsIntervention = {
     ref_dossier: t.ref ?? undefined,
     adresse_intervention: acpAdresse ?? undefined,
+    appartements: appartements || undefined,
   };
 
   return {

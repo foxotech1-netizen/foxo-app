@@ -120,6 +120,20 @@ export function InterventionsClient({
   const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia'>('dossier');
   const [iaSaveMessage, setIaSaveMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [iaSavePending, startIaSaveTransition] = useTransition();
+
+  type DrawerOccupant = {
+    id: string;
+    appartement: string | null;
+    etage: string | null;
+    prenom: string | null;
+    nom: string | null;
+    email: string | null;
+    telephone: string | null;
+    instructions: string | null;
+    conf: 'confirme' | 'en_attente' | 'decline' | null;
+  };
+  const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
+  const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
   const [pendingStatut, setPendingStatut] = useState<StatutIntervention | ''>('');
   const [suspensMotif, setSuspensMotif] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -175,12 +189,23 @@ export function InterventionsClient({
     setPendingTechId(iv?.technicien?.id ?? '');
     setStatusMessage(null);
     setAssignMessage(null);
+    // Lazy-load occupants
+    setDrawerOccupants([]);
+    setDrawerOccupantsLoading(true);
+    fetch(`/api/admin/occupants/${id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) setDrawerOccupants(data.occupants ?? []);
+      })
+      .catch(() => { /* noop */ })
+      .finally(() => setDrawerOccupantsLoading(false));
   }
   function closeDrawer() {
     setSelectedId(null);
     setStatusMessage(null);
     setAssignMessage(null);
     setIaSaveMessage(null);
+    setDrawerOccupants([]);
   }
 
   function handleAiRapportSave(sections: { degats: string; inspection: string; conclusion: string; recommandations: string }) {
@@ -553,6 +578,54 @@ export function InterventionsClient({
                       ? fmtDate(selected.creneau_debut, true)
                       : <span className="text-terra">Non confirmé</span>}
                   </Block>
+
+                  <Block title={`Appartements / unités (${drawerOccupants.length})`}>
+                    {drawerOccupantsLoading ? (
+                      <span className="text-ink-muted dark:text-[#C8C2B8]">Chargement…</span>
+                    ) : drawerOccupants.length === 0 ? (
+                      <span className="text-ink-muted dark:text-[#C8C2B8]">Aucune unité enregistrée.</span>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {drawerOccupants.map((o) => {
+                          const confLabel = o.conf === 'confirme' ? '✅ Confirmé'
+                            : o.conf === 'decline' ? '❌ Pas d\'accès'
+                            : '⏳ En attente';
+                          const confColor = o.conf === 'confirme' ? 'text-ok dark:text-[#7AC9A0]'
+                            : o.conf === 'decline' ? 'text-terra'
+                            : 'text-[#8A5A1A] dark:text-[#E8C896]';
+                          return (
+                            <div key={o.id} className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-bold text-ink dark:text-[#F0ECE4]">
+                                  {o.appartement ?? '—'}
+                                  {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8] ml-1.5">· {o.etage}</span> : null}
+                                </span>
+                                <span className={'text-[10px] font-bold whitespace-nowrap ' + confColor}>
+                                  {confLabel}
+                                </span>
+                              </div>
+                              {(o.prenom || o.nom) && (
+                                <div className="text-[12px] text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
+                                  {[o.prenom, o.nom].filter(Boolean).join(' ')}
+                                </div>
+                              )}
+                              {(o.email || o.telephone) && (
+                                <div className="text-[10px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+                                  {[o.email, o.telephone].filter(Boolean).join(' · ')}
+                                </div>
+                              )}
+                              {o.instructions && (
+                                <div className="text-[11px] text-ink-mid italic mt-1 dark:text-[#C8C2B8]">
+                                  {o.instructions}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </Block>
+
                   {selected.statut === 'en_suspens' && selected.suspens_motif && (
                     <div className="bg-terra-light border border-terra-mid rounded-lg p-3.5 mb-3">
                       <div className="text-[10px] font-bold text-terra uppercase tracking-wider mb-2">

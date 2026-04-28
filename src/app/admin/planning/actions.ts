@@ -152,11 +152,17 @@ export async function reserveCreneau(input: {
 
 // ─── Création intervention depuis un créneau libre ──────────────────────
 
+export type SlotOccupantConf = 'confirme' | 'en_attente' | 'decline';
+
 export interface SlotOccupant {
   appartement: string;
+  etage?: string;
+  prenom: string;
   nom: string;
   email: string;
   telephone: string;
+  conf?: SlotOccupantConf;
+  instructions?: string;
 }
 
 export interface CreateFromSlotSyndic {
@@ -169,6 +175,9 @@ export interface CreateFromSlotSyndic {
 export interface CreateFromSlotParticulier {
   demandeur_type: 'particulier';
   particulier: ParticulierContact & { acces_logement?: string };
+  // Unités additionnelles à inspecter chez un particulier (cave, communs,
+  // appartement annexe, voisin impacté…)
+  occupants?: SlotOccupant[];
 }
 
 export interface CreateInterventionFromSlotInput {
@@ -295,18 +304,27 @@ export async function createInterventionFromSlot(
     .eq('statut', 'libre');
   if (rErr) return { ok: false, error: rErr.message };
 
-  // Occupants (syndic) avec tokens individuels
-  if (input.demandeur.demandeur_type === 'syndic' && input.demandeur.occupants.length > 0) {
-    const rows = input.demandeur.occupants
-      .filter((o) => o.appartement || o.nom || o.email || o.telephone)
+  // Appartements/unités à inspecter avec tokens individuels.
+  // Supporté en mode syndic ET particulier (le particulier peut avoir
+  // plusieurs unités : cave, communs, voisin impacté, etc.).
+  const allOccupants: SlotOccupant[] =
+    input.demandeur.demandeur_type === 'syndic'
+      ? input.demandeur.occupants
+      : input.demandeur.occupants ?? [];
+  if (allOccupants.length > 0) {
+    const rows = allOccupants
+      .filter((o) => o.appartement || o.nom || o.prenom || o.email || o.telephone)
       .map((o) => ({
         intervention_id: interventionId,
         appartement: o.appartement || null,
+        etage: o.etage || null,
+        prenom: o.prenom || null,
         nom: o.nom || null,
         email: o.email || null,
         telephone: o.telephone || null,
+        instructions: o.instructions || null,
         token: generateOccupantToken(),
-        conf: null,
+        conf: o.conf ?? null,
       }));
     if (rows.length > 0) {
       await admin.from('occupants').insert(rows);
