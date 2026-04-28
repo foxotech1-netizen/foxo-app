@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import type { DashboardData } from './page';
+import { Dashboard } from './Dashboard';
 import {
   STATUT_INFO,
   STATUT_PIPELINE,
@@ -99,11 +101,14 @@ export function InterventionsClient({
   initialRows,
   techs,
   loadError,
+  dashboard,
 }: {
   initialRows: InterventionRow[];
   techs: Utilisateur[];
   loadError: string | null;
+  dashboard: DashboardData;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const techFilter = searchParams.get('tech');
 
@@ -259,7 +264,7 @@ export function InterventionsClient({
   return (
     <>
       {/* Topbar */}
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
+      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
         <div>
           <h1 className="text-xl font-extrabold text-ink">Interventions</h1>
           <p className="text-[11px] text-ink-muted mt-0.5 capitalize">
@@ -268,50 +273,78 @@ export function InterventionsClient({
             })}
           </p>
         </div>
+        {techFilterName && (
+          <div className="bg-[#A17244] text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
+            <span>🔎 Filtré : {techFilterName}</span>
+            <button
+              type="button"
+              onClick={() => router.push('/admin')}
+              className="hover:opacity-70 leading-none"
+              title="Retirer le filtre"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </header>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-2.5 px-6 pt-4 flex-shrink-0">
-        <StatCard num={stats.inProgress} label="En cours" />
-        <StatCard
-          num={stats.suspended}
-          label="En suspens"
-          warning={stats.suspended > 0}
-        />
-        <StatCard num={stats.reports} label="Rapports dispo." accent />
-        <StatCard num={stats.closed} label="Clôturées (total)" muted />
-      </div>
-
-      {/* Banner filtre technicien actif */}
-      {techFilterName && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-navy-pale border border-navy-light text-navy rounded-lg text-xs font-semibold flex items-center justify-between gap-2">
-          <span>
-            🔎 Pipeline filtré sur <strong>{techFilterName}</strong> · {filtered.length} intervention(s)
-          </span>
-          <a
-            href="/admin"
-            className="text-navy underline hover:no-underline text-[11px] whitespace-nowrap"
-          >
-            Retirer le filtre ✕
-          </a>
-        </div>
-      )}
-
-      {/* Banner urgent */}
-      {stats.urgent > 0 && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold">
-          ⚡ {stats.urgent} intervention(s) urgente(s) en attente de traitement
-        </div>
-      )}
-
       {loadError && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold">
+        <div className="mx-6 mt-3 px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold flex-shrink-0">
           Connexion à la base limitée : {loadError}
         </div>
       )}
 
-      {/* Filtres */}
-      <div className="flex gap-2 px-6 pt-3.5 flex-shrink-0">
+      {/* Dashboard (sections 1 → 3) */}
+      <div className="px-6 pt-4 flex-shrink-0">
+        <Dashboard
+          rows={rows}
+          techs={techs}
+          dashboard={dashboard}
+          onOpenIntervention={openDrawer}
+        />
+      </div>
+
+      {/* Section 4 : Pipeline rapide */}
+      <div className="px-6 pt-5 flex-shrink-0">
+        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+          Pipeline rapide
+        </h3>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => router.push('/admin')}
+            className={
+              'px-3 py-1.5 rounded-md text-[12px] font-semibold border ' +
+              (!techFilter
+                ? 'bg-navy text-white border-navy'
+                : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+            }
+          >
+            Tous
+          </button>
+          {techs.map((t) => {
+            const active = techFilter === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => router.push(active ? '/admin' : `/admin?tech=${t.id}`)}
+                className={
+                  'px-3 py-1.5 rounded-md text-[12px] font-semibold border ' +
+                  (active
+                    ? 'bg-[#A17244] text-white border-[#A17244]'
+                    : 'bg-white text-ink-mid border-sand-border hover:border-[#A17244]')
+                }
+              >
+                {[t.prenom, t.nom].filter(Boolean).join(' ') || t.email}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Filtres recherche / statut */}
+      <div className="flex gap-2 px-6 pt-2 flex-shrink-0">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}

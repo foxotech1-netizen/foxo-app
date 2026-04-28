@@ -7,10 +7,21 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import type { Utilisateur } from '@/lib/types/database'
+
+interface TechSummary {
+  ok: boolean
+  tech: { prenom: string | null; nom: string | null; email: string | null } | null
+  today: { id: string; ref: string | null; type: string | null; creneau_debut: string | null; statut: string; acp_nom: string | null }[]
+  month_realisees: number
+  month_rapports: number
+  next_slots: { id: string; date: string; heure_debut: string; heure_fin: string }[]
+  error?: string
+}
 
 const NAV_MAIN = [
   { href: '/admin',           icon: '▦', label: 'Pipeline'    },
@@ -262,48 +273,14 @@ export default function Sidebar({
           {techs.length === 0 && (
             <div style={{ ...S.techSub, padding: '4px 0' }}>Aucun technicien encodé.</div>
           )}
-          {techs.map(t => {
-            const active = activeTech === t.id
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => handleTechClick(t.id)}
-                title={active ? 'Cliquer pour désactiver le filtre' : 'Filtrer le pipeline sur ce technicien'}
-                style={{
-                  ...S.techRow,
-                  width: '100%',
-                  background: active ? 'rgba(226, 201, 161, .14)' : 'transparent',
-                  border: active ? '1px solid #E2C9A1' : '1px solid transparent',
-                  borderRadius: 8,
-                  padding: '6px 8px',
-                  margin: '2px -2px',
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  textAlign: 'left',
-                  transition: 'all .15s',
-                }}
-              >
-                <div
-                  style={{
-                    ...S.techAvatar,
-                    background: active ? '#E2C9A1' : '#3D3A32',
-                    color: active ? '#2C2A24' : '#C0BAB0',
-                  }}
-                >
-                  {initiales(t.prenom, t.nom)}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ ...S.techName, color: active ? '#F0ECE4' : '#C0BAB0' }}>
-                    {shortName(t.prenom, t.nom)}
-                  </div>
-                  <div style={S.techSub}>
-                    {active ? '● Pipeline filtré' : 'Cliquer pour filtrer'}
-                  </div>
-                </div>
-              </button>
-            )
-          })}
+          {techs.map(t => (
+            <TechSidebarRow
+              key={t.id}
+              tech={t}
+              active={activeTech === t.id}
+              onFilter={() => handleTechClick(t.id)}
+            />
+          ))}
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
             <button
               onClick={handleLogout}
@@ -456,5 +433,281 @@ export default function Sidebar({
         }
       `}</style>
     </>
+  )
+}
+
+// ─── Ligne technicien avec mini-fiche ─────────────────────────────────────
+function TechSidebarRow({
+  tech,
+  active,
+  onFilter,
+}: {
+  tech: Utilisateur
+  active: boolean
+  onFilter: () => void
+}) {
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const [summary, setSummary] = useState<TechSummary | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  // Fermer le popover sur clic extérieur ou Escape
+  useEffect(() => {
+    if (!popoverOpen) return
+    function onDocMouseDown(e: MouseEvent) {
+      if (
+        popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
+        setPopoverOpen(false)
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPopoverOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [popoverOpen])
+
+  async function togglePopover() {
+    if (popoverOpen) {
+      setPopoverOpen(false)
+      return
+    }
+    setPopoverOpen(true)
+    if (summary) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/admin/tech-summary/${tech.id}`)
+      const data = (await res.json()) as TechSummary
+      if (!data.ok) {
+        setError(data.error ?? 'Erreur de chargement.')
+      } else {
+        setSummary(data)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur réseau.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          background: active ? 'rgba(161, 114, 68, .18)' : 'transparent',
+          border: active ? '1px solid #A17244' : '1px solid transparent',
+          borderRadius: 8,
+          padding: '6px 8px',
+          margin: '2px -2px',
+          transition: 'all .15s',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onFilter}
+          title={active ? 'Cliquer pour désactiver le filtre' : 'Filtrer le pipeline sur ce technicien'}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+            color: 'inherit',
+            minWidth: 0,
+          }}
+        >
+          <div
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: active ? '#A17244' : '#3D3A32',
+              color: active ? '#FFFFFF' : '#C0BAB0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 10,
+              fontWeight: 700,
+              flexShrink: 0,
+            }}
+          >
+            {initiales(tech.prenom, tech.nom)}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: active ? '#F0ECE4' : '#C0BAB0' }}>
+              {shortName(tech.prenom, tech.nom)}
+            </div>
+            <div style={{ fontSize: 10, color: '#5A5650', marginTop: 1 }}>
+              {active ? '● Pipeline filtré' : 'En ligne'}
+            </div>
+          </div>
+        </button>
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={togglePopover}
+          title="Voir la fiche technicien"
+          aria-label="Mini-fiche"
+          style={{
+            background: popoverOpen ? 'rgba(255,255,255,.1)' : 'transparent',
+            border: 'none',
+            color: '#8A8278',
+            fontSize: 14,
+            lineHeight: 1,
+            cursor: 'pointer',
+            padding: '4px 6px',
+            borderRadius: 6,
+            fontFamily: 'inherit',
+          }}
+        >
+          ⋯
+        </button>
+      </div>
+
+      {popoverOpen && (
+        <div
+          ref={popoverRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 'calc(100% + 8px)',
+            background: '#FAF6EE',
+            color: '#1C1A16',
+            border: '1px solid #DDD3C3',
+            borderRadius: 12,
+            padding: 12,
+            width: 280,
+            boxShadow: '0 16px 40px rgba(0,0,0,.35)',
+            zIndex: 200,
+          }}
+          className="foxo-tech-popover"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              background: '#A17244', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700,
+            }}>
+              {initiales(tech.prenom, tech.nom)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 800 }}>
+                {shortName(tech.prenom, tech.nom)}
+              </div>
+              <div style={{ fontSize: 10, color: '#1F6B45', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: '#1F6B45' }} />
+                En ligne
+              </div>
+            </div>
+          </div>
+
+          {loading && (
+            <div style={{ fontSize: 12, color: '#6B6558', textAlign: 'center', padding: 12 }}>
+              Chargement…
+            </div>
+          )}
+
+          {error && (
+            <div style={{ fontSize: 11, color: '#C4622D', background: '#F7EDE5', padding: 8, borderRadius: 6 }}>
+              {error}
+            </div>
+          )}
+
+          {summary && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+                <div style={{ background: '#FFFFFF', border: '1px solid #DDD3C3', borderRadius: 8, padding: '6px 8px' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{summary.month_realisees}</div>
+                  <div style={{ fontSize: 9, color: '#6B6558', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
+                    Réalisées (mois)
+                  </div>
+                </div>
+                <div style={{ background: '#D4EDE2', border: '1px solid #A8D4BC', borderRadius: 8, padding: '6px 8px' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, color: '#1F6B45' }}>{summary.month_rapports}</div>
+                  <div style={{ fontSize: 9, color: '#1F6B45', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
+                    Rapports publiés
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#6B6558', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
+                  Aujourd&apos;hui
+                </div>
+                {summary.today.length === 0 ? (
+                  <div style={{ fontSize: 11, color: '#9C9588', fontStyle: 'italic' }}>Aucune intervention.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {summary.today.map(iv => (
+                      <div key={iv.id} style={{ background: '#fff', border: '1px solid #DDD3C3', borderRadius: 6, padding: '5px 7px', fontSize: 11 }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1B3A6B' }}>
+                          {iv.creneau_debut ? new Date(iv.creneau_debut).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                        </span>
+                        {' · '}
+                        <span style={{ fontWeight: 600 }}>{iv.acp_nom ?? iv.ref ?? '?'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: '#6B6558', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
+                  Prochains créneaux libres
+                </div>
+                {summary.next_slots.length === 0 ? (
+                  <div style={{ fontSize: 11, color: '#9C9588', fontStyle: 'italic' }}>Aucun créneau libre.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {summary.next_slots.map(s => (
+                      <span key={s.id} style={{
+                        background: '#D4EDE2', color: '#1F6B45', border: '1px solid #A8D4BC',
+                        borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700,
+                      }}>
+                        {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                        {' · '}{s.heure_debut}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 768px) {
+          .foxo-tech-popover {
+            position: fixed !important;
+            top: auto !important;
+            bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+            left: 12px !important;
+            right: 12px !important;
+            width: auto !important;
+            max-height: 60vh;
+            overflow-y: auto;
+          }
+        }
+      `}</style>
+    </div>
   )
 }
