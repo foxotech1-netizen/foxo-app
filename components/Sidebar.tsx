@@ -382,7 +382,7 @@ export default function Sidebar({
             position: fixed;
             top: 0; left: 0; right: 0;
             z-index: 80;
-            background: #E2C9A1;
+            background: var(--sidebar-logo-bg);
             border-bottom: 1px solid rgba(0,0,0,.12);
             padding: max(env(safe-area-inset-top, 8px), 8px) 16px 8px;
             align-items: center;
@@ -391,7 +391,7 @@ export default function Sidebar({
           }
           .foxo-mobile-header-label {
             font-size: 9px;
-            color: #7A6A50;
+            color: var(--sidebar-logo-fg);
             text-transform: uppercase;
             letter-spacing: .15em;
             font-weight: 600;
@@ -590,9 +590,9 @@ function TechSidebarRow({
             position: 'absolute',
             top: 0,
             left: 'calc(100% + 8px)',
-            background: '#FAF6EE',
-            color: '#1C1A16',
-            border: '1px solid #DDD3C3',
+            background: 'var(--color-cream)',
+            color: 'var(--color-ink)',
+            border: '1px solid var(--color-sand-border)',
             borderRadius: 12,
             padding: 12,
             width: 280,
@@ -611,24 +611,24 @@ function TechSidebarRow({
               {initiales(tech.prenom, tech.nom)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 800 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-ink)' }}>
                 {shortName(tech.prenom, tech.nom)}
               </div>
-              <div style={{ fontSize: 10, color: '#1F6B45', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: 3, background: '#1F6B45' }} />
+              <div style={{ fontSize: 10, color: 'var(--color-ok)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--color-ok)' }} />
                 En ligne
               </div>
             </div>
           </div>
 
           {loading && (
-            <div style={{ fontSize: 12, color: '#6B6558', textAlign: 'center', padding: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-ink-mid)', textAlign: 'center', padding: 12 }}>
               Chargement…
             </div>
           )}
 
           {error && (
-            <div style={{ fontSize: 11, color: '#C4622D', background: '#F7EDE5', padding: 8, borderRadius: 6 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-terra)', background: 'var(--color-terra-light)', padding: 8, borderRadius: 6, border: '1px solid var(--color-terra-mid)' }}>
               {error}
             </div>
           )}
@@ -636,31 +636,31 @@ function TechSidebarRow({
           {summary && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-                <div style={{ background: '#FFFFFF', border: '1px solid #DDD3C3', borderRadius: 8, padding: '6px 8px' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1 }}>{summary.month_realisees}</div>
-                  <div style={{ fontSize: 9, color: '#6B6558', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
+                <div style={{ background: 'var(--color-sand)', border: '1px solid var(--color-sand-border)', borderRadius: 8, padding: '6px 8px' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--color-ink)' }}>{summary.month_realisees}</div>
+                  <div style={{ fontSize: 9, color: 'var(--color-ink-mid)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
                     Réalisées (mois)
                   </div>
                 </div>
-                <div style={{ background: '#D4EDE2', border: '1px solid #A8D4BC', borderRadius: 8, padding: '6px 8px' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, color: '#1F6B45' }}>{summary.month_rapports}</div>
-                  <div style={{ fontSize: 9, color: '#1F6B45', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
+                <div style={{ background: 'var(--color-ok-light)', border: '1px solid var(--color-ok-mid)', borderRadius: 8, padding: '6px 8px' }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--color-ok)' }}>{summary.month_rapports}</div>
+                  <div style={{ fontSize: 9, color: 'var(--color-ok)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
                     Rapports publiés
                   </div>
                 </div>
               </div>
 
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#6B6558', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-ink-mid)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
                   Aujourd&apos;hui
                 </div>
                 {summary.today.length === 0 ? (
-                  <div style={{ fontSize: 11, color: '#9C9588', fontStyle: 'italic' }}>Aucune intervention.</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic' }}>Aucune intervention.</div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {summary.today.map(iv => (
-                      <div key={iv.id} style={{ background: '#fff', border: '1px solid #DDD3C3', borderRadius: 6, padding: '5px 7px', fontSize: 11 }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1B3A6B' }}>
+                      <div key={iv.id} style={{ background: 'var(--color-sand)', border: '1px solid var(--color-sand-border)', borderRadius: 6, padding: '5px 7px', fontSize: 11, color: 'var(--color-ink)' }}>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-navy)' }}>
                           {iv.creneau_debut ? new Date(iv.creneau_debut).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '—'}
                         </span>
                         {' · '}
@@ -672,16 +672,15 @@ function TechSidebarRow({
               </div>
 
               <div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: '#6B6558', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-ink-mid)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
                   Prochains créneaux libres
                 </div>
                 {summary.next_slots.length === 0 ? (
-                  <div style={{ fontSize: 11, color: '#9C9588', fontStyle: 'italic' }}>Aucun créneau libre.</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic' }}>Aucun créneau libre.</div>
                 ) : (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {summary.next_slots.map(s => (
-                      <span key={s.id} style={{
-                        background: '#D4EDE2', color: '#1F6B45', border: '1px solid #A8D4BC',
+                      <span key={s.id} className="foxo-slot-chip" style={{
                         borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700,
                       }}>
                         {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
@@ -697,6 +696,17 @@ function TechSidebarRow({
       )}
 
       <style>{`
+        .foxo-slot-chip {
+          background: var(--color-ok-light);
+          color: var(--color-ok);
+          border: 1px solid var(--color-ok-mid);
+        }
+        :where(.dark) .foxo-slot-chip {
+          background: #1F6B45;
+          color: #FFFFFF;
+          border-color: #2A8A5A;
+        }
+
         @media (max-width: 768px) {
           .foxo-tech-popover {
             position: fixed !important;

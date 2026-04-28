@@ -91,7 +91,7 @@ function Pipebar({ statut }: { statut: StatutIntervention }) {
         <div
           key={p}
           className="h-[3px] flex-1 rounded-md"
-          style={{ background: i <= idx ? STATUT_INFO[p].fg : '#DDD8CC' }}
+          style={{ background: i <= idx ? STATUT_INFO[p].fg : 'var(--color-sand-border)' }}
         />
       ))}
     </div>
