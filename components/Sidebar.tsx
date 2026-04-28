@@ -373,9 +373,10 @@ export default function Sidebar({ alertCount = 0 }: { alertCount?: number }) {
             -webkit-backdrop-filter: blur(6px);
             font-family: inherit;
           }
-          /* Espace pour le header en haut + la bottom nav en bas */
+          /* Espace pour le header fixe en haut (#E2C9A1 + logo + label)
+             et la bottom nav en bas */
           main {
-            padding-top: calc(60px + env(safe-area-inset-top, 0px)) !important;
+            padding-top: calc(70px + env(safe-area-inset-top, 0px)) !important;
             padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
           }
         }
