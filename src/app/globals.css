@@ -71,10 +71,10 @@
   --color-sand-hover:  #221E1A;
   --color-cream:       #1C1A16;
 
-  /* Texte */
-  --color-ink:        #F0ECE4;
-  --color-ink-mid:    #8A8278;
-  --color-ink-muted:  #5A5650;
+  /* Texte — contraste boosté pour rester lisible sur fonds sombres */
+  --color-ink:        #F0ECE4;  /* texte principal + titres sections */
+  --color-ink-mid:    #C8C2B8;  /* texte secondaire */
+  --color-ink-muted:  #C8C2B8;  /* labels (uppercase, petits) */
 
   /* Pales/lights utilisés sur cartes — assombris pour rester lisibles */
   --color-navy-pale:  #1A2540;
@@ -152,6 +152,17 @@ body {
   font-family: var(--font-sans);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Stats — chiffres mis en avant. Couleur boostée en mode sombre pour passer
+   à #FFFFFF (texte principal #F0ECE4 reste plus doux pour les paragraphes).
+   ───────────────────────────────────────────────────────────────────────── */
+.stat-num {
+  color: var(--color-ink);
+}
+.dark .stat-num {
+  color: #FFFFFF;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

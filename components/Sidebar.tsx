@@ -281,31 +281,33 @@ export default function Sidebar({
               onFilter={() => handleTechClick(t.id)}
             />
           ))}
-          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+            <ThemeToggle
+              className="foxo-theme-toggle-desktop"
+              inline
+              withLabel
+            />
             <button
               onClick={handleLogout}
               style={{
-                flex: 1,
                 background: 'rgba(255,255,255,.05)',
                 border: '1px solid rgba(255,255,255,.08)',
                 borderRadius: 7,
-                padding: '7px 10px',
-                color: '#5A5650',
+                padding: '8px 10px',
+                color: '#8A8278',
                 fontSize: 11,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
+                width: '100%',
               }}
             >
               Déconnexion
             </button>
-            <ThemeToggle
-              className="foxo-theme-toggle-desktop"
-            />
           </div>
         </div>
       </aside>
 
-      {/* ── MOBILE : header fixe en haut avec logo ──────────────────────────── */}
+      {/* ── MOBILE : header fixe en haut avec logo + toggle thème ─────────── */}
       <header className="foxo-mobile-header">
         <Image
           src="/foxo-logo-noir-transparent.png"
@@ -315,10 +317,8 @@ export default function Sidebar({
           style={{ objectFit: 'contain' }}
         />
         <span className="foxo-mobile-header-label">Interface Admin</span>
+        <ThemeToggle className="foxo-theme-toggle-mobile" />
       </header>
-
-      {/* ── MOBILE : toggle thème flottant en haut à droite ─────────────────── */}
-      <ThemeToggle className="foxo-theme-toggle-mobile" />
 
       {/* ── MOBILE bottom nav ────────────────────────────────────────────────── */}
       <nav style={S.bottomNav} className="foxo-sidebar-mobile">
@@ -353,13 +353,14 @@ export default function Sidebar({
         .foxo-mobile-header   { display: none; }
 
         .foxo-theme-toggle-desktop {
-          width: 32px;
-          height: 32px;
+          width: 100%;
+          height: 34px;
           border-radius: 7px;
-          background: rgba(255,255,255,.05);
-          border: 1px solid rgba(255,255,255,.08);
-          color: var(--color-ink);
-          font-size: 14px;
+          background: rgba(255,255,255,.06);
+          border: 1px solid rgba(255,255,255,.1);
+          color: #C8C2B8;
+          font-size: 11px;
+          font-weight: 600;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -395,22 +396,20 @@ export default function Sidebar({
           }
           .foxo-theme-toggle-mobile {
             display: flex !important;
-            position: fixed;
-            top: calc(env(safe-area-inset-top, 0px) + 10px);
+            position: absolute;
             right: 12px;
-            width: 38px;
-            height: 38px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
             border-radius: 9px;
-            background: rgba(28,26,22,.85);
-            border: 1px solid rgba(255,255,255,.1);
-            color: #F0ECE4;
+            background: rgba(28,26,22,.12);
+            border: 1px solid rgba(28,26,22,.18);
+            color: #2C2A24;
             font-size: 16px;
             cursor: pointer;
             align-items: center;
             justify-content: center;
-            z-index: 90;
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
             font-family: inherit;
           }
           /* Espace pour le header fixe en haut (#E2C9A1 + logo + label)
@@ -517,7 +516,7 @@ function TechSidebarRow({
         <button
           type="button"
           onClick={onFilter}
-          title={active ? 'Cliquer pour désactiver le filtre' : 'Filtrer le pipeline sur ce technicien'}
+          title={active ? 'Cliquer pour désactiver le filtre' : 'Filtrer le tableau de bord sur ce technicien'}
           style={{
             flex: 1,
             display: 'flex',
@@ -555,7 +554,7 @@ function TechSidebarRow({
               {shortName(tech.prenom, tech.nom)}
             </div>
             <div style={{ fontSize: 10, color: '#5A5650', marginTop: 1 }}>
-              {active ? '● Pipeline filtré' : 'En ligne'}
+              {active ? '● Tableau filtré' : 'En ligne'}
             </div>
           </div>
         </button>

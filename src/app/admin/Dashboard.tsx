@@ -318,9 +318,13 @@ function StatCard({
   if (amber)  { bg = 'bg-amber-light'; border = 'border-[#E8C896]'; numColor = 'text-[#8A5A1A]'; }
   if (muted) numColor = 'text-ink-mid';
   if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra'; }
+  // Pour les variantes "neutre" et "muted" la couleur de chiffre suit le thème
+  // (blanc pur en dark, ink en light) via la classe `stat-num`. Les variantes
+  // accent / amber / warning gardent leur couleur d'accent dédiée.
+  const useStatNum = !accent && !amber && !warning;
   return (
     <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
-      <div className={`text-[26px] font-extrabold leading-none ${numColor}`}>{num}</div>
+      <div className={`text-[26px] font-extrabold leading-none ${useStatNum ? 'stat-num' : numColor}`}>{num}</div>
       <div className="text-[10px] text-ink-muted mt-1 font-semibold">{label}</div>
     </div>
   );
@@ -329,7 +333,7 @@ function StatCard({
 function MiniStat({ num, label, accent }: { num: number; label: string; accent?: boolean }) {
   return (
     <div className={(accent ? 'bg-navy-pale border-navy-light' : 'bg-sand border-sand-border') + ' border rounded-lg px-2.5 py-2'}>
-      <div className={'text-[18px] font-extrabold leading-none ' + (accent ? 'text-navy' : 'text-ink')}>
+      <div className={'text-[18px] font-extrabold leading-none ' + (accent ? 'text-navy' : 'stat-num')}>
         {num}
       </div>
       <div className="text-[9px] text-ink-muted mt-0.5 font-semibold uppercase tracking-wider">

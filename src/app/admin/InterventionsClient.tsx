@@ -304,10 +304,10 @@ export function InterventionsClient({
         />
       </div>
 
-      {/* Section 4 : Pipeline rapide */}
+      {/* Section 4 : Liste des interventions */}
       <div className="px-6 pt-5 flex-shrink-0">
         <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
-          Pipeline rapide
+          Toutes les interventions
         </h3>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <button
