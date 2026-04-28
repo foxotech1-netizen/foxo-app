@@ -147,6 +147,38 @@ export interface CreneauBloque {
   created_at: string;
 }
 
+// ─── Clients ─────────────────────────────────────────────────────────────
+
+export type TypeClient = 'acp' | 'particulier' | 'entreprise';
+
+export interface Client {
+  id: string;
+  type: TypeClient;
+  nom: string;
+  prenom: string | null;
+  email: string | null;
+  telephone: string | null;
+  adresse: string | null;
+  code_postal: string | null;
+  ville: string | null;
+  pays: string | null;
+  bce: string | null;
+  tva: string | null;
+  contact_nom: string | null;
+  contact_email: string | null;
+  contact_telephone: string | null;
+  notes: string | null;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const TYPE_CLIENT_LABEL: Record<TypeClient, string> = {
+  acp: 'ACP',
+  particulier: 'Particulier',
+  entreprise: 'Entreprise',
+};
+
 // ─── Facturation ─────────────────────────────────────────────────────────
 
 export type StatutFacture = 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee';
@@ -172,6 +204,7 @@ export interface Facture {
   numero: string;
   intervention_id: string | null;
   organisation_id: string | null;
+  client_id: string | null;
   client_nom: string | null;
   client_email: string | null;
   client_adresse: string | null;

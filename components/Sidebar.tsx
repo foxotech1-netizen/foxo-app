@@ -33,7 +33,9 @@ const NAV_MAIN = [
 
 const NAV_GESTION = [
   { href: '/admin/syndics',     icon: '👥', label: 'Syndics'     },
+  { href: '/admin/clients',     icon: '👤', label: 'Clients'     },
   { href: '/admin/facturation', icon: '🧾', label: 'Facturation' },
+  { href: '/admin/articles',    icon: '📋', label: 'Catalogue'   },
   { href: '/admin/mails',       icon: '✉',  label: 'Mails'      },
   { href: '/admin/parametres',  icon: '⊙',  label: 'Paramètres' },
 ]

@@ -8,10 +8,13 @@ import { generateBBA } from '@/lib/facturation/bba';
 import { computeFactureTotals } from '@/lib/facturation/FactureFoxoPdf';
 import { VENDOR } from '@/lib/constants/vendor';
 import type {
+  Article,
+  Client,
   Facture,
   FactureLigne,
   FactureDetailsIntervention,
   StatutFacture,
+  TypeClient,
 } from '@/lib/types/database';
 
 export type ActionResult<T = void> =
@@ -73,6 +76,7 @@ export interface FactureInput {
   numero: string;
   intervention_id: string | null;
   organisation_id: string | null;
+  client_id: string | null;
   client_nom: string | null;
   client_email: string | null;
   client_adresse: string | null;
@@ -112,6 +116,7 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     numero: input.numero.trim(),
     intervention_id: input.intervention_id,
     organisation_id: input.organisation_id,
+    client_id: input.client_id,
     client_nom: input.client_nom,
     client_email: input.client_email,
     client_adresse: input.client_adresse,
@@ -501,3 +506,180 @@ export async function setParametre(cle: string, valeur: string): Promise<ActionR
   revalidatePath('/admin/parametres');
   return { ok: true };
 }
+
+// ─── Articles (catalogue) ────────────────────────────────────────────────
+
+function ttcToHtva(ttc: number, tvaPct: number): number {
+  if (!Number.isFinite(ttc) || ttc < 0) return 0;
+  return Math.round((ttc / (1 + tvaPct / 100)) * 100) / 100;
+}
+
+export interface ArticleInput {
+  id?: string;
+  code: string;
+  description: string;
+  prix_ttc: number;       // saisie utilisateur
+  tva_pct: number;
+  actif: boolean;
+}
+
+export async function saveArticle(input: ArticleInput): Promise<ActionResult<{ id: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  if (!input.code?.trim()) return { ok: false, error: 'Code requis.' };
+  if (!input.description?.trim()) return { ok: false, error: 'Description requise.' };
+  if (!Number.isFinite(input.prix_ttc) || input.prix_ttc < 0) return { ok: false, error: 'Prix TTC invalide.' };
+  if (!Number.isFinite(input.tva_pct) || input.tva_pct < 0) return { ok: false, error: 'Taux TVA invalide.' };
+
+  const prix_htva = ttcToHtva(input.prix_ttc, input.tva_pct);
+  const payload = {
+    code: input.code.trim(),
+    description: input.description.trim(),
+    prix_htva,
+    tva_pct: input.tva_pct,
+    actif: input.actif,
+  };
+
+  const supabase = await createClient();
+  if (input.id) {
+    const { data, error } = await supabase
+      .from('articles')
+      .update(payload)
+      .eq('id', input.id)
+      .select('id')
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: 'Article introuvable.' };
+    revalidatePath('/admin/articles');
+    return { ok: true, data: { id: data.id } };
+  }
+  const { data, error } = await supabase
+    .from('articles')
+    .insert(payload)
+    .select('id')
+    .maybeSingle();
+  if (error) {
+    if (error.code === '23505') return { ok: false, error: 'Ce code existe déjà.' };
+    return { ok: false, error: error.message };
+  }
+  if (!data) return { ok: false, error: 'Erreur création.' };
+  revalidatePath('/admin/articles');
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function deleteArticle(id: string): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const supabase = await createClient();
+  const { error } = await supabase.from('articles').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/admin/articles');
+  return { ok: true };
+}
+
+// ─── Clients ─────────────────────────────────────────────────────────────
+
+export interface ClientInput {
+  id?: string;
+  type: TypeClient;
+  nom: string;
+  prenom?: string | null;
+  email?: string | null;
+  telephone?: string | null;
+  adresse?: string | null;
+  code_postal?: string | null;
+  ville?: string | null;
+  pays?: string | null;
+  bce?: string | null;
+  tva?: string | null;
+  contact_nom?: string | null;
+  contact_email?: string | null;
+  contact_telephone?: string | null;
+  notes?: string | null;
+  actif?: boolean;
+}
+
+export async function saveClient(input: ClientInput): Promise<ActionResult<{ id: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  if (!input.nom?.trim()) return { ok: false, error: 'Nom requis.' };
+  if (!['acp', 'particulier', 'entreprise'].includes(input.type)) {
+    return { ok: false, error: 'Type invalide.' };
+  }
+
+  const payload = {
+    type: input.type,
+    nom: input.nom.trim(),
+    prenom: input.prenom?.trim() || null,
+    email: input.email?.trim().toLowerCase() || null,
+    telephone: input.telephone?.trim() || null,
+    adresse: input.adresse?.trim() || null,
+    code_postal: input.code_postal?.trim() || null,
+    ville: input.ville?.trim() || null,
+    pays: input.pays?.trim() || 'Belgique',
+    bce: input.bce?.trim() || null,
+    tva: input.tva?.trim() || null,
+    contact_nom: input.contact_nom?.trim() || null,
+    contact_email: input.contact_email?.trim().toLowerCase() || null,
+    contact_telephone: input.contact_telephone?.trim() || null,
+    notes: input.notes?.trim() || null,
+    actif: input.actif ?? true,
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = await createClient();
+  if (input.id) {
+    const { data, error } = await supabase
+      .from('clients')
+      .update(payload)
+      .eq('id', input.id)
+      .select('id')
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: 'Client introuvable.' };
+    revalidatePath('/admin/clients');
+    return { ok: true, data: { id: data.id } };
+  }
+  const { data, error } = await supabase
+    .from('clients')
+    .insert(payload)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Erreur création.' };
+  revalidatePath('/admin/clients');
+  return { ok: true, data: { id: data.id } };
+}
+
+export async function deleteClient(id: string): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const supabase = await createClient();
+  // Soft-delete : marque inactif, ne supprime pas (préserve les liens factures)
+  const { error } = await supabase
+    .from('clients')
+    .update({ actif: false, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/admin/clients');
+  return { ok: true };
+}
+
+export async function searchClients(query: string): Promise<ActionResult<Client[]>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const q = query.trim();
+  if (q.length < 2) return { ok: true, data: [] };
+  const safe = q.replace(/[,()]/g, ' ');
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('actif', true)
+    .or(`nom.ilike.%${safe}%,bce.ilike.%${safe}%,email.ilike.%${safe}%`)
+    .order('nom', { ascending: true })
+    .limit(12);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, data: (data ?? []) as Client[] };
+}
+

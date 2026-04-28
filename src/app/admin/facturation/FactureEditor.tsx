@@ -7,16 +7,20 @@ import {
   setFactureStatut,
   searchInterventionsForFacture,
   loadInterventionForFacture,
+  searchClients,
+  saveClient,
   type FactureInput,
 } from './actions';
 import { generateBBA } from '@/lib/facturation/bba';
 import { computeFactureTotals } from '@/lib/facturation/FactureFoxoPdf';
 import type {
   Article,
+  Client,
   Facture,
   FactureLigne,
   FactureDetailsIntervention,
   StatutFacture,
+  TypeClient,
 } from '@/lib/types/database';
 
 interface InterventionRef {
@@ -40,6 +44,14 @@ function plusDaysISO(iso: string, days: number): string {
 
 function fmtMoney(n: number): string {
   return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function htvaToTtc(htva: number, tvaPct: number): number {
+  return Math.round(htva * (1 + tvaPct / 100) * 100) / 100;
+}
+
+function ttcToHtva(ttc: number, tvaPct: number): number {
+  return Math.round((ttc / (1 + tvaPct / 100)) * 100) / 100;
 }
 
 export function FactureEditor({
@@ -70,11 +82,22 @@ export function FactureEditor({
   // Client
   const [interventionId, setInterventionId] = useState<string | null>(initial?.intervention_id ?? null);
   const [organisationId, setOrganisationId] = useState<string | null>(initial?.organisation_id ?? null);
+  const [clientId, setClientId] = useState<string | null>(initial?.client_id ?? null);
   const [clientNom, setClientNom] = useState<string>(initial?.client_nom ?? '');
   const [clientEmail, setClientEmail] = useState<string>(initial?.client_email ?? '');
   const [clientAdresse, setClientAdresse] = useState<string>(initial?.client_adresse ?? '');
   const [clientBce, setClientBce] = useState<string>(initial?.client_bce ?? '');
   const [clientSyndic, setClientSyndic] = useState<string>(initial?.client_syndic ?? '');
+
+  // Recherche client (DB clients)
+  const [clientQuery, setClientQuery] = useState('');
+  const [clientResults, setClientResults] = useState<Client[]>([]);
+  const [showQuickClientForm, setShowQuickClientForm] = useState(false);
+  const [quickClientType, setQuickClientType] = useState<TypeClient>('acp');
+  const [quickClientNom, setQuickClientNom] = useState('');
+  const [quickClientEmail, setQuickClientEmail] = useState('');
+  const [quickClientBce, setQuickClientBce] = useState('');
+  const [quickClientPending, setQuickClientPending] = useState(false);
 
   // Lignes
   const [lignes, setLignes] = useState<FactureLigne[]>(
@@ -112,6 +135,67 @@ export function FactureEditor({
     }, 280);
     return () => clearTimeout(t);
   }, [searchQuery, interventionId, linked]);
+
+  // Recherche client (DB clients) — actif quand pas d'intervention liée
+  useEffect(() => {
+    if (clientId) return;
+    const q = clientQuery.trim();
+    if (q.length < 2) { setClientResults([]); return; }
+    const t = setTimeout(async () => {
+      const res = await searchClients(q);
+      if (res.ok) setClientResults(res.data ?? []);
+    }, 280);
+    return () => clearTimeout(t);
+  }, [clientQuery, clientId]);
+
+  function pickClient(c: Client) {
+    setClientId(c.id);
+    setClientNom([c.prenom, c.nom].filter(Boolean).join(' '));
+    setClientEmail(c.email ?? '');
+    setClientAdresse([c.adresse, c.code_postal, c.ville].filter(Boolean).join(', '));
+    setClientBce(c.bce ?? '');
+    setClientSyndic(
+      c.type === 'acp' ? 'Syndic' :
+      c.type === 'particulier' ? 'Particulier' :
+      'Entreprise',
+    );
+    setClientQuery('');
+    setClientResults([]);
+    setShowQuickClientForm(false);
+  }
+
+  function clearClientLink() {
+    setClientId(null);
+  }
+
+  async function createQuickClient() {
+    if (!quickClientNom.trim()) {
+      setFeedback({ kind: 'err', msg: 'Nom requis pour créer un client.' });
+      return;
+    }
+    setQuickClientPending(true);
+    try {
+      const res = await saveClient({
+        type: quickClientType,
+        nom: quickClientNom,
+        email: quickClientEmail,
+        bce: quickClientBce,
+      });
+      if (!res.ok) { setFeedback({ kind: 'err', msg: res.error }); return; }
+      // Re-fetch et auto-sélection
+      const search = await searchClients(quickClientNom);
+      const created = search.ok ? (search.data ?? []).find((c) => c.id === res.data!.id) : null;
+      if (created) {
+        pickClient(created);
+        setFeedback({ kind: 'ok', msg: 'Client créé et sélectionné.' });
+      }
+      setQuickClientNom('');
+      setQuickClientEmail('');
+      setQuickClientBce('');
+    } finally {
+      setQuickClientPending(false);
+    }
+  }
 
   async function pickIntervention(id: string) {
     const res = await loadInterventionForFacture(id);
@@ -173,6 +257,7 @@ export function FactureEditor({
       numero,
       intervention_id: linked ? interventionId : null,
       organisation_id: linked ? organisationId : null,
+      client_id: clientId,
       client_nom: clientNom || null,
       client_email: clientEmail || null,
       client_adresse: clientAdresse || null,
@@ -331,9 +416,136 @@ export function FactureEditor({
 
       {/* Client */}
       <div className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-3 dark:text-[#C8C2B8]">
-          Client
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+            Client
+          </div>
+          {clientId && (
+            <button
+              type="button"
+              onClick={clearClientLink}
+              className="text-[11px] text-ink-mid hover:text-navy underline dark:text-[#C8C2B8]"
+            >
+              Délier le client
+            </button>
+          )}
         </div>
+
+        {/* Recherche dans la base clients */}
+        <div className="mb-3">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Label>Rechercher dans la base clients</Label>
+              <input
+                value={clientQuery}
+                onChange={(e) => setClientQuery(e.target.value)}
+                placeholder="Nom, BCE ou email…"
+                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowQuickClientForm((v) => !v);
+                if (!showQuickClientForm) setQuickClientNom(clientNom);
+              }}
+              className="bg-[#A17244] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90"
+            >
+              + Nouveau
+            </button>
+          </div>
+          {clientResults.length > 0 && (
+            <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
+              {clientResults.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pickClient(c)}
+                  className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                >
+                  <div className="font-bold">
+                    {[c.prenom, c.nom].filter(Boolean).join(' ')}
+                  </div>
+                  <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                    {c.type.toUpperCase()}
+                    {c.email ? ` · ${c.email}` : ''}
+                    {c.bce ? ` · BCE ${c.bce}` : ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {showQuickClientForm && (
+            <div className="mt-2 bg-amber-light border border-[#E8C896] rounded-lg p-3 space-y-2 dark:bg-[#2A220E] dark:border-[#5A4A30]">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#8A5A1A] dark:text-[#E8C896]">
+                Nouveau client (rapide)
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(['acp', 'particulier', 'entreprise'] as TypeClient[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setQuickClientType(t)}
+                    className={
+                      'px-2 py-1.5 rounded-md text-[11px] font-bold border ' +
+                      (quickClientType === t
+                        ? 'bg-navy text-white border-navy'
+                        : 'bg-white text-ink-mid border-sand-border dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
+                    }
+                  >
+                    {t === 'acp' ? 'ACP' : t === 'particulier' ? 'Particulier' : 'Entreprise'}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={quickClientNom}
+                onChange={(e) => setQuickClientNom(e.target.value)}
+                placeholder="Nom *"
+                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+              />
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  value={quickClientEmail}
+                  onChange={(e) => setQuickClientEmail(e.target.value)}
+                  placeholder="Email"
+                  type="email"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+                />
+                <input
+                  value={quickClientBce}
+                  onChange={(e) => setQuickClientBce(e.target.value)}
+                  placeholder="BCE"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white font-mono"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickClientForm(false)}
+                  className="text-[11px] text-ink-mid underline dark:text-[#C8C2B8]"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={createQuickClient}
+                  disabled={quickClientPending}
+                  className="bg-navy text-white px-3 py-1.5 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                >
+                  {quickClientPending ? '…' : 'Créer & sélectionner'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {clientId && (
+            <div className="mt-2 text-[11px] text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1.5 font-semibold dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]">
+              ✓ Client lié à la base — modifications sur ce formulaire restent locales à la facture
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Nom du client *" value={clientNom} onChange={setClientNom} />
           <Field label="Type / Syndic" value={clientSyndic} onChange={setClientSyndic} placeholder="Syndic / Courtier / —" />
@@ -367,11 +579,15 @@ export function FactureEditor({
             className="text-[11px] px-2 py-1 border border-sand-border rounded-md bg-white cursor-pointer dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
           >
             <option value="">+ Article catalogue</option>
-            {articles.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.code} — {a.description.slice(0, 50)} · {fmtMoney(a.prix_htva)} €
-              </option>
-            ))}
+            {articles.map((a) => {
+              const tvaPctA = Number(a.tva_pct ?? 21);
+              const ttc = htvaToTtc(Number(a.prix_htva), tvaPctA);
+              return (
+                <option key={a.id} value={a.id}>
+                  {a.code} — {a.description.slice(0, 45)} · {fmtMoney(ttc)} € TTC
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -403,14 +619,24 @@ export function FactureEditor({
               />
               <div className="grid grid-cols-4 gap-2">
                 <NumField label="Qté" value={l.quantite} step="1" onChange={(v) => updateLigne(i, { quantite: v })} />
-                <NumField label="P.U. HT" value={l.prix_unitaire} step="0.01" onChange={(v) => updateLigne(i, { prix_unitaire: v })} />
+                <NumField
+                  label="P.U. TTC"
+                  value={htvaToTtc(l.prix_unitaire, l.tva_pct)}
+                  step="0.01"
+                  onChange={(ttc) => updateLigne(i, { prix_unitaire: ttcToHtva(ttc, l.tva_pct) })}
+                />
                 <NumField label="TVA %" value={l.tva_pct} step="1" onChange={(v) => updateLigne(i, { tva_pct: v })} />
                 <div>
-                  <Label>Montant</Label>
+                  <Label>Total TTC</Label>
                   <div className="px-2.5 py-1.5 text-[13px] font-mono font-bold text-navy dark:text-white">
-                    {fmtMoney(l.quantite * l.prix_unitaire)} €
+                    {fmtMoney(l.quantite * htvaToTtc(l.prix_unitaire, l.tva_pct))} €
                   </div>
                 </div>
+              </div>
+              <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8] flex flex-wrap gap-3 pt-1 border-t border-sand-border dark:border-[#3D3A32]">
+                <span>HTVA unitaire : <span className="font-mono">{fmtMoney(l.prix_unitaire)} €</span></span>
+                <span>HTVA total : <span className="font-mono">{fmtMoney(l.quantite * l.prix_unitaire)} €</span></span>
+                <span>TVA {l.tva_pct}% : <span className="font-mono">{fmtMoney(l.quantite * (htvaToTtc(l.prix_unitaire, l.tva_pct) - l.prix_unitaire))} €</span></span>
               </div>
             </div>
           ))}

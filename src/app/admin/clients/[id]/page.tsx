@@ -1,0 +1,112 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
+import { TYPE_CLIENT_LABEL, type Client, type Facture } from '@/lib/types/database';
+import { ClientForm } from '../ClientForm';
+
+export const dynamic = 'force-dynamic';
+
+function fmtMoney(n: number | null | undefined): string {
+  const v = typeof n === 'number' ? n : 0;
+  return v.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+export default async function ClientDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const [clientRes, facturesRes] = await Promise.all([
+    supabase.from('clients').select('*').eq('id', id).maybeSingle(),
+    supabase.from('factures')
+      .select('id, numero, date_emission, montant_ttc, statut')
+      .eq('client_id', id)
+      .order('date_emission', { ascending: false })
+      .limit(50),
+  ]);
+
+  if (!clientRes.data) notFound();
+  const client = clientRes.data as Client;
+  const factures = (facturesRes.data ?? []) as Pick<Facture, 'id' | 'numero' | 'date_emission' | 'montant_ttc' | 'statut'>[];
+
+  return (
+    <>
+      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+        <div>
+          <h1 className="text-xl font-extrabold text-ink">
+            {[client.prenom, client.nom].filter(Boolean).join(' ')}
+          </h1>
+          <p className="text-[11px] text-ink-muted mt-0.5">
+            {TYPE_CLIENT_LABEL[client.type]} · {factures.length} facture(s) liée(s)
+          </p>
+        </div>
+        <Link
+          href="/admin/clients"
+          className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]"
+        >
+          ← Retour
+        </Link>
+      </header>
+
+      <div className="flex-1 overflow-auto px-6 py-5 space-y-6">
+        <ClientForm initial={client} redirectAfter={`/admin/clients/${client.id}`} />
+
+        <section className="max-w-[760px]">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-ink-muted mb-3 dark:text-[#C8C2B8]">
+            Historique des factures
+          </h2>
+          {factures.length === 0 ? (
+            <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center text-[13px] text-ink-muted dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
+              Aucune facture pour ce client.
+            </div>
+          ) : (
+            <div className="bg-cream rounded-2xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-sand dark:bg-[#221E1A]">
+                    {['N°', 'Émission', 'Montant TTC', 'Statut'].map((h) => (
+                      <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {factures.map((f) => (
+                    <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
+                      <td className="px-3.5 py-2.5">
+                        <Link
+                          href={`/admin/facturation/${f.id}`}
+                          className="font-mono text-xs font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+                        >
+                          {f.numero}
+                        </Link>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono dark:text-[#C8C2B8]">
+                        {fmtDate(f.date_emission)}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold dark:text-white">
+                        {fmtMoney(f.montant_ttc)}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-[11px] capitalize dark:text-[#F0ECE4]">
+                        {f.statut}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </>
+  );
+}
