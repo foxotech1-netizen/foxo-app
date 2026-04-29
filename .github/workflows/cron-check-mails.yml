@@ -1,0 +1,22 @@
+name: Cron — Analyse mails auto
+# Remplace le cron Vercel "*/30 * * * *" qui n'est pas autorisé sur le
+# plan Hobby. GitHub Actions accepte les schedules <1j, et on appelle
+# l'endpoint Next.js avec le Bearer CRON_SECRET pour rester compatible.
+#
+# Secret requis dans Settings → Secrets → Actions :
+#   - CRON_SECRET   (même valeur que la variable d'env Vercel)
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:        # permet un trigger manuel depuis l'UI GitHub
+
+jobs:
+  check-mails:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/cron/check-mails
+        run: |
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://admin.foxo.be/api/cron/check-mails"
