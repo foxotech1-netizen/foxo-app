@@ -1,10 +1,15 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import { sendEmail } from '@/lib/gmail';
 
 // Auth Hook Supabase — Send Email (Standard Webhooks)
 // Configuration : Supabase Dashboard → Authentication → Hooks → Send Email Hook
 //   URL    : https://auth.foxo.be/api/auth/send-email
 //   Secret : généré par Supabase, à coller dans SUPABASE_AUTH_HOOK_SECRET
+//
+// Envoi via Gmail API (compte foxotech1@gmail.com avec alias d'envoi
+// info@foxo.be). Le token OAuth est partagé via getValidAccessToken
+// dans lib/google-auth — donc l'admin doit avoir connecté Google
+// dans /admin/parametres pour que l'envoi fonctionne.
 //
 // Format du payload : { user, email_data: { token, token_hash, redirect_to,
 // email_action_type, site_url, ... } }
@@ -175,37 +180,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.error('[send-email] RESEND_API_KEY missing');
-    return NextResponse.json({ error: 'resend_not_configured' }, { status: 500 });
-  }
-
-  const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
+  const from = process.env.AUTH_HOOK_FROM_EMAIL ?? 'FoxO <info@foxo.be>';
   const subject = SUBJECTS[email_data.email_action_type] ?? 'Code FoxO';
+  const html = buildHtml(email_data.token, email_data.email_action_type);
 
-  // Logs ciblés — apparaissent dans Vercel runtime logs.
-  // On NE log PAS la clé Resend ni le token email (sensibles).
-  console.info('[send-email] sending', {
+  console.info('[send-email] sending via Gmail API', {
     to: user.email,
     from,
     action: email_data.email_action_type,
-    has_api_key: Boolean(apiKey),
-    api_key_prefix: apiKey.slice(0, 6),    // "re_..." pour vérifier le scope
   });
 
-  const resend = new Resend(apiKey);
-  let result: Awaited<ReturnType<typeof resend.emails.send>>;
+  let result: Awaited<ReturnType<typeof sendEmail>>;
   try {
-    result = await resend.emails.send({
-      from,
-      to: [user.email],
-      subject,
-      html: buildHtml(email_data.token, email_data.email_action_type),
-    });
+    result = await sendEmail({ to: user.email, subject, html, from });
   } catch (e) {
-    // Exception SDK (réseau, parsing, etc.) — distincte d'une error API
-    console.error('[send-email] resend.emails.send threw', e);
+    console.error('[send-email] gmail send threw', e);
     return NextResponse.json(
       {
         error: 'send_threw',
@@ -215,28 +204,23 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data, error } = result;
-  if (error) {
-    // L'erreur Resend a name + message + (parfois) statusCode. On les
-    // remonte tels quels pour faciliter le diagnostic dans Supabase /
-    // Vercel logs.
-    console.error('[send-email] Resend error', {
-      name: error.name,
-      message: error.message,
-      from,
-      to: user.email,
-    });
+  if (!result.ok) {
+    // Cas spécifique : aucun token Google connecté → 503 (service
+    // indisponible — l'admin doit reconnecter Google).
+    if (result.error === 'Google non connecté.') {
+      console.error('[send-email] no Google tokens — connect Google in /admin/parametres');
+      return NextResponse.json(
+        { error: 'google_not_connected', detail: result.error },
+        { status: 503 },
+      );
+    }
+    console.error('[send-email] gmail error', { error: result.error, from, to: user.email });
     return NextResponse.json(
-      {
-        error: 'send_failed',
-        resend_error_name: error.name,
-        resend_error_message: error.message,
-        from,
-      },
+      { error: 'send_failed', gmail_error: result.error, from },
       { status: 502 },
     );
   }
 
-  console.info('[send-email] sent', { id: data?.id, to: user.email, action: email_data.email_action_type });
-  return NextResponse.json({ ok: true, id: data?.id ?? null });
+  console.info('[send-email] sent', { id: result.id, to: user.email, action: email_data.email_action_type });
+  return NextResponse.json({ ok: true, id: result.id });
 }

@@ -648,6 +648,89 @@ export async function sendMailReply(args: {
   return { ok: true, id: sent.id };
 }
 
+// Envoie un email arbitraire via le compte Gmail connecté.
+// Le `from` doit être une adresse autorisée (l'adresse principale OU
+// un alias "Send mail as" configuré dans Gmail Settings → Comptes).
+// Pour envoyer en HTML, passe le contenu dans `html`. `text` est
+// optionnel (fallback plain text). Utilisé notamment pour les OTP
+// Supabase (Send Email Hook → /api/auth/send-email).
+export async function sendEmail(args: {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+  from?: string;
+}): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const from = args.from ?? 'FoxO <info@foxo.be>';
+
+  // Encode RFC 2047 pour les en-têtes contenant des accents (Subject, From).
+  const encodeHeader = (v: string): string =>
+    /^[\x20-\x7E]*$/.test(v)
+      ? v
+      : `=?UTF-8?B?${Buffer.from(v, 'utf-8').toString('base64')}?=`;
+
+  // Multipart/alternative pour servir text + html quand les deux sont fournis,
+  // sinon text/html simple. Les CRLF sont obligatoires (RFC 5322).
+  const boundary = `=_FoxO_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  let mime: string;
+  if (args.text) {
+    mime = [
+      `From: ${encodeHeader(from)}`,
+      `To: ${args.to}`,
+      `Subject: ${encodeHeader(args.subject)}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset="UTF-8"`,
+      `Content-Transfer-Encoding: 8bit`,
+      ``,
+      args.text,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset="UTF-8"`,
+      `Content-Transfer-Encoding: 8bit`,
+      ``,
+      args.html,
+      ``,
+      `--${boundary}--`,
+      ``,
+    ].join('\r\n');
+  } else {
+    mime = [
+      `From: ${encodeHeader(from)}`,
+      `To: ${args.to}`,
+      `Subject: ${encodeHeader(args.subject)}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/html; charset="UTF-8"`,
+      `Content-Transfer-Encoding: 8bit`,
+      ``,
+      args.html,
+    ].join('\r\n');
+  }
+
+  const raw = Buffer.from(mime, 'utf-8').toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const r = await fetch(`${API}/messages/send`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${auth.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw }),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `Send HTTP ${r.status} : ${t.slice(0, 300)}` };
+  }
+  const sent = (await r.json()) as { id: string };
+  return { ok: true, id: sent.id };
+}
+
 // Supprime DÉFINITIVEMENT un mail (pas de récupération possible).
 // Requiert le scope mail.google.com — gmail.modify ne suffit pas.
 export async function deleteMailPermanently(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
