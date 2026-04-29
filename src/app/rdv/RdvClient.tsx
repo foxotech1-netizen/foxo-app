@@ -33,15 +33,32 @@ export function RdvClient({ months }: { months: MonthData[] }) {
   const [success, setSuccess] = useState<{ ref: string } | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  // Form state
+  // Form state — Mandant
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [email, setEmail] = useState('');
   const [telephone, setTelephone] = useState('');
+  const [bce, setBce] = useState('');
 
+  // Adresse facturation (mandant)
   const [rue, setRue] = useState('');
   const [codePostal, setCodePostal] = useState('');
   const [ville, setVille] = useState('');
+
+  // Lieu d'intervention
+  const [lieuMeme, setLieuMeme] = useState(true);
+  const [lieuRue, setLieuRue] = useState('');
+  const [lieuCp, setLieuCp] = useState('');
+  const [lieuVille, setLieuVille] = useState('');
+
+  // Contact sur place
+  const [contactActif, setContactActif] = useState(false);
+  const [contactPrenom, setContactPrenom] = useState('');
+  const [contactNom, setContactNom] = useState('');
+  const [contactTel, setContactTel] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactInstr, setContactInstr] = useState('');
+
   const [type, setType] = useState('');
   const [description, setDescription] = useState('');
   const [priorite, setPriorite] = useState<'normale' | 'urgente'>('normale');
@@ -75,11 +92,23 @@ export function RdvClient({ months }: { months: MonthData[] }) {
         if (!email.trim()) return 'Indiquez votre email.';
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Email invalide.';
         if (!telephone.trim()) return 'Indiquez votre numéro de téléphone.';
+        if (!rue.trim() || !codePostal.trim() || !ville.trim()) {
+          return 'Adresse de facturation complète requise.';
+        }
+        if (!lieuMeme) {
+          if (!lieuRue.trim() || !lieuCp.trim() || !lieuVille.trim()) {
+            return 'Adresse d\'intervention complète requise.';
+          }
+        }
+        if (contactActif) {
+          if (!contactPrenom.trim() || !contactNom.trim()) return 'Prénom + nom du contact sur place requis.';
+          if (!contactTel.trim()) return 'Téléphone du contact sur place requis.';
+          if (contactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
+            return 'Email du contact sur place invalide.';
+          }
+        }
         return null;
       case 2:
-        if (!rue.trim() || !codePostal.trim() || !ville.trim()) {
-          return 'Adresse complète requise (rue, code postal, ville).';
-        }
         if (!type) return 'Sélectionnez un type d\'intervention.';
         if (description.trim().length < 10) {
           return 'Décrivez le problème en 10 caractères minimum.';
@@ -136,8 +165,18 @@ export function RdvClient({ months }: { months: MonthData[] }) {
     }
     const fd = new FormData();
     fd.append('data', JSON.stringify({
-      prenom, nom, email, telephone,
+      prenom, nom, email, telephone, bce,
       rue, code_postal: codePostal, ville,
+      lieu_meme: lieuMeme,
+      lieu_rue: lieuRue,
+      lieu_cp: lieuCp,
+      lieu_ville: lieuVille,
+      contact_actif: contactActif,
+      contact_prenom: contactPrenom,
+      contact_nom: contactNom,
+      contact_tel: contactTel,
+      contact_email: contactEmail,
+      contact_instr: contactInstr,
       type, description, priorite,
       creneauIso,
     }));
@@ -201,13 +240,24 @@ export function RdvClient({ months }: { months: MonthData[] }) {
               nom={nom} setNom={setNom}
               email={email} setEmail={setEmail}
               telephone={telephone} setTelephone={setTelephone}
+              rue={rue} setRue={setRue}
+              codePostal={codePostal} setCodePostal={setCodePostal}
+              ville={ville} setVille={setVille}
+              bce={bce} setBce={setBce}
+              lieuMeme={lieuMeme} setLieuMeme={setLieuMeme}
+              lieuRue={lieuRue} setLieuRue={setLieuRue}
+              lieuCp={lieuCp} setLieuCp={setLieuCp}
+              lieuVille={lieuVille} setLieuVille={setLieuVille}
+              contactActif={contactActif} setContactActif={setContactActif}
+              contactPrenom={contactPrenom} setContactPrenom={setContactPrenom}
+              contactNom={contactNom} setContactNom={setContactNom}
+              contactTel={contactTel} setContactTel={setContactTel}
+              contactEmail={contactEmail} setContactEmail={setContactEmail}
+              contactInstr={contactInstr} setContactInstr={setContactInstr}
             />
           )}
           {step === 2 && (
             <Step2
-              rue={rue} setRue={setRue}
-              codePostal={codePostal} setCodePostal={setCodePostal}
-              ville={ville} setVille={setVille}
               type={type} setType={setType}
               description={description} setDescription={setDescription}
               priorite={priorite} setPriorite={setPriorite}
@@ -227,7 +277,9 @@ export function RdvClient({ months }: { months: MonthData[] }) {
           {step === 4 && (
             <Step4
               prenom={prenom} nom={nom} email={email} telephone={telephone}
-              rue={rue} codePostal={codePostal} ville={ville}
+              rue={lieuMeme ? rue : lieuRue}
+              codePostal={lieuMeme ? codePostal : lieuCp}
+              ville={lieuMeme ? ville : lieuVille}
               type={type} description={description} priorite={priorite}
               creneauDate={creneauDate} creneauHeure={creneauHeure}
               photoCount={photos.length}
@@ -494,24 +546,153 @@ function Step1(props: {
   nom: string; setNom: (v: string) => void;
   email: string; setEmail: (v: string) => void;
   telephone: string; setTelephone: (v: string) => void;
+  rue: string; setRue: (v: string) => void;
+  codePostal: string; setCodePostal: (v: string) => void;
+  ville: string; setVille: (v: string) => void;
+  bce: string; setBce: (v: string) => void;
+  lieuMeme: boolean; setLieuMeme: (v: boolean) => void;
+  lieuRue: string; setLieuRue: (v: string) => void;
+  lieuCp: string; setLieuCp: (v: string) => void;
+  lieuVille: string; setLieuVille: (v: string) => void;
+  contactActif: boolean; setContactActif: (v: boolean) => void;
+  contactPrenom: string; setContactPrenom: (v: string) => void;
+  contactNom: string; setContactNom: (v: string) => void;
+  contactTel: string; setContactTel: (v: string) => void;
+  contactEmail: string; setContactEmail: (v: string) => void;
+  contactInstr: string; setContactInstr: (v: string) => void;
 }) {
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">1. Vos coordonnées</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Prénom" value={props.prenom} onChange={props.setPrenom} required />
-        <Field label="Nom" value={props.nom} onChange={props.setNom} required />
-      </div>
-      <Field label="Email" type="email" value={props.email} onChange={props.setEmail} placeholder="vous@exemple.be" required />
-      <Field label="Téléphone" type="tel" value={props.telephone} onChange={props.setTelephone} placeholder="+32 ..." required />
+    <div className="space-y-5">
+      {/* Section 1 : Mandant */}
+      <section>
+        <h3 className="text-sm font-bold text-navy mb-3">
+          Vos coordonnées <span className="text-[10px] uppercase tracking-wider text-ink-muted ml-1">(mandant — facturation)</span>
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Prénom" value={props.prenom} onChange={props.setPrenom} required />
+          <Field label="Nom" value={props.nom} onChange={props.setNom} required />
+        </div>
+        <div className="mt-3">
+          <Field label="Email" type="email" value={props.email} onChange={props.setEmail} placeholder="vous@exemple.be" required />
+        </div>
+        <div className="mt-3">
+          <Field label="Téléphone" type="tel" value={props.telephone} onChange={props.setTelephone} placeholder="+32 ..." required />
+        </div>
+        <div className="mt-3">
+          <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+            Adresse de facturation <span className="text-terra">*</span>
+          </label>
+          <input
+            value={props.rue}
+            onChange={(e) => props.setRue(e.target.value)}
+            placeholder="Rue et numéro"
+            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+          />
+          <div className="grid grid-cols-3 gap-2">
+            <input
+              value={props.codePostal}
+              onChange={(e) => props.setCodePostal(e.target.value)}
+              placeholder="Code postal"
+              className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            />
+            <input
+              value={props.ville}
+              onChange={(e) => props.setVille(e.target.value)}
+              placeholder="Ville"
+              className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            />
+          </div>
+        </div>
+        <div className="mt-3">
+          <Field
+            label="BCE / TVA (optionnel — si professionnel)"
+            value={props.bce}
+            onChange={props.setBce}
+            placeholder="BE0123.456.789"
+          />
+        </div>
+      </section>
+
+      {/* Section 2 : Lieu d'intervention */}
+      <section className="border-t border-sand-border pt-4 dark:border-[#2C2A24]">
+        <h3 className="text-sm font-bold text-navy mb-3">Lieu d&apos;intervention</h3>
+        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 dark:text-[#F0ECE4]">
+          <input
+            type="checkbox"
+            checked={props.lieuMeme}
+            onChange={(e) => props.setLieuMeme(e.target.checked)}
+            className="accent-[#1B3A6B]"
+          />
+          Même adresse que ci-dessus
+        </label>
+        {!props.lieuMeme && (
+          <div>
+            <input
+              value={props.lieuRue}
+              onChange={(e) => props.setLieuRue(e.target.value)}
+              placeholder="Rue et numéro de l'intervention"
+              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                value={props.lieuCp}
+                onChange={(e) => props.setLieuCp(e.target.value)}
+                placeholder="Code postal"
+                className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              />
+              <input
+                value={props.lieuVille}
+                onChange={(e) => props.setLieuVille(e.target.value)}
+                placeholder="Ville"
+                className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Section 3 : Contact sur place (optionnel) */}
+      <section className="border-t border-sand-border pt-4 dark:border-[#2C2A24]">
+        <h3 className="text-sm font-bold text-navy mb-3">
+          Contact sur place <span className="text-[10px] uppercase tracking-wider text-ink-muted ml-1">(optionnel)</span>
+        </h3>
+        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 dark:text-[#F0ECE4]">
+          <input
+            type="checkbox"
+            checked={props.contactActif}
+            onChange={(e) => props.setContactActif(e.target.checked)}
+            className="accent-[#1B3A6B]"
+          />
+          Contact différent de moi
+        </label>
+        {props.contactActif && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Prénom" value={props.contactPrenom} onChange={props.setContactPrenom} required />
+              <Field label="Nom" value={props.contactNom} onChange={props.setContactNom} required />
+            </div>
+            <Field label="Téléphone" type="tel" value={props.contactTel} onChange={props.setContactTel} placeholder="+32 ..." required />
+            <Field label="Email (optionnel)" type="email" value={props.contactEmail} onChange={props.setContactEmail} placeholder="contact@..." />
+            <div>
+              <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+                Instructions d&apos;accès
+              </label>
+              <textarea
+                value={props.contactInstr}
+                onChange={(e) => props.setContactInstr(e.target.value)}
+                placeholder="Digicode, gardien, créneau d'accès…"
+                rows={3}
+                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+              />
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
 function Step2(props: {
-  rue: string; setRue: (v: string) => void;
-  codePostal: string; setCodePostal: (v: string) => void;
-  ville: string; setVille: (v: string) => void;
   type: string; setType: (v: string) => void;
   description: string; setDescription: (v: string) => void;
   priorite: 'normale' | 'urgente'; setPriorite: (v: 'normale' | 'urgente') => void;
@@ -523,35 +704,6 @@ function Step2(props: {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-bold text-navy">2. Le problème</h3>
-
-      <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
-          Adresse du logement <span className="text-terra">*</span>
-        </label>
-        <input
-          value={props.rue}
-          onChange={(e) => props.setRue(e.target.value)}
-          placeholder="Rue et numéro"
-          required
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
-        />
-        <div className="grid grid-cols-3 gap-2">
-          <input
-            value={props.codePostal}
-            onChange={(e) => props.setCodePostal(e.target.value)}
-            placeholder="Code postal"
-            required
-            className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-          />
-          <input
-            value={props.ville}
-            onChange={(e) => props.setVille(e.target.value)}
-            placeholder="Ville"
-            required
-            className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-          />
-        </div>
-      </div>
 
       <div>
         <label className="text-xs font-semibold text-ink-mid block mb-1.5">

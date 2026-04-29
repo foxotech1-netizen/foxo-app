@@ -36,16 +36,51 @@ export type TypeOrganisation = 'syndic' | 'courtier';
 
 export type DemandeurType = 'particulier' | 'syndic' | 'courtier';
 
+export interface ParticulierAdresse {
+  rue: string;
+  code_postal: string;
+  ville: string;
+}
+
+export interface ParticulierMandant {
+  prenom: string;
+  nom: string;
+  email: string;
+  tel: string;
+  adresse_facturation: ParticulierAdresse;
+  bce?: string;
+}
+
+export interface ParticulierLieu {
+  meme_que_mandant: boolean;
+  rue: string;
+  cp: string;
+  ville: string;
+}
+
+export interface ParticulierContactSurPlace {
+  actif: boolean;
+  prenom?: string;
+  nom?: string;
+  tel?: string;
+  email?: string;
+  instructions?: string;
+}
+
+// Le contact d'origine reste aplati (rétrocompatibilité avec les anciennes
+// interventions et avec les emails / PDFs qui utilisent ces champs).
+// Les sous-objets `mandant` / `lieu` / `contact_sur_place` sont la nouvelle
+// structure exposée à partir du formulaire /rdv.
 export interface ParticulierContact {
   prenom: string;
   nom: string;
   email: string;
   telephone: string;
-  adresse: {
-    rue: string;
-    code_postal: string;
-    ville: string;
-  };
+  adresse: ParticulierAdresse;
+  // Nouvelle structure étendue (formulaire /rdv refondu)
+  mandant?: ParticulierMandant;
+  lieu?: ParticulierLieu;
+  contact_sur_place?: ParticulierContactSurPlace;
 }
 
 export interface Organisation {
