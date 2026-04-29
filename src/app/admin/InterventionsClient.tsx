@@ -492,11 +492,22 @@ export function InterventionsClient({
                     >
                       <td className="px-3.5 py-2.5">
                         <div className="font-mono text-xs font-medium text-navy">{iv.ref ?? '—'}</div>
-                        {iv.priorite === 'urgente' && (
-                          <span className="inline-block mt-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-                            ⚡ URGENT
-                          </span>
-                        )}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {iv.priorite === 'urgente' && (
+                            <span className="inline-block text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                              ⚡ URGENT
+                            </span>
+                          )}
+                          {iv.source === 'mail' && (
+                            <span
+                              className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
+                              style={{ background: '#A17244' }}
+                              title="Demande créée automatiquement depuis un mail entrant"
+                            >
+                              📧 Mail
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3.5 py-2.5">
                         <div className="font-bold text-[13px]">{iv.acp?.nom ?? '—'}</div>

@@ -89,6 +89,12 @@ export function Dashboard({
     });
   }, [techs, rows, dashboard.freeSlotsByTech, today]);
 
+  // ── Nouvelles demandes mail (cron analyse auto) ────────────────────────
+  const newMailIvs = useMemo(
+    () => rows.filter((r) => r.source === 'mail' && r.statut === 'nouvelle'),
+    [rows],
+  );
+
   // ── Section 3 : à faire aujourd'hui ─────────────────────────────────────
   const todoToday = useMemo(() => {
     const confirmedToday = rows.filter(
@@ -159,6 +165,48 @@ export function Dashboard({
         <div className="px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold">
           ⚡ {stats.urgent} intervention(s) urgente(s) en attente de traitement
         </div>
+      )}
+
+      {/* ── Nouvelles demandes mail (cron analyse auto) ─────────────────── */}
+      {newMailIvs.length > 0 && (
+        <section>
+          <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 dark:text-[#C8C2B8]">
+            📧 Nouvelles demandes mail ({newMailIvs.length})
+          </h3>
+          <div className="bg-cream border border-sand-border rounded-2xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+            <div className="space-y-1.5">
+              {newMailIvs.map((iv) => (
+                <button
+                  key={iv.id}
+                  type="button"
+                  onClick={() => onOpenIntervention(iv.id)}
+                  className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-2 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                >
+                  <span className="inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
+                    📧 Mail
+                  </span>
+                  <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0 dark:text-[#A8C4F2]">
+                    {iv.ref ?? '?'}
+                  </span>
+                  <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                    {iv.particulier_contact
+                      ? `${iv.particulier_contact.prenom ?? ''} ${iv.particulier_contact.nom ?? ''}`.trim()
+                      : '—'}
+                  </span>
+                  <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">
+                    {iv.type ?? ''}
+                  </span>
+                  {iv.priorite === 'urgente' && (
+                    <span className="text-[10px] font-bold text-terra">⚡</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+              Créées automatiquement par le cron à partir de mails entrants. Aucune action n&apos;a été envoyée au client — c&apos;est à toi de planifier.
+            </p>
+          </div>
+        </section>
       )}
 
       {/* ── Section 2 : Par technicien ───────────────────────────────────── */}

@@ -137,6 +137,7 @@ export interface Intervention {
   ended_at: string | null;
   demandeur_type: DemandeurType | null;
   particulier_contact: ParticulierContact | null;
+  source: 'rdv' | 'portal' | 'admin' | 'mail' | null;
 }
 
 export interface Rapport {

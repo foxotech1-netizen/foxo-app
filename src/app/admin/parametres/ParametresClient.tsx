@@ -37,6 +37,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [waEnabled, setWaEnabled] = useState(initial.whatsapp_enabled === 'true');
   const [smsAutoConf, setSmsAutoConf] = useState(initial.sms_auto_confirmation === 'true');
   const [smsAutoRappel, setSmsAutoRappel] = useState(initial.sms_auto_rappel_24h === 'true');
+  const [mailAutoAnalyse, setMailAutoAnalyse] = useState(initial.mail_auto_analyse === 'true');
   const [smsAutoRapport, setSmsAutoRapport] = useState(initial.sms_auto_rapport === 'true');
   const [twilioSid, setTwilioSid] = useState(initial.twilio_account_sid ?? '');
   const [twilioToken, setTwilioToken] = useState(initial.twilio_auth_token ?? '');
@@ -540,6 +541,29 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           <code>GOOGLE_DRIVE_RAPPORTS_FOLDER_ID</code>, <code>GOOGLE_DRIVE_FACTURES_FOLDER_ID</code>,
           <code>NEXT_PUBLIC_APP_URL</code>. Le redirect_uri doit être déclaré côté Google Cloud :{' '}
           <code>{'<NEXT_PUBLIC_APP_URL>/api/google/callback'}</code>.
+        </p>
+      </Section>
+
+      {/* Mail auto-analyse */}
+      <Section
+        title="Analyse automatique des mails"
+        desc="Le cron /api/cron/check-mails (toutes les 30 min) lit les mails non lus de la boîte connectée, demande à Claude si c'est une demande d'intervention, et crée un dossier en statut « nouvelle » avec source=mail. Aucun envoi automatique vers les clients — tu garderas le contrôle pour planifier."
+      >
+        <ToggleRow
+          label="Activer l'analyse automatique"
+          checked={mailAutoAnalyse}
+          onChange={(v) => { setMailAutoAnalyse(v); save('mail_auto_analyse', String(v)); }}
+        />
+        {mailAutoAnalyse && (
+          <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+            ⚠ Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (scope <code>gmail.readonly</code>) et fais un test à blanc :
+            <code className="block mt-1 font-mono text-[10px] break-all">
+              GET /api/cron/check-mails/preview?secret={'<CRON_SECRET>'}
+            </code>
+          </div>
+        )}
+        <p className="text-[11px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+          Mails labelisés <code>FOXO_TRAITE</code> (demande convertie) ou <code>FOXO_LU</code> (pas une demande) après passage. Aucun mail n&apos;est traité deux fois.
         </p>
       </Section>
 

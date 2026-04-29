@@ -304,6 +304,74 @@ export async function getMailDetail(id: string): Promise<{ ok: true; mail: MailD
   return { ok: true, mail: detail };
 }
 
+// Récupère ou crée un label custom (idempotent). Renvoie son id.
+export async function ensureLabel(labelName: string): Promise<{ ok: true; label_id: string } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const labelsRes = await fetch(`${API}/labels`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!labelsRes.ok) return { ok: false, error: `Labels list HTTP ${labelsRes.status}` };
+  const labelsJson = (await labelsRes.json()) as { labels?: { id: string; name: string }[] };
+  const existing = labelsJson.labels?.find((l) => l.name === labelName)?.id;
+  if (existing) return { ok: true, label_id: existing };
+
+  const createRes = await fetch(`${API}/labels`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: labelName,
+      labelListVisibility: 'labelShow',
+      messageListVisibility: 'show',
+    }),
+  });
+  if (!createRes.ok) return { ok: false, error: `Label create HTTP ${createRes.status}` };
+  const j = (await createRes.json()) as { id: string };
+  return { ok: true, label_id: j.id };
+}
+
+// Ajoute un label à un mail (et optionnellement retire UNREAD).
+export async function addLabelToMail(args: {
+  mailId: string;
+  labelName: string;
+  removeUnread?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const ensured = await ensureLabel(args.labelName);
+  if (!ensured.ok) return { ok: false, error: ensured.error };
+
+  const body: Record<string, string[]> = { addLabelIds: [ensured.label_id] };
+  if (args.removeUnread) body.removeLabelIds = ['UNREAD'];
+
+  const r = await fetch(`${API}/messages/${args.mailId}/modify`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `Modify HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
+}
+
+// Retourne true si le mail porte déjà le label `labelName` (lookup via
+// labelIds dans les metadata du message).
+export async function mailHasLabel(mailId: string, labelName: string): Promise<boolean> {
+  const auth = await getValidAccessToken();
+  if (!auth) return false;
+  const ensured = await ensureLabel(labelName);
+  if (!ensured.ok) return false;
+  const r = await fetch(`${API}/messages/${mailId}?format=metadata&fields=labelIds`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!r.ok) return false;
+  const j = (await r.json()) as { labelIds?: string[] };
+  return (j.labelIds ?? []).includes(ensured.label_id);
+}
+
 // Crée le label FOXO_TRAITE s'il n'existe pas, puis l'ajoute au mail
 // (et retire UNREAD pour décrocher la pastille). Idempotent.
 export async function markMailTraite(id: string): Promise<{ ok: true; label_id: string } | { ok: false; error: string }> {
