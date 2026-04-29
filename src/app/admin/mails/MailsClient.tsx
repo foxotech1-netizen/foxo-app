@@ -80,6 +80,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkLabelMenuOpen, setBulkLabelMenuOpen] = useState(false);
 
+  // Compteur de rafraîchissement — incrémenter force le re-fetch des mails
+  // (setFilter avec la même valeur ne re-rend pas, donc inutile).
+  const [refreshTick, setRefreshTick] = useState(0);
+
   // Labels
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(initialConnected);
@@ -95,17 +99,19 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [replyBody, setReplyBody] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
 
-  // Charge la liste — déclenché au mount + quand filter/activeLabel changent
+  // Charge la liste — déclenché au mount + quand filter/activeLabel/refreshTick changent.
+  // `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare. `cache: 'no-store'`
+  // ajoute une ceinture côté fetch.
   useEffect(() => {
     if (!initialConnected) return;
     let mounted = true;
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams({ limit: '30' });
+    const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
     if (filter === 'unread') params.set('filter', 'unread');
     if (filter === 'trash') params.set('filter', 'trash');
     if (activeLabel) params.set('label', activeLabel);
-    fetch(`/api/admin/mails?${params}`)
+    fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
         if (!mounted) return;
@@ -116,7 +122,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [initialConnected, filter, activeLabel]);
+  }, [initialConnected, filter, activeLabel, refreshTick]);
 
   // Charge les labels Gmail
   useEffect(() => {
@@ -488,7 +494,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           <button
             ref={refreshRef}
             type="button"
-            onClick={() => setFilter((f) => f)}
+            onClick={() => setRefreshTick((t) => t + 1)}
             className="w-full text-[11px] text-ink-muted hover:text-navy underline dark:text-[#C8C2B8]"
             disabled={loading}
           >
