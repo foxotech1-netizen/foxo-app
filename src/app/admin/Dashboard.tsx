@@ -40,11 +40,13 @@ export function Dashboard({
   techs,
   dashboard,
   onOpenIntervention,
+  statutFilter,
 }: {
   rows: InterventionRow[];
   techs: Utilisateur[];
   dashboard: DashboardData;
   onOpenIntervention: (id: string) => void;
+  statutFilter?: string | null;
 }) {
   const today = useMemo(() => new Date(), []);
 
@@ -104,11 +106,40 @@ export function Dashboard({
     <div className="space-y-5">
       {/* ── Section 1 : Stats temps réel ─────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <StatCard num={stats.nouvelles} label="Nouvelles demandes" />
-        <StatCard num={stats.enCours} label="En cours" accent />
-        <StatCard num={stats.enSuspens} label="⚠ En suspens" warning={stats.enSuspens > 0} />
-        <StatCard num={stats.rapports} label="Rapports à envoyer" amber={stats.rapports > 0} />
-        <StatCard num={stats.closedThisMonth} label="Clôturées ce mois" muted />
+        <StatCard
+          num={stats.nouvelles}
+          label="Nouvelles demandes"
+          href="/admin?statut=nouvelle"
+          active={statutFilter === 'nouvelle'}
+        />
+        <StatCard
+          num={stats.enCours}
+          label="En cours"
+          accent
+          href="/admin?statut=en_cours"
+          active={statutFilter === 'en_cours'}
+        />
+        <StatCard
+          num={stats.enSuspens}
+          label="⚠ En suspens"
+          warning={stats.enSuspens > 0}
+          href="/admin?statut=en_suspens"
+          active={statutFilter === 'en_suspens'}
+        />
+        <StatCard
+          num={stats.rapports}
+          label="Rapports à envoyer"
+          amber={stats.rapports > 0}
+          href="/admin?statut=rapport"
+          active={statutFilter === 'rapport'}
+        />
+        <StatCard
+          num={stats.closedThisMonth}
+          label="Clôturées ce mois"
+          muted
+          href="/admin?statut=cloturee"
+          active={statutFilter === 'cloturee'}
+        />
       </div>
 
       {stats.urgent > 0 && (
@@ -306,10 +337,11 @@ export function Dashboard({
 }
 
 function StatCard({
-  num, label, accent, muted, warning, amber,
+  num, label, accent, muted, warning, amber, href, active,
 }: {
   num: number; label: string;
   accent?: boolean; muted?: boolean; warning?: boolean; amber?: boolean;
+  href?: string; active?: boolean;
 }) {
   let bg = 'bg-cream';
   let border = 'border-sand-border';
@@ -318,15 +350,24 @@ function StatCard({
   if (amber)  { bg = 'bg-amber-light'; border = 'border-[#E8C896]'; numColor = 'text-[#8A5A1A]'; }
   if (muted) numColor = 'text-ink-mid';
   if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra'; }
-  // Pour les variantes "neutre" et "muted" la couleur de chiffre suit le thème
-  // (blanc pur en dark, ink en light) via la classe `stat-num`. Les variantes
-  // accent / amber / warning gardent leur couleur d'accent dédiée.
   const useStatNum = !accent && !amber && !warning;
-  return (
-    <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
+
+  // Filtre actif : bordure ambre #E2C9A1, bordure 2px pour effet visible
+  const activeRing = active ? 'border-2 border-[#E2C9A1] shadow-sm' : '';
+  const interactive = href ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0' : '';
+
+  const content = (
+    <div className={`${bg} ${active ? '' : border} ${active ? '' : 'border'} ${activeRing} ${interactive} rounded-xl px-4 py-3.5`}>
       <div className={`text-[26px] font-extrabold leading-none ${useStatNum ? 'stat-num' : numColor}`}>{num}</div>
       <div className="text-[10px] text-ink-muted mt-1 font-semibold">{label}</div>
     </div>
+  );
+
+  if (!href) return content;
+  return (
+    <Link href={href} className="block">
+      {content}
+    </Link>
   );
 }
 

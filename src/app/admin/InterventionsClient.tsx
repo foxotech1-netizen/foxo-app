@@ -113,6 +113,7 @@ export function InterventionsClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const techFilter = searchParams.get('tech');
+  const statutParam = searchParams.get('statut');   // 'nouvelle' | 'en_cours' | 'en_suspens' | 'rapport' | 'cloturee' | null
 
   const [rows, setRows] = useState(initialRows);
   const [query, setQuery] = useState('');
@@ -157,6 +158,21 @@ export function InterventionsClient({
   const [assignMessage, setAssignMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [assignPending, startAssignTransition] = useTransition();
 
+  // "En cours" est synthétique → confirmee + realisee. Pour le mois en cours
+  // sur "cloturee", on filtre aussi par updated_at dans le mois courant.
+  const today = useMemo(() => new Date(), []);
+  function statutMatches(ivStatut: StatutIntervention, ivUpdatedAt: string | null): boolean {
+    if (!statutParam) return true;
+    if (statutParam === 'en_cours') return ivStatut === 'confirmee' || ivStatut === 'realisee';
+    if (statutParam === 'cloturee') {
+      if (ivStatut !== 'cloturee') return false;
+      if (!ivUpdatedAt) return true;
+      const d = new Date(ivUpdatedAt);
+      return d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth();
+    }
+    return ivStatut === statutParam;
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((iv) => {
@@ -165,11 +181,13 @@ export function InterventionsClient({
         [iv.ref, iv.acp?.nom, iv.acp?.ville, iv.acp?.adresse, iv.syndic?.nom, iv.description]
           .filter(Boolean)
           .some((s) => String(s).toLowerCase().includes(q));
-      const matchFilter = filter === 'tous' || iv.statut === filter;
+      const matchSelectFilter = filter === 'tous' || iv.statut === filter;
+      const matchUrlStatut = statutMatches(iv.statut, iv.updated_at);
       const matchTech = !techFilter || iv.technicien_id === techFilter;
-      return matchQuery && matchFilter && matchTech;
+      return matchQuery && matchSelectFilter && matchUrlStatut && matchTech;
     });
-  }, [rows, query, filter, techFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, query, filter, techFilter, statutParam]);
 
   const techFilterName = useMemo(() => {
     if (!techFilter) return null;
@@ -177,6 +195,19 @@ export function InterventionsClient({
     if (!t) return null;
     return [t.prenom, t.nom].filter(Boolean).join(' ') || t.email || 'Technicien';
   }, [techFilter, techs]);
+
+  // Libellé du filtre statut pour le titre du pipeline
+  const statutFilterLabel = useMemo(() => {
+    if (!statutParam) return null;
+    const map: Record<string, string> = {
+      nouvelle: 'Nouvelles demandes',
+      en_cours: 'En cours',
+      en_suspens: 'En suspens',
+      rapport: 'Rapports à envoyer',
+      cloturee: 'Clôturées ce mois',
+    };
+    return map[statutParam] ?? null;
+  }, [statutParam]);
 
   const selected = rows.find((r) => r.id === selectedId) ?? null;
 
@@ -352,14 +383,27 @@ export function InterventionsClient({
           techs={techs}
           dashboard={dashboard}
           onOpenIntervention={openDrawer}
+          statutFilter={statutParam}
         />
       </div>
 
       {/* Section 4 : Liste des interventions */}
       <div className="px-6 pt-5 flex-shrink-0">
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
-          Toutes les interventions
-        </h3>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+          <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+            {statutFilterLabel
+              ? <>Interventions — <span className="text-navy dark:text-[#A8C4F2]">{statutFilterLabel}</span> ({filtered.length})</>
+              : `Toutes les interventions (${filtered.length})`}
+          </h3>
+          {statutFilterLabel && (
+            <a
+              href={techFilter ? `/admin?tech=${techFilter}` : '/admin'}
+              className="text-[11px] text-navy underline hover:no-underline dark:text-[#A8C4F2]"
+            >
+              ✕ Effacer le filtre
+            </a>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <button
             type="button"
