@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot } from './page';
+import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 
 const TECH_AVATAR_COLORS = [
   { bg: '#A17244', soft: '#F0DCC4' },
@@ -49,6 +51,8 @@ export function Dashboard({
   statutFilter?: string | null;
 }) {
   const today = useMemo(() => new Date(), []);
+  const router = useRouter();
+  const [creatingSlot, setCreatingSlot] = useState<SlotInfo | null>(null);
 
   // ── Section 1 : stats temps réel ────────────────────────────────────────
   const stats = useMemo(() => {
@@ -104,6 +108,15 @@ export function Dashboard({
 
   return (
     <div className="space-y-5">
+      {creatingSlot && (
+        <CreateInterventionModal
+          slot={creatingSlot}
+          techs={techs}
+          onClose={() => setCreatingSlot(null)}
+          onCreated={() => router.refresh()}
+        />
+      )}
+
       {/* ── Section 1 : Stats temps réel ─────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         <StatCard
@@ -234,14 +247,23 @@ export function Dashboard({
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {slots.map((s) => (
-                      <span
+                      <button
                         key={s.id}
-                        className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]"
+                        type="button"
+                        onClick={() => setCreatingSlot({
+                          id: s.id,
+                          date: s.date,
+                          heure_debut: s.heure_debut,
+                          heure_fin: s.heure_fin,
+                          technicien_id: s.technicien_id,
+                        })}
+                        title="Cliquer pour planifier une intervention sur ce créneau"
+                        className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors hover:bg-ok-mid hover:border-[#E2C9A1] dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A] dark:hover:bg-[#2A8A5A] dark:hover:border-[#E2C9A1]"
                       >
                         {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
                         {' · '}
                         {s.heure_debut}
-                      </span>
+                      </button>
                     ))}
                   </div>
                 )}
