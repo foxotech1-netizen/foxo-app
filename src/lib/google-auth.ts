@@ -10,8 +10,12 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 
+// `drive` (full access) est nécessaire pour accéder aux dossiers
+// existants partagés / possédés par l'utilisateur (RAPPORTS, FACTURES).
+// `drive.file` ne donnerait accès qu'aux fichiers créés par l'app, ce
+// qui retournait 404 sur les dossiers Drive racines.
 export const GOOGLE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -34,8 +38,9 @@ export function buildAuthUrl(state: string): string {
     redirect_uri: getRedirectUri(),
     response_type: 'code',
     scope: GOOGLE_SCOPES.join(' '),
-    access_type: 'offline',           // pour récupérer un refresh_token
-    prompt: 'consent',                 // force l'émission d'un refresh_token
+    access_type: 'offline',                  // pour récupérer un refresh_token
+    prompt: 'consent',                       // force re-consentement complet
+    include_granted_scopes: 'true',          // fusionne avec scopes déjà accordés
     state,
   });
   return `${AUTH_URL}?${params.toString()}`;

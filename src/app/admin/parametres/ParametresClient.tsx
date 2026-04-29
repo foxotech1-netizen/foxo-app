@@ -56,7 +56,8 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [googleTestMsg, setGoogleTestMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   type DriveFolderStatus = { ok: boolean; id: string | null; name?: string; status?: number; error?: string; trashed?: boolean };
-  const [driveTest, setDriveTest] = useState<{ rapports: DriveFolderStatus; factures: DriveFolderStatus } | null>(null);
+  type DriveScopes = { granted: string[]; missing: string[]; has_drive_full: boolean; has_drive_file_only: boolean; account: string | null };
+  const [driveTest, setDriveTest] = useState<{ rapports: DriveFolderStatus; factures: DriveFolderStatus; scopes?: DriveScopes } | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -445,12 +446,15 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                         setGoogleTestMsg({ kind: 'err', msg: data.error ?? 'Erreur inconnue' });
                         return;
                       }
-                      setDriveTest({ rapports: data.rapports, factures: data.factures });
+                      setDriveTest({ rapports: data.rapports, factures: data.factures, scopes: data.scopes });
                       const allOk = data.rapports?.ok && data.factures?.ok;
+                      const scopeIssue = data.scopes?.has_drive_file_only || (data.scopes?.missing?.length ?? 0) > 0;
                       setGoogleTestMsg(
                         allOk
                           ? { kind: 'ok', msg: 'Drive : les 2 dossiers racines sont accessibles ✓' }
-                          : { kind: 'err', msg: 'Drive : un ou plusieurs dossiers inaccessibles — voir détails ci-dessous.' },
+                          : scopeIssue
+                            ? { kind: 'err', msg: 'Scopes OAuth insuffisants — déconnecte puis reconnecte Google pour ré-accorder les permissions complètes.' }
+                            : { kind: 'err', msg: 'Drive : un ou plusieurs dossiers inaccessibles — voir détails ci-dessous.' },
                       );
                     } catch (e) {
                       setGoogleTestMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
@@ -501,6 +505,26 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
               : 'bg-terra-light border-terra-mid text-terra')
           }>
             {googleTestMsg.msg}
+          </div>
+        )}
+
+        {driveTest?.scopes && driveTest.scopes.has_drive_file_only && (
+          <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg p-3 text-[12px] dark:bg-[#2E1A12] dark:border-[#5A2E18] dark:text-[#FFB897]">
+            <div className="font-bold mb-1">⚠ Scope Drive insuffisant : <code>drive.file</code> au lieu de <code>drive</code></div>
+            <p className="leading-relaxed">
+              Ton token Google n&apos;a accès qu&apos;aux fichiers créés par l&apos;app — pas aux dossiers existants.
+              Clique <strong>Déconnecter</strong> puis <strong>Connecter Google</strong> à nouveau et accepte
+              tous les scopes lors du re-consentement.
+            </p>
+          </div>
+        )}
+
+        {driveTest?.scopes && driveTest.scopes.missing.length > 0 && (
+          <div className="mt-3 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg p-3 text-[12px] dark:bg-[#2A220E] dark:border-[#5A4A30] dark:text-[#E8C896]">
+            <div className="font-bold mb-1">⚠ Scopes manquants ({driveTest.scopes.missing.length})</div>
+            <ul className="list-disc list-inside font-mono text-[11px]">
+              {driveTest.scopes.missing.map((s) => <li key={s}>{s}</li>)}
+            </ul>
           </div>
         )}
 
