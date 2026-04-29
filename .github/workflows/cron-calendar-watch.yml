@@ -1,0 +1,23 @@
+name: Cron — Renouvellement Calendar Watch
+# Renouvelle la subscription push Google Calendar avant qu'elle expire.
+# Google retourne ~7j d'expiration ; on tourne tous les jours à 6h UTC
+# pour avoir au moins 6 occasions de retry avant la limite.
+#
+# Secrets requis :
+#   - CRON_SECRET   (Bearer pour /api/cron/*)
+#   - APP_URL       (ex: https://admin.foxo.be — sans trailing slash)
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/cron/renew-calendar-watch
+        run: |
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/renew-calendar-watch"

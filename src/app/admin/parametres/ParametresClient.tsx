@@ -10,7 +10,12 @@ import {
   testGoogleCalendar,
   testGmail,
 } from '../google/actions';
-import { triggerCheckMailsNow, getMailLastCheck } from './actions';
+import {
+  triggerCheckMailsNow, getMailLastCheck,
+  getCalendarWatchStatus, subscribeCalendarWatchAction,
+  unsubscribeCalendarWatchAction, renewCalendarWatchAction,
+  type CalendarWatchStatus,
+} from './actions';
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'jamais';
@@ -56,6 +61,10 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [mailAutoAnalyse, setMailAutoAnalyse] = useState(initial.mail_auto_analyse === 'true');
   const [mailLastCheck, setMailLastCheck] = useState<string | null>(initial.mail_last_check || null);
   const [mailCheckResult, setMailCheckResult] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Calendar Watch
+  const [watch, setWatch] = useState<CalendarWatchStatus | null>(null);
+  const [watchMsg, setWatchMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [smsAutoRapport, setSmsAutoRapport] = useState(initial.sms_auto_rapport === 'true');
   const [twilioSid, setTwilioSid] = useState(initial.twilio_account_sid ?? '');
   const [twilioToken, setTwilioToken] = useState(initial.twilio_auth_token ?? '');
@@ -95,6 +104,15 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
       if (g === 'ok') setGoogleTestMsg({ kind: 'ok', msg: 'Compte Google connecté ✓' });
       if (g === 'err') setGoogleTestMsg({ kind: 'err', msg: sp.get('msg') ?? 'Échec connexion Google' });
     }
+    return () => { mounted = false; };
+  }, []);
+
+  // Charge le statut de la subscription Calendar Watch au mount
+  useEffect(() => {
+    let mounted = true;
+    getCalendarWatchStatus().then((res) => {
+      if (mounted && res.ok && res.data) setWatch(res.data);
+    });
     return () => { mounted = false; };
   }, []);
 
@@ -627,6 +645,46 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         </p>
       </Section>
 
+      {/* Calendar Watch (push notifications) */}
+      <Section
+        title="Synchronisation Google Calendar (Watch API)"
+        desc="Subscription push qui notifie FoxO en temps réel des changements Calendar (création, modification, suppression d'events). Renouvelée auto chaque jour à 6h UTC via GitHub Actions ; expiration max ~7j."
+      >
+        <CalendarWatchPanel
+          watch={watch}
+          msg={watchMsg}
+          pending={pending}
+          onSubscribe={() => {
+            setWatchMsg(null);
+            startTransition(async () => {
+              const res = await subscribeCalendarWatchAction();
+              if (!res.ok) { setWatchMsg({ kind: 'err', msg: res.error }); return; }
+              setWatch(res.data ?? null);
+              setWatchMsg({ kind: 'ok', msg: 'Subscription créée ✓' });
+            });
+          }}
+          onRenew={() => {
+            setWatchMsg(null);
+            startTransition(async () => {
+              const res = await renewCalendarWatchAction();
+              if (!res.ok) { setWatchMsg({ kind: 'err', msg: res.error }); return; }
+              setWatch(res.data ?? null);
+              setWatchMsg({ kind: 'ok', msg: 'Subscription renouvelée ✓' });
+            });
+          }}
+          onUnsubscribe={() => {
+            if (!confirm('Désactiver la subscription push Calendar ?')) return;
+            setWatchMsg(null);
+            startTransition(async () => {
+              const res = await unsubscribeCalendarWatchAction();
+              if (!res.ok) { setWatchMsg({ kind: 'err', msg: res.error }); return; }
+              setWatch(res.data ?? null);
+              setWatchMsg({ kind: 'ok', msg: 'Subscription désactivée ✓' });
+            });
+          }}
+        />
+      </Section>
+
       {/* À venir */}
       <Section title="À venir" desc="Configurations encore à brancher.">
         <ul className="text-[12px] text-ink-mid leading-relaxed list-disc list-inside dark:text-[#C8C2B8]">
@@ -639,6 +697,103 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         </ul>
       </Section>
     </div>
+  );
+}
+
+function CalendarWatchPanel({
+  watch, msg, pending, onSubscribe, onRenew, onUnsubscribe,
+}: {
+  watch: CalendarWatchStatus | null;
+  msg: { kind: 'ok' | 'err'; msg: string } | null;
+  pending: boolean;
+  onSubscribe: () => void;
+  onRenew: () => void;
+  onUnsubscribe: () => void;
+}) {
+  if (!watch) {
+    return <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement du statut…</div>;
+  }
+  const banner = (() => {
+    if (watch.status === 'active') {
+      return {
+        cls: 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]',
+        text: <>✅ Active — expire le <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong></>,
+      };
+    }
+    if (watch.status === 'expiring_soon') {
+      return {
+        cls: 'bg-amber-light border-[#E8C896] text-[#8A5A1A] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]',
+        text: <>⚠️ Expire dans moins de 24h — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Le cron quotidien renouvellera automatiquement.</>,
+      };
+    }
+    if (watch.status === 'expired') {
+      return {
+        cls: 'bg-terra-light border-terra-mid text-terra dark:bg-[#2E1A12] dark:border-[#5A2E18] dark:text-[#FFB897]',
+        text: <>❌ Expirée — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</>,
+      };
+    }
+    return {
+      cls: 'bg-sand-mid border-sand-border text-ink-mid dark:bg-[rgba(255,255,255,.04)] dark:border-[#3D3A32] dark:text-[#C8C2B8]',
+      text: <>❌ Inactive — aucun push Calendar ne sera reçu tant qu&apos;une subscription n&apos;est pas créée.</>,
+    };
+  })();
+
+  return (
+    <>
+      <div className={'rounded-md border px-3 py-2 text-[12px] font-semibold ' + banner.cls}>
+        {banner.text}
+      </div>
+
+      <div className="flex flex-wrap gap-2 mt-3">
+        {watch.status === 'inactive' || watch.status === 'expired' ? (
+          <button
+            type="button"
+            onClick={onSubscribe}
+            disabled={pending}
+            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+          >
+            🔔 Activer la subscription push
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onRenew}
+              disabled={pending}
+              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            >
+              ↻ Renouveler maintenant
+            </button>
+            <button
+              type="button"
+              onClick={onUnsubscribe}
+              disabled={pending}
+              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+            >
+              ✕ Désactiver
+            </button>
+          </>
+        )}
+      </div>
+
+      {msg && (
+        <div className={
+          'mt-3 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          (msg.kind === 'ok'
+            ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+            : 'bg-terra-light border-terra-mid text-terra')
+        }>
+          {msg.msg}
+        </div>
+      )}
+
+      {watch.channel_id && (
+        <div className="mt-3 text-[10px] text-ink-muted font-mono dark:text-[#C8C2B8]">
+          channel_id: {watch.channel_id}
+          <br />resource_id: {watch.resource_id}
+        </div>
+      )}
+    </>
   );
 }
 

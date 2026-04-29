@@ -191,6 +191,90 @@ export async function getCalendarChanges(
   };
 }
 
+// ─── Watch API (push notifications via webhook) ──────────────────────────
+//
+// Setup :
+//   POST /calendar/v3/calendars/primary/events/watch
+//     { id, type: 'web_hook', address: '<APP_URL>/api/google/calendar-webhook', token }
+//   Renvoie { id, resourceId, expiration (ms en string) }
+//
+// Téardown :
+//   POST /calendar/v3/channels/stop  { id, resourceId }
+//
+// Durée max d'une subscription : ~7 jours (604800s). Doit être renouvelée
+// par le cron /api/cron/renew-calendar-watch avant expiration.
+
+export interface WatchSubscription {
+  channel_id: string;
+  resource_id: string;
+  expiry_ms: number;
+}
+
+export type WatchSubscribeResult =
+  | { ok: true; subscription: WatchSubscription }
+  | { ok: false; error: string };
+
+interface RawWatchResponse {
+  id: string;
+  resourceId: string;
+  expiration?: string;     // ms (string)
+}
+
+export async function subscribeCalendarWatch(args: {
+  webhookUrl: string;
+  token: string;
+}): Promise<WatchSubscribeResult> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const channelId = `foxo-calendar-watch-${Date.now()}`;
+  const body = {
+    id: channelId,
+    type: 'web_hook',
+    address: args.webhookUrl,
+    token: args.token,
+  };
+
+  const res = await fetch(`${API}/calendars/primary/events/watch`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    return { ok: false, error: `Watch HTTP ${res.status} : ${t.slice(0, 300)}` };
+  }
+  const data = (await res.json()) as RawWatchResponse;
+  return {
+    ok: true,
+    subscription: {
+      channel_id: data.id,
+      resource_id: data.resourceId,
+      expiry_ms: data.expiration ? parseInt(data.expiration, 10) : 0,
+    },
+  };
+}
+
+export async function unsubscribeCalendarWatch(args: {
+  channelId: string;
+  resourceId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const res = await fetch(`${API}/channels/stop`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: args.channelId, resourceId: args.resourceId }),
+  });
+  // 204 No Content = succès. 404 = déjà fermé (idempotent OK).
+  if (!res.ok && res.status !== 404) {
+    const t = await res.text();
+    return { ok: false, error: `Stop HTTP ${res.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
+}
+
 // Helper : crée un event "Disponible FOXO" pour un créneau libre.
 export async function createSlotEvent(args: {
   startIso: string;
