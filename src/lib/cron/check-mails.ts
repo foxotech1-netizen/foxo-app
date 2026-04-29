@@ -175,7 +175,7 @@ const ALLOWED_TYPES = [
   'Autre',
 ] as const;
 
-async function analyzeMailWithClaude(
+export async function analyzeMailWithClaude(
   apiKey: string,
   mail: { from: string; subject: string; date: string; cc: string; body_text: string; body_html: string },
 ): Promise<{ ok: true; analysis: CronMailAnalysis } | { ok: false; error: string }> {
@@ -332,7 +332,7 @@ async function analyzeMailWithClaude(
 interface MatchedOrgResult { id: string; created: boolean }
 interface MatchedClientResult { id: string; created: boolean }
 
-async function matchOrCreateOrganisation(args: {
+export async function matchOrCreateOrganisation(args: {
   type: 'syndic' | 'courtier';
   nomSociete: string | null;
   email: string;
@@ -371,7 +371,7 @@ async function matchOrCreateOrganisation(args: {
   return { id: created.id as string, created: true };
 }
 
-async function matchOrCreateClient(args: {
+export async function matchOrCreateClient(args: {
   prenom: string;
   nom: string;
   email: string;

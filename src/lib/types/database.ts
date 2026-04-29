@@ -153,6 +153,7 @@ export interface Intervention {
   demandeur_type: DemandeurType | null;
   particulier_contact: ParticulierContact | null;
   source: 'rdv' | 'portal' | 'admin' | 'mail' | 'calendar' | 'portail' | null;
+  source_mail_id: string | null;     // Gmail message ID si source='mail'
   color: string | null;     // hex (#RRGGBB) — override couleur planning
   reference_externe: string | null;
   organisation_id: string | null;

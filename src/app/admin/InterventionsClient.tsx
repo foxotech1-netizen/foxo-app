@@ -210,6 +210,34 @@ export function InterventionsClient({
   const [confirmMailMsg, setConfirmMailMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmMailPending, startConfirmMailTransition] = useTransition();
 
+  // Suppression intervention
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletePending, startDeleteTransition] = useTransition();
+  const [deleteMsg, setDeleteMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Réanalyse mail
+  type ReanalysisData = {
+    analysis: {
+      est_demande_intervention: boolean;
+      nom_client: string | null;
+      adresse: string | null;
+      type_probleme: string | null;
+      telephone: string | null;
+      email: string | null;
+      priorite: 'normale' | 'urgente' | null;
+      resume: string | null;
+      langue: 'fr' | 'nl' | 'en' | null;
+      type_demandeur: 'syndic' | 'courtier' | 'particulier' | null;
+      nom_societe: string | null;
+      nom_immeuble: string | null;
+      reference_externe: string | null;
+      occupants: { prenom: string; nom: string; email: string; appartement: string; telephone: string }[];
+    };
+  };
+  const [reanalysis, setReanalysis] = useState<ReanalysisData | null>(null);
+  const [reanalyzePending, startReanalyzeTransition] = useTransition();
+  const [reanalyzeMsg, setReanalyzeMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
   // Édition d'un occupant — un seul mode édition / ajout actif à la fois
   type OccupantForm = {
     prenom: string; nom: string; email: string; telephone: string;
@@ -638,6 +666,79 @@ export function InterventionsClient({
     }
   }
 
+  function deleteIntervention() {
+    if (!selected) return;
+    setDeleteMsg(null);
+    startDeleteTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}`, { method: 'DELETE' });
+        const data = await r.json();
+        if (!data.ok) {
+          setDeleteMsg({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
+          return;
+        }
+        // Update optimiste : retire de la liste + ferme drawer
+        setRows((rs) => rs.filter((r2) => r2.id !== selected.id));
+        setDeleteConfirmOpen(false);
+        setSelectedId(null);
+      } catch (e) {
+        setDeleteMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
+    });
+  }
+
+  function reanalyzeMail() {
+    if (!selected) return;
+    setReanalysis(null);
+    setReanalyzeMsg(null);
+    startReanalyzeTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}/reanalyze`, { method: 'POST' });
+        const data = await r.json();
+        if (!data.ok) {
+          if (data.code === 'google_not_connected') {
+            setReanalyzeMsg({ kind: 'err', msg: 'Google non connecté — connecte le compte dans /admin/parametres.' });
+          } else {
+            setReanalyzeMsg({ kind: 'err', msg: data.error ?? 'Échec analyse.' });
+          }
+          return;
+        }
+        setReanalysis({ analysis: data.analysis });
+      } catch (e) {
+        setReanalyzeMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
+    });
+  }
+
+  function applyReanalysis() {
+    if (!selected || !reanalysis) return;
+    setReanalyzeMsg(null);
+    startReanalyzeTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}/apply-reanalysis`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ analysis: reanalysis.analysis }),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          setReanalyzeMsg({ kind: 'err', msg: data.error ?? 'Échec application.' });
+          return;
+        }
+        setReanalysis(null);
+        setReanalyzeMsg({
+          kind: 'ok',
+          msg: `Analyse appliquée ✓${data.new_occupants_count ? ` · ${data.new_occupants_count} nouveau(x) occupant(s)` : ''}`,
+        });
+        // Refresh occupants + intervention via reload occupants + router.refresh
+        await refreshOccupants();
+        router.refresh();
+      } catch (e) {
+        setReanalyzeMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
+    });
+  }
+
   function sendConfirmMail() {
     if (!selected) return;
     setConfirmMailMsg(null);
@@ -676,6 +777,15 @@ export function InterventionsClient({
           interventionId={selected.id}
           occupantId={smsModal.occupantId}
           preferredChannel={smsModal.preferredChannel ?? null}
+        />
+      )}
+
+      {deleteConfirmOpen && selected && (
+        <DeleteInterventionModal
+          ref={selected.ref}
+          pending={deletePending}
+          onCancel={() => setDeleteConfirmOpen(false)}
+          onConfirm={deleteIntervention}
         />
       )}
 
@@ -972,13 +1082,43 @@ export function InterventionsClient({
                       ]} />
                       {selected.statut === 'nouvelle' && (
                         <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
-                          <div className="font-bold mb-1">📧 Demande reçue par mail — à traiter</div>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <div className="font-bold">📧 Demande reçue par mail — à traiter</div>
+                            {selected.source_mail_id && (
+                              <button
+                                type="button"
+                                onClick={reanalyzeMail}
+                                disabled={reanalyzePending}
+                                className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 flex-shrink-0"
+                              >
+                                {reanalyzePending ? '🔄 …' : '🔄 Réanalyser le mail'}
+                              </button>
+                            )}
+                          </div>
                           <DemandeurBadge
                             organisationId={selected.organisation_id}
                             clientId={selected.client_id}
                             referenceExterne={selected.reference_externe}
                           />
+                          {reanalyzeMsg && (
+                            <div className={
+                              'mt-2 text-[11px] font-semibold ' +
+                              (reanalyzeMsg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+                            }>
+                              {reanalyzeMsg.msg}
+                            </div>
+                          )}
                         </div>
+                      )}
+
+                      {/* Panel de résultat de réanalyse — attend validation admin */}
+                      {reanalysis && (
+                        <ReanalysisPanel
+                          data={reanalysis.analysis}
+                          onApply={applyReanalysis}
+                          onIgnore={() => { setReanalysis(null); setReanalyzeMsg(null); }}
+                          pending={reanalyzePending}
+                        />
                       )}
                     </>
                   )}
@@ -1425,6 +1565,25 @@ export function InterventionsClient({
                       <div className="text-[13px] text-terra">{selected.suspens_motif}</div>
                     </div>
                   )}
+
+                  {/* Suppression — visible uniquement pour statuts précoces */}
+                  {(selected.statut === 'nouvelle' || selected.statut === 'attente' || selected.statut === 'en_suspens') && (
+                    <div className="mt-6 pt-4 border-t border-sand-border dark:border-[#3D3A32]">
+                      <button
+                        type="button"
+                        onClick={() => { setDeleteConfirmOpen(true); setDeleteMsg(null); }}
+                        className="w-full bg-terra text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                        style={{ background: '#C4622D' }}
+                      >
+                        🗑 Supprimer cette intervention
+                      </button>
+                      {deleteMsg && (
+                        <p className={'text-[11px] mt-1.5 font-semibold ' + (deleteMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                          {deleteMsg.msg}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1636,6 +1795,153 @@ function StatCard({
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
     </div>
+  );
+}
+
+function DeleteInterventionModal({
+  ref, pending, onCancel, onConfirm,
+}: {
+  ref: string | null;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
+      className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
+    >
+      <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[460px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
+        <h2 className="text-[14px] font-extrabold text-terra mb-2 dark:text-[#FFB897]">
+          🗑 Supprimer l&apos;intervention
+        </h2>
+        <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
+          Êtes-vous sûr de vouloir supprimer l&apos;intervention <strong className="font-mono text-ink dark:text-[#F0ECE4]">{ref ?? '?'}</strong> ?
+          Cette action est <strong className="text-terra">irréversible</strong>.
+        </p>
+        <p className="text-[11px] text-ink-muted leading-relaxed mt-2 dark:text-[#C8C2B8]">
+          Tous les éléments liés (timeline, SMS logs, photos, occupants) seront aussi supprimés.
+          Le créneau réservé sera libéré automatiquement.
+        </p>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={pending}
+            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
+            style={{ background: '#C4622D' }}
+          >
+            {pending ? 'Suppression…' : 'Supprimer définitivement'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Panel "Résultat de l'analyse IA" — apparaît après /reanalyze, attend
+// que l'admin clique "Appliquer" ou "Ignorer".
+type ReanalysisAnalysis = {
+  est_demande_intervention: boolean;
+  nom_client: string | null;
+  adresse: string | null;
+  type_probleme: string | null;
+  telephone: string | null;
+  email: string | null;
+  priorite: 'normale' | 'urgente' | null;
+  resume: string | null;
+  langue: 'fr' | 'nl' | 'en' | null;
+  type_demandeur: 'syndic' | 'courtier' | 'particulier' | null;
+  nom_societe: string | null;
+  nom_immeuble: string | null;
+  reference_externe: string | null;
+  occupants: { prenom: string; nom: string; email: string; appartement: string; telephone: string }[];
+};
+
+function ReanalysisPanel({
+  data, onApply, onIgnore, pending,
+}: {
+  data: ReanalysisAnalysis;
+  onApply: () => void;
+  onIgnore: () => void;
+  pending: boolean;
+}) {
+  const typeIcon = data.type_demandeur === 'syndic' ? '🏢' : data.type_demandeur === 'courtier' ? '🛡️' : data.type_demandeur === 'particulier' ? '👤' : '❓';
+  const typeLabel = data.type_demandeur === 'syndic' ? 'Syndic' : data.type_demandeur === 'courtier' ? 'Courtier' : data.type_demandeur === 'particulier' ? 'Particulier' : 'Inconnu';
+  return (
+    <div className="bg-cream border-2 border-navy-mid rounded-xl p-3 mb-3 dark:bg-[#1C1A16] dark:border-[#A8C4F2]">
+      <div className="text-[12px] font-bold text-navy mb-2 dark:text-[#A8C4F2]">
+        📊 Résultat de l&apos;analyse IA
+      </div>
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[12px] mb-3">
+        <ReanalysisRow label="Type demandeur" value={`${typeIcon} ${typeLabel}`} />
+        {data.nom_societe && <ReanalysisRow label="Société" value={data.nom_societe} />}
+        {data.nom_immeuble && <ReanalysisRow label="Immeuble" value={data.nom_immeuble} />}
+        <ReanalysisRow label="Nom client" value={data.nom_client} />
+        <ReanalysisRow label="Téléphone" value={data.telephone} mono />
+        <ReanalysisRow label="Email" value={data.email} mono />
+        <ReanalysisRow label="Type problème" value={data.type_probleme} />
+        <ReanalysisRow
+          label="Priorité"
+          value={data.priorite ? (data.priorite === 'urgente' ? '⚡ Urgente' : 'Normale') : null}
+        />
+        {data.reference_externe && (
+          <ReanalysisRow label="Réf. externe" value={data.reference_externe} mono />
+        )}
+        <div className="sm:col-span-2">
+          <ReanalysisRow label="Adresse" value={data.adresse} />
+        </div>
+        <div className="sm:col-span-2">
+          <ReanalysisRow label="Résumé" value={data.resume} />
+        </div>
+        <ReanalysisRow
+          label="Occupants extraits"
+          value={String(data.occupants?.length ?? 0)}
+        />
+      </dl>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onApply}
+          disabled={pending}
+          className="bg-ok text-white px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50"
+          style={{ background: '#1F6B45' }}
+        >
+          {pending ? '…' : '✅ Appliquer les modifications'}
+        </button>
+        <button
+          type="button"
+          onClick={onIgnore}
+          disabled={pending}
+          className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+        >
+          ❌ Ignorer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ReanalysisRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+  return (
+    <>
+      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+        {label}
+      </dt>
+      <dd className={'text-[12px] dark:text-[#F0ECE4] ' + (mono ? 'font-mono' : '')}>
+        {value ?? <span className="text-ink-muted italic dark:text-[#8A8278]">—</span>}
+      </dd>
+    </>
   );
 }
 

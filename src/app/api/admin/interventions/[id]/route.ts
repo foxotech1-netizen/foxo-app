@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
-import type { ParticulierContact } from '@/lib/types/database';
+import type { ParticulierContact, StatutIntervention } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,4 +168,75 @@ export async function PATCH(
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
+}
+
+// ─── DELETE — suppression d'intervention en cascade ──────────────────────
+//
+// Garde-fou : statut doit être 'nouvelle' | 'attente' | 'en_suspens'.
+// Au-delà (confirmee, realisee, rapport, cloturee) on bloque côté serveur
+// même si l'UI cache le bouton — défense en profondeur.
+//
+// Cascade manuelle (les FK ne sont pas toutes en ON DELETE CASCADE) :
+//   - intervention_timeline
+//   - sms_logs
+//   - photos_interventions
+//   - occupants
+//   - creneaux_disponibles  (libère le créneau réservé)
+//   - interventions
+const DELETABLE_STATUTS: StatutIntervention[] = ['nouvelle', 'attente', 'en_suspens'];
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
+  }
+  const { id } = await params;
+
+  // Vérifie le statut (lecture user — RLS appliquée)
+  const { data: iv, error: loadErr } = await supabase
+    .from('interventions')
+    .select('id, ref, statut')
+    .eq('id', id)
+    .maybeSingle();
+  if (loadErr) return NextResponse.json({ ok: false, error: loadErr.message }, { status: 500 });
+  if (!iv) return NextResponse.json({ ok: false, error: 'Intervention introuvable.' }, { status: 404 });
+  const row = iv as { id: string; ref: string | null; statut: StatutIntervention };
+  if (!DELETABLE_STATUTS.includes(row.statut)) {
+    return NextResponse.json(
+      { ok: false, error: `Impossible de supprimer une intervention au statut "${row.statut}".` },
+      { status: 403 },
+    );
+  }
+
+  // Suppression cascade — admin client pour bypass RLS sur les tables enfants
+  // (certaines policies permettent SELECT mais pas DELETE pour l'admin user
+  // selon la config). Best-effort : on ne fail pas si une table enfant est
+  // vide. On stoppe seulement si la suppression de l'intervention elle-même
+  // échoue.
+  const admin = createAdminClient();
+
+  await admin.from('intervention_timeline').delete().eq('intervention_id', id);
+  await admin.from('sms_logs').delete().eq('intervention_id', id);
+  await admin.from('photos_interventions').delete().eq('intervention_id', id);
+  await admin.from('occupants').delete().eq('intervention_id', id);
+
+  // Libère un créneau réservé (statut → libre, intervention_id → null)
+  await admin
+    .from('creneaux_disponibles')
+    .update({ statut: 'libre', intervention_id: null })
+    .eq('intervention_id', id);
+
+  const { error: delErr } = await admin
+    .from('interventions')
+    .delete()
+    .eq('id', id);
+  if (delErr) {
+    return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, deleted_ref: row.ref });
 }
