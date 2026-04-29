@@ -16,9 +16,14 @@ export async function GET(request: Request) {
   const limit = parseInt(url.searchParams.get('limit') ?? '30', 10) || 30;
   const filter = url.searchParams.get('filter');
   const label = url.searchParams.get('label');
-  // Construit la query Gmail. Cumulable : filter + label.
-  const parts: string[] = ['in:inbox'];
-  if (filter === 'unread') parts.push('is:unread');
+  // Construit la query Gmail. trash et inbox sont exclusifs.
+  const parts: string[] = [];
+  if (filter === 'trash') {
+    parts.push('in:trash');
+  } else {
+    parts.push('in:inbox');
+    if (filter === 'unread') parts.push('is:unread');
+  }
   if (label) parts.push(`label:"${label.replace(/"/g, '')}"`);
   const q = parts.join(' ');
 

@@ -14,9 +14,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // existants partagés / possédés par l'utilisateur (RAPPORTS, FACTURES).
 // `drive.file` ne donnerait accès qu'aux fichiers créés par l'app, ce
 // qui retournait 404 sur les dossiers Drive racines.
+// `mail.google.com` (Gmail full access) requis pour : modifier les
+// labels, envoyer des réponses et supprimer définitivement. Couvre
+// aussi la lecture (donc remplace `gmail.readonly`). L'utilisateur
+// doit se déconnecter/reconnecter pour ré-octroyer le scope.
 export const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://mail.google.com/',
   'https://www.googleapis.com/auth/calendar',
   'https://www.googleapis.com/auth/userinfo.email',
 ];

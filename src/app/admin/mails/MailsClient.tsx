@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 
-type FilterMode = 'tous' | 'unread' | 'lies';
-type BulkAction = 'read' | 'unread' | 'traite' | 'archive';
+type FilterMode = 'tous' | 'unread' | 'lies' | 'trash';
+type BulkAction =
+  | 'read' | 'unread' | 'traite' | 'archive'
+  | 'label' | 'important' | 'trash' | 'restore' | 'delete-permanent';
 
 interface MailAnalysis {
   nom_client: string | null;
@@ -18,17 +20,11 @@ interface MailAnalysis {
   resume: string | null;
 }
 
-// IDs de labels système Gmail à ne PAS afficher en badge sur la liste
-// (ce sont des marqueurs internes : boîte, étoile, importance, brouillon).
-// Note : les labels CATEGORY_* sont aussi de type 'system' et donc déjà
-// exclus de la liste /labels (filtre type=user côté serveur).
 const HIDDEN_BADGE_LABEL_IDS = new Set([
   'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT',
   'SPAM', 'TRASH', 'CHAT',
 ]);
 
-// Palette restreinte de couleurs valides côté Gmail API. Sortir de cette
-// liste fait échouer la création de label avec HTTP 400.
 const LABEL_COLORS: { name: string; text: string; bg: string }[] = [
   { name: 'Aucune', text: '', bg: '' },
   { name: 'Rouge',   text: '#ffffff', bg: '#fb4c2f' },
@@ -82,19 +78,24 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // Sélection multiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkLabelMenuOpen, setBulkLabelMenuOpen] = useState(false);
 
   // Labels
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(initialConnected);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
-  // Modal de création de label
+  // Modals
   const [createLabelOpen, setCreateLabelOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ ids: string[] } | null>(null);
 
-  // Dropdown "ajouter un label" dans le drawer
+  // Drawer : ajout de label + panel réponse
   const [addLabelMenuOpen, setAddLabelMenuOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replyBody, setReplyBody] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
 
-  // Charge la liste au mount + quand le filtre serveur change
+  // Charge la liste — déclenché au mount + quand filter/activeLabel changent
   useEffect(() => {
     if (!initialConnected) return;
     let mounted = true;
@@ -102,6 +103,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setError(null);
     const params = new URLSearchParams({ limit: '30' });
     if (filter === 'unread') params.set('filter', 'unread');
+    if (filter === 'trash') params.set('filter', 'trash');
     if (activeLabel) params.set('label', activeLabel);
     fetch(`/api/admin/mails?${params}`)
       .then((r) => r.json())
@@ -109,14 +111,14 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (!mounted) return;
         if (!data.ok) { setError(data.error ?? 'Erreur'); return; }
         setMails(data.mails ?? []);
-        setSelectedIds(new Set());     // reset sélection sur changement de filtre
+        setSelectedIds(new Set());
       })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, [initialConnected, filter, activeLabel]);
 
-  // Charge les labels Gmail (1 fois)
+  // Charge les labels Gmail
   useEffect(() => {
     if (!initialConnected) return;
     let mounted = true;
@@ -134,10 +136,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   // Charge le détail quand selectedId change
   useEffect(() => {
-    if (!selectedId) { setDetail(null); setAnalysis(null); return; }
+    if (!selectedId) { setDetail(null); setAnalysis(null); setReplyOpen(false); return; }
     let mounted = true;
     setDetailLoading(true);
     setAnalysis(null);
+    setReplyOpen(false);
+    setReplyBody('');
     fetch(`/api/admin/mails/${selectedId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -202,26 +206,33 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     });
   }
 
-  async function applyBulkAction(action: BulkAction) {
+  async function applyBulkAction(action: BulkAction, labelId?: string) {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     setBulkLoading(true);
     setFeedback(null);
+    setBulkLabelMenuOpen(false);
     try {
       const r = await fetch('/api/admin/mails/batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids, action }),
+        body: JSON.stringify({ ids, action, labelId }),
       });
       const data = await r.json();
       if (!data.ok) {
         setFeedback({ kind: 'err', msg: data.error ?? 'Action en masse échouée.' });
         return;
       }
-      // Optimistic update
+      // Update optimiste
       setMails((arr) => {
-        if (action === 'archive') return arr.filter((m) => !selectedIds.has(m.id));
-        if (action === 'traite') return arr.filter((m) => !selectedIds.has(m.id));
+        if (action === 'archive' || action === 'traite' || action === 'trash' || action === 'delete-permanent') {
+          // Le mail disparaît de la vue actuelle
+          return arr.filter((m) => !selectedIds.has(m.id));
+        }
+        if (action === 'restore') {
+          // En vue trash : le mail disparaît puisqu'il quitte la corbeille
+          return arr.filter((m) => !selectedIds.has(m.id));
+        }
         if (action === 'read') {
           return arr.map((m) => selectedIds.has(m.id)
             ? { ...m, unread: false, label_ids: m.label_ids.filter((l) => l !== 'UNREAD') }
@@ -232,6 +243,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             ? { ...m, unread: true, label_ids: m.label_ids.includes('UNREAD') ? m.label_ids : [...m.label_ids, 'UNREAD'] }
             : m);
         }
+        if (action === 'important') {
+          return arr.map((m) => selectedIds.has(m.id)
+            ? { ...m, label_ids: m.label_ids.includes('IMPORTANT') ? m.label_ids : [...m.label_ids, 'IMPORTANT'] }
+            : m);
+        }
+        if (action === 'label' && labelId) {
+          return arr.map((m) => selectedIds.has(m.id)
+            ? { ...m, label_ids: m.label_ids.includes(labelId) ? m.label_ids : [...m.label_ids, labelId] }
+            : m);
+        }
         return arr;
       });
       setSelectedIds(new Set());
@@ -240,8 +261,13 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         unread: 'marqué(s) comme non lu',
         traite: 'marqué(s) FOXO_TRAITE',
         archive: 'archivé(s)',
+        label: 'libellé appliqué',
+        important: 'marqué(s) important',
+        trash: 'envoyé(s) à la corbeille',
+        restore: 'restauré(s)',
+        'delete-permanent': 'supprimé(s) définitivement',
       };
-      setFeedback({ kind: 'ok', msg: `${ids.length} mail(s) ${labelMap[action]} ✓` });
+      setFeedback({ kind: 'ok', msg: `${ids.length} mail(s) — ${labelMap[action]} ✓` });
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -303,7 +329,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Échec mise à jour libellé.' });
         return;
       }
-      // Optimistic : met à jour labelIds dans detail + dans la liste
       setDetail((d) => {
         if (!d) return d;
         let next = d.label_ids.slice();
@@ -331,6 +356,57 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     } catch { /* noop */ }
   }
 
+  async function sendReply() {
+    if (!detail || !replyBody.trim()) return;
+    setReplyLoading(true);
+    setFeedback(null);
+    try {
+      const r = await fetch(`/api/admin/mails/${detail.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: replyBody }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Échec envoi.' });
+        return;
+      }
+      setFeedback({ kind: 'ok', msg: 'Réponse envoyée ✓' });
+      setReplyBody('');
+      setReplyOpen(false);
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setReplyLoading(false);
+    }
+  }
+
+  async function deletePermanentConfirmed(ids: string[]) {
+    setBulkLoading(true);
+    setFeedback(null);
+    try {
+      const r = await fetch('/api/admin/mails/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action: 'delete-permanent' }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
+        return;
+      }
+      setMails((arr) => arr.filter((m) => !ids.includes(m.id)));
+      setSelectedIds(new Set());
+      if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+      setFeedback({ kind: 'ok', msg: `${ids.length} mail(s) supprimé(s) définitivement ✓` });
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setBulkLoading(false);
+      setConfirmDelete(null);
+    }
+  }
+
   function createIntervention() {
     if (!detail) return;
     if (analysis) {
@@ -347,6 +423,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   if (!initialConnected) return null;
 
   const totalUnread = labels.reduce((acc, l) => acc + l.messages_unread, 0);
+  const inTrash = filter === 'trash';
 
   return (
     <div className="h-full flex">
@@ -359,6 +436,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             setFeedback({ kind: 'ok', msg: 'Libellé créé ✓' });
           }}
           onError={(msg) => setFeedback({ kind: 'err', msg })}
+        />
+      )}
+
+      {confirmDelete && (
+        <ConfirmDeleteModal
+          count={confirmDelete.ids.length}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deletePermanentConfirmed(confirmDelete.ids)}
+          pending={bulkLoading}
         />
       )}
 
@@ -377,8 +463,13 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             placeholder="Rechercher — expéditeur, sujet…"
             className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
-          <div className="grid grid-cols-3 gap-1.5">
-            {(['tous', 'unread', 'lies'] as FilterMode[]).map((f) => (
+          <div className="grid grid-cols-4 gap-1.5">
+            {([
+              ['tous', 'Tous'],
+              ['unread', 'Non lus'],
+              ['lies', 'Avec interv.'],
+              ['trash', '🗑️ Corbeille'],
+            ] as [FilterMode, string][]).map(([f, label]) => (
               <button
                 key={f}
                 type="button"
@@ -390,7 +481,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     : 'bg-white text-ink-mid border-sand-border dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
                 }
               >
-                {f === 'tous' ? 'Tous' : f === 'unread' ? 'Non lus' : 'Avec interv.'}
+                {label}
               </button>
             ))}
           </div>
@@ -487,13 +578,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <span className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
               {selectedIds.size > 0
                 ? `${selectedIds.size} sélectionné(s)`
-                : `${filtered.length} mail(s)`}
+                : `${filtered.length} mail(s)${inTrash ? ' (corbeille)' : ''}`}
             </span>
           </div>
         )}
 
-        {/* Liste */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Liste — `min-h-0` est essentiel pour que flex-1 puisse rétrécir
+            et laisser la barre d'actions visible en bas (sinon la liste
+            pousse la barre hors écran avec >20 mails). */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {error && (
             <div className="m-3 text-[12px] bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 font-semibold">
               {error}
@@ -501,13 +594,14 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           )}
           {filtered.length === 0 && !loading && !error && (
             <div className="text-[13px] text-ink-muted text-center py-12 dark:text-[#C8C2B8]">
-              Aucun mail.
+              {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
             </div>
           )}
           {filtered.map((m) => {
             const active = selectedId === m.id;
             const checked = selectedIds.has(m.id);
             const badges = userBadgesForMail(m);
+            const isImportant = m.label_ids.includes('IMPORTANT');
             return (
               <div
                 key={m.id}
@@ -532,6 +626,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   <div className="flex items-center gap-2 mb-0.5">
                     {m.unread && (
                       <span className="w-2 h-2 rounded-full bg-terra flex-shrink-0" aria-label="Non lu" />
+                    )}
+                    {isImportant && (
+                      <span className="text-[10px] flex-shrink-0" title="Marqué important" aria-label="Important">⭐</span>
                     )}
                     <div className={'text-[12px] font-bold truncate flex-1 ' + (active ? 'text-navy dark:text-white' : 'text-ink dark:text-[#F0ECE4]')}>
                       {senderName(m.from)}
@@ -559,43 +656,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           })}
         </div>
 
-        {/* Barre d'actions sticky en masse */}
+        {/* Barre d'actions sticky — flex-shrink-0 avec liste min-h-0 dessus
+            garantit qu'elle reste visible quel que soit le nombre de mails. */}
         {selectedIds.size > 0 && (
-          <div className="border-t border-sand-border bg-cream px-3 py-2.5 flex-shrink-0 sticky bottom-0 z-10 shadow-[0_-4px_12px_rgba(0,0,0,.06)] dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
-              {selectedIds.size} mail(s) sélectionné(s)
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              <BulkButton
-                onClick={() => applyBulkAction('read')}
-                disabled={bulkLoading}
-                color="navy"
-              >
-                ✅ Marquer lu
-              </BulkButton>
-              <BulkButton
-                onClick={() => applyBulkAction('unread')}
-                disabled={bulkLoading}
-                color="navy-outline"
-              >
-                📧 Marquer non lu
-              </BulkButton>
-              <BulkButton
-                onClick={() => applyBulkAction('traite')}
-                disabled={bulkLoading}
-                color="terra-brand"
-              >
-                ✅ FOXO_TRAITE
-              </BulkButton>
-              <BulkButton
-                onClick={() => applyBulkAction('archive')}
-                disabled={bulkLoading}
-                color="muted"
-              >
-                🗑 Archiver
-              </BulkButton>
-            </div>
-          </div>
+          <BulkActionBar
+            count={selectedIds.size}
+            inTrash={inTrash}
+            disabled={bulkLoading}
+            labels={labels}
+            menuOpen={bulkLabelMenuOpen}
+            setMenuOpen={setBulkLabelMenuOpen}
+            onAction={applyBulkAction}
+            onClear={() => setSelectedIds(new Set())}
+            onRequestPermanentDelete={() => setConfirmDelete({ ids: Array.from(selectedIds) })}
+          />
         )}
       </aside>
 
@@ -648,9 +722,17 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-sand-border bg-sand flex-shrink-0 dark:bg-[#141210] dark:border-[#2C2A24]">
               <button
                 type="button"
+                onClick={() => setReplyOpen((v) => !v)}
+                disabled={!detail}
+                className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px]"
+              >
+                ↩ Répondre
+              </button>
+              <button
+                type="button"
                 onClick={analyzeMail}
                 disabled={analysisLoading || !detail}
-                className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px]"
+                className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] dark:bg-[#221E1A] dark:text-[#A8C4F2]"
               >
                 🤖 {analysisLoading ? 'Analyse…' : 'Analyser avec IA'}
               </button>
@@ -670,6 +752,27 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               >
                 ✅ {traiteLoading ? 'Marquage…' : 'Marquer traité'}
               </button>
+              {/* Actions trash spécifiques au mail courant */}
+              {inTrash && detail && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, 'restore')}
+                    disabled={bulkLoading}
+                    className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32] min-h-[44px]"
+                  >
+                    ↺ Restaurer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete({ ids: [detail.id] })}
+                    disabled={bulkLoading}
+                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px] dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+                  >
+                    🗑 Supprimer définitivement
+                  </button>
+                </>
+              )}
               {detail && (
                 <a
                   href={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
@@ -695,6 +798,41 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             )}
 
+            {/* Panel "Répondre" */}
+            {replyOpen && detail && (
+              <div className="mx-4 mt-3 bg-cream border border-navy rounded-xl p-3 dark:bg-[#1C1A16] dark:border-[#2A5298]">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1 dark:text-[#C8C2B8]">
+                  Réponse à <span className="font-mono">{senderEmail(detail.from)}</span>
+                </div>
+                <textarea
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                  rows={6}
+                  placeholder="Écris ta réponse ici. Le sujet et le threading sont gérés automatiquement."
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => { setReplyOpen(false); setReplyBody(''); }}
+                    disabled={replyLoading}
+                    className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={sendReply}
+                    disabled={replyLoading || !replyBody.trim()}
+                    className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50"
+                  >
+                    {replyLoading ? 'Envoi…' : '✉ Envoyer'}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Section Libellés du mail */}
             {detail && (
               <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
@@ -708,7 +846,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     className="text-[11px] font-bold text-navy hover:underline dark:text-[#A8C4F2]"
                     aria-expanded={addLabelMenuOpen}
                   >
-                    {addLabelMenuOpen ? '✕ Annuler' : '+ Ajouter'}
+                    {addLabelMenuOpen ? '✕ Annuler' : '+ Libellé'}
                   </button>
                 </div>
 
@@ -793,10 +931,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   {detail.body_html ? (
                     <div
                       className="text-[13px] text-ink dark:text-[#F0ECE4]"
-                      style={{
-                        wordBreak: 'break-word',
-                        overflowWrap: 'anywhere',
-                      }}
+                      style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                       dangerouslySetInnerHTML={{ __html: detail.body_html }}
                     />
                   ) : (
@@ -826,6 +961,144 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       </main>
     </div>
   );
+
+  // Helper local pour appliquer une action sur 1 seul mail (drawer)
+  // sans toucher la sélection en masse.
+  async function applyBulkActionForOne(id: string, action: BulkAction) {
+    setBulkLoading(true);
+    setFeedback(null);
+    try {
+      const r = await fetch('/api/admin/mails/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id], action }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Action échouée.' });
+        return;
+      }
+      setMails((arr) => arr.filter((m) => m.id !== id));
+      setSelectedId(null);
+      setFeedback({ kind: 'ok', msg: action === 'restore' ? 'Mail restauré ✓' : 'Action appliquée ✓' });
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+}
+
+function BulkActionBar({
+  count, inTrash, disabled, labels, menuOpen, setMenuOpen,
+  onAction, onClear, onRequestPermanentDelete,
+}: {
+  count: number;
+  inTrash: boolean;
+  disabled: boolean;
+  labels: GmailLabel[];
+  menuOpen: boolean;
+  setMenuOpen: (v: boolean) => void;
+  onAction: (action: BulkAction, labelId?: string) => void;
+  onClear: () => void;
+  onRequestPermanentDelete: () => void;
+}) {
+  return (
+    <div className="border-t border-sand-border bg-cream px-3 py-2.5 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)] dark:bg-[#1C1A16] dark:border-[#2C2A24] relative">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-navy dark:text-[#A8C4F2]">
+          {count} sélectionné(s)
+        </span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-[11px] text-ink-muted hover:text-terra dark:text-[#C8C2B8]"
+          title="Désélectionner tout"
+        >
+          ✕ Désélectionner
+        </button>
+      </div>
+
+      {inTrash ? (
+        <div className="grid grid-cols-2 gap-1.5">
+          <BulkBtn onClick={() => onAction('restore')} disabled={disabled} color="navy">
+            ↺ Restaurer
+          </BulkBtn>
+          <BulkBtn onClick={onRequestPermanentDelete} disabled={disabled} color="terra">
+            🗑 Supprimer
+          </BulkBtn>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-1.5">
+            <BulkBtn onClick={() => onAction('read')} disabled={disabled} color="navy">
+              ✅ Lu
+            </BulkBtn>
+            <BulkBtn onClick={() => onAction('unread')} disabled={disabled} color="navy-outline">
+              🔵 Non lu
+            </BulkBtn>
+            <BulkBtn onClick={() => onAction('important')} disabled={disabled} color="amber">
+              ⭐ Important
+            </BulkBtn>
+            <BulkBtn onClick={() => setMenuOpen(!menuOpen)} disabled={disabled || labels.length === 0} color="muted">
+              🏷️ Libellé
+            </BulkBtn>
+            <BulkBtn onClick={() => onAction('archive')} disabled={disabled} color="muted">
+              🗄️ Archiver
+            </BulkBtn>
+            <BulkBtn onClick={() => onAction('trash')} disabled={disabled} color="terra-soft">
+              🗑️ Corbeille
+            </BulkBtn>
+          </div>
+
+          {menuOpen && (
+            <div className="absolute bottom-full left-3 right-3 mb-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto dark:bg-[#1C1A16] dark:border-[#2C2A24] z-20">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5 dark:text-[#C8C2B8]">
+                Appliquer un libellé
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {labels.map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => onAction('label', l.id)}
+                  >
+                    <LabelBadge label={l} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function BulkBtn({
+  onClick, disabled, color, children,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  color: 'navy' | 'navy-outline' | 'amber' | 'muted' | 'terra' | 'terra-soft';
+  children: React.ReactNode;
+}) {
+  const className = {
+    'navy': 'bg-navy text-white border border-navy',
+    'navy-outline': 'bg-white text-navy border border-navy dark:bg-[#221E1A] dark:text-[#A8C4F2]',
+    'amber': 'bg-amber-light text-[#8A5A1A] border border-[#E8C896] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]',
+    'muted': 'bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]',
+    'terra': 'bg-terra text-white border border-terra',
+    'terra-soft': 'bg-terra-light text-terra border border-terra-mid dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]',
+  }[color];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={'px-2 py-2 rounded-lg text-[11px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] ' + className}
+    >
+      {children}
+    </button>
+  );
 }
 
 function LabelBadge({ label, small, removable }: { label: GmailLabel; small?: boolean; removable?: boolean }) {
@@ -842,32 +1115,6 @@ function LabelBadge({ label, small, removable }: { label: GmailLabel; small?: bo
       {label.name}
       {removable && <span aria-hidden className="opacity-70 group-hover:opacity-100">×</span>}
     </span>
-  );
-}
-
-function BulkButton({
-  onClick, disabled, color, children,
-}: {
-  onClick: () => void;
-  disabled: boolean;
-  color: 'navy' | 'navy-outline' | 'terra-brand' | 'muted';
-  children: React.ReactNode;
-}) {
-  const className = {
-    'navy': 'bg-navy text-white border border-navy',
-    'navy-outline': 'bg-white text-navy border border-navy dark:bg-[#221E1A] dark:text-[#A8C4F2]',
-    'terra-brand': 'bg-[#A17244] text-white border border-[#A17244]',
-    'muted': 'bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]',
-  }[color];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={'px-2.5 py-2 rounded-lg text-[11px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] ' + className}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -978,6 +1225,51 @@ function CreateLabelModal({
             className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50"
           >
             {submitting ? 'Création…' : 'Créer'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDeleteModal({
+  count, onCancel, onConfirm, pending,
+}: {
+  count: number;
+  onCancel: () => void;
+  onConfirm: () => void;
+  pending: boolean;
+}) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
+      className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
+    >
+      <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
+        <h2 className="text-[14px] font-extrabold text-terra mb-2 dark:text-[#FFB897]">
+          🗑 Supprimer définitivement
+        </h2>
+        <p className="text-[12px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
+          Tu vas supprimer définitivement <strong>{count} mail{count > 1 ? 's' : ''}</strong>.
+          Cette action est <strong className="text-terra">irréversible</strong> — les mails ne seront pas récupérables même depuis la corbeille Gmail.
+        </p>
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={pending}
+            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="px-3 py-2 rounded-lg text-[12px] font-bold bg-terra text-white disabled:opacity-50"
+          >
+            {pending ? 'Suppression…' : 'Supprimer définitivement'}
           </button>
         </div>
       </div>

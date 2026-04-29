@@ -566,6 +566,121 @@ export async function batchModifyMails(args: {
   return { ok: true };
 }
 
+// ─── Réponse + suppression (page /admin/mails) ───────────────────────────
+
+function extractEmailFromHeader(headerValue: string): string {
+  const m = headerValue.match(/<([^>]+)>/);
+  return (m ? m[1] : headerValue).trim();
+}
+
+function base64url(input: string): string {
+  return Buffer.from(input, 'utf-8').toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Envoie une réponse à un mail existant, avec threading correct
+// (In-Reply-To + References + threadId). Le from est implicite (le
+// compte Google connecté). Body en text/plain UTF-8.
+export async function sendMailReply(args: {
+  mailId: string;
+  body: string;
+}): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  // 1. Récupère les en-têtes nécessaires du mail original
+  const headRes = await fetch(
+    `${API}/messages/${args.mailId}?format=metadata&metadataHeaders=Message-ID&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=References`,
+    { headers: { Authorization: `Bearer ${auth.access_token}` } },
+  );
+  if (!headRes.ok) {
+    const t = await headRes.text();
+    return { ok: false, error: `Headers HTTP ${headRes.status} : ${t.slice(0, 200)}` };
+  }
+  const raw = (await headRes.json()) as RawMessage;
+  const origMessageId = header(raw.payload, 'Message-ID');
+  const origFrom = header(raw.payload, 'From');
+  const origSubject = header(raw.payload, 'Subject');
+  const origReferences = header(raw.payload, 'References');
+  const threadId = raw.threadId;
+
+  const replyTo = extractEmailFromHeader(origFrom);
+  if (!replyTo) return { ok: false, error: 'Impossible de déterminer le destinataire.' };
+
+  const subject = /^re:\s*/i.test(origSubject) ? origSubject : `Re: ${origSubject}`;
+  const references = origReferences ? `${origReferences} ${origMessageId}` : origMessageId;
+  const bodyNormalized = args.body.replace(/\r?\n/g, '\r\n');
+
+  // RFC 2822 — le destinataire et l'expéditeur peuvent contenir des
+  // accents → encode-MIME (=?UTF-8?B?...?=) si besoin. Ici on garde
+  // simple : les en-têtes restent ASCII (Subject géré par MIME).
+  const subjectEncoded = /^[\x20-\x7E]*$/.test(subject)
+    ? subject
+    : `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`;
+
+  const mime = [
+    `To: ${replyTo}`,
+    `Subject: ${subjectEncoded}`,
+    `In-Reply-To: ${origMessageId}`,
+    `References: ${references}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `MIME-Version: 1.0`,
+    ``,
+    bodyNormalized,
+  ].join('\r\n');
+
+  const rawEncoded = base64url(mime);
+
+  // 2. Envoi via /messages/send (threadId pour conserver le fil)
+  const sendRes = await fetch(`${API}/messages/send`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${auth.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw: rawEncoded, threadId }),
+  });
+  if (!sendRes.ok) {
+    const t = await sendRes.text();
+    return { ok: false, error: `Send HTTP ${sendRes.status} : ${t.slice(0, 300)}` };
+  }
+  const sent = (await sendRes.json()) as { id: string };
+  return { ok: true, id: sent.id };
+}
+
+// Supprime DÉFINITIVEMENT un mail (pas de récupération possible).
+// Requiert le scope mail.google.com — gmail.modify ne suffit pas.
+export async function deleteMailPermanently(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const r = await fetch(`${API}/messages/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `Delete HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
+}
+
+// Supprime définitivement plusieurs mails en une requête (jusqu'à 1000).
+export async function batchDeletePermanently(ids: string[]): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  if (ids.length === 0) return { ok: true };
+  const r = await fetch(`${API}/messages/batchDelete`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: ids.slice(0, 1000) }),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `BatchDelete HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
+}
+
 export async function getEmailThread(threadId: string): Promise<GmailThreadResult> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: true, messages: [] };
