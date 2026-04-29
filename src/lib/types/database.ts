@@ -83,6 +83,21 @@ export interface ParticulierContact {
   contact_sur_place?: ParticulierContactSurPlace;
 }
 
+export type DelegueRole = 'admin' | 'delegue';
+
+export interface Delegue {
+  id: string;
+  organisation_id: string;
+  email: string;
+  prenom: string | null;
+  nom: string | null;
+  telephone: string | null;
+  role: DelegueRole;
+  actif: boolean;
+  invite_sent_at: string | null;
+  created_at: string;
+}
+
 export interface Organisation {
   id: string;
   nom: string;

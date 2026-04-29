@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import type { Organisation } from '@/lib/types/database';
 import { TypeBadge } from '@/components/TypeBadge';
 import { createOrganisation } from '../actions';
+import { OrganisationDrawer } from './OrganisationDrawer';
 
 export function SyndicsClient({
   initial,
@@ -18,6 +19,7 @@ export function SyndicsClient({
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [type, setType] = useState<'syndic' | 'courtier'>('syndic');
+  const [drawerOrg, setDrawerOrg] = useState<Organisation | null>(null);
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -73,7 +75,11 @@ export function SyndicsClient({
                   </td>
                 </tr>
               ) : orgs.map((o) => (
-                <tr key={o.id} className="border-b border-sand-mid hover:bg-sand-hover">
+                <tr
+                  key={o.id}
+                  onClick={() => setDrawerOrg(o)}
+                  className="border-b border-sand-mid hover:bg-sand-hover cursor-pointer"
+                >
                   <td className="px-3.5 py-3 font-bold text-[13px]">{o.nom}</td>
                   <td className="px-3.5 py-3 text-xs">
                     <TypeBadge type={o.type} />
@@ -184,6 +190,10 @@ export function SyndicsClient({
             </form>
           </div>
         </div>
+      )}
+
+      {drawerOrg && (
+        <OrganisationDrawer org={drawerOrg} onClose={() => setDrawerOrg(null)} />
       )}
     </>
   );

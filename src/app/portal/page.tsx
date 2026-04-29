@@ -31,10 +31,11 @@ export default async function PortalDashboard() {
   }
 
   const supabase = await createClient();
+  // Filtre par syndic_id (legacy) OU organisation_id (nouveau lien).
   const { data: interventionsData } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, creneau_debut, updated_at, acp_id')
-    .eq('syndic_id', org.id)
+    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
     .order('created_at', { ascending: false });
 
   const interventions: Pick<

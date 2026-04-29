@@ -27,11 +27,13 @@ export default async function InterventionDetail({
 
   const supabase = await createClient();
 
+  // Sécurité : intervention rattachée au syndic (legacy) OU à l'org du
+  // délégué connecté (nouveau lien via organisation_id).
   const { data: iv } = await supabase
     .from('interventions')
     .select('*')
     .eq('id', id)
-    .eq('syndic_id', org.id) // sécurité : on ne sert qu'une intervention du syndic connecté
+    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
     .maybeSingle();
 
   if (!iv) notFound();

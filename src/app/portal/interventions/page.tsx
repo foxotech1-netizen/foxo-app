@@ -42,10 +42,12 @@ export default async function InterventionsPage({
   const isCourtier = org.type === 'courtier';
   const supabase = await createClient();
 
+  // Accepte les deux liens : syndic_id (legacy) OU organisation_id
+  // (nouvelles interventions créées via cron mail / matching auto).
   const { data, error } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse')
-    .eq('syndic_id', org.id)
+    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
     .order('created_at', { ascending: false });
 
   const interventions: Intervention[] = (data as Intervention[] | null) ?? [];
