@@ -46,7 +46,7 @@ export default async function PlanningPage({
       .order('prenom', { ascending: true }),
     supabase
       .from('creneaux_disponibles')
-      .select('id, technicien_id, date, heure_debut, heure_fin, statut, intervention_id')
+      .select('id, technicien_id, date, heure_debut, heure_fin, statut, intervention_id, intervention:interventions(color)')
       .gte('date', startStr)
       .lte('date', endStr)
       .order('date', { ascending: true })
@@ -54,7 +54,25 @@ export default async function PlanningPage({
   ]);
 
   const techs = (techRes.data ?? []) as Utilisateur[];
-  const creneaux = (creneauxRes.data ?? []) as Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'intervention_id'>[];
+  // Le join `intervention:interventions(color)` renvoie un tableau
+  // (pattern Supabase pour les relations) — on prend le premier élément
+  // ou null. On l'aplatit en `intervention_color` pour éviter d'exposer
+  // la forme join au composant client.
+  type CreneauJoinRow = Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'intervention_id'>
+    & { intervention: { color: string | null }[] | { color: string | null } | null };
+  const creneaux = ((creneauxRes.data ?? []) as unknown as CreneauJoinRow[]).map((c) => {
+    const ivRel = Array.isArray(c.intervention) ? c.intervention[0] : c.intervention;
+    return {
+      id: c.id,
+      technicien_id: c.technicien_id,
+      date: c.date,
+      heure_debut: c.heure_debut,
+      heure_fin: c.heure_fin,
+      statut: c.statut,
+      intervention_id: c.intervention_id,
+      intervention_color: ivRel?.color ?? null,
+    };
+  });
 
   // Statut Google — utilisé pour activer/désactiver le toggle
   // "Afficher Google Calendar" dans PlanningCalendar.
@@ -70,7 +88,11 @@ export default async function PlanningPage({
   const manageStartStr = `${manageStart.getFullYear()}-${String(manageStart.getMonth() + 1).padStart(2, '0')}-${String(manageStart.getDate()).padStart(2, '0')}`;
   const manageEndStr = `${manageEnd.getFullYear()}-${String(manageEnd.getMonth() + 1).padStart(2, '0')}-${String(manageEnd.getDate()).padStart(2, '0')}`;
 
-  let manageCreneaux: typeof creneaux = [];
+  // Manage view : pas besoin de la couleur d'intervention (la liste sert
+  // à gérer les disponibilités, pas à afficher les couleurs). On garde
+  // le shape minimal pour rester compatible avec CreneauxClient.
+  type ManageCreneau = Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'intervention_id'>;
+  let manageCreneaux: ManageCreneau[] = [];
   if (tab === 'manage') {
     const { data } = await supabase
       .from('creneaux_disponibles')
@@ -79,7 +101,7 @@ export default async function PlanningPage({
       .lte('date', manageEndStr)
       .order('date', { ascending: true })
       .order('heure_debut', { ascending: true });
-    manageCreneaux = (data ?? []) as typeof creneaux;
+    manageCreneaux = (data ?? []) as ManageCreneau[];
   }
 
   const tabHref = (t: Tab) => `/admin/planning?tab=${t}&m=${fmtMonth(year, month)}`;

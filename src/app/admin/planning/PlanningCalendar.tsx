@@ -22,7 +22,8 @@ const TECH_COLORS = [
   { bg: '#C4622D', soft: '#F7EDE5' },  // terra
 ];
 
-type Creneau = Pick<CreneauDisponible, 'id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'technicien_id' | 'intervention_id'>;
+type Creneau = Pick<CreneauDisponible, 'id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'technicien_id' | 'intervention_id'>
+  & { intervention_color?: string | null };
 
 export function PlanningCalendar({
   year,
@@ -194,6 +195,12 @@ export function PlanningCalendar({
           <Legend swatch="bg-ok-light border-ok-mid" label="Libre" />
           <Legend swatch="bg-navy-light border-navy-mid" label="Réservé" />
           <Legend swatch="bg-sand-mid border-sand-border" label="Bloqué" />
+          {filtered.some((c) => c.intervention_color) && (
+            <span className="flex items-center gap-1.5 text-[11px] text-ink-mid">
+              <span className="w-3 h-3 rounded-sm border" style={{ background: 'linear-gradient(135deg, #1B3A6B, #7C3AED, #C4622D)' }} />
+              Couleur personnalisée
+            </span>
+          )}
           {googleConnected && showGoogle && (
             <>
               <Legend swatch="bg-[#EEF2FF] border-[#C7D2FE]" label="📅 Google" />
@@ -361,6 +368,15 @@ export function PlanningCalendar({
                     );
                   }
                   if (cr.statut === 'reserve') {
+                    // Couleur personnalisée de l'intervention (si définie)
+                    // a priorité sur la couleur tech. Texte blanc pour
+                    // contraste max sur la couleur custom (toutes vives).
+                    const customColor = cr.intervention_color ?? null;
+                    const reserveStyle = customColor
+                      ? { background: customColor, color: '#FFFFFF', borderLeft: `3px solid ${customColor}` }
+                      : techColor
+                        ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
+                        : { background: '#D6E4F7', color: '#1B3A6B' };
                     return (
                       <button
                         key={cr.id}
@@ -368,11 +384,7 @@ export function PlanningCalendar({
                         onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
                         className="w-full text-left block text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer"
                         title="Cliquer pour modifier l'intervention"
-                        style={
-                          techColor
-                            ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
-                            : { background: '#D6E4F7', color: '#1B3A6B' }
-                        }
+                        style={reserveStyle}
                       >
                         {time} ✓
                       </button>

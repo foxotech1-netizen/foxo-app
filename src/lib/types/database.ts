@@ -137,7 +137,8 @@ export interface Intervention {
   ended_at: string | null;
   demandeur_type: DemandeurType | null;
   particulier_contact: ParticulierContact | null;
-  source: 'rdv' | 'portal' | 'admin' | 'mail' | null;
+  source: 'rdv' | 'portal' | 'admin' | 'mail' | 'calendar' | 'portail' | null;
+  color: string | null;     // hex (#RRGGBB) — override couleur planning
 }
 
 export interface Rapport {

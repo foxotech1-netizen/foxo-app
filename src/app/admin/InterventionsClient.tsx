@@ -504,7 +504,16 @@ export function InterventionsClient({
                       }`}
                     >
                       <td className="px-3.5 py-2.5">
-                        <div className="font-mono text-xs font-medium text-navy">{iv.ref ?? '—'}</div>
+                        <div className="flex items-center gap-1.5">
+                          {iv.color && (
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0 border border-black/10"
+                              style={{ background: iv.color }}
+                              title={`Couleur ${iv.color}`}
+                            />
+                          )}
+                          <div className="font-mono text-xs font-medium text-navy">{iv.ref ?? '—'}</div>
+                        </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {iv.priorite === 'urgente' && (
                             <span className="inline-block text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
@@ -681,6 +690,36 @@ export function InterventionsClient({
                     {selected.creneau_debut
                       ? fmtDate(selected.creneau_debut, true)
                       : <span className="text-terra">Non confirmé</span>}
+                  </Block>
+
+                  <Block title="Couleur">
+                    <ColorPicker
+                      value={selected.color}
+                      onChange={async (color) => {
+                        // Update optimiste
+                        setRows((rs) => rs.map((r) =>
+                          r.id === selected.id ? { ...r, color } : r,
+                        ));
+                        try {
+                          const r = await fetch(`/api/admin/interventions/${selected.id}/color`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ color }),
+                          });
+                          const data = await r.json();
+                          if (!data.ok) {
+                            // Revert
+                            setRows((rs) => rs.map((rw) =>
+                              rw.id === selected.id ? { ...rw, color: selected.color } : rw,
+                            ));
+                          }
+                        } catch {
+                          setRows((rs) => rs.map((rw) =>
+                            rw.id === selected.id ? { ...rw, color: selected.color } : rw,
+                          ));
+                        }
+                      }}
+                    />
                   </Block>
 
                   <Block title={`Appartements / unités (${drawerOccupants.length})`}>
@@ -963,6 +1002,65 @@ function StatCard({
     <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
+    </div>
+  );
+}
+
+// Palette de 10 couleurs alignée avec /api/admin/interventions/[id]/color.
+// Le serveur rejette toute valeur hors de cette liste.
+const INTERVENTION_COLORS = [
+  { name: 'Bleu marine', hex: '#1B3A6B' },
+  { name: 'Vert',        hex: '#1F6B45' },
+  { name: 'Rouge',       hex: '#C4622D' },
+  { name: 'Violet',      hex: '#7C3AED' },
+  { name: 'Rose',        hex: '#DB2777' },
+  { name: 'Jaune',       hex: '#D97706' },
+  { name: 'Cyan',        hex: '#0891B2' },
+  { name: 'Gris',        hex: '#6B7280' },
+  { name: 'Indigo',      hex: '#4338CA' },
+  { name: 'Emeraude',    hex: '#059669' },
+] as const;
+
+function ColorPicker({
+  value, onChange,
+}: {
+  value: string | null;
+  onChange: (color: string | null) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {INTERVENTION_COLORS.map((c) => {
+        const active = value?.toUpperCase() === c.hex;
+        return (
+          <button
+            key={c.hex}
+            type="button"
+            onClick={() => onChange(active ? null : c.hex)}
+            aria-label={c.name}
+            title={c.name + (active ? ' (cliquer pour réinitialiser)' : '')}
+            className="rounded-full transition-transform hover:scale-110"
+            style={{
+              width: 22,
+              height: 22,
+              background: c.hex,
+              border: active ? '2px solid #FFFFFF' : '2px solid rgba(0,0,0,0.1)',
+              boxShadow: active ? '0 0 0 2px #1B3A6B, 0 2px 4px rgba(0,0,0,.2)' : 'none',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          />
+        );
+      })}
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="ml-1 text-[10px] text-ink-muted hover:text-terra underline dark:text-[#C8C2B8]"
+          title="Retirer la couleur"
+        >
+          Réinitialiser
+        </button>
+      )}
     </div>
   );
 }
