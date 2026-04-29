@@ -46,6 +46,14 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
   }
 }
 
+export interface CronExtractedOccupant {
+  prenom: string;
+  nom: string;
+  email: string;
+  appartement: string;
+  telephone: string;
+}
+
 export interface CronMailAnalysis {
   est_demande_intervention: boolean;
   nom_client: string | null;
@@ -56,6 +64,7 @@ export interface CronMailAnalysis {
   priorite: 'normale' | 'urgente' | null;
   resume: string | null;
   langue: 'fr' | 'nl' | 'en' | null;
+  occupants: CronExtractedOccupant[];
 }
 
 export interface CronMailResultItem {
@@ -123,6 +132,28 @@ function splitName(full: string | null | undefined): { prenom: string; nom: stri
   return { prenom: '', nom: full.trim() };
 }
 
+// Parse une liste d'adresses RFC 2822 ("Nom <email>, Nom2 <email2>") en
+// paires { name, email }. Tolérant aux quotes, espaces, accents.
+function parseAddressList(raw: string): { name: string; email: string }[] {
+  if (!raw) return [];
+  // Split sur virgule en respectant les guillemets (un nom quoté peut
+  // contenir une virgule : "Dupont, Pierre" <email>).
+  const parts = raw.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const out: { name: string; email: string }[] = [];
+  for (const p of parts) {
+    const m = p.match(/^"?([^"<]+?)"?\s*<([^>]+)>$/);
+    if (m) {
+      out.push({ name: m[1].trim(), email: m[2].trim() });
+    } else if (p.includes('@')) {
+      // Adresse nue, sans nom
+      out.push({ name: '', email: p.trim().replace(/^<|>$/g, '') });
+    }
+  }
+  return out;
+}
+
 function parseAdresse(s: string | null | undefined): { rue: string; cp: string; ville: string } {
   if (!s) return { rue: '', cp: '', ville: '' };
   const m = s.match(/^(.+?),?\s*(\d{4})\s+(.+?)$/);
@@ -140,22 +171,40 @@ const ALLOWED_TYPES = [
 
 async function analyzeMailWithClaude(
   apiKey: string,
-  mail: { from: string; subject: string; date: string; body_text: string; body_html: string },
+  mail: { from: string; subject: string; date: string; cc: string; body_text: string; body_html: string },
 ): Promise<{ ok: true; analysis: CronMailAnalysis } | { ok: false; error: string }> {
   const bodyText = mail.body_text?.trim() ? mail.body_text : stripHtml(mail.body_html ?? '');
   const truncated = bodyText.slice(0, 6000);
+
+  // Liste CC pré-parsée — donne à Claude un format propre plutôt qu'un
+  // header brut. Vide si le mail n'a pas de Cc.
+  const ccPairs = parseAddressList(mail.cc ?? '');
+  const ccBlock = ccPairs.length > 0
+    ? ccPairs.map((p) => `- "${p.name}" <${p.email}>`).join('\n')
+    : '(aucun)';
 
   const userMessage = [
     `Tu analyses les emails entrants chez FoxO (détection de fuites en Belgique). Ton rôle :`,
     `1. Décider si l'email est une demande d'intervention concrète (fuite, dégât des eaux, surconsommation, inspection caméra…) — vrai pour les particuliers, syndics, courtiers qui sollicitent FoxO.`,
     `   FAUX pour : newsletters, factures fournisseurs, notifications automatiques, spam, mails internes, échanges sans demande nouvelle.`,
-    `2. Si c'est une demande, extraire les données.`,
+    `2. Si c'est une demande, extraire les données du demandeur principal.`,
+    `3. Analyser la liste CC pour identifier d'éventuels OCCUPANTS (résidents des appartements concernés). Le numéro d'appartement est souvent dans le nom :`,
+    `   - "Dupont Apt 101 <dupont@gmail.com>" → appartement="101"`,
+    `   - "Marie Leroy - Apt 3B <m.leroy@hotmail.com>" → appartement="3B"`,
+    `   - "Pierre Martin (2ème étage) <pmartin@gmail.com>" → appartement="2ème étage"`,
+    `   - "appartement 5 <occupant5@gmail.com>" → appartement="5"`,
+    `   Cherche aussi les téléphones associés à ces noms dans le corps du mail (ex: "Marie : 0488 12 34 56").`,
+    `   IGNORE les CC qui sont clairement des copies internes (foxo.be, syndic, etc.) — ne mets QUE des résidents/occupants.`,
     ``,
     `## EMAIL`,
     `From : ${mail.from}`,
     `Sujet : ${mail.subject}`,
     `Date : ${mail.date}`,
     ``,
+    `## CC`,
+    ccBlock,
+    ``,
+    `## CORPS`,
     truncated,
     ``,
     `## SORTIE`,
@@ -169,9 +218,19 @@ async function analyzeMailWithClaude(
     `  "email": "email du demandeur" | null,`,
     `  "priorite": "urgente | normale" | null,`,
     `  "resume": "1-2 phrases décrivant le problème" | null,`,
-    `  "langue": "fr | nl | en" | null`,
+    `  "langue": "fr | nl | en" | null,`,
+    `  "occupants": [`,
+    `    {`,
+    `      "prenom": "string",`,
+    `      "nom": "string",`,
+    `      "email": "string",`,
+    `      "appartement": "string (numéro/étage/description)",`,
+    `      "telephone": "string ou \\"\\"" `,
+    `    }`,
+    `  ]`,
     `}`,
-    `Aucun champ inventé : si l'info n'est pas explicite, mets null.`,
+    `Aucun champ inventé : si l'info n'est pas explicite, mets null (ou "" pour les champs occupant string requis).`,
+    `Si aucun occupant identifiable dans les CC, retourne occupants: [].`,
   ].join('\n');
 
   // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
@@ -192,6 +251,28 @@ async function analyzeMailWithClaude(
   const parsed = tryParseJson(raw);
   if (!parsed) return { ok: false, error: 'Réponse Claude non parsable.' };
 
+  // Extraction sûre du tableau d'occupants
+  const occupantsRaw = Array.isArray((parsed as { occupants?: unknown }).occupants)
+    ? ((parsed as { occupants: unknown[] }).occupants)
+    : [];
+  const occupants: CronExtractedOccupant[] = occupantsRaw
+    .map((o): CronExtractedOccupant | null => {
+      if (!o || typeof o !== 'object') return null;
+      const r = o as Record<string, unknown>;
+      const email = typeof r.email === 'string' ? r.email.trim() : '';
+      // Filtre : un occupant doit AU MOINS avoir un email valide ou un téléphone
+      const tel = typeof r.telephone === 'string' ? r.telephone.trim() : '';
+      if (!email && !tel) return null;
+      return {
+        prenom: typeof r.prenom === 'string' ? r.prenom.trim() : '',
+        nom: typeof r.nom === 'string' ? r.nom.trim() : '',
+        email,
+        appartement: typeof r.appartement === 'string' ? r.appartement.trim() : '',
+        telephone: tel,
+      };
+    })
+    .filter((x): x is CronExtractedOccupant => x !== null);
+
   const analysis: CronMailAnalysis = {
     est_demande_intervention: parsed.est_demande_intervention === true,
     nom_client: typeof parsed.nom_client === 'string' ? parsed.nom_client : null,
@@ -202,6 +283,7 @@ async function analyzeMailWithClaude(
     priorite: parsed.priorite === 'urgente' || parsed.priorite === 'normale' ? parsed.priorite : null,
     resume: typeof parsed.resume === 'string' ? parsed.resume : null,
     langue: parsed.langue === 'fr' || parsed.langue === 'nl' || parsed.langue === 'en' ? parsed.langue : null,
+    occupants,
   };
   return { ok: true, analysis };
 }
@@ -284,6 +366,38 @@ async function createInterventionFromMail(
     });
   } catch (e) {
     console.warn('[check-mails] timeline insert skipped:', e);
+  }
+
+  // Création automatique des occupants extraits depuis les CC.
+  // contact_preference : email si email présent, sinon sms si tel,
+  // sinon email par défaut (au moins on a un canal listé).
+  const occupantsToInsert = (analysis.occupants ?? [])
+    .filter((o) => o.email || o.telephone)
+    .map((o) => ({
+      intervention_id: iv.id,
+      appartement: o.appartement || null,
+      etage: null,
+      prenom: o.prenom || null,
+      nom: o.nom || null,
+      email: o.email || null,
+      telephone: o.telephone || null,
+      conf: 'en_attente' as const,
+      contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
+      // Marqueur "extrait du mail" : on stocke la source dans instructions
+      // de manière neutre (pas de colonne dédiée, mais lisible côté UI)
+      instructions: '[extrait du mail]',
+    }));
+  if (occupantsToInsert.length > 0) {
+    try {
+      const { error: occErr } = await admin.from('occupants').insert(occupantsToInsert);
+      if (occErr) {
+        console.warn('[check-mails] occupants insert failed:', occErr.message);
+      } else {
+        console.log('[check-mails] occupants créés :', occupantsToInsert.length);
+      }
+    } catch (e) {
+      console.warn('[check-mails] occupants insert threw:', e);
+    }
   }
 
   return { ok: true, intervention_id: iv.id as string, ref: iv.ref as string };
@@ -413,6 +527,7 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
         from: detailRes.mail.from,
         subject: detailRes.mail.subject,
         date: detailRes.mail.date,
+        cc: detailRes.mail.cc,
         body_text: detailRes.mail.body_text,
         body_html: detailRes.mail.body_html,
       });

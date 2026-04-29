@@ -199,6 +199,7 @@ export interface GmailLabel {
 
 export interface MailDetail extends MailListItem {
   to: string;
+  cc: string;       // raw header (peut contenir plusieurs adresses séparées par virgule)
   body_text: string;
   body_html: string;
   attachments: { filename: string; mime_type: string; size: number }[];
@@ -289,6 +290,7 @@ export async function getMailDetail(id: string): Promise<{ ok: true; mail: MailD
     thread_id: raw.threadId,
     from: header(raw.payload, 'From'),
     to: header(raw.payload, 'To'),
+    cc: header(raw.payload, 'Cc'),
     subject: header(raw.payload, 'Subject') || '(sans objet)',
     date,
     snippet: raw.snippet ?? '',

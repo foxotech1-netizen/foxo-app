@@ -210,6 +210,21 @@ export function InterventionsClient({
   const [confirmMailMsg, setConfirmMailMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmMailPending, startConfirmMailTransition] = useTransition();
 
+  // Édition d'un occupant — un seul mode édition / ajout actif à la fois
+  type OccupantForm = {
+    prenom: string; nom: string; email: string; telephone: string;
+    appartement: string; etage: string;
+    contact_preference: 'email' | 'sms' | 'whatsapp' | 'both';
+  };
+  const EMPTY_OCC_FORM: OccupantForm = {
+    prenom: '', nom: '', email: '', telephone: '',
+    appartement: '', etage: '', contact_preference: 'email',
+  };
+  const [editingOccupantId, setEditingOccupantId] = useState<string | null>(null);
+  const [addingOccupant, setAddingOccupant] = useState(false);
+  const [occupantForm, setOccupantForm] = useState<OccupantForm>(EMPTY_OCC_FORM);
+  const [occupantSaving, setOccupantSaving] = useState(false);
+
   // "En cours" est synthétique → confirmee + realisee. Pour le mois en cours
   // sur "cloturee", on filtre aussi par updated_at dans le mois courant.
   const today = useMemo(() => new Date(), []);
@@ -544,6 +559,83 @@ export function InterventionsClient({
         setNotifyMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
       }
     });
+  }
+
+  async function refreshOccupants() {
+    if (!selected) return;
+    try {
+      const r = await fetch(`/api/admin/occupants/${selected.id}`, { cache: 'no-store' });
+      const data = await r.json();
+      if (data.ok) setDrawerOccupants(data.occupants ?? []);
+    } catch { /* noop */ }
+  }
+
+  function startEditOccupant(o: DrawerOccupant) {
+    setAddingOccupant(false);
+    setEditingOccupantId(o.id);
+    setOccupantForm({
+      prenom: o.prenom ?? '',
+      nom: o.nom ?? '',
+      email: o.email ?? '',
+      telephone: o.telephone ?? '',
+      appartement: o.appartement ?? '',
+      etage: o.etage ?? '',
+      contact_preference: (o.contact_preference ?? 'email') as OccupantForm['contact_preference'],
+    });
+  }
+
+  function startAddOccupant() {
+    setEditingOccupantId(null);
+    setAddingOccupant(true);
+    setOccupantForm(EMPTY_OCC_FORM);
+  }
+
+  function cancelOccupantForm() {
+    setEditingOccupantId(null);
+    setAddingOccupant(false);
+    setOccupantForm(EMPTY_OCC_FORM);
+  }
+
+  async function saveOccupant() {
+    if (!selected) return;
+    setOccupantSaving(true);
+    try {
+      const url = editingOccupantId
+        ? `/api/admin/occupants/manage/${editingOccupantId}`
+        : `/api/admin/occupants/${selected.id}`;
+      const method = editingOccupantId ? 'PATCH' : 'POST';
+      const r = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(occupantForm),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        alert(data.error ?? 'Échec sauvegarde occupant.');
+        return;
+      }
+      cancelOccupantForm();
+      await refreshOccupants();
+    } finally {
+      setOccupantSaving(false);
+    }
+  }
+
+  async function deleteOccupant(occId: string) {
+    if (!confirm('Supprimer cet occupant ?')) return;
+    setOccupantSaving(true);
+    try {
+      const r = await fetch(`/api/admin/occupants/manage/${occId}`, { method: 'DELETE' });
+      const data = await r.json();
+      if (!data.ok) {
+        alert(data.error ?? 'Échec suppression.');
+        return;
+      }
+      cancelOccupantForm();
+      await refreshOccupants();
+    } finally {
+      setOccupantSaving(false);
+    }
   }
 
   function sendConfirmMail() {
@@ -1119,23 +1211,44 @@ export function InterventionsClient({
                   <Block title={`Appartements / unités (${drawerOccupants.length})`}>
                     {drawerOccupantsLoading ? (
                       <span className="text-ink-muted dark:text-[#C8C2B8]">Chargement…</span>
-                    ) : drawerOccupants.length === 0 ? (
-                      <span className="text-ink-muted dark:text-[#C8C2B8]">Aucune unité enregistrée.</span>
                     ) : (
                       <div className="space-y-1.5">
                         {drawerOccupants.map((o) => {
+                          if (editingOccupantId === o.id) {
+                            return (
+                              <OccupantEditCard
+                                key={o.id}
+                                form={occupantForm}
+                                onChange={setOccupantForm}
+                                onSave={saveOccupant}
+                                onCancel={cancelOccupantForm}
+                                onDelete={() => deleteOccupant(o.id)}
+                                saving={occupantSaving}
+                              />
+                            );
+                          }
                           const confLabel = o.conf === 'confirme' ? '✅ Confirmé'
                             : o.conf === 'decline' ? '❌ Pas d\'accès'
                             : '⏳ En attente';
                           const confColor = o.conf === 'confirme' ? 'text-ok dark:text-[#7AC9A0]'
                             : o.conf === 'decline' ? 'text-terra'
                             : 'text-[#8A5A1A] dark:text-[#E8C896]';
+                          // Marqueur "extrait du mail" posé par le cron
+                          const fromMail = (o.instructions ?? '').includes('[extrait du mail]');
                           return (
                             <div key={o.id} className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-ink dark:text-[#F0ECE4]">
+                                <span className="font-bold text-ink dark:text-[#F0ECE4] flex items-center gap-1.5">
                                   {o.appartement ?? '—'}
-                                  {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8] ml-1.5">· {o.etage}</span> : null}
+                                  {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">· {o.etage}</span> : null}
+                                  {fromMail && (
+                                    <span
+                                      className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
+                                      title="Occupant extrait automatiquement depuis les CC du mail"
+                                    >
+                                      📧 mail
+                                    </span>
+                                  )}
                                 </span>
                                 <span className={'text-[10px] font-bold whitespace-nowrap ' + confColor}>
                                   {confLabel}
@@ -1151,29 +1264,58 @@ export function InterventionsClient({
                                   {[o.email, o.telephone].filter(Boolean).join(' · ')}
                                 </div>
                               )}
-                              {o.instructions && (
+                              {o.instructions && !fromMail && (
                                 <div className="text-[11px] text-ink-mid italic mt-1 dark:text-[#C8C2B8]">
                                   {o.instructions}
                                 </div>
                               )}
-                              {o.telephone && (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
                                 <button
                                   type="button"
-                                  onClick={() => setSmsModal({
-                                    name: [o.prenom, o.nom].filter(Boolean).join(' ') || 'Occupant',
-                                    phone: o.telephone!,
-                                    occupantId: o.id,
-                                    templateKey: 'sms_template_lien_occupant',
-                                    preferredChannel: o.contact_preference ?? null,
-                                  })}
-                                  className="text-[10px] mt-1.5 bg-[#A17244] text-white px-2 py-1 rounded font-bold hover:opacity-90"
+                                  onClick={() => startEditOccupant(o)}
+                                  className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold hover:opacity-90 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
                                 >
-                                  📱 Envoyer le lien par {o.contact_preference === 'whatsapp' ? 'WhatsApp' : 'SMS'}
+                                  ✏️ Modifier
                                 </button>
-                              )}
+                                {o.telephone && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSmsModal({
+                                      name: [o.prenom, o.nom].filter(Boolean).join(' ') || 'Occupant',
+                                      phone: o.telephone!,
+                                      occupantId: o.id,
+                                      templateKey: 'sms_template_lien_occupant',
+                                      preferredChannel: o.contact_preference ?? null,
+                                    })}
+                                    className="text-[10px] bg-[#A17244] text-white px-2 py-1 rounded font-bold hover:opacity-90"
+                                  >
+                                    📱 SMS lien
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
+
+                        {addingOccupant && (
+                          <OccupantEditCard
+                            form={occupantForm}
+                            onChange={setOccupantForm}
+                            onSave={saveOccupant}
+                            onCancel={cancelOccupantForm}
+                            saving={occupantSaving}
+                          />
+                        )}
+
+                        {!addingOccupant && !editingOccupantId && (
+                          <button
+                            type="button"
+                            onClick={startAddOccupant}
+                            className="w-full text-[12px] bg-sand-mid text-navy border border-sand-border border-dashed rounded-md px-2.5 py-2 font-bold hover:bg-sand-hover dark:bg-[rgba(255,255,255,.04)] dark:border-[#3D3A32] dark:text-[#A8C4F2]"
+                          >
+                            ➕ Ajouter un occupant
+                          </button>
+                        )}
                       </div>
                     )}
                   </Block>
@@ -1475,6 +1617,107 @@ function StatCard({
     <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
+    </div>
+  );
+}
+
+// Carte éditable pour ajouter / modifier un occupant. Utilisée à la fois
+// dans le mode "édition" (existing) et "ajout" (nouveau).
+type OccupantEditForm = {
+  prenom: string; nom: string; email: string; telephone: string;
+  appartement: string; etage: string;
+  contact_preference: 'email' | 'sms' | 'whatsapp' | 'both';
+};
+
+function OccupantEditCard({
+  form, onChange, onSave, onCancel, onDelete, saving,
+}: {
+  form: OccupantEditForm;
+  onChange: (next: OccupantEditForm) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+  saving: boolean;
+}) {
+  const cls = 'w-full px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid';
+  return (
+    <div className="bg-navy-pale border border-navy-light rounded-md px-2.5 py-2 text-[12px] dark:bg-[#1A2540] dark:border-[#2C4878]">
+      <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+        <input
+          value={form.prenom}
+          onChange={(e) => onChange({ ...form, prenom: e.target.value })}
+          placeholder="Prénom"
+          className={cls}
+        />
+        <input
+          value={form.nom}
+          onChange={(e) => onChange({ ...form, nom: e.target.value })}
+          placeholder="Nom"
+          className={cls}
+        />
+        <input
+          value={form.email}
+          onChange={(e) => onChange({ ...form, email: e.target.value })}
+          placeholder="email"
+          className={cls + ' font-mono col-span-2'}
+        />
+        <input
+          value={form.telephone}
+          onChange={(e) => onChange({ ...form, telephone: e.target.value })}
+          placeholder="téléphone"
+          className={cls + ' font-mono'}
+        />
+        <select
+          value={form.contact_preference}
+          onChange={(e) => onChange({ ...form, contact_preference: e.target.value as OccupantEditForm['contact_preference'] })}
+          className={cls}
+        >
+          <option value="email">📧 Email</option>
+          <option value="sms">📱 SMS</option>
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="both">📧+📱 Email & SMS</option>
+        </select>
+        <input
+          value={form.appartement}
+          onChange={(e) => onChange({ ...form, appartement: e.target.value })}
+          placeholder="Appartement (ex : 101)"
+          className={cls}
+        />
+        <input
+          value={form.etage}
+          onChange={(e) => onChange({ ...form, etage: e.target.value })}
+          placeholder="Étage (ex : 2ème)"
+          className={cls}
+        />
+      </div>
+      <div className="flex justify-end gap-1.5">
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={saving}
+            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+          >
+            🗑 Supprimer
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+          className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+        >
+          Annuler
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+        >
+          {saving ? '…' : '💾 Sauvegarder'}
+        </button>
+      </div>
     </div>
   );
 }

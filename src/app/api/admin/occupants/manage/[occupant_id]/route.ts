@@ -4,7 +4,7 @@ import { roleForEmail } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
 
-interface OccupantInput {
+interface OccupantPatch {
   appartement?: unknown;
   etage?: unknown;
   prenom?: unknown;
@@ -17,9 +17,9 @@ interface OccupantInput {
 
 const ALLOWED_PREF = new Set(['email', 'sms', 'whatsapp', 'both']);
 
-function sanitize(b: OccupantInput): Record<string, string | null> {
+function sanitize(b: OccupantPatch): Record<string, string | null> {
   const out: Record<string, string | null> = {};
-  const fields: (keyof OccupantInput)[] = ['appartement', 'etage', 'prenom', 'nom', 'email', 'telephone', 'instructions'];
+  const fields: (keyof OccupantPatch)[] = ['appartement', 'etage', 'prenom', 'nom', 'email', 'telephone', 'instructions'];
   for (const k of fields) {
     if (typeof b[k] === 'string') {
       const v = (b[k] as string).trim();
@@ -32,49 +32,51 @@ function sanitize(b: OccupantInput): Record<string, string | null> {
   return out;
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
-  const { id } = await params;
-  const { data, error } = await supabase
-    .from('occupants')
-    .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token')
-    .eq('intervention_id', id)
-    .order('appartement', { ascending: true });
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, occupants: data ?? [] });
-}
-
-// POST — créer un occupant pour cette intervention
-export async function POST(
+// PATCH — édition partielle d'un occupant
+export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ occupant_id: string }> },
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || roleForEmail(user.email) !== 'admin') {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
-  const { id } = await params;
+  const { occupant_id } = await params;
 
-  let body: OccupantInput;
+  let body: OccupantPatch;
   try {
-    body = (await request.json()) as OccupantInput;
+    body = (await request.json()) as OccupantPatch;
   } catch {
     return NextResponse.json({ ok: false, error: 'Body JSON invalide.' }, { status: 400 });
   }
   const fields = sanitize(body);
-  const { data, error } = await supabase
+  if (Object.keys(fields).length === 0) {
+    return NextResponse.json({ ok: true, no_changes: true });
+  }
+  const { error } = await supabase
     .from('occupants')
-    .insert({ ...fields, intervention_id: id, conf: 'en_attente' })
-    .select('id')
-    .single();
+    .update(fields)
+    .eq('id', occupant_id);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, id: data?.id });
+  return NextResponse.json({ ok: true });
+}
+
+// DELETE — suppression d'un occupant
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ occupant_id: string }> },
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
+  }
+  const { occupant_id } = await params;
+  const { error } = await supabase
+    .from('occupants')
+    .delete()
+    .eq('id', occupant_id);
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }
