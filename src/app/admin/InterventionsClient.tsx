@@ -17,6 +17,7 @@ import { DocumentsBlock } from './DocumentsBlock';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
 import { TypeBadge } from '@/components/TypeBadge';
 import { SendSmsModal } from '@/components/SendSmsModal';
+import { MailStepper } from './MailStepper';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
   { icon: '📝', label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
@@ -147,6 +148,7 @@ export function InterventionsClient({
     instructions: string | null;
     conf: 'confirme' | 'en_attente' | 'decline' | null;
     contact_preference?: 'email' | 'sms' | 'whatsapp' | 'both' | null;
+    token_sent_at?: string | null;
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
@@ -170,6 +172,43 @@ export function InterventionsClient({
   const [pendingTechId, setPendingTechId] = useState<string>('');
   const [assignMessage, setAssignMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [assignPending, startAssignTransition] = useTransition();
+
+  // ── Workflow d'édition (onglet Dossier) ──────────────────────────────
+  // Brouillon des champs éditables, pré-rempli depuis selected quand
+  // selectedId change (useEffect plus bas).
+  type FormDraft = {
+    nom_client: string;
+    adresse: string;
+    type: string;
+    telephone: string;
+    email: string;
+    description: string;
+    priorite: 'normale' | 'urgente';
+  };
+  const [formDraft, setFormDraft] = useState<FormDraft>({
+    nom_client: '', adresse: '', type: '', telephone: '', email: '',
+    description: '', priorite: 'normale',
+  });
+  const [formMsg, setFormMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [formPending, startFormTransition] = useTransition();
+
+  // Schedule
+  const [scheduleDate, setScheduleDate] = useState<string>('');
+  const [scheduleHeure, setScheduleHeure] = useState<string>('');
+  const [scheduleCreneauId, setScheduleCreneauId] = useState<string | null>(null);
+  type AvailableCreneau = { id: string; date: string; heure_debut: string; heure_fin: string; technicien_id: string | null };
+  const [availableCreneaux, setAvailableCreneaux] = useState<AvailableCreneau[]>([]);
+  const [scheduleMsg, setScheduleMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [schedulePending, startScheduleTransition] = useTransition();
+
+  // Notify occupants (multi-canal)
+  const [notifySelectedIds, setNotifySelectedIds] = useState<Set<string>>(new Set());
+  const [notifyMsg, setNotifyMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [notifyPending, startNotifyTransition] = useTransition();
+
+  // Confirmation client (email Gmail)
+  const [confirmMailMsg, setConfirmMailMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [confirmMailPending, startConfirmMailTransition] = useTransition();
 
   // "En cours" est synthétique → confirmee + realisee. Pour le mois en cours
   // sur "cloturee", on filtre aussi par updated_at dans le mois courant.
@@ -245,13 +284,49 @@ export function InterventionsClient({
     setPendingTechId(iv?.technicien?.id ?? '');
     setStatusMessage(null);
     setAssignMessage(null);
+
+    // Pré-remplit le brouillon d'édition depuis l'intervention
+    const pc = iv?.particulier_contact;
+    const nomComplet = pc ? [pc.prenom, pc.nom].filter(Boolean).join(' ') : '';
+    setFormDraft({
+      nom_client: nomComplet,
+      adresse: iv?.adresse ?? '',
+      type: iv?.type ?? '',
+      telephone: pc?.telephone ?? '',
+      email: pc?.email ?? '',
+      description: iv?.description ?? '',
+      priorite: iv?.priorite ?? 'normale',
+    });
+    setFormMsg(null);
+
+    // Pré-remplit la date/heure depuis creneau_debut
+    if (iv?.creneau_debut) {
+      const d = new Date(iv.creneau_debut);
+      setScheduleDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      setScheduleHeure(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+    } else {
+      setScheduleDate('');
+      setScheduleHeure('');
+    }
+    setScheduleCreneauId(null);
+    setAvailableCreneaux([]);
+    setScheduleMsg(null);
+
+    setNotifySelectedIds(new Set());
+    setNotifyMsg(null);
+    setConfirmMailMsg(null);
+
     // Lazy-load occupants
     setDrawerOccupants([]);
     setDrawerOccupantsLoading(true);
     fetch(`/api/admin/occupants/${id}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.ok) setDrawerOccupants(data.occupants ?? []);
+        if (data.ok) {
+          setDrawerOccupants(data.occupants ?? []);
+          // Cocher tous les occupants par défaut pour la notif
+          setNotifySelectedIds(new Set((data.occupants ?? []).map((o: { id: string }) => o.id)));
+        }
       })
       .catch(() => { /* noop */ })
       .finally(() => setDrawerOccupantsLoading(false));
@@ -340,6 +415,160 @@ export function InterventionsClient({
         ),
       );
       setStatusMessage('✓ Statut mis à jour');
+    });
+  }
+
+  // ── Workflow actions ────────────────────────────────────────────────
+
+  // Charge les créneaux libres du technicien sélectionné, pour le picker.
+  useEffect(() => {
+    if (!selectedId || !pendingTechId) {
+      setAvailableCreneaux([]);
+      return;
+    }
+    let mounted = true;
+    fetch(`/api/admin/interventions/${selectedId}/schedule?tech=${pendingTechId}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        if (data.ok) setAvailableCreneaux(data.creneaux ?? []);
+      })
+      .catch(() => { /* noop */ });
+    return () => { mounted = false; };
+  }, [selectedId, pendingTechId]);
+
+  function saveForm() {
+    if (!selected) return;
+    setFormMsg(null);
+    startFormTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formDraft),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          setFormMsg({ kind: 'err', msg: data.error ?? 'Échec sauvegarde.' });
+          return;
+        }
+        // Update local row optimistic
+        setRows((rs) => rs.map((rw) => {
+          if (rw.id !== selected.id) return rw;
+          const parts = formDraft.nom_client.trim().split(/\s+/);
+          const prenom = parts.length >= 2 ? parts[0] : '';
+          const nom = parts.length >= 2 ? parts.slice(1).join(' ') : formDraft.nom_client.trim();
+          return {
+            ...rw,
+            adresse: formDraft.adresse || null,
+            type: formDraft.type || null,
+            description: formDraft.description || null,
+            priorite: formDraft.priorite,
+            particulier_contact: rw.particulier_contact ? {
+              ...rw.particulier_contact,
+              prenom,
+              nom,
+              telephone: formDraft.telephone,
+              email: formDraft.email,
+            } : rw.particulier_contact,
+            updated_at: new Date().toISOString(),
+          };
+        }));
+        setFormMsg({ kind: 'ok', msg: '✓ Sauvegardé' });
+      } catch (e) {
+        setFormMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
+    });
+  }
+
+  function applySchedule() {
+    if (!selected) return;
+    if (!scheduleDate || !scheduleHeure) {
+      setScheduleMsg({ kind: 'err', msg: 'Date et heure requises.' });
+      return;
+    }
+    setScheduleMsg(null);
+    startScheduleTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}/schedule`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: scheduleDate,
+            heure: scheduleHeure,
+            creneau_id: scheduleCreneauId,
+          }),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          setScheduleMsg({ kind: 'err', msg: data.error ?? 'Échec planification.' });
+          return;
+        }
+        const iso = new Date(`${scheduleDate}T${scheduleHeure}:00`).toISOString();
+        setRows((rs) => rs.map((rw) =>
+          rw.id === selected.id
+            ? { ...rw, creneau_debut: iso, statut: 'attente', updated_at: new Date().toISOString() }
+            : rw,
+        ));
+        setScheduleMsg({ kind: 'ok', msg: '✓ Créneau planifié — statut "attente"' });
+      } catch (e) {
+        setScheduleMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
+    });
+  }
+
+  function notifyOccupants() {
+    if (!selected) return;
+    if (notifySelectedIds.size === 0) {
+      setNotifyMsg({ kind: 'err', msg: 'Sélectionne au moins un occupant.' });
+      return;
+    }
+    setNotifyMsg(null);
+    startNotifyTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}/notify-occupants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ occupant_ids: Array.from(notifySelectedIds) }),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          setNotifyMsg({ kind: 'err', msg: data.error ?? 'Échec envoi.' });
+          return;
+        }
+        setNotifyMsg({
+          kind: 'ok',
+          msg: `✓ ${data.sent} envoi(s) OK${data.failed ? ` · ${data.failed} échec(s)` : ''}`,
+        });
+      } catch (e) {
+        setNotifyMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
+    });
+  }
+
+  function sendConfirmMail() {
+    if (!selected) return;
+    setConfirmMailMsg(null);
+    startConfirmMailTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${selected.id}/confirm-mail`, { method: 'POST' });
+        const data = await r.json();
+        if (!data.ok) {
+          setConfirmMailMsg({
+            kind: 'err',
+            msg: data.code === 'google_not_connected'
+              ? 'Google non connecté — connecte le compte dans /admin/parametres.'
+              : (data.error ?? 'Échec envoi.'),
+          });
+          return;
+        }
+        setRows((rs) => rs.map((rw) =>
+          rw.id === selected.id ? { ...rw, statut: 'confirmee', updated_at: new Date().toISOString() } : rw,
+        ));
+        setConfirmMailMsg({ kind: 'ok', msg: '✓ Confirmation envoyée — statut "confirmée"' });
+      } catch (e) {
+        setConfirmMailMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      }
     });
   }
 
@@ -639,57 +868,222 @@ export function InterventionsClient({
             <div className="px-5 py-4 flex-1 overflow-y-auto bg-sand">
               {tab === 'dossier' && (
                 <>
-                  <Block title="Problème">
-                    <strong>{selected.type ?? '—'}</strong>
-                    <p className="text-ink-mid mt-1.5">{selected.description ?? '—'}</p>
-                  </Block>
-                  {selected.demandeur_type === 'particulier' && selected.particulier_contact ? (
-                    <Block title="Contact particulier">
-                      <div className="font-bold text-[14px]">
-                        {selected.particulier_contact.prenom} {selected.particulier_contact.nom}
-                      </div>
-                      <div className="mt-2 space-y-1 text-[13px]">
-                        <a
-                          href={`mailto:${selected.particulier_contact.email}`}
-                          className="block text-navy hover:underline font-mono text-xs"
-                        >
-                          ✉ {selected.particulier_contact.email}
-                        </a>
-                        <a
-                          href={`tel:${selected.particulier_contact.telephone.replace(/\s/g, '')}`}
-                          className="block text-navy hover:underline font-mono text-xs"
-                        >
-                          📞 {selected.particulier_contact.telephone}
-                        </a>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-sand-border text-[12px] text-ink-mid">
-                        <div className="text-[10px] text-ink-muted uppercase tracking-wider font-bold mb-1">
-                          Logement
+                  {/* Stepper + bandeau — seulement pour interventions source='mail' */}
+                  {selected.source === 'mail' && (
+                    <>
+                      <MailStepper steps={[
+                        { key: 'infos',    label: 'Infos',         done: Boolean(formDraft.nom_client && formDraft.email && formDraft.telephone), active: selected.statut === 'nouvelle' },
+                        { key: 'tech',     label: 'Technicien',    done: Boolean(selected.technicien_id), active: Boolean(formDraft.nom_client) && !selected.technicien_id },
+                        { key: 'creneau',  label: 'Créneau',       done: Boolean(selected.creneau_debut), active: Boolean(selected.technicien_id) && !selected.creneau_debut },
+                        { key: 'occup',    label: 'Occupants',     done: drawerOccupants.some((o) => o.token_sent_at), active: Boolean(selected.creneau_debut) },
+                        { key: 'confirm',  label: 'Confirmation',  done: selected.statut === 'confirmee' || selected.statut === 'realisee' || selected.statut === 'rapport' || selected.statut === 'cloturee', active: selected.statut === 'attente' },
+                      ]} />
+                      {selected.statut === 'nouvelle' && (
+                        <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy font-semibold dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
+                          📧 Demande reçue par mail — à traiter
                         </div>
-                        📍 {selected.particulier_contact.adresse.rue}<br />
-                        {selected.particulier_contact.adresse.code_postal}{' '}
-                        {selected.particulier_contact.adresse.ville}
+                      )}
+                    </>
+                  )}
+
+                  {/* ① Édition rapide des infos */}
+                  <Block title={`Infos${selected.demandeur_type === 'particulier' ? ' particulier' : ''}`}>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Nom client</label>
+                        <input
+                          value={formDraft.nom_client}
+                          onChange={(e) => setFormDraft((f) => ({ ...f, nom_client: e.target.value }))}
+                          className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                        />
                       </div>
-                    </Block>
-                  ) : (
-                    <Block title="Demandeur">
-                      <div className="font-bold text-[13px]">{selected.syndic?.nom ?? '—'}</div>
-                      {selected.syndic?.type && <TypeBadge type={selected.syndic.type} className="mt-1" />}
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Adresse</label>
+                        <input
+                          value={formDraft.adresse}
+                          onChange={(e) => setFormDraft((f) => ({ ...f, adresse: e.target.value }))}
+                          placeholder="rue + n°, code postal + ville"
+                          className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Téléphone</label>
+                          <input
+                            value={formDraft.telephone}
+                            onChange={(e) => setFormDraft((f) => ({ ...f, telephone: e.target.value }))}
+                            placeholder="+32 ..."
+                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Email</label>
+                          <input
+                            type="email"
+                            value={formDraft.email}
+                            onChange={(e) => setFormDraft((f) => ({ ...f, email: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Type</label>
+                          <select
+                            value={formDraft.type}
+                            onChange={(e) => setFormDraft((f) => ({ ...f, type: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                          >
+                            <option value="">— Choisir —</option>
+                            <option value="Fuite canalisation">Fuite canalisation</option>
+                            <option value="Fuite chauffage">Fuite chauffage</option>
+                            <option value="Fuite infiltration">Fuite infiltration</option>
+                            <option value="Surconsommation eau">Surconsommation eau</option>
+                            <option value="Autre">Autre</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Priorité</label>
+                          <select
+                            value={formDraft.priorite}
+                            onChange={(e) => setFormDraft((f) => ({ ...f, priorite: e.target.value as 'normale' | 'urgente' }))}
+                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                          >
+                            <option value="normale">Normale</option>
+                            <option value="urgente">⚡ Urgente</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Notes / description</label>
+                        <textarea
+                          value={formDraft.description}
+                          onChange={(e) => setFormDraft((f) => ({ ...f, description: e.target.value }))}
+                          rows={3}
+                          className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={saveForm}
+                          disabled={formPending}
+                          className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50"
+                        >
+                          {formPending ? '…' : '💾 Sauvegarder'}
+                        </button>
+                        {formMsg && (
+                          <span className={'text-[11px] font-semibold ' + (formMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                            {formMsg.msg}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Block>
+
+                  {selected.demandeur_type !== 'particulier' && selected.syndic && (
+                    <Block title="Demandeur (syndic)">
+                      <div className="font-bold text-[13px]">{selected.syndic.nom}</div>
+                      {selected.syndic.type && <TypeBadge type={selected.syndic.type} className="mt-1" />}
                     </Block>
                   )}
-                  <Block title="Technicien assigné">
-                    {selected.technicien ? (
-                      <span className="font-bold text-[13px]">
-                        {selected.technicien.prenom} {selected.technicien.nom}
-                      </span>
-                    ) : (
-                      <span className="text-terra font-semibold">⚠ Non assigné</span>
+
+                  {/* ② Technicien — dropdown éditable */}
+                  <Block title="Technicien">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={pendingTechId}
+                        onChange={(e) => setPendingTechId(e.target.value)}
+                        className="flex-1 px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                      >
+                        <option value="">— Non assigné —</option>
+                        {techs.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {[t.prenom, t.nom].filter(Boolean).join(' ') || t.email || t.id}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={applyAssignTech}
+                        disabled={assignPending || (pendingTechId || '') === (selected.technicien?.id ?? '')}
+                        className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50"
+                      >
+                        Assigner
+                      </button>
+                    </div>
+                    {assignMessage && (
+                      <p className={'text-[11px] mt-1.5 font-semibold ' + (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        {assignMessage.msg}
+                      </p>
                     )}
                   </Block>
+
+                  {/* ③ Créneau — picker */}
                   <Block title="Créneau">
-                    {selected.creneau_debut
-                      ? fmtDate(selected.creneau_debut, true)
-                      : <span className="text-terra">Non confirmé</span>}
+                    {selected.creneau_debut && (
+                      <p className="text-[12px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                        Actuel : <strong className="text-ink dark:text-[#F0ECE4]">{fmtDate(selected.creneau_debut, true)}</strong>
+                      </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={(e) => { setScheduleDate(e.target.value); setScheduleCreneauId(null); }}
+                        className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                      />
+                      <input
+                        type="time"
+                        value={scheduleHeure}
+                        onChange={(e) => { setScheduleHeure(e.target.value); setScheduleCreneauId(null); }}
+                        className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                      />
+                    </div>
+                    {pendingTechId && availableCreneaux.length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+                          Ou choisir un créneau libre du tech
+                        </div>
+                        <div className="flex flex-wrap gap-1 max-h-[100px] overflow-y-auto">
+                          {availableCreneaux.slice(0, 12).map((cr) => {
+                            const active = scheduleCreneauId === cr.id;
+                            return (
+                              <button
+                                key={cr.id}
+                                type="button"
+                                onClick={() => {
+                                  setScheduleCreneauId(cr.id);
+                                  setScheduleDate(cr.date);
+                                  setScheduleHeure(cr.heure_debut.slice(0, 5));
+                                }}
+                                className={
+                                  'text-[10px] font-semibold px-2 py-1 rounded border ' +
+                                  (active
+                                    ? 'bg-navy text-white border-navy'
+                                    : 'bg-ok-light text-ok border-ok-mid hover:opacity-80')
+                                }
+                              >
+                                {new Date(cr.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })} · {cr.heure_debut.slice(0, 5)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={applySchedule}
+                      disabled={schedulePending || !scheduleDate || !scheduleHeure}
+                      className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50"
+                    >
+                      {schedulePending ? '…' : '📅 Planifier'}
+                    </button>
+                    {scheduleMsg && (
+                      <p className={'text-[11px] mt-1.5 font-semibold ' + (scheduleMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        {scheduleMsg.msg}
+                      </p>
+                    )}
                   </Block>
 
                   <Block title="Couleur">
@@ -783,6 +1177,85 @@ export function InterventionsClient({
                       </div>
                     )}
                   </Block>
+
+                  {/* ④ Notifier les occupants — multicanal */}
+                  {selected.creneau_debut && drawerOccupants.length > 0 && (
+                    <Block title="📨 Notifier les occupants">
+                      <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                        Envoie un lien de confirmation à chaque occupant via le canal préféré
+                        (email / SMS / WhatsApp). Décoche pour exclure.
+                      </p>
+                      <div className="space-y-1 mb-2">
+                        {drawerOccupants.map((o) => {
+                          const checked = notifySelectedIds.has(o.id);
+                          const pref = o.contact_preference ?? 'email';
+                          const icon = pref === 'whatsapp' ? '💬' : pref === 'sms' ? '📱' : pref === 'both' ? '📧📱' : '📧';
+                          const sentAt = o.token_sent_at;
+                          return (
+                            <label key={o.id} className="flex items-center gap-2 bg-white border border-sand-border rounded-md px-2 py-1.5 text-[12px] cursor-pointer dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  setNotifySelectedIds((s) => {
+                                    const n = new Set(s);
+                                    if (n.has(o.id)) n.delete(o.id); else n.add(o.id);
+                                    return n;
+                                  });
+                                }}
+                                className="w-4 h-4 accent-[#1B3A6B]"
+                              />
+                              <span className="text-[14px] flex-shrink-0">{icon}</span>
+                              <span className="font-bold flex-1 truncate">
+                                {[o.prenom, o.nom].filter(Boolean).join(' ') || 'Occupant'}
+                                {o.appartement && <span className="text-ink-muted font-normal ml-1.5">· {o.appartement}</span>}
+                              </span>
+                              {sentAt && (
+                                <span className="text-[9px] text-ok font-bold whitespace-nowrap" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE')}`}>
+                                  ✓ envoyé
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={notifyOccupants}
+                        disabled={notifyPending || notifySelectedIds.size === 0}
+                        className="bg-navy text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50"
+                      >
+                        {notifyPending ? '…' : `📤 Envoyer (${notifySelectedIds.size})`}
+                      </button>
+                      {notifyMsg && (
+                        <p className={'text-[11px] mt-1.5 font-semibold ' + (notifyMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                          {notifyMsg.msg}
+                        </p>
+                      )}
+                    </Block>
+                  )}
+
+                  {/* ⑤ Confirmation client */}
+                  {selected.creneau_debut && (selected.particulier_contact?.email || selected.particulier_contact?.mandant?.email) && (
+                    <Block title="📤 Confirmation client">
+                      <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                        Envoie un récapitulatif (date, heure, adresse, technicien) au demandeur via Gmail.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={sendConfirmMail}
+                        disabled={confirmMailPending}
+                        className="bg-[#1F6B45] text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50"
+                      >
+                        {confirmMailPending ? 'Envoi…' : '📤 Envoyer confirmation au client'}
+                      </button>
+                      {confirmMailMsg && (
+                        <p className={'text-[11px] mt-1.5 font-semibold ' + (confirmMailMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                          {confirmMailMsg.msg}
+                        </p>
+                      )}
+                    </Block>
+                  )}
 
                   {selected.statut === 'en_suspens' && selected.suspens_motif && (
                     <div className="bg-terra-light border border-terra-mid rounded-lg p-3.5 mb-3">
