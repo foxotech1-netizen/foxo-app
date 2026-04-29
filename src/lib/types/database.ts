@@ -139,6 +139,9 @@ export interface Intervention {
   particulier_contact: ParticulierContact | null;
   source: 'rdv' | 'portal' | 'admin' | 'mail' | 'calendar' | 'portail' | null;
   color: string | null;     // hex (#RRGGBB) — override couleur planning
+  reference_externe: string | null;
+  organisation_id: string | null;
+  client_id: string | null;
 }
 
 export interface Rapport {

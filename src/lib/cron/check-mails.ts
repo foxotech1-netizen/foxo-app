@@ -54,6 +54,8 @@ export interface CronExtractedOccupant {
   telephone: string;
 }
 
+export type CronDemandeurType = 'syndic' | 'courtier' | 'particulier';
+
 export interface CronMailAnalysis {
   est_demande_intervention: boolean;
   nom_client: string | null;
@@ -65,6 +67,10 @@ export interface CronMailAnalysis {
   resume: string | null;
   langue: 'fr' | 'nl' | 'en' | null;
   occupants: CronExtractedOccupant[];
+  type_demandeur: CronDemandeurType | null;
+  nom_societe: string | null;
+  nom_immeuble: string | null;
+  reference_externe: string | null;
 }
 
 export interface CronMailResultItem {
@@ -188,7 +194,15 @@ async function analyzeMailWithClaude(
     `1. Décider si l'email est une demande d'intervention concrète (fuite, dégât des eaux, surconsommation, inspection caméra…) — vrai pour les particuliers, syndics, courtiers qui sollicitent FoxO.`,
     `   FAUX pour : newsletters, factures fournisseurs, notifications automatiques, spam, mails internes, échanges sans demande nouvelle.`,
     `2. Si c'est une demande, extraire les données du demandeur principal.`,
-    `3. Analyser la liste CC pour identifier d'éventuels OCCUPANTS (résidents des appartements concernés). Le numéro d'appartement est souvent dans le nom :`,
+    `3. Déterminer le type_demandeur :`,
+    `   - "syndic" : mentionne copropriété, ACP, immeuble, syndic, lot, AG, parties communes, gestionnaire d'immeuble`,
+    `   - "courtier" : mentionne assurance, sinistre, police, compagnie d'assurance, expertise, dégât assuré`,
+    `   - "particulier" : demande personnelle, maison, appartement perso, propriétaire occupant`,
+    `   Aussi extraire :`,
+    `   - nom_societe : cabinet syndic, compagnie d'assurance (ex: "Wave-Immo SPRL", "BelGestion", "Assur Plus") — null si particulier`,
+    `   - nom_immeuble : nom de la résidence ou adresse de l'ACP (ex: "Résidence Bellevue", "Rue de la Loi 42") — null si particulier`,
+    `   - reference_externe : référence dossier syndic/courtier mentionnée (ex: "DOS-2026-123", "REF/456/2026") — null si absente`,
+    `4. Analyser la liste CC pour identifier d'éventuels OCCUPANTS (résidents des appartements concernés). Le numéro d'appartement est souvent dans le nom :`,
     `   - "Dupont Apt 101 <dupont@gmail.com>" → appartement="101"`,
     `   - "Marie Leroy - Apt 3B <m.leroy@hotmail.com>" → appartement="3B"`,
     `   - "Pierre Martin (2ème étage) <pmartin@gmail.com>" → appartement="2ème étage"`,
@@ -219,6 +233,10 @@ async function analyzeMailWithClaude(
     `  "priorite": "urgente | normale" | null,`,
     `  "resume": "1-2 phrases décrivant le problème" | null,`,
     `  "langue": "fr | nl | en" | null,`,
+    `  "type_demandeur": "syndic | courtier | particulier" | null,`,
+    `  "nom_societe": "string" | null,`,
+    `  "nom_immeuble": "string" | null,`,
+    `  "reference_externe": "string" | null,`,
     `  "occupants": [`,
     `    {`,
     `      "prenom": "string",`,
@@ -273,6 +291,10 @@ async function analyzeMailWithClaude(
     })
     .filter((x): x is CronExtractedOccupant => x !== null);
 
+  const td = (parsed as { type_demandeur?: unknown }).type_demandeur;
+  const typeDemandeur: CronDemandeurType | null =
+    td === 'syndic' || td === 'courtier' || td === 'particulier' ? td : null;
+
   const analysis: CronMailAnalysis = {
     est_demande_intervention: parsed.est_demande_intervention === true,
     nom_client: typeof parsed.nom_client === 'string' ? parsed.nom_client : null,
@@ -284,8 +306,111 @@ async function analyzeMailWithClaude(
     resume: typeof parsed.resume === 'string' ? parsed.resume : null,
     langue: parsed.langue === 'fr' || parsed.langue === 'nl' || parsed.langue === 'en' ? parsed.langue : null,
     occupants,
+    type_demandeur: typeDemandeur,
+    nom_societe: typeof (parsed as { nom_societe?: unknown }).nom_societe === 'string'
+      ? (parsed as { nom_societe: string }).nom_societe : null,
+    nom_immeuble: typeof (parsed as { nom_immeuble?: unknown }).nom_immeuble === 'string'
+      ? (parsed as { nom_immeuble: string }).nom_immeuble : null,
+    reference_externe: typeof (parsed as { reference_externe?: unknown }).reference_externe === 'string'
+      ? (parsed as { reference_externe: string }).reference_externe : null,
   };
   return { ok: true, analysis };
+}
+
+// ─── Matching org/client depuis l'analyse Claude ─────────────────────────
+//
+// Stratégie :
+//   - Match par EMAIL exact (high confidence) → réutilise l'entrée
+//   - Sinon, si nom_societe (org) ou prenom+nom (client) extrait par
+//     Claude → CRÉE une nouvelle entrée (avec marqueur log)
+//   - Sinon → laisse null (le drawer affichera "non identifié")
+//
+// On évite le matching par nom LIKE seul : trop de faux positifs avec
+// les variations orthographiques. L'admin peut toujours associer
+// manuellement depuis le drawer.
+
+interface MatchedOrgResult { id: string; created: boolean }
+interface MatchedClientResult { id: string; created: boolean }
+
+async function matchOrCreateOrganisation(args: {
+  type: 'syndic' | 'courtier';
+  nomSociete: string | null;
+  email: string;
+  telephone: string;
+}): Promise<MatchedOrgResult | null> {
+  if (!args.email && !args.nomSociete) return null;
+  const admin = createAdminClient();
+  // 1. Match par email (high confidence)
+  if (args.email) {
+    const { data: byEmail } = await admin
+      .from('organisations')
+      .select('id')
+      .ilike('email', args.email)
+      .limit(1)
+      .maybeSingle();
+    if (byEmail?.id) return { id: byEmail.id as string, created: false };
+  }
+  // 2. Création — uniquement si on a un nom de société identifiable.
+  // Sinon trop incertain → admin associera manuellement.
+  if (!args.nomSociete) return null;
+  const { data: created, error } = await admin
+    .from('organisations')
+    .insert({
+      nom: args.nomSociete,
+      type: args.type,
+      email: args.email,
+      telephone: args.telephone || null,
+    })
+    .select('id')
+    .single();
+  if (error || !created) {
+    console.warn('[check-mails] org create failed:', error?.message);
+    return null;
+  }
+  console.log('[check-mails] nouvelle organisation créée :', { type: args.type, nom: args.nomSociete });
+  return { id: created.id as string, created: true };
+}
+
+async function matchOrCreateClient(args: {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  adresse: string | null;
+}): Promise<MatchedClientResult | null> {
+  if (!args.email && !args.nom && !args.prenom) return null;
+  const admin = createAdminClient();
+  // 1. Match par email
+  if (args.email) {
+    const { data: byEmail } = await admin
+      .from('clients')
+      .select('id')
+      .ilike('email', args.email)
+      .limit(1)
+      .maybeSingle();
+    if (byEmail?.id) return { id: byEmail.id as string, created: false };
+  }
+  // 2. Création
+  if (!args.nom && !args.prenom) return null;
+  const { data: created, error } = await admin
+    .from('clients')
+    .insert({
+      type: 'particulier',
+      nom: args.nom || args.prenom || 'Sans nom',
+      prenom: args.prenom || null,
+      email: args.email || null,
+      telephone: args.telephone || null,
+      adresse: args.adresse || null,
+      actif: true,
+    })
+    .select('id')
+    .single();
+  if (error || !created) {
+    console.warn('[check-mails] client create failed:', error?.message);
+    return null;
+  }
+  console.log('[check-mails] nouveau client créé :', { nom: args.nom, prenom: args.prenom });
+  return { id: created.id as string, created: true };
 }
 
 async function createInterventionFromMail(
@@ -334,7 +459,33 @@ async function createInterventionFromMail(
     },
     contact_sur_place: { actif: false },
     langue: analysis.langue,
+    nom_immeuble: analysis.nom_immeuble ?? null,
   };
+
+  // Matching org/client selon type_demandeur
+  let organisationId: string | null = null;
+  let clientId: string | null = null;
+  if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
+    const matched = await matchOrCreateOrganisation({
+      type: analysis.type_demandeur,
+      nomSociete: analysis.nom_societe,
+      email: emailAddr,
+      telephone: tel,
+    });
+    organisationId = matched?.id ?? null;
+  } else if (analysis.type_demandeur === 'particulier') {
+    const matched = await matchOrCreateClient({
+      prenom, nom, email: emailAddr, telephone: tel,
+      adresse: adresseFormatee,
+    });
+    clientId = matched?.id ?? null;
+  }
+
+  // demandeur_type sur l'intervention : on garde 'particulier' pour
+  // syndic/courtier aussi, parce que le schéma actuel impose syndic OU
+  // particulier (pas de courtier comme valeur), et que particulier_contact
+  // contient déjà mandant/lieu. L'org/client_id sert de lien externe.
+  const demandeurType = 'particulier';
 
   const { data: iv, error } = await admin
     .from('interventions')
@@ -346,10 +497,13 @@ async function createInterventionFromMail(
       description: analysis.resume ?? `(extrait par IA — sujet : ${mail.subject})`,
       adresse: adresseFormatee,
       date_demande: new Date().toISOString().slice(0, 10),
-      demandeur_type: 'particulier',
+      demandeur_type: demandeurType,
       particulier_contact: particulierContact,
       source: 'mail',
       source_mail_id: mail.id,
+      reference_externe: analysis.reference_externe ?? null,
+      organisation_id: organisationId,
+      client_id: clientId,
     })
     .select('id, ref')
     .single();

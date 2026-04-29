@@ -971,12 +971,30 @@ export function InterventionsClient({
                         { key: 'confirm',  label: 'Confirmation',  done: selected.statut === 'confirmee' || selected.statut === 'realisee' || selected.statut === 'rapport' || selected.statut === 'cloturee', active: selected.statut === 'attente' },
                       ]} />
                       {selected.statut === 'nouvelle' && (
-                        <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy font-semibold dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
-                          📧 Demande reçue par mail — à traiter
+                        <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
+                          <div className="font-bold mb-1">📧 Demande reçue par mail — à traiter</div>
+                          <DemandeurBadge
+                            organisationId={selected.organisation_id}
+                            clientId={selected.client_id}
+                            referenceExterne={selected.reference_externe}
+                          />
                         </div>
                       )}
                     </>
                   )}
+
+                  {/* Référence — éditable */}
+                  <Block title="Référence">
+                    <RefEditor
+                      interventionId={selected.id}
+                      currentRef={selected.ref}
+                      onSaved={(newRef) => {
+                        setRows((rs) => rs.map((r) =>
+                          r.id === selected.id ? { ...r, ref: newRef } : r,
+                        ));
+                      }}
+                    />
+                  </Block>
 
                   {/* ① Édition rapide des infos */}
                   <Block title={`Infos${selected.demandeur_type === 'particulier' ? ' particulier' : ''}`}>
@@ -1617,6 +1635,163 @@ function StatCard({
     <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
+    </div>
+  );
+}
+
+// Affiche le badge type-demandeur (syndic / courtier / particulier) +
+// nom de l'organisation/client liée si présent, OU "non identifié" si
+// aucun lien n'a été établi par le matching automatique.
+function DemandeurBadge({
+  organisationId, clientId, referenceExterne,
+}: {
+  organisationId: string | null;
+  clientId: string | null;
+  referenceExterne: string | null;
+}) {
+  type Loaded = {
+    kind: 'syndic' | 'courtier' | 'particulier' | 'unknown';
+    nom: string;
+    isNew: boolean;
+  };
+  const [info, setInfo] = useState<Loaded | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (organisationId) {
+      fetch(`/api/admin/organisations/${organisationId}`, { cache: 'no-store' })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (!mounted || !data?.ok) { setInfo({ kind: 'unknown', nom: '', isNew: false }); return; }
+          setInfo({
+            kind: (data.organisation.type as 'syndic' | 'courtier') ?? 'unknown',
+            nom: data.organisation.nom ?? '',
+            isNew: Boolean(data.organisation.created_at && (Date.now() - Date.parse(data.organisation.created_at)) < 24 * 3600 * 1000),
+          });
+        })
+        .catch(() => mounted && setInfo({ kind: 'unknown', nom: '', isNew: false }));
+    } else if (clientId) {
+      fetch(`/api/admin/clients/${clientId}`, { cache: 'no-store' })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (!mounted || !data?.ok) { setInfo({ kind: 'unknown', nom: '', isNew: false }); return; }
+          const c = data.client;
+          setInfo({
+            kind: 'particulier',
+            nom: [c.prenom, c.nom].filter(Boolean).join(' ') || c.nom || '',
+            isNew: Boolean(c.created_at && (Date.now() - Date.parse(c.created_at)) < 24 * 3600 * 1000),
+          });
+        })
+        .catch(() => mounted && setInfo({ kind: 'unknown', nom: '', isNew: false }));
+    } else {
+      setInfo({ kind: 'unknown', nom: '', isNew: false });
+    }
+    return () => { mounted = false; };
+  }, [organisationId, clientId]);
+
+  if (!info) return <span className="text-[10px] opacity-50">…</span>;
+  const icon = info.kind === 'syndic' ? '🏢' : info.kind === 'courtier' ? '🛡️' : info.kind === 'particulier' ? '👤' : '⚠️';
+  const label = info.kind === 'syndic' ? 'Syndic' : info.kind === 'courtier' ? 'Courtier' : info.kind === 'particulier' ? 'Particulier' : 'Demandeur non identifié';
+  return (
+    <div className="text-[11px] flex flex-wrap items-center gap-1.5 mt-0.5">
+      <span>{icon} <strong>{label}</strong></span>
+      {info.nom && <span className="font-mono text-[10px] opacity-90">· {info.nom}</span>}
+      {info.isNew && organisationId && (
+        <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]">
+          🆕 Nouvelle org
+        </span>
+      )}
+      {info.isNew && clientId && (
+        <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]">
+          🆕 Nouveau client
+        </span>
+      )}
+      {info.kind === 'unknown' && !organisationId && !clientId && (
+        <span className="text-terra italic">— à associer manuellement</span>
+      )}
+      {referenceExterne && (
+        <span className="font-mono text-[10px] opacity-80">· réf : {referenceExterne}</span>
+      )}
+    </div>
+  );
+}
+
+// Édition de la référence d'intervention. Format imposé YYYY-NNN.
+function RefEditor({
+  interventionId, currentRef, onSaved,
+}: {
+  interventionId: string;
+  currentRef: string | null;
+  onSaved: (newRef: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(currentRef ?? '');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[14px] font-bold text-navy dark:text-[#A8C4F2]">
+          {currentRef ?? '—'}
+        </span>
+        <button
+          type="button"
+          onClick={() => { setDraft(currentRef ?? ''); setEditing(true); setErr(null); }}
+          className="text-[10px] text-ink-muted hover:text-navy underline dark:text-[#C8C2B8]"
+        >
+          ✏️ Modifier
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="2026-100"
+          pattern="\d{4}-\d{3,5}"
+          className="px-2 py-1 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid font-mono w-32"
+        />
+        <button
+          type="button"
+          disabled={saving}
+          onClick={async () => {
+            if (!/^\d{4}-\d{3,5}$/.test(draft)) {
+              setErr('Format invalide (YYYY-NNN).');
+              return;
+            }
+            setSaving(true);
+            setErr(null);
+            try {
+              const r = await fetch(`/api/admin/interventions/${interventionId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ref: draft }),
+              });
+              const data = await r.json();
+              if (!data.ok) { setErr(data.error ?? 'Échec sauvegarde.'); return; }
+              onSaved(draft);
+              setEditing(false);
+            } finally {
+              setSaving(false);
+            }
+          }}
+          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+        >
+          {saving ? '…' : '💾'}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setEditing(false); setErr(null); }}
+          className="text-[10px] text-ink-muted hover:text-terra dark:text-[#C8C2B8]"
+        >
+          Annuler
+        </button>
+      </div>
+      {err && <p className="text-[11px] text-terra mt-1 font-semibold">{err}</p>}
     </div>
   );
 }

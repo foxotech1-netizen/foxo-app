@@ -318,6 +318,69 @@ export interface TestDriveResult {
   factures: VerifyFolderResult & { id: string | null };
 }
 
+// Lit les 10 derniers dossiers d'intervention dans RAPPORTS (ou ses
+// sous-dossiers année) pour extraire la plus grande référence existante.
+// Retourne null si Drive non connecté, dossier introuvable, ou aucun
+// dossier matchant le pattern.
+//
+// Le pattern attendu pour le nom de dossier : "{YYYY}-{NNN} {adresse}".
+// On scanne aussi les sous-dossiers année (RAPPORTS/2026/...) pour les
+// setups en arborescence par année.
+export async function getLastDriveRef(): Promise<{ year: number; num: number } | null> {
+  const auth = await getValidAccessToken();
+  if (!auth) return null;
+  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  if (!root) return null;
+
+  const REF_RE = /^(\d{4})-(\d{3,5})\s/;
+
+  // Cherche dans le dossier root + ses sous-dossiers (un niveau de
+  // profondeur — typiquement RAPPORTS/2026/, RAPPORTS/2025/, etc.)
+  async function listChildFolders(parentId: string): Promise<{ id: string; name: string }[]> {
+    const url = new URL(`${DRIVE_API}/files`);
+    url.searchParams.set('q', `'${escapeQuery(parentId)}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`);
+    url.searchParams.set('orderBy', 'name desc');
+    url.searchParams.set('pageSize', '50');
+    url.searchParams.set('fields', 'files(id,name)');
+    try {
+      const r = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${auth!.access_token}` },
+      });
+      if (!r.ok) return [];
+      const j = (await r.json()) as { files?: { id: string; name: string }[] };
+      return j.files ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  const direct = await listChildFolders(root);
+  // Si on a des sous-dossiers année (4 chiffres uniquement, sans tiret),
+  // on descend dans le plus récent.
+  const yearFolders = direct.filter((f) => /^\d{4}$/.test(f.name));
+  let candidates: { id: string; name: string }[];
+  if (yearFolders.length > 0) {
+    // Prend l'année la plus récente
+    const latest = yearFolders.sort((a, b) => b.name.localeCompare(a.name))[0];
+    candidates = await listChildFolders(latest.id);
+  } else {
+    candidates = direct;
+  }
+
+  let best: { year: number; num: number } | null = null;
+  for (const f of candidates) {
+    const m = f.name.match(REF_RE);
+    if (!m) continue;
+    const year = parseInt(m[1], 10);
+    const num = parseInt(m[2], 10);
+    if (!Number.isFinite(year) || !Number.isFinite(num)) continue;
+    if (!best || year > best.year || (year === best.year && num > best.num)) {
+      best = { year, num };
+    }
+  }
+  return best;
+}
+
 export async function testDriveConnection(): Promise<TestDriveResult> {
   const rRapports = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID ?? '';
   const rFactures = process.env.GOOGLE_DRIVE_FACTURES_FOLDER_ID ?? '';

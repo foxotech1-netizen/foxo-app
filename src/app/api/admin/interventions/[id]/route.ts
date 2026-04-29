@@ -14,6 +14,7 @@ const ALLOWED_TYPES = [
 ] as const;
 
 interface PatchBody {
+  ref?: unknown;                 // YYYY-NNN
   nom_client?: unknown;          // → particulier_contact prenom + nom + nom_complet + mandant
   adresse?: unknown;             // → intervention.adresse + particulier_contact.{adresse_intervention, lieu, mandant.adresse_facturation}
   type?: unknown;
@@ -22,6 +23,8 @@ interface PatchBody {
   description?: unknown;         // notes
   priorite?: unknown;
 }
+
+const REF_RE = /^\d{4}-\d{3,5}$/;
 
 function splitName(full: string): { prenom: string; nom: string } {
   const parts = full.trim().split(/\s+/);
@@ -83,6 +86,12 @@ export async function PATCH(
   }
 
   // ── champs intervention.* ─────────────────────────────────────────────
+  if (typeof body.ref === 'string') {
+    if (!REF_RE.test(body.ref)) {
+      return NextResponse.json({ ok: false, error: 'Format de référence invalide (YYYY-NNN).' }, { status: 400 });
+    }
+    patch.ref = body.ref;
+  }
   if (typeof body.type === 'string') {
     if (!(ALLOWED_TYPES as readonly string[]).includes(body.type)) {
       return NextResponse.json({ ok: false, error: 'Type non autorisé.' }, { status: 400 });
