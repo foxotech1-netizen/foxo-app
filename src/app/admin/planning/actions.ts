@@ -153,6 +153,7 @@ export async function reserveCreneau(input: {
 // ─── Création intervention depuis un créneau libre ──────────────────────
 
 export type SlotOccupantConf = 'confirme' | 'en_attente' | 'decline';
+export type SlotContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
 
 export interface SlotOccupant {
   appartement: string;
@@ -163,6 +164,7 @@ export interface SlotOccupant {
   telephone: string;
   conf?: SlotOccupantConf;
   instructions?: string;
+  contact_preference?: SlotContactPreference;
 }
 
 export interface CreateFromSlotSyndic {
@@ -325,6 +327,7 @@ export async function createInterventionFromSlot(
         instructions: o.instructions || null,
         token: generateOccupantToken(),
         conf: o.conf ?? null,
+        contact_preference: o.contact_preference ?? 'email',
       }));
     if (rows.length > 0) {
       await admin.from('occupants').insert(rows);

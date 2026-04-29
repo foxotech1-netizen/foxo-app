@@ -14,7 +14,7 @@ export async function GET(
   const { id } = await params;
   const { data, error } = await supabase
     .from('occupants')
-    .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf')
+    .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference')
     .eq('intervention_id', id)
     .order('appartement', { ascending: true });
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });

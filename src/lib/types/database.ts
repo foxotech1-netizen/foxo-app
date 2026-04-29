@@ -113,6 +113,8 @@ export interface Rapport {
   updated_at: string;
 }
 
+export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
+
 export interface Occupant {
   id: string;
   intervention_id: string;
@@ -124,6 +126,7 @@ export interface Occupant {
   etage: string | null;
   instructions: string | null;
   conf: 'confirme' | 'en_attente' | 'decline' | null;
+  contact_preference: ContactPreference | null;
 }
 
 export type StatutCreneau = 'libre' | 'reserve' | 'bloque';

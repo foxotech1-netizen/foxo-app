@@ -16,6 +16,7 @@ import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
 import { TypeBadge } from '@/components/TypeBadge';
+import { SendSmsModal } from '@/components/SendSmsModal';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
   { icon: '📝', label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
@@ -131,9 +132,20 @@ export function InterventionsClient({
     telephone: string | null;
     instructions: string | null;
     conf: 'confirme' | 'en_attente' | 'decline' | null;
+    contact_preference?: 'email' | 'sms' | 'whatsapp' | 'both' | null;
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
+
+  // Modal SMS
+  type SmsModalState = {
+    name: string;
+    phone: string;
+    occupantId?: string;
+    templateKey: 'sms_template_confirmation' | 'sms_template_lien_occupant';
+    preferredChannel?: 'email' | 'sms' | 'whatsapp' | 'both' | null;
+  };
+  const [smsModal, setSmsModal] = useState<SmsModalState | null>(null);
   const [pendingStatut, setPendingStatut] = useState<StatutIntervention | ''>('');
   const [suspensMotif, setSuspensMotif] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -289,6 +301,19 @@ export function InterventionsClient({
 
   return (
     <>
+      {smsModal && selected && (
+        <SendSmsModal
+          open
+          onClose={() => setSmsModal(null)}
+          recipientName={smsModal.name}
+          recipientPhone={smsModal.phone}
+          templateKey={smsModal.templateKey}
+          interventionId={selected.id}
+          occupantId={smsModal.occupantId}
+          preferredChannel={smsModal.preferredChannel ?? null}
+        />
+      )}
+
       {/* Topbar */}
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
         <div>
@@ -619,6 +644,21 @@ export function InterventionsClient({
                                   {o.instructions}
                                 </div>
                               )}
+                              {o.telephone && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSmsModal({
+                                    name: [o.prenom, o.nom].filter(Boolean).join(' ') || 'Occupant',
+                                    phone: o.telephone!,
+                                    occupantId: o.id,
+                                    templateKey: 'sms_template_lien_occupant',
+                                    preferredChannel: o.contact_preference ?? null,
+                                  })}
+                                  className="text-[10px] mt-1.5 bg-[#A17244] text-white px-2 py-1 rounded font-bold hover:opacity-90"
+                                >
+                                  📱 Envoyer le lien par {o.contact_preference === 'whatsapp' ? 'WhatsApp' : 'SMS'}
+                                </button>
+                              )}
                             </div>
                           );
                         })}
@@ -747,6 +787,42 @@ export function InterventionsClient({
                       )}
                     </Block>
                   )}
+
+                  <Block title="Notifications SMS / WhatsApp">
+                    <p className="text-[12px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                      Envoie un SMS de confirmation aux occupants enregistrés.
+                    </p>
+                    {drawerOccupants.filter((o) => o.telephone).length === 0 ? (
+                      <p className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+                        Aucun occupant n&apos;a de téléphone enregistré.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {drawerOccupants.filter((o) => o.telephone).map((o) => (
+                          <button
+                            key={o.id}
+                            type="button"
+                            onClick={() => setSmsModal({
+                              name: [o.prenom, o.nom].filter(Boolean).join(' ') || (o.appartement ?? 'Occupant'),
+                              phone: o.telephone!,
+                              occupantId: o.id,
+                              templateKey: 'sms_template_confirmation',
+                              preferredChannel: o.contact_preference ?? null,
+                            })}
+                            className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-2 text-[12px] flex items-center justify-between gap-2 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                          >
+                            <span>
+                              📱 {[o.prenom, o.nom].filter(Boolean).join(' ') || o.appartement}
+                              <span className="text-ink-muted dark:text-[#C8C2B8] ml-1.5 font-mono text-[10px]">{o.telephone}</span>
+                            </span>
+                            <span className="text-[10px] font-bold text-navy dark:text-[#A8C4F2]">
+                              {o.contact_preference === 'whatsapp' ? 'WhatsApp' : 'SMS'} ›
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </Block>
 
                   <FactureBlock
                     interventionId={selected.id}

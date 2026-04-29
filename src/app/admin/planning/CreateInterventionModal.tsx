@@ -64,7 +64,7 @@ export function CreateInterventionModal({
   const [orgResults, setOrgResults] = useState<Organisation[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
   const [occupants, setOccupants] = useState<SlotOccupant[]>([
-    { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '' },
+    { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '', contact_preference: 'email' },
   ]);
 
   // Particulier mode
@@ -108,7 +108,7 @@ export function CreateInterventionModal({
   }, [orgQuery, selectedOrg, demandeurType]);
 
   function addOccupant() {
-    setOccupants((arr) => [...arr, { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '' }]);
+    setOccupants((arr) => [...arr, { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '', contact_preference: 'email' }]);
   }
   function removeOccupant(i: number) {
     setOccupants((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
@@ -442,8 +442,8 @@ export function CreateInterventionModal({
                     value={o.telephone}
                     onChange={(e) => updateOccupant(i, { telephone: e.target.value })}
                     type="tel"
-                    placeholder="Téléphone"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    placeholder="+32 488 12 34 56"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
                   />
                   <input
                     value={o.email}
@@ -478,6 +478,39 @@ export function CreateInterventionModal({
                           type="radio"
                           checked={o.conf === opt.v}
                           onChange={() => updateOccupant(i, { conf: opt.v })}
+                          className="sr-only"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] mb-1">
+                    Préférence contact
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(
+                      [
+                        { v: 'email', label: '✉ Email' },
+                        { v: 'sms', label: '📱 SMS' },
+                        { v: 'whatsapp', label: '💬 WhatsApp' },
+                        { v: 'both', label: '✉+📱 Les deux' },
+                      ] as const
+                    ).map((opt) => (
+                      <label
+                        key={opt.v}
+                        className={
+                          'px-1.5 py-1 border rounded text-[10px] font-semibold cursor-pointer text-center ' +
+                          (o.contact_preference === opt.v
+                            ? 'border-navy bg-navy-pale text-navy dark:bg-[#1B3A6B] dark:text-white dark:border-[#2A5298]'
+                            : 'border-sand-border bg-white text-ink-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]')
+                        }
+                      >
+                        <input
+                          type="radio"
+                          checked={o.contact_preference === opt.v}
+                          onChange={() => updateOccupant(i, { contact_preference: opt.v })}
                           className="sr-only"
                         />
                         {opt.label}
