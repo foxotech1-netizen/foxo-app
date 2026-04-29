@@ -61,6 +61,18 @@ function buildHtml(token: string, action: HookPayload['email_data']['email_actio
 </body></html>`;
 }
 
+// Comparaison constant-time pour éviter les timing attacks.
+// crypto.subtle.timingSafeEqual n'existe pas — on inline une version
+// simple qui marche partout (Edge + Node).
+function timingSafeEquals(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 // Vérification de signature Standard Webhooks (HMAC-SHA256).
 // Format header : "v1,base64(...)" (peut contenir plusieurs versions séparées par espaces).
 // Secret stocké : "v1,whsec_BASE64..."
@@ -101,15 +113,50 @@ export async function POST(request: Request) {
   const secret = process.env.SUPABASE_AUTH_HOOK_SECRET;
 
   if (secret) {
-    const webhookId = request.headers.get('webhook-id') ?? '';
-    const webhookTimestamp = request.headers.get('webhook-timestamp') ?? '';
-    const webhookSignature = request.headers.get('webhook-signature') ?? '';
-    if (!webhookId || !webhookTimestamp || !webhookSignature) {
-      return NextResponse.json({ error: 'missing_signature_headers' }, { status: 401 });
+    let authorized = false;
+    let mode: 'authorization' | 'webhook-signature' | null = null;
+
+    // ── Mode 1 : header Authorization (shared secret direct) ──────────
+    // Supabase peut envoyer le secret du hook dans un header
+    //   Authorization: <secret>           (valeur brute)
+    //   Authorization: Bearer <secret>    (préfixé)
+    // On compare avec SUPABASE_AUTH_HOOK_SECRET tel quel
+    // (format attendu : "v1,whsec_XXX...").
+    const authHeader = request.headers.get('authorization');
+    if (authHeader) {
+      const submitted = authHeader.replace(/^Bearer\s+/i, '').trim();
+      if (timingSafeEquals(submitted, secret)) {
+        authorized = true;
+        mode = 'authorization';
+      }
     }
-    const ok = await verifySignature(rawBody, webhookId, webhookTimestamp, webhookSignature, secret);
-    if (!ok) {
-      return NextResponse.json({ error: 'invalid_signature' }, { status: 401 });
+
+    // ── Mode 2 : Standard Webhooks (HMAC-SHA256) ──────────────────────
+    // Fallback si Authorization absent ou non matchant — beaucoup de
+    // setups Supabase utilisent ce format avec les mêmes secrets
+    // "v1,whsec_XXX".
+    if (!authorized) {
+      const webhookId = request.headers.get('webhook-id') ?? '';
+      const webhookTimestamp = request.headers.get('webhook-timestamp') ?? '';
+      const webhookSignature = request.headers.get('webhook-signature') ?? '';
+      if (webhookId && webhookTimestamp && webhookSignature) {
+        const sigOk = await verifySignature(rawBody, webhookId, webhookTimestamp, webhookSignature, secret);
+        if (sigOk) {
+          authorized = true;
+          mode = 'webhook-signature';
+        }
+      }
+    }
+
+    if (!authorized) {
+      return NextResponse.json(
+        { error: 'unauthorized', detail: 'Aucun mode d’authentification valide (Authorization header ou webhook-signature).' },
+        { status: 401 },
+      );
+    }
+    // En dev : trace du mode utilisé pour vérifier la config Supabase
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[auth/send-email] webhook authentifié via : ${mode}`);
     }
   } else {
     // Pas de secret configuré — log un warning. En prod, configure SUPABASE_AUTH_HOOK_SECRET.
