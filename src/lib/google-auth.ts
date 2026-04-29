@@ -239,3 +239,53 @@ export async function getValidAccessToken(): Promise<{ access_token: string; ema
 export function googleConfigured(): boolean {
   return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 }
+
+// ─── CSRF state OAuth — persistance DB ──────────────────────────────────
+//
+// On stocke chaque state dans `parametres` avec une clé préfixée et un
+// expires_at. Avantages vs cookie :
+//   - aucun problème de domaine/SameSite cross-subdomain
+//   - aucun risque d'incohérence si le redirect_uri tombe sur un host
+//     différent de celui où le state a été créé
+//   - one-time use : le row est supprimé à la consommation
+//
+// La seule contrainte : `parametres` doit être accessible en lecture/
+// écriture via le service role (createAdminClient — bypass RLS). C'est
+// le cas par défaut.
+
+const STATE_KEY_PREFIX = 'google_oauth_state_';
+const STATE_TTL_MS = 10 * 60 * 1000;     // 10 min
+
+export async function saveOAuthState(state: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const admin = createAdminClient();
+  const expires_at = Date.now() + STATE_TTL_MS;
+  const { error } = await admin
+    .from('parametres')
+    .upsert({
+      cle: STATE_KEY_PREFIX + state,
+      valeur: String(expires_at),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'cle' });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// Vérifie que le state submitted correspond à un state stocké et non
+// expiré. Le supprime dans tous les cas (one-time use, et nettoie les
+// états expirés au passage). Renvoie true si le check passe.
+export async function consumeOAuthState(submitted: string): Promise<boolean> {
+  if (!submitted) return false;
+  const admin = createAdminClient();
+  const key = STATE_KEY_PREFIX + submitted;
+  const { data } = await admin
+    .from('parametres')
+    .select('valeur')
+    .eq('cle', key)
+    .maybeSingle();
+  // Toujours essayer de supprimer (idempotent)
+  await admin.from('parametres').delete().eq('cle', key);
+  if (!data?.valeur) return false;
+  const expires_at = parseInt(data.valeur, 10);
+  if (!Number.isFinite(expires_at) || expires_at < Date.now()) return false;
+  return true;
+}

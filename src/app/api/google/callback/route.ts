@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
-import { exchangeCodeForTokens, saveTokens } from '@/lib/google-auth';
+import { exchangeCodeForTokens, saveTokens, consumeOAuthState } from '@/lib/google-auth';
 
 // Construit la redirection finale vers /admin/parametres en restant
 // sur le host courant (celui où l'utilisateur a démarré le flow OAuth).
@@ -28,12 +27,13 @@ export async function GET(request: Request) {
 
   if (error) return paramsRedirect(request, false, `Google : ${error}`);
   if (!code) return paramsRedirect(request, false, 'Code manquant.');
+  if (!state) return paramsRedirect(request, false, 'State manquant.');
 
-  // CSRF check — le cookie a été posé par /api/google/auth sur LE MÊME host
-  const cookieStore = await cookies();
-  const stored = cookieStore.get('foxo_google_oauth_state')?.value;
-  if (!state || !stored || state !== stored) {
-    return paramsRedirect(request, false, 'État CSRF invalide.');
+  // CSRF check via DB (table parametres) — host-agnostique. Le state est
+  // détruit dans la DB après lecture pour éviter le replay.
+  const stateOk = await consumeOAuthState(state);
+  if (!stateOk) {
+    return paramsRedirect(request, false, 'État CSRF invalide ou expiré.');
   }
 
   // Le redirect_uri envoyé à Google /token DOIT être identique à celui
@@ -52,8 +52,5 @@ export async function GET(request: Request) {
   });
   if (!save.ok) return paramsRedirect(request, false, save.error);
 
-  // Cleanup state cookie
-  const res = paramsRedirect(request, true);
-  res.cookies.delete('foxo_google_oauth_state');
-  return res;
+  return paramsRedirect(request, true);
 }
