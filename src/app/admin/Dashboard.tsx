@@ -42,13 +42,15 @@ export function Dashboard({
   dashboard,
   onOpenIntervention,
   statutFilter,
+  nowMs,
 }: {
   rows: InterventionRow[];
   dashboard: DashboardData;
   onOpenIntervention: (id: string) => void;
   statutFilter?: string | null;
+  nowMs: number;
 }) {
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => new Date(nowMs), [nowMs]);
 
   // ── Section 1 : stats temps réel ────────────────────────────────────────
   const stats = useMemo(() => {
@@ -266,13 +268,15 @@ export function DashboardTechs({
   techs,
   dashboard,
   onOpenIntervention,
+  nowMs,
 }: {
   rows: InterventionRow[];
   techs: Utilisateur[];
   dashboard: DashboardData;
   onOpenIntervention: (id: string) => void;
+  nowMs: number;
 }) {
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(() => new Date(nowMs), [nowMs]);
   const router = useRouter();
   const [creatingSlot, setCreatingSlot] = useState<SlotInfo | null>(null);
 

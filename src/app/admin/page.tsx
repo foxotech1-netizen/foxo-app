@@ -89,12 +89,17 @@ export default async function AdminPipelinePage() {
 
   const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv };
 
+  // Référence temporelle figée côté serveur — sert d'état initial
+  // partagé pour le rendu SSR + 1ʳᵉ hydratation client (évite React #418).
+  const serverNowIso = new Date().toISOString();
+
   return (
     <InterventionsClient
       initialRows={rows}
       techs={techs}
       loadError={interventionsRes.error?.message ?? null}
       dashboard={dashboard}
+      serverNowIso={serverNowIso}
     />
   );
 }

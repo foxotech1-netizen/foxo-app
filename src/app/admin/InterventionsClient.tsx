@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { DashboardData } from './page';
 import { Dashboard, DashboardTechs } from './Dashboard';
@@ -49,9 +49,9 @@ function fmtDate(iso: string | null, full = false): string {
       });
 }
 
-function rel(iso: string | null): string {
+function relTime(iso: string | null, nowMs: number): string {
   if (!iso) return '';
-  const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
+  const h = Math.floor((nowMs - new Date(iso).getTime()) / 3_600_000);
   if (h < 1) return '< 1h';
   if (h < 24) return `${h}h`;
   return `${Math.floor(h / 24)}j`;
@@ -104,16 +104,29 @@ export function InterventionsClient({
   techs,
   loadError,
   dashboard,
+  serverNowIso,
 }: {
   initialRows: InterventionRow[];
   techs: Utilisateur[];
   loadError: string | null;
   dashboard: DashboardData;
+  serverNowIso: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const techFilter = searchParams.get('tech');
   const statutParam = searchParams.get('statut');   // 'nouvelle' | 'en_cours' | 'en_suspens' | 'rapport' | 'cloturee' | null
+
+  // Source de temps SSR-stable. Initialisée avec la valeur serveur pour
+  // que le SSR et la 1ʳᵉ hydratation produisent le même HTML (React #418).
+  // Mise à jour côté client après mount + chaque minute pour rafraîchir
+  // les "il y a Xh" relatifs.
+  const [nowMs, setNowMs] = useState<number>(() => Date.parse(serverNowIso));
+  useEffect(() => {
+    setNowMs(Date.now());
+    const t = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   const [rows, setRows] = useState(initialRows);
   const [query, setQuery] = useState('');
@@ -350,7 +363,7 @@ export function InterventionsClient({
         <div>
           <h1 className="text-xl font-extrabold text-ink">Tableau de bord</h1>
           <p className="text-[11px] text-ink-muted mt-0.5 capitalize">
-            {new Date().toLocaleDateString('fr-BE', {
+            {new Date(nowMs).toLocaleDateString('fr-BE', {
               weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
             })}
           </p>
@@ -383,6 +396,7 @@ export function InterventionsClient({
           dashboard={dashboard}
           onOpenIntervention={openDrawer}
           statutFilter={statutParam}
+          nowMs={nowMs}
         />
       </div>
 
@@ -536,7 +550,7 @@ export function InterventionsClient({
                         <Pipebar statut={iv.statut} />
                       </td>
                       <td className="px-3.5 py-2.5 text-[10px] text-ink-muted font-mono whitespace-nowrap">
-                        {rel(iv.updated_at)}
+                        {relTime(iv.updated_at, nowMs)}
                       </td>
                     </tr>
                   );
@@ -557,6 +571,7 @@ export function InterventionsClient({
             techs={techs}
             dashboard={dashboard}
             onOpenIntervention={openDrawer}
+            nowMs={nowMs}
           />
         </div>
       </div>
@@ -594,7 +609,7 @@ export function InterventionsClient({
               <div className="mt-3"><Pipebar statut={selected.statut} /></div>
               <div className="flex justify-between items-center mt-2 pb-4">
                 <Badge statut={selected.statut} big />
-                <span className="text-[11px] text-ink-muted font-mono">{rel(selected.updated_at)}</span>
+                <span className="text-[11px] text-ink-muted font-mono">{relTime(selected.updated_at, nowMs)}</span>
               </div>
             </header>
 
