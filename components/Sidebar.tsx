@@ -24,10 +24,10 @@ interface TechSummary {
 }
 
 const NAV_MAIN = [
-  { href: '/admin/home',      icon: '⌂', label: 'Accueil'         },
-  { href: '/admin',           icon: '▦', label: 'Tableau de bord' },
-  { href: '/admin/alertes',   icon: '◉', label: 'Alertes', badge: true },
-  { href: '/admin/planning',  icon: '▷', label: 'Planning'    },
+  { href: '/admin/home',      icon: '⊞', label: 'Accueil'         },
+  { href: '/admin',           icon: '📊', label: 'Tableau de bord' },
+  { href: '/admin/alertes',   icon: '🔔', label: 'Alertes', badge: true },
+  { href: '/admin/planning',  icon: '📅', label: 'Planning'    },
   { href: '/admin/assistant', icon: '✨', label: 'Assistant'   },
 ]
 
@@ -161,8 +161,8 @@ const S = {
     bottom: 0,
     left: 0,
     right: 0,
-    background: 'var(--sidebar-bg)',
-    borderTop: '1px solid rgba(255,255,255,.08)',
+    background: 'linear-gradient(180deg, #2C2A24 0%, #1A1814 100%)',
+    borderTop: '1px solid #E2C9A1',
     display: 'flex' as const,
     justifyContent: 'space-around' as const,
     alignItems: 'center' as const,
@@ -175,17 +175,22 @@ const S = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 3,
-    padding: '4px 16px',
-    color: active ? '#E2C9A1' : '#5A5650',
+    padding: '4px 12px',
+    color: active ? '#E2C9A1' : '#C8C2B8',
     textDecoration: 'none',
     fontSize: 10,
-    fontWeight: active ? 600 : 400,
+    fontWeight: active ? 700 : 500,
     minWidth: 48,
     minHeight: 44,
     justifyContent: 'center',
     position: 'relative' as const,
+    transition: 'color .15s',
   }),
-  bottomNavIcon: { fontSize: 18 },
+  bottomNavIcon: (active: boolean): React.CSSProperties => ({
+    fontSize: 18,
+    opacity: active ? 1 : 0.7,
+    transition: 'opacity .15s',
+  }),
 }
 
 // ─── Composant ─────────────────────────────────────────────────────────────────
@@ -219,13 +224,13 @@ export default function Sidebar({
   const isActive = (href: string) =>
     href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
 
-  // ── Mobile bottom nav ───────────────────────────────────────────────────────
+  // ── Mobile bottom nav — 5 items fixes ───────────────────────────────────────
   const BOTTOM_NAV = [
-    { href: '/admin',             icon: '▦', label: 'Tableau'    },
-    { href: '/admin/alertes',     icon: '◉', label: 'Alertes'    },
-    { href: '/admin/planning',    icon: '▷', label: 'Planning'   },
-    { href: '/admin/facturation', icon: '🧾', label: 'Factures'  },
-    { href: '/admin/assistant',   icon: '✨', label: 'Assistant'  },
+    { href: '/admin',           icon: '📊', label: 'Tableau'   },
+    { href: '/admin/alertes',   icon: '🔔', label: 'Alertes'   },
+    { href: '/admin/planning',  icon: '📅', label: 'Planning'  },
+    { href: '/admin/assistant', icon: '✨', label: 'Assistant' },
+    { href: '/admin/home',      icon: '⊞',  label: 'Menu'      },
   ]
 
   return (
@@ -326,9 +331,11 @@ export default function Sidebar({
 
       {/* ── MOBILE bottom nav ────────────────────────────────────────────────── */}
       <nav style={S.bottomNav} className="foxo-sidebar-mobile">
-        {BOTTOM_NAV.map(item => (
-          <Link key={item.href} href={item.href} style={S.bottomNavItem(isActive(item.href))}>
-            <span style={S.bottomNavIcon}>{item.icon}</span>
+        {BOTTOM_NAV.map(item => {
+          const active = isActive(item.href)
+          return (
+          <Link key={item.href} href={item.href} style={S.bottomNavItem(active)}>
+            <span style={S.bottomNavIcon(active)}>{item.icon}</span>
             <span>{item.label}</span>
             {item.href === '/admin/alertes' && alertCount > 0 && (
               <span style={{
@@ -347,7 +354,8 @@ export default function Sidebar({
               }}>{alertCount}</span>
             )}
           </Link>
-        ))}
+          )
+        })}
       </nav>
 
       {/* ── CSS responsive ──────────────────────────────────────────────────── */}
