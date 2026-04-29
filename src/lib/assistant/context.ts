@@ -7,6 +7,7 @@
 //   - intervention : dossier complet d'une intervention donnée
 
 import { createClient } from '@/lib/supabase/server';
+import { searchEmailsByDossier } from '@/lib/gmail';
 import type {
   Acp,
   Intervention,
@@ -225,6 +226,35 @@ export async function buildInterventionContext(interventionId: string): Promise<
       lines.push(`- Apt ${o.appartement ?? '—'} · ${o.nom ?? '—'} · ${o.email ?? '—'} · ${o.telephone ?? '—'} · statut : ${conf}`);
     }
     lines.push('');
+  }
+
+  // Emails liés (Gmail) — best-effort, ignoré si Google non connecté
+  try {
+    const adresseLieu = ivTyped.acp
+      ? [ivTyped.acp.adresse, (ivTyped.acp as Acp).code_postal, ivTyped.acp.ville].filter(Boolean).join(', ')
+      : (ivTyped.adresse ?? '');
+    const acpNom = ivTyped.acp?.nom ?? undefined;
+    const syndicEmail = ivTyped.syndic?.email ?? undefined;
+    const occupantNom = occupants.find((o) => o.nom)?.nom ?? undefined;
+    const emailsRes = await searchEmailsByDossier({
+      ref: ivTyped.ref ?? undefined,
+      adresse: adresseLieu || undefined,
+      acpNom,
+      syndicEmail,
+      occupantNom,
+      limit: 8,
+    });
+    if (emailsRes.ok && emailsRes.emails.length > 0) {
+      lines.push(`### Emails liés (Gmail) — ${emailsRes.emails.length}`);
+      for (const m of emailsRes.emails.slice(0, 8)) {
+        const dt = m.date ? new Date(m.date).toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+        lines.push(`- ${dt} · ${m.from} → ${m.subject || '(sans objet)'}`);
+        if (m.snippet) lines.push(`  > ${m.snippet.slice(0, 200)}`);
+      }
+      lines.push('');
+    }
+  } catch (e) {
+    console.warn('[assistant/context] gmail search skipped:', e);
   }
 
   if (rapport) {

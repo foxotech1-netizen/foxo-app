@@ -155,7 +155,9 @@ export async function publishRapport(
   return { ok: true };
 }
 
-// Génère des URLs signées (24h) pour afficher les photos uploadées.
+// Liste les photos d'une intervention. Source primaire :
+// `photos_interventions` (Drive). Fallback secondaire pour rétrocompat :
+// Supabase Storage bucket `intervention-photos` (avant le passage Drive).
 export async function getPhotoSignedUrls(
   interventionId: string,
 ): Promise<ActionResult<Array<{ name: string; url: string; createdAt: string | null }>>> {
@@ -163,26 +165,41 @@ export async function getPhotoSignedUrls(
   if (!own.ok) return own;
 
   const supabase = await createClient();
-  const { data: list, error: listErr } = await supabase.storage
-    .from('intervention-photos')
-    .list(interventionId, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
-  if (listErr) return { ok: false, error: listErr.message };
 
-  const files = (list ?? []).filter((f) => !f.name.startsWith('.'));
-  const signed = await Promise.all(
-    files.map(async (f) => {
-      const { data, error } = await supabase.storage
-        .from('intervention-photos')
-        .createSignedUrl(`${interventionId}/${f.name}`, 60 * 60 * 24);
-      return {
-        name: f.name,
-        url: data?.signedUrl ?? '',
-        createdAt: f.created_at ?? null,
-        error: error?.message,
-      };
-    }),
-  );
-  return { ok: true, data: signed.filter((s) => s.url) };
+  // 1. Photos Drive (table photos_interventions)
+  const { data: dbRows } = await supabase
+    .from('photos_interventions')
+    .select('drive_url, filename, uploaded_at')
+    .eq('intervention_id', interventionId)
+    .order('uploaded_at', { ascending: false });
+
+  const fromDrive = (dbRows ?? []).map((r) => ({
+    name: r.filename ?? 'photo',
+    url: r.drive_url,
+    createdAt: r.uploaded_at,
+  }));
+
+  // 2. Fallback Supabase Storage (anciennes photos)
+  let fromStorage: Array<{ name: string; url: string; createdAt: string | null }> = [];
+  try {
+    const { data: list } = await supabase.storage
+      .from('intervention-photos')
+      .list(interventionId, { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+    if (list && list.length > 0) {
+      const files = list.filter((f) => !f.name.startsWith('.'));
+      const signed = await Promise.all(
+        files.map(async (f) => {
+          const { data } = await supabase.storage
+            .from('intervention-photos')
+            .createSignedUrl(`${interventionId}/${f.name}`, 60 * 60 * 24);
+          return { name: f.name, url: data?.signedUrl ?? '', createdAt: f.created_at ?? null };
+        }),
+      );
+      fromStorage = signed.filter((s) => s.url);
+    }
+  } catch { /* noop */ }
+
+  return { ok: true, data: [...fromDrive, ...fromStorage] };
 }
 
 export async function triggerDriveSync(interventionId: string): Promise<DriveSyncResult> {

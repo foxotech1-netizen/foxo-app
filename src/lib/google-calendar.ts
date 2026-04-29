@@ -132,3 +132,78 @@ export async function syncCalendarToCreneaux(
 ): Promise<CalendarSyncResult> {
   return { ok: true, created: 0, updated: 0, blocked: 0 };
 }
+
+// ─── Sync incrémentale (bidirectionnelle) ────────────────────────────────
+
+export interface CalendarChangesResult {
+  ok: true;
+  events: GcalEvent[];
+  next_sync_token: string | null;
+  next_page_token: string | null;
+  full_sync_required: boolean;
+}
+
+export type CalendarChanges =
+  | CalendarChangesResult
+  | { ok: false; error: string };
+
+// Lit les changements Calendar depuis le dernier syncToken. Si Google
+// renvoie 410 GONE, le token est expiré → full_sync_required=true et le
+// caller doit relancer sans syncToken (et reset les ids locaux).
+export async function getCalendarChanges(
+  syncToken: string | null,
+  pageToken?: string,
+): Promise<CalendarChanges> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const params = new URLSearchParams({
+    singleEvents: 'true',
+    showDeleted: 'true',
+  });
+  if (syncToken) {
+    params.set('syncToken', syncToken);
+  } else {
+    // Initialisation : on prend une fenêtre récente pour seed et obtenir
+    // un syncToken. Sans syncToken et sans timeMin/timeMax, l'API renvoie
+    // un syncToken réutilisable.
+    params.set('maxResults', '1');
+  }
+  if (pageToken) params.set('pageToken', pageToken);
+
+  const res = await fetch(`${API}/calendars/primary/events?${params}`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (res.status === 410) {
+    return { ok: true, events: [], next_sync_token: null, next_page_token: null, full_sync_required: true };
+  }
+  if (!res.ok) {
+    const t = await res.text();
+    return { ok: false, error: `Calendar HTTP ${res.status} : ${t.slice(0, 200)}` };
+  }
+  const j = (await res.json()) as { items?: GcalEvent[]; nextSyncToken?: string; nextPageToken?: string };
+  return {
+    ok: true,
+    events: j.items ?? [],
+    next_sync_token: j.nextSyncToken ?? null,
+    next_page_token: j.nextPageToken ?? null,
+    full_sync_required: false,
+  };
+}
+
+// Helper : crée un event "Disponible FOXO" pour un créneau libre.
+export async function createSlotEvent(args: {
+  startIso: string;
+  endIso: string;
+  technicienName?: string;
+}): Promise<CalendarEventResult> {
+  const summary = args.technicienName
+    ? `Disponible FoxO — ${args.technicienName}`
+    : 'Disponible FoxO';
+  return createCalendarEvent({
+    startIso: args.startIso,
+    endIso: args.endIso,
+    summary,
+    description: 'Créneau de disponibilité FoxO (synchronisation auto). Sera basculé en intervention si réservé.',
+  });
+}

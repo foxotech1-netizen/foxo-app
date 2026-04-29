@@ -7,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import { notifyStatusChange } from '@/lib/email/notifications';
 import { createInterventionFolder } from '@/lib/google-drive';
-import { createCalendarEvent } from '@/lib/google-calendar';
+import { createCalendarEvent, createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
 import type {
   Acp,
   Organisation,
@@ -93,8 +93,37 @@ export async function generateCreneaux(
   const { data, error } = await supabase
     .from('creneaux_disponibles')
     .upsert(rows, { onConflict: 'technicien_id,date,heure_debut', ignoreDuplicates: true })
-    .select('id');
+    .select('id, date, heure_debut, heure_fin, technicien_id');
   if (error) return { ok: false, error: error.message };
+
+  // Sync Calendar (best-effort, non bloquant). Création d'un event
+  // "Disponible FoxO" par créneau ; on stocke le google_event_id pour
+  // pouvoir supprimer l'event si le créneau est supprimé.
+  if (data && data.length > 0) {
+    // Charge le nom du tech (une seule fois)
+    const { data: tech } = await supabase
+      .from('utilisateurs')
+      .select('prenom, nom')
+      .eq('id', input.technicien_id)
+      .maybeSingle();
+    const techName = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ') : undefined;
+
+    for (const slot of data as Array<{ id: string; date: string; heure_debut: string; heure_fin: string }>) {
+      try {
+        const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
+        const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
+        const r = await createSlotEvent({ startIso, endIso, technicienName: techName });
+        if (r.ok) {
+          await supabase
+            .from('creneaux_disponibles')
+            .update({ google_event_id: r.event_id })
+            .eq('id', slot.id);
+        }
+      } catch (e) {
+        console.warn('[generateCreneaux] calendar sync skipped:', e);
+      }
+    }
+  }
 
   const created = data?.length ?? 0;
   revalidatePath('/admin/planning');
@@ -105,12 +134,25 @@ export async function deleteCreneau(creneauId: string): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
   const supabase = await createClient();
+
+  // Récupère l'event_id Calendar avant la suppression DB
+  const { data: row } = await supabase
+    .from('creneaux_disponibles')
+    .select('google_event_id, statut')
+    .eq('id', creneauId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('creneaux_disponibles')
     .delete()
     .eq('id', creneauId)
     .eq('statut', 'libre'); // ne supprime pas un créneau réservé par sécurité
   if (error) return { ok: false, error: error.message };
+
+  // Cleanup Calendar (best-effort)
+  if (row?.google_event_id) {
+    try { await deleteCalendarEvent(row.google_event_id); } catch { /* noop */ }
+  }
   revalidatePath('/admin/planning');
   return { ok: true };
 }
@@ -123,6 +165,16 @@ export async function deleteCreneauxRange(input: {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
   const supabase = await createClient();
+
+  // Récupère les event_ids Calendar avant suppression
+  const { data: rows } = await supabase
+    .from('creneaux_disponibles')
+    .select('google_event_id')
+    .eq('technicien_id', input.technicien_id)
+    .eq('statut', 'libre')
+    .gte('date', input.date_debut)
+    .lte('date', input.date_fin);
+
   const { data, error } = await supabase
     .from('creneaux_disponibles')
     .delete()
@@ -132,6 +184,14 @@ export async function deleteCreneauxRange(input: {
     .lte('date', input.date_fin)
     .select('id');
   if (error) return { ok: false, error: error.message };
+
+  // Cleanup Calendar pour chaque slot supprimé (best-effort, non bloquant)
+  for (const r of (rows ?? []) as { google_event_id: string | null }[]) {
+    if (r.google_event_id) {
+      try { await deleteCalendarEvent(r.google_event_id); } catch { /* noop */ }
+    }
+  }
+
   revalidatePath('/admin/planning');
   return { ok: true, data: { deleted: data?.length ?? 0 } };
 }

@@ -1,14 +1,94 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 
-type Photo = { name: string; url: string; createdAt: string | null };
+export type Photo = { name: string; url: string; createdAt: string | null };
 
-function slugify(s: string) {
-  return s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+// ─── IndexedDB queue offline ─────────────────────────────────────────────
+//
+// Stocke les fichiers à uploader quand le réseau revient. Une seule store
+// `queue` clé auto-incrémentée. Schéma simple, pas de migrations.
+
+const DB_NAME = 'foxo-photos';
+const STORE = 'queue';
+const DB_VERSION = 1;
+
+interface QueueEntry {
+  id?: number;
+  intervention_id: string;
+  filename: string;
+  type: string;
+  blob: Blob;
+  added_at: number;
 }
+
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function queueAdd(entry: Omit<QueueEntry, 'id' | 'added_at'>): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).add({ ...entry, added_at: Date.now() });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function queueList(interventionId?: string): Promise<QueueEntry[]> {
+  const db = await openDb();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => {
+      const all = (req.result as QueueEntry[]) ?? [];
+      resolve(interventionId ? all.filter((e) => e.intervention_id === interventionId) : all);
+    };
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function queueRemove(id: number): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
+// ─── Upload Drive via API ────────────────────────────────────────────────
+
+async function uploadToDrive(interventionId: string, file: File | Blob, filename: string, type: string): Promise<{ ok: boolean; drive_url?: string; error?: string }> {
+  const fd = new FormData();
+  // Repackage Blob en File pour préserver le filename côté server
+  const f = file instanceof File ? file : new File([file], filename, { type });
+  fd.append('file', f);
+  fd.append('intervention_id', interventionId);
+  try {
+    const res = await fetch('/api/tech/upload-photo', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!data.ok) return { ok: false, error: data.error ?? 'Erreur upload.' };
+    return { ok: true, drive_url: data.drive_url };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Réseau indisponible.' };
+  }
+}
+
+// ─── Composant ────────────────────────────────────────────────────────────
 
 export function PhotosPanel({
   interventionId,
@@ -23,6 +103,58 @@ export function PhotosPanel({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [queueCount, setQueueCount] = useState(0);
+  const [online, setOnline] = useState<boolean>(true);
+
+  // État réseau + drain de la queue à chaque retour online
+  useEffect(() => {
+    function refreshQueue() {
+      queueList(interventionId).then((q) => setQueueCount(q.length));
+    }
+    function onOnline() {
+      setOnline(true);
+      drainQueue();
+    }
+    function onOffline() {
+      setOnline(false);
+    }
+    if (typeof window !== 'undefined') {
+      setOnline(navigator.onLine);
+      refreshQueue();
+      window.addEventListener('online', onOnline);
+      window.addEventListener('offline', onOffline);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', onOnline);
+        window.removeEventListener('offline', onOffline);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interventionId]);
+
+  async function drainQueue() {
+    const items = await queueList(interventionId);
+    if (items.length === 0) return;
+    setError(null);
+    setUploading(true);
+    let done = 0;
+    setProgress({ done: 0, total: items.length });
+    for (const it of items) {
+      const r = await uploadToDrive(interventionId, it.blob, it.filename, it.type);
+      if (r.ok && it.id != null) {
+        await queueRemove(it.id);
+        if (r.drive_url) {
+          setPhotos((cur) => [{ name: it.filename, url: r.drive_url!, createdAt: new Date().toISOString() }, ...cur]);
+        }
+      }
+      done++;
+      setProgress({ done, total: items.length });
+    }
+    setUploading(false);
+    setQueueCount(await queueList(interventionId).then((q) => q.length));
+    router.refresh();
+  }
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -31,32 +163,44 @@ export function PhotosPanel({
     setUploading(true);
     setProgress({ done: 0, total: files.length });
 
-    const supabase = createClient();
-    const uploaded: Photo[] = [];
-
+    let done = 0;
     for (const file of files) {
-      const ts = Date.now();
       const ext = (file.name.match(/\.[a-z0-9]+$/i)?.[0] ?? '.jpg').toLowerCase();
-      const name = `${ts}-${slugify(file.name.replace(ext, ''))}${ext}`;
-      const path = `${interventionId}/${name}`;
+      const safe = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_').slice(0, 80) || `photo${ext}`;
+      const filename = safe;
 
-      const { error: upErr } = await supabase.storage
-        .from('intervention-photos')
-        .upload(path, file, { contentType: file.type || 'image/jpeg' });
-      if (upErr) {
-        setError(`Échec upload ${file.name} : ${upErr.message}`);
-        break;
+      if (!navigator.onLine) {
+        // Pas de réseau → on enqueue et on continue
+        try {
+          await queueAdd({
+            intervention_id: interventionId,
+            filename,
+            type: file.type || 'image/jpeg',
+            blob: file,
+          });
+        } catch (e) {
+          setError('Échec ajout à la file offline : ' + (e instanceof Error ? e.message : ''));
+        }
+      } else {
+        const r = await uploadToDrive(interventionId, file, filename, file.type);
+        if (r.ok && r.drive_url) {
+          setPhotos((cur) => [{ name: filename, url: r.drive_url!, createdAt: new Date().toISOString() }, ...cur]);
+        } else if (!r.ok) {
+          // Fallback offline si l'upload réseau a échoué
+          await queueAdd({
+            intervention_id: interventionId,
+            filename,
+            type: file.type || 'image/jpeg',
+            blob: file,
+          });
+          setError(r.error ?? 'Upload échoué — photo mise en file.');
+        }
       }
-      const { data: signed } = await supabase.storage
-        .from('intervention-photos')
-        .createSignedUrl(path, 60 * 60 * 24);
-      if (signed?.signedUrl) {
-        uploaded.push({ name, url: signed.signedUrl, createdAt: new Date().toISOString() });
-      }
-      setProgress((p) => ({ ...p, done: p.done + 1 }));
+      done++;
+      setProgress({ done, total: files.length });
     }
 
-    setPhotos((cur) => [...uploaded, ...cur]);
+    setQueueCount(await queueList(interventionId).then((q) => q.length));
     setUploading(false);
     if (inputRef.current) inputRef.current.value = '';
     router.refresh();
@@ -70,6 +214,28 @@ export function PhotosPanel({
         </div>
         <span className="text-[11px] text-ink-mid">{photos.length}</span>
       </div>
+
+      {!online && (
+        <div className="text-[11px] bg-amber-light text-[#8A5A1A] border border-[#E8C896] rounded-md px-3 py-2 mb-2 font-semibold">
+          📵 Hors ligne — les photos seront uploadées automatiquement au retour du réseau.
+        </div>
+      )}
+
+      {queueCount > 0 && (
+        <div className="text-[11px] bg-navy-pale text-navy border border-navy-light rounded-md px-3 py-2 mb-2 font-semibold flex items-center justify-between">
+          <span>📤 {queueCount} photo{queueCount > 1 ? 's' : ''} en attente d&apos;envoi</span>
+          {online && (
+            <button
+              type="button"
+              onClick={drainQueue}
+              disabled={uploading}
+              className="text-[10px] underline hover:no-underline disabled:opacity-50"
+            >
+              Envoyer maintenant
+            </button>
+          )}
+        </div>
+      )}
 
       <input
         ref={inputRef}
@@ -118,7 +284,8 @@ export function PhotosPanel({
       )}
 
       <p className="text-[10px] text-ink-muted mt-3 leading-relaxed">
-        Stockées dans Supabase Storage (bucket privé). Lien valide 24h pour la prévisualisation.
+        Uploadées vers Google Drive (RAPPORTS/[année]/[ref+adresse]/photos/). Les photos prises
+        hors ligne sont stockées localement (IndexedDB) et envoyées au retour du réseau.
       </p>
     </section>
   );
