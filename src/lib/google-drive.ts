@@ -132,6 +132,51 @@ async function updateFileContent(token: string, fileId: string, bytes: Uint8Arra
   return (await res.json()) as DriveFile;
 }
 
+// Vérifie qu'un dossier Drive existe et n'est pas dans la corbeille.
+// Retourne { ok, name?, status?, error?, trashed? }.
+export interface VerifyFolderResult {
+  ok: boolean;
+  name?: string;
+  status?: number;
+  error?: string;
+  trashed?: boolean;
+}
+
+export async function verifyDriveFolder(folderId: string): Promise<VerifyFolderResult> {
+  if (!folderId) {
+    return { ok: false, error: 'ID dossier vide.' };
+  }
+  const auth = await getValidAccessToken();
+  if (!auth) {
+    return { ok: false, error: 'Google non connecté.' };
+  }
+  const url = `${DRIVE_API}/files/${folderId}?fields=id,name,trashed,mimeType`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
+  if (res.status === 404) {
+    console.error('[drive] dossier introuvable (404)', folderId);
+    return { ok: false, status: 404, error: `Dossier Drive introuvable — vérifiez l'ID ${folderId}` };
+  }
+  if (res.status === 403) {
+    const txt = await res.text();
+    console.error('[drive] accès refusé (403)', folderId, txt.slice(0, 200));
+    return { ok: false, status: 403, error: `Accès refusé au dossier ${folderId}. Le compte connecté doit avoir le partage.` };
+  }
+  if (!res.ok) {
+    const txt = await res.text();
+    console.error('[drive] HTTP', res.status, folderId, txt.slice(0, 200));
+    return { ok: false, status: res.status, error: `Drive HTTP ${res.status} : ${txt.slice(0, 200)}` };
+  }
+  const data = (await res.json()) as { id: string; name: string; trashed: boolean; mimeType: string };
+  if (data.trashed) {
+    console.error('[drive] dossier dans la corbeille', folderId, data.name);
+    return { ok: false, name: data.name, trashed: true, error: `Le dossier "${data.name}" est dans la corbeille.` };
+  }
+  if (data.mimeType !== FOLDER_MIME) {
+    return { ok: false, name: data.name, error: `L'ID ${folderId} pointe sur un fichier, pas un dossier.` };
+  }
+  return { ok: true, name: data.name };
+}
+
 // ─── API publique ────────────────────────────────────────────────────────
 
 // Crée (ou récupère) le dossier "RAPPORTS/{year}/{ref + adresse}/" + le
@@ -145,6 +190,13 @@ export async function createInterventionFolder(args: {
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' };
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté (voir /admin/parametres).' };
+
+  // Vérifie le dossier racine avant tout — évite des appels en cascade
+  // si l'ID env est devenu invalide.
+  const verify = await verifyDriveFolder(root);
+  if (!verify.ok) {
+    return { ok: false, error: verify.error ?? 'Dossier RAPPORTS inaccessible.' };
+  }
 
   const yearFolder = await ensureFolder(auth.access_token, root, String(args.year));
   if (!yearFolder) return { ok: false, error: 'Échec création dossier année.' };
@@ -186,6 +238,10 @@ export async function uploadPhoto(args: {
 }): Promise<DriveUploadResult> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  if (!root) return { ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' };
+  const verify = await verifyDriveFolder(root);
+  if (!verify.ok) return { ok: false, error: verify.error ?? 'Dossier RAPPORTS inaccessible.' };
   const folderId = await getPhotosFolder(auth.access_token, args.ref, args.adresse, args.year);
   if (!folderId) return { ok: false, error: 'Dossier photos introuvable.' };
   const f = await uploadMultipart(auth.access_token, folderId, args.filename, args.bytes, args.mimeType ?? 'image/jpeg');
@@ -204,6 +260,8 @@ export async function uploadRapport(args: {
   if (!auth) return { ok: false, error: 'Google non connecté.' };
   const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' };
+  const verify = await verifyDriveFolder(root);
+  if (!verify.ok) return { ok: false, error: verify.error ?? 'Dossier RAPPORTS inaccessible.' };
   const yearF = await ensureFolder(auth.access_token, root, String(args.year));
   if (!yearF) return { ok: false, error: 'Dossier année introuvable.' };
   const dossierName = `${args.ref} ${args.adresse}`.trim().slice(0, 200);
@@ -229,6 +287,8 @@ export async function uploadFacture(args: {
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_FACTURES_FOLDER_ID manquant.' };
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const verify = await verifyDriveFolder(root);
+  if (!verify.ok) return { ok: false, error: verify.error ?? 'Dossier FACTURES inaccessible.' };
 
   const year = args.date.getFullYear();
   const month0 = args.date.getMonth();
@@ -251,21 +311,38 @@ export async function uploadFacture(args: {
   return { ok: true, file_id: f.id, web_view_link: f.webViewLink ?? '' };
 }
 
-export async function testDriveConnection(): Promise<{ ok: boolean; error?: string; root_rapports?: string; root_factures?: string }> {
-  const auth = await getValidAccessToken();
-  if (!auth) return { ok: false, error: 'Google non connecté.' };
-  const rRapports = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
-  const rFactures = process.env.GOOGLE_DRIVE_FACTURES_FOLDER_ID;
-  if (!rRapports || !rFactures) return { ok: false, error: 'IDs racines Drive manquants.' };
+// Retour granulaire : statut par dossier (rapports + factures) avec
+// nom du dossier si accessible, ou erreur explicite (404 / 403 / autre).
+export interface TestDriveResult {
+  rapports: VerifyFolderResult & { id: string | null };
+  factures: VerifyFolderResult & { id: string | null };
+}
 
-  // Tente de lire les métadonnées des deux dossiers
-  for (const id of [rRapports, rFactures]) {
-    const res = await fetch(`${DRIVE_API}/files/${id}?fields=id,name,mimeType`, {
-      headers: { Authorization: `Bearer ${auth.access_token}` },
-    });
-    if (!res.ok) {
-      return { ok: false, error: `Dossier ${id} inaccessible (HTTP ${res.status}).` };
-    }
+export async function testDriveConnection(): Promise<TestDriveResult> {
+  const rRapports = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID ?? '';
+  const rFactures = process.env.GOOGLE_DRIVE_FACTURES_FOLDER_ID ?? '';
+
+  const auth = await getValidAccessToken();
+  if (!auth) {
+    const err: VerifyFolderResult = { ok: false, error: 'Google non connecté.' };
+    return {
+      rapports: { ...err, id: rRapports || null },
+      factures: { ...err, id: rFactures || null },
+    };
   }
-  return { ok: true, root_rapports: rRapports, root_factures: rFactures };
+
+  // Vérifie en parallèle les deux racines
+  const [rapports, factures] = await Promise.all([
+    rRapports
+      ? verifyDriveFolder(rRapports)
+      : Promise.resolve<VerifyFolderResult>({ ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' }),
+    rFactures
+      ? verifyDriveFolder(rFactures)
+      : Promise.resolve<VerifyFolderResult>({ ok: false, error: 'GOOGLE_DRIVE_FACTURES_FOLDER_ID manquant.' }),
+  ]);
+
+  return {
+    rapports: { ...rapports, id: rRapports || null },
+    factures: { ...factures, id: rFactures || null },
+  };
 }

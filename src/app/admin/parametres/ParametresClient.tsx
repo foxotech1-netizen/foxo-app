@@ -55,6 +55,9 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [googleLoading, setGoogleLoading] = useState(true);
   const [googleTestMsg, setGoogleTestMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
+  type DriveFolderStatus = { ok: boolean; id: string | null; name?: string; status?: number; error?: string; trashed?: boolean };
+  const [driveTest, setDriveTest] = useState<{ rapports: DriveFolderStatus; factures: DriveFolderStatus } | null>(null);
+
   useEffect(() => {
     let mounted = true;
     setGoogleLoading(true);
@@ -433,10 +436,25 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 type="button"
                 onClick={() => {
                   setGoogleTestMsg(null);
+                  setDriveTest(null);
                   startTransition(async () => {
-                    const res = await testGoogleDrive();
-                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: 'Drive : accès aux 2 dossiers racines OK ✓' });
-                    else setGoogleTestMsg({ kind: 'err', msg: res.error });
+                    try {
+                      const r = await fetch('/api/google/test-drive', { cache: 'no-store' });
+                      const data = await r.json();
+                      if (!data.ok) {
+                        setGoogleTestMsg({ kind: 'err', msg: data.error ?? 'Erreur inconnue' });
+                        return;
+                      }
+                      setDriveTest({ rapports: data.rapports, factures: data.factures });
+                      const allOk = data.rapports?.ok && data.factures?.ok;
+                      setGoogleTestMsg(
+                        allOk
+                          ? { kind: 'ok', msg: 'Drive : les 2 dossiers racines sont accessibles ✓' }
+                          : { kind: 'err', msg: 'Drive : un ou plusieurs dossiers inaccessibles — voir détails ci-dessous.' },
+                      );
+                    } catch (e) {
+                      setGoogleTestMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+                    }
                   });
                 }}
                 className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
@@ -486,6 +504,13 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           </div>
         )}
 
+        {driveTest && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <DriveFolderCard label="RAPPORTS" envKey="GOOGLE_DRIVE_RAPPORTS_FOLDER_ID" status={driveTest.rapports} />
+            <DriveFolderCard label="FACTURES" envKey="GOOGLE_DRIVE_FACTURES_FOLDER_ID" status={driveTest.factures} />
+          </div>
+        )}
+
         <p className="text-[11px] text-ink-muted italic mt-3 dark:text-[#C8C2B8]">
           Variables d&apos;env Vercel requises : <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>,
           <code>GOOGLE_DRIVE_RAPPORTS_FOLDER_ID</code>, <code>GOOGLE_DRIVE_FACTURES_FOLDER_ID</code>,
@@ -531,6 +556,60 @@ function Row({
       </div>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
       {hint && <p className="text-[10px] text-ink-muted mt-1 dark:text-[#8A8278]">{hint}</p>}
+    </div>
+  );
+}
+
+function DriveFolderCard({
+  label,
+  envKey,
+  status,
+}: {
+  label: string;
+  envKey: string;
+  status: { ok: boolean; id: string | null; name?: string; status?: number; error?: string; trashed?: boolean };
+}) {
+  const ok = status.ok;
+  const headline = ok
+    ? `✅ Dossier accessible : ${status.name ?? '(sans nom)'}`
+    : status.status === 404
+      ? '❌ Dossier introuvable (404)'
+      : status.status === 403
+        ? '❌ Erreur d\'accès (403)'
+        : status.trashed
+          ? `❌ Dossier dans la corbeille : ${status.name ?? ''}`
+          : `❌ ${status.error ?? 'Inaccessible'}`;
+  return (
+    <div className={
+      'rounded-lg border p-3 text-[12px] ' +
+      (ok
+        ? 'bg-ok-light border-ok-mid dark:bg-[#14281E] dark:border-[#2A4F3A]'
+        : 'bg-terra-light border-terra-mid dark:bg-[#2E1A12] dark:border-[#5A2E18]')
+    }>
+      <div className={
+        'font-bold ' +
+        (ok ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra dark:text-[#FFB897]')
+      }>
+        {label} — {headline}
+      </div>
+      {status.id && (
+        <div className="text-[10px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+          <span className="font-mono">{envKey}</span> = <span className="font-mono">{status.id}</span>
+        </div>
+      )}
+      {!ok && status.error && status.status !== 404 && status.status !== 403 && (
+        <div className="text-[10px] text-ink-mid mt-1 dark:text-[#C8C2B8]">{status.error}</div>
+      )}
+      {!ok && (
+        <div className="text-[10px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+          {status.status === 404
+            ? <>Vérifie que l&apos;ID dans Vercel ({envKey}) correspond à un dossier existant et non supprimé.</>
+            : status.status === 403
+              ? <>Le compte connecté n&apos;a pas accès à ce dossier. Partage-le ou utilise un autre compte.</>
+              : <>Vérifie l&apos;ID Drive et le partage avec le compte connecté.</>
+          }
+        </div>
+      )}
     </div>
   );
 }

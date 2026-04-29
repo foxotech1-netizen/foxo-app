@@ -46,12 +46,23 @@ export async function disconnectGoogle(): Promise<R> {
   return { ok: true };
 }
 
-export async function testGoogleDrive(): Promise<R<{ root_rapports?: string; root_factures?: string }>> {
+export interface DriveFolderStatus {
+  ok: boolean;
+  id: string | null;
+  name?: string;
+  status?: number;
+  error?: string;
+  trashed?: boolean;
+}
+
+export async function testGoogleDrive(): Promise<R<{
+  rapports: DriveFolderStatus;
+  factures: DriveFolderStatus;
+}>> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
   const r = await testDriveConnection();
-  if (!r.ok) return { ok: false, error: r.error ?? 'Drive inaccessible.' };
-  return { ok: true, data: { root_rapports: r.root_rapports, root_factures: r.root_factures } };
+  return { ok: true, data: r };
 }
 
 export async function testGoogleCalendar(): Promise<R<{ count: number }>> {
