@@ -29,17 +29,12 @@ const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo';
 
-function getRedirectUri(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.foxo.be';
-  return `${base.replace(/\/$/, '')}/api/google/callback`;
-}
-
-export function buildAuthUrl(state: string): string {
+export function buildAuthUrl(state: string, redirectUri: string): string {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) throw new Error('GOOGLE_CLIENT_ID manquant.');
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: GOOGLE_SCOPES.join(' '),
     access_type: 'offline',                  // pour récupérer un refresh_token
@@ -60,7 +55,7 @@ interface TokenExchangeResponse {
   error_description?: string;
 }
 
-export async function exchangeCodeForTokens(code: string): Promise<{
+export async function exchangeCodeForTokens(code: string, redirectUri: string): Promise<{
   ok: true;
   access_token: string;
   refresh_token?: string;
@@ -77,7 +72,7 @@ export async function exchangeCodeForTokens(code: string): Promise<{
     code,
     client_id: clientId,
     client_secret: clientSecret,
-    redirect_uri: getRedirectUri(),
+    redirect_uri: redirectUri,
     grant_type: 'authorization_code',
   });
   const res = await fetch(TOKEN_URL, {
