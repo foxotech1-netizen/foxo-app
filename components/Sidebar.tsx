@@ -156,6 +156,10 @@ const S = {
   techSub:  { fontSize: 10, color: '#8A8278', marginTop: 1 },
 
   // ── MOBILE bottom nav ──────────────────────────────────────────────────────
+  // Visibilité gérée via la classe `.foxo-sidebar-mobile` :
+  //   default desktop : display: none
+  //   @media max-width 768px : display: flex !important
+  // On NE met PAS `display` ici en inline pour que la classe CSS gagne.
   bottomNav: {
     position: 'fixed' as const,
     bottom: 0,
@@ -163,7 +167,6 @@ const S = {
     right: 0,
     background: 'linear-gradient(180deg, #2C2A24 0%, #1A1814 100%)',
     borderTop: '1px solid #E2C9A1',
-    display: 'flex' as const,
     justifyContent: 'space-around' as const,
     alignItems: 'center' as const,
     padding: '8px 0',

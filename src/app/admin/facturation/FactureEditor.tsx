@@ -300,7 +300,7 @@ export function FactureEditor({
   }
 
   return (
-    <div className="space-y-5 max-w-[960px] pb-[calc(100px+env(safe-area-inset-bottom,0px))] sm:pb-4">
+    <div className="space-y-5 max-w-[960px] pb-[calc(140px+env(safe-area-inset-bottom,0px))] sm:pb-4">
       {/* Toggle liée / hors intervention */}
       <div className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
         <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 dark:text-[#C8C2B8]">
@@ -734,8 +734,8 @@ export function FactureEditor({
       )}
 
       {/* Actions — sticky en bas, ancré au-dessus de la bottom nav mobile.
-          pb-5 (20px) = padding interne + 8px supplémentaires pour respirer. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sticky bottom-[calc(72px+env(safe-area-inset-bottom,0px))] sm:bottom-0 bg-sand pt-3 pb-5 sm:pb-3 -mx-2 px-2 dark:bg-[#141210] z-10 border-t border-sand-border dark:border-[#2C2A24]">
+          bottom = 64 nav + 16 marge confortable + safe-area. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sticky bottom-[calc(80px+env(safe-area-inset-bottom,0px))] sm:bottom-0 bg-sand pt-3 pb-5 sm:pb-3 -mx-2 px-2 dark:bg-[#141210] z-10 border-t border-sand-border dark:border-[#2C2A24]">
         <button
           type="button"
           onClick={() => handleSave(false)}
