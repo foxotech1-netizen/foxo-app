@@ -17,12 +17,17 @@ export function ThemeToggle({
   inline?: boolean;
   withLabel?: boolean;
 }) {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // 4 thèmes : ce toggle bascule entre Sable et Nuit (les 2 défauts).
+  // Pour Ocean/Ardoise, l'utilisateur passe par le sélecteur 4 thèmes
+  // dans la sidebar admin.
+  const isDark = theme === 'nuit' || theme === 'ardoise';
+
   function toggle() {
-    const next = resolvedTheme === 'dark' ? 'light' : 'dark';
+    const next = isDark ? 'sable' : 'nuit';
     document.documentElement.classList.add('theme-transitioning');
     setTheme(next);
     window.setTimeout(() => {
@@ -44,7 +49,6 @@ export function ThemeToggle({
     );
   }
 
-  const isDark = resolvedTheme === 'dark';
   const ariaLabel = isDark ? 'Passer au thème clair' : 'Passer au thème sombre';
 
   return (

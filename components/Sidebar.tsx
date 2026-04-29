@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { ThemeSelector } from '@/components/ThemeSelector'
 import type { Utilisateur } from '@/lib/types/database'
 
 interface TechSummary {
@@ -310,11 +311,7 @@ export default function Sidebar({
             />
           ))}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
-            <ThemeToggle
-              className="foxo-theme-toggle-desktop"
-              inline
-              withLabel
-            />
+            <ThemeSelector className="foxo-theme-selector" />
             <button
               onClick={handleLogout}
               style={{

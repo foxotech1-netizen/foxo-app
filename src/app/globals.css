@@ -107,6 +107,100 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   OCÉAN (clair) — variante "bleu lagune". Override de :root.
+   La classe `.theme-ocean` est posée par next-themes via value mapping.
+   ───────────────────────────────────────────────────────────────────────── */
+.theme-ocean {
+  /* Surfaces */
+  --color-sand:        #f5f8fa;   /* fond page */
+  --color-sand-mid:    #e4f1f8;   /* éléments actifs sidebar / pills */
+  --color-sand-border: #dce9f0;
+  --color-sand-hover:  #f0f7fb;
+  --color-cream:       #ffffff;   /* card bg */
+
+  /* Texte */
+  --color-ink:        #1a2b35;
+  --color-ink-mid:    #5a7080;
+  --color-ink-muted:  #8faab8;
+
+  /* Marine — devient océan (#156082) */
+  --color-navy:       #156082;
+  --color-navy-dark:  #0e4560;
+  --color-navy-deep:  #0a3548;
+  --color-navy-mid:   #1a7aa3;
+  --color-navy-light: #cce3ef;
+  --color-navy-pale:  #e4f1f8;
+
+  /* Sky cohérent avec la palette océan */
+  --color-sky-foxo:       #4a9bbf;
+  --color-sky-light-foxo: #cce3ef;
+
+  /* Sidebar — gradient bleu profond (texte sidebar reste lisible). On
+     ne passe PAS au blanc total parce que Sidebar.tsx a des couleurs
+     hardcodées qui supposent un fond sombre. */
+  --sidebar-bg:        linear-gradient(180deg, #0e4560 0%, #0a3548 100%);
+  --sidebar-logo-bg:   #156082;
+  --sidebar-logo-fg:   #ffffff;
+
+  /* Tech */
+  --tech-bg:        #f5f8fa;
+  --tech-card:      #ffffff;
+  --tech-card-mid:  #e4f1f8;
+  --tech-text:      #1a2b35;
+  --tech-text-mid:  #5a7080;
+  --tech-text-mute: #8faab8;
+  --tech-border:    #dce9f0;
+
+  color-scheme: light;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ARDOISE (sombre) — variante "ardoise + océan". Override de .dark
+   (donc déclaré APRÈS .dark pour gagner la spécificité égale via l'ordre).
+   La classe est `.dark .theme-ardoise` (next-themes met les deux).
+   ───────────────────────────────────────────────────────────────────────── */
+.theme-ardoise {
+  /* Surfaces */
+  --color-sand:        #2b2b2b;    /* fond page */
+  --color-sand-mid:    #222222;    /* sidebar/toolbar zones */
+  --color-sand-border: #3a3a3a;
+  --color-sand-hover:  #2a2a2a;
+  --color-cream:       #1e1e1e;    /* card bg + inputs */
+
+  /* Texte */
+  --color-ink:        #e8e8e8;
+  --color-ink-mid:    #9a9a9a;
+  --color-ink-muted:  #5a5a5a;
+
+  /* Marine — océan dans le mode dark aussi */
+  --color-navy:       #156082;
+  --color-navy-dark:  #0e4560;
+  --color-navy-deep:  #0a3548;
+  --color-navy-mid:   #4a9bbf;
+  --color-navy-light: #2d4a5a;
+  --color-navy-pale:  #1e1e1e;
+
+  --color-sky-foxo:       #4a9bbf;
+  --color-sky-light-foxo: #2d4a5a;
+
+  /* Sidebar */
+  --sidebar-bg:        linear-gradient(180deg, #222222 0%, #1a1a1a 100%);
+  --sidebar-logo-bg:   #156082;
+  --sidebar-logo-fg:   #ffffff;
+
+  /* Tech */
+  --tech-bg:        #2b2b2b;
+  --tech-card:      #1e1e1e;
+  --tech-card-mid:  #222222;
+  --tech-text:      #e8e8e8;
+  --tech-text-mid:  #9a9a9a;
+  --tech-text-mute: #5a5a5a;
+  --tech-border:    #3a3a3a;
+
+  color-scheme: dark;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Tailwind theme : mappe les tokens utilitaires sur les variables ci-dessus.
    ───────────────────────────────────────────────────────────────────────── */
 @theme {
