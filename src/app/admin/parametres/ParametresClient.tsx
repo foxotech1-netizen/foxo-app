@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { setParametre } from '../facturation/actions';
 import { testSmsAction } from '../sms/actions';
+import {
+  getGoogleStatus,
+  disconnectGoogle,
+  testGoogleDrive,
+  testGoogleCalendar,
+  testGmail,
+} from '../google/actions';
 
 const SMS_TEMPLATE_DEFAULTS: Record<string, string> = {
   sms_template_confirmation:
@@ -40,6 +47,41 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [tplRapport, setTplRapport] = useState(initial.sms_template_rapport ?? SMS_TEMPLATE_DEFAULTS.sms_template_rapport);
   const [tplLien, setTplLien] = useState(initial.sms_template_lien_occupant ?? SMS_TEMPLATE_DEFAULTS.sms_template_lien_occupant);
   const [testNumber, setTestNumber] = useState('');
+
+  // Google
+  const [googleStatus, setGoogleStatus] = useState<{ connected: boolean; email: string | null; expiry: string | null }>(
+    { connected: false, email: null, expiry: null },
+  );
+  const [googleLoading, setGoogleLoading] = useState(true);
+  const [googleTestMsg, setGoogleTestMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setGoogleLoading(true);
+    getGoogleStatus().then((res) => {
+      if (!mounted) return;
+      if (res.ok && res.data) {
+        setGoogleStatus({ connected: res.data.connected, email: res.data.email, expiry: res.data.expiry });
+      }
+      setGoogleLoading(false);
+    });
+    // Si on revient du callback OAuth, lit les params pour afficher le statut
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const g = sp.get('google');
+      if (g === 'ok') setGoogleTestMsg({ kind: 'ok', msg: 'Compte Google connecté ✓' });
+      if (g === 'err') setGoogleTestMsg({ kind: 'err', msg: sp.get('msg') ?? 'Échec connexion Google' });
+    }
+    return () => { mounted = false; };
+  }, []);
+
+  function refreshGoogleStatus() {
+    getGoogleStatus().then((res) => {
+      if (res.ok && res.data) {
+        setGoogleStatus({ connected: res.data.connected, email: res.data.email, expiry: res.data.expiry });
+      }
+    });
+  }
   const [testChannel, setTestChannel] = useState<'sms' | 'whatsapp'>('sms');
   const twilioReady = Boolean(twilioSid && twilioToken && twilioSmsFrom);
 
@@ -332,6 +374,124 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             pending={pending}
           />
         </div>
+      </Section>
+
+      {/* Google — OAuth Drive + Gmail + Calendar */}
+      <Section
+        title="Intégrations Google"
+        desc="Connecte un compte Google pour brancher Drive (rapports + factures), Gmail (lecture pour enrichir l'assistant) et Calendar (sync des créneaux)."
+      >
+        {googleLoading ? (
+          <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement du statut…</div>
+        ) : googleStatus.connected ? (
+          <div className="bg-ok-light border border-ok-mid rounded-lg p-3 text-[12px] text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]">
+            ✓ Connecté en tant que <strong className="font-mono">{googleStatus.email ?? '—'}</strong>
+            {googleStatus.expiry && (
+              <span className="block text-[10px] text-ink-muted dark:text-[#C8C2B8] mt-1">
+                Token expire : {new Date(googleStatus.expiry).toLocaleString('fr-BE')}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+            Aucun compte Google connecté.
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mt-3">
+          {googleStatus.connected ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!confirm('Déconnecter le compte Google ?')) return;
+                startTransition(async () => {
+                  const res = await disconnectGoogle();
+                  if (res.ok) {
+                    setGoogleTestMsg({ kind: 'ok', msg: 'Compte déconnecté.' });
+                    refreshGoogleStatus();
+                  } else {
+                    setGoogleTestMsg({ kind: 'err', msg: res.error });
+                  }
+                });
+              }}
+              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+            >
+              Déconnecter
+            </button>
+          ) : (
+            <a
+              href="/api/google/auth"
+              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center min-h-[44px]"
+            >
+              🔗 Connecter Google
+            </a>
+          )}
+
+          {googleStatus.connected && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setGoogleTestMsg(null);
+                  startTransition(async () => {
+                    const res = await testGoogleDrive();
+                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: 'Drive : accès aux 2 dossiers racines OK ✓' });
+                    else setGoogleTestMsg({ kind: 'err', msg: res.error });
+                  });
+                }}
+                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+              >
+                Tester Drive
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGoogleTestMsg(null);
+                  startTransition(async () => {
+                    const res = await testGmail();
+                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: `Gmail : ${res.data?.count ?? 0} messages récents accessibles ✓` });
+                    else setGoogleTestMsg({ kind: 'err', msg: res.error });
+                  });
+                }}
+                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+              >
+                Tester Gmail
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setGoogleTestMsg(null);
+                  startTransition(async () => {
+                    const res = await testGoogleCalendar();
+                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: `Calendar : ${res.data?.count ?? 0} événements aujourd'hui ✓` });
+                    else setGoogleTestMsg({ kind: 'err', msg: res.error });
+                  });
+                }}
+                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+              >
+                Tester Calendar
+              </button>
+            </>
+          )}
+        </div>
+
+        {googleTestMsg && (
+          <div className={
+            'mt-3 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+            (googleTestMsg.kind === 'ok'
+              ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+              : 'bg-terra-light border-terra-mid text-terra')
+          }>
+            {googleTestMsg.msg}
+          </div>
+        )}
+
+        <p className="text-[11px] text-ink-muted italic mt-3 dark:text-[#C8C2B8]">
+          Variables d&apos;env Vercel requises : <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>,
+          <code>GOOGLE_DRIVE_RAPPORTS_FOLDER_ID</code>, <code>GOOGLE_DRIVE_FACTURES_FOLDER_ID</code>,
+          <code>NEXT_PUBLIC_APP_URL</code>. Le redirect_uri doit être déclaré côté Google Cloud :{' '}
+          <code>{'<NEXT_PUBLIC_APP_URL>/api/google/callback'}</code>.
+        </p>
       </Section>
 
       {/* À venir */}

@@ -1,64 +1,134 @@
-// Google Calendar — synchronisation avec creneaux_disponibles / creneaux_bloques.
-//
-// Branchement futur :
-//   - Variable d'env : GOOGLE_SERVICE_ACCOUNT_JSON (clé compte de service)
-//   - Calendar ID : à définir par technicien dans `utilisateurs` (colonne future
-//     `google_calendar_id`) ou un calendrier d'équipe partagé.
-//
-// Tant que les credentials ne sont pas configurés, ces fonctions retournent
-// `{ ok: false, error: 'Google Calendar non configuré' }`. Elles se branchent
-// automatiquement quand process.env.GOOGLE_SERVICE_ACCOUNT_JSON est présent.
+// Google Calendar — implémentation REST via fetch(). Compte unique connecté
+// via OAuth (table google_tokens). Calendar par défaut = 'primary'.
+
+import { getValidAccessToken } from '@/lib/google-auth';
+
+const API = 'https://www.googleapis.com/calendar/v3';
 
 export type CalendarSyncResult =
   | { ok: true; created: number; updated: number; blocked: number }
   | { ok: false; error: string };
 
 export type CalendarEventResult =
-  | { ok: true; event_id: string }
+  | { ok: true; event_id: string; html_link?: string }
   | { ok: false; error: string };
 
-function googleConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+interface GcalEvent {
+  id: string;
+  summary?: string;
+  description?: string;
+  location?: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  htmlLink?: string;
 }
 
-// TODO : importe les événements Google Calendar du tech sur la fenêtre
-// [from, to], et pour chaque événement crée une entrée dans
-// `creneaux_bloques` (motif = title de l'événement). Les créneaux libres
-// existants qui chevauchent un événement Google deviennent statut='bloque'.
-export async function syncCalendarToCreneaux(
-  _technicienId: string,
-  _from: Date,
-  _to: Date,
-): Promise<CalendarSyncResult> {
-  if (!googleConfigured()) {
-    return { ok: false, error: 'Google Calendar non configuré (GOOGLE_SERVICE_ACCOUNT_JSON manquant).' };
-  }
-  // Implémentation future : googleapis.calendar.events.list → upsert creneaux_bloques.
-  return { ok: true, created: 0, updated: 0, blocked: 0 };
-}
-
-// TODO : crée un événement Google quand un créneau est réservé (statut='reserve').
-// Doit retourner l'event_id pour le stocker dans creneaux_disponibles.google_event_id.
-export async function createCalendarEvent(_args: {
-  technicienId: string;
+export async function createCalendarEvent(args: {
   startIso: string;
   endIso: string;
   summary: string;
   description?: string;
   location?: string;
+  technicienEmail?: string;
 }): Promise<CalendarEventResult> {
-  if (!googleConfigured()) {
-    return { ok: false, error: 'Google Calendar non configuré.' };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const body: Record<string, unknown> = {
+    summary: args.summary,
+    description: args.description ?? '',
+    location: args.location ?? '',
+    start: { dateTime: args.startIso, timeZone: 'Europe/Brussels' },
+    end:   { dateTime: args.endIso,   timeZone: 'Europe/Brussels' },
+  };
+  if (args.technicienEmail) {
+    body.attendees = [{ email: args.technicienEmail }];
   }
-  // Implémentation future : googleapis.calendar.events.insert.
-  return { ok: false, error: 'Non implémenté.' };
+
+  const res = await fetch(`${API}/calendars/primary/events`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    return { ok: false, error: `Calendar HTTP ${res.status} : ${t.slice(0, 200)}` };
+  }
+  const data = (await res.json()) as GcalEvent;
+  return { ok: true, event_id: data.id, html_link: data.htmlLink };
 }
 
-// TODO : supprime un événement Google quand un créneau est libéré.
-export async function deleteCalendarEvent(_eventId: string, _technicienId: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!googleConfigured()) {
-    return { ok: false, error: 'Google Calendar non configuré.' };
+export async function updateCalendarEvent(eventId: string, changes: {
+  startIso?: string;
+  endIso?: string;
+  summary?: string;
+  description?: string;
+  location?: string;
+}): Promise<CalendarEventResult> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const patch: Record<string, unknown> = {};
+  if (changes.summary !== undefined) patch.summary = changes.summary;
+  if (changes.description !== undefined) patch.description = changes.description;
+  if (changes.location !== undefined) patch.location = changes.location;
+  if (changes.startIso) patch.start = { dateTime: changes.startIso, timeZone: 'Europe/Brussels' };
+  if (changes.endIso)   patch.end   = { dateTime: changes.endIso,   timeZone: 'Europe/Brussels' };
+
+  const res = await fetch(`${API}/calendars/primary/events/${eventId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    return { ok: false, error: `Calendar HTTP ${res.status} : ${t.slice(0, 200)}` };
   }
-  // Implémentation future : googleapis.calendar.events.delete.
-  return { ok: false, error: 'Non implémenté.' };
+  const data = (await res.json()) as GcalEvent;
+  return { ok: true, event_id: data.id, html_link: data.htmlLink };
+}
+
+export async function deleteCalendarEvent(eventId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const res = await fetch(`${API}/calendars/primary/events/${eventId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!res.ok && res.status !== 410) {
+    const t = await res.text();
+    return { ok: false, error: `Calendar HTTP ${res.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
+}
+
+export async function getCalendarEvents(args: {
+  from: Date;
+  to: Date;
+}): Promise<{ ok: true; events: GcalEvent[] } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const params = new URLSearchParams({
+    timeMin: args.from.toISOString(),
+    timeMax: args.to.toISOString(),
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '250',
+  });
+  const res = await fetch(`${API}/calendars/primary/events?${params}`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    return { ok: false, error: `Calendar HTTP ${res.status} : ${t.slice(0, 200)}` };
+  }
+  const j = (await res.json()) as { items?: GcalEvent[] };
+  return { ok: true, events: j.items ?? [] };
+}
+
+// Compatibilité avec l'ancien stub utilisé par planning : import optionnel
+export async function syncCalendarToCreneaux(
+  _technicienId: string, _from: Date, _to: Date,
+): Promise<CalendarSyncResult> {
+  return { ok: true, created: 0, updated: 0, blocked: 0 };
 }

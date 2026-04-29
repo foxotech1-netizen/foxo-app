@@ -7,6 +7,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import { notifyStatusChange } from '@/lib/email/notifications';
 import { createInterventionFolder } from '@/lib/google-drive';
+import { createCalendarEvent } from '@/lib/google-calendar';
 import type {
   Acp,
   Organisation,
@@ -403,6 +404,29 @@ export async function createInterventionFromSlot(
     await notifyStatusChange(interventionId, 'confirmee');
   } catch (e) {
     console.warn('[planning/createIntervention] notifyStatusChange skipped:', e);
+  }
+
+  // Google Calendar (best-effort)
+  try {
+    const startIso = creneauIso;
+    // Fin = créneau de heure_fin
+    const endIso = new Date(`${creneau.date}T${creneau.heure_fin}:00`).toISOString();
+    const summary = `FoxO ${ref} — ${input.type ?? 'Intervention'}`;
+    const description = input.description?.trim().slice(0, 500) ?? '';
+    let location = '';
+    if (acpId) {
+      const { data: acp } = await supabase.from('acps').select('adresse, code_postal, ville').eq('id', acpId).maybeSingle();
+      if (acp) location = [acp.adresse, acp.code_postal, acp.ville].filter(Boolean).join(', ');
+    } else if (input.demandeur.demandeur_type === 'particulier') {
+      const d = input.demandeur;
+      const rue = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.rue : d.lieu.rue;
+      const cp = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.code_postal : d.lieu.cp;
+      const ville = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.ville : d.lieu.ville;
+      location = `${rue}, ${cp} ${ville}`;
+    }
+    await createCalendarEvent({ startIso, endIso, summary, description, location });
+  } catch (e) {
+    console.warn('[planning/createIntervention] createCalendarEvent skipped:', e);
   }
 
   revalidatePath('/admin/planning');

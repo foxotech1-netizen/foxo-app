@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
+import { uploadRapport } from '@/lib/google-drive';
 import type { Acp, Intervention, Organisation, Rapport, Utilisateur } from '@/lib/types/database';
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
@@ -101,5 +102,19 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
   });
 
   if (!sent.ok) return { ok: false, error: sent.error };
+
+  // Upload sur Drive en best-effort (non bloquant pour l'envoi email)
+  try {
+    const adresse = built.acpNom; // adresse simplifiée — le builder retournait acpNom
+    await uploadRapport({
+      ref: built.ref,
+      adresse,
+      year: new Date().getFullYear(),
+      bytes: new Uint8Array(built.pdfBuffer),
+    });
+  } catch (e) {
+    console.warn('[dispatchRapport] uploadRapport Drive skipped:', e);
+  }
+
   return { ok: true, emailId: sent.id };
 }

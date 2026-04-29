@@ -1,19 +1,10 @@
-// Gmail — lecture des emails liés à un dossier d'intervention.
-//
-// Usage prévu : enrichir le contexte du system prompt FoxO avant la génération
-// du rapport. Le brief contient typiquement la dictée du tech sur place ; les
-// emails apportent les échanges en amont (description initiale, photos jointes
-// envoyées par le syndic, demandes de devis…).
-//
-// Branchement futur :
-//   - Variable d'env : GOOGLE_OAUTH_CREDENTIALS (refresh token sur l'inbox info@foxo.be)
-//     · OAuth user, pas service account, parce qu'on lit une vraie boîte humaine.
-//   - Scope minimal : https://www.googleapis.com/auth/gmail.readonly
-//
-// Tant que les credentials ne sont pas configurés, les fonctions retournent
-// `{ ok: true, emails: [] }` (= "pas d'emails trouvés") pour ne pas bloquer
-// la génération de rapport. Quand GOOGLE_OAUTH_CREDENTIALS est présent, les
-// fonctions se branchent automatiquement.
+// Gmail — implémentation REST via fetch(). Lecture seule (scope
+// gmail.readonly). Sert principalement à enrichir le contexte de
+// génération de rapport par l'assistant Claude.
+
+import { getValidAccessToken } from '@/lib/google-auth';
+
+const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 export interface GmailMessage {
   id: string;
@@ -35,34 +26,149 @@ export type GmailThreadResult =
   | { ok: true; messages: GmailMessage[] }
   | { ok: false; error: string };
 
-function gmailConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_OAUTH_CREDENTIALS);
+interface RawHeader { name: string; value: string }
+interface RawPayload {
+  mimeType?: string;
+  headers?: RawHeader[];
+  body?: { data?: string; size?: number };
+  parts?: RawPayload[];
+  filename?: string;
+}
+interface RawMessage {
+  id: string;
+  threadId: string;
+  snippet?: string;
+  internalDate?: string;
+  payload?: RawPayload;
 }
 
-// TODO : recherche les emails liés à une intervention par adresse, ref ACP,
-// nom de l'occupant ou ref FoxO. Retourne les 20 plus récents triés desc.
-// Côté Gmail API : q="(subject:'2026-014' OR subject:'Avenue Louise 42')"
-export async function searchEmailsByDossier(_args: {
-  ref?: string;             // "2026-014"
-  adresse?: string;         // "Avenue Louise 42, 1050"
-  acpNom?: string;          // "Résidence Bellevue"
-  occupantNom?: string;     // "Dupont"
-  syndicEmail?: string;     // pour filtrer par expéditeur connu
+function header(p: RawPayload | undefined, name: string): string {
+  if (!p?.headers) return '';
+  const lower = name.toLowerCase();
+  return p.headers.find((h) => h.name.toLowerCase() === lower)?.value ?? '';
+}
+
+function decodeB64Url(data: string): string {
+  try {
+    const b = data.replace(/-/g, '+').replace(/_/g, '/');
+    return Buffer.from(b, 'base64').toString('utf-8');
+  } catch { return ''; }
+}
+
+function extractText(p: RawPayload | undefined): string {
+  if (!p) return '';
+  if (p.mimeType === 'text/plain' && p.body?.data) {
+    return decodeB64Url(p.body.data);
+  }
+  if (p.parts && p.parts.length > 0) {
+    // Prefer text/plain ; sinon premier text/*
+    const plain = p.parts.find((x) => x.mimeType === 'text/plain' && x.body?.data);
+    if (plain?.body?.data) return decodeB64Url(plain.body.data);
+    for (const part of p.parts) {
+      const t = extractText(part);
+      if (t) return t;
+    }
+  }
+  return '';
+}
+
+function extractAttachments(p: RawPayload | undefined): { filename: string; mime_type: string; size: number }[] {
+  if (!p) return [];
+  const out: { filename: string; mime_type: string; size: number }[] = [];
+  function walk(part: RawPayload) {
+    if (part.filename && part.filename.length > 0) {
+      out.push({
+        filename: part.filename,
+        mime_type: part.mimeType ?? 'application/octet-stream',
+        size: part.body?.size ?? 0,
+      });
+    }
+    part.parts?.forEach(walk);
+  }
+  walk(p);
+  return out;
+}
+
+function toMessage(raw: RawMessage): GmailMessage {
+  const date = raw.internalDate ? new Date(parseInt(raw.internalDate, 10)).toISOString() : '';
+  return {
+    id: raw.id,
+    thread_id: raw.threadId,
+    from: header(raw.payload, 'From'),
+    to: header(raw.payload, 'To'),
+    subject: header(raw.payload, 'Subject'),
+    date,
+    snippet: raw.snippet ?? '',
+    body_text: extractText(raw.payload).slice(0, 4000),
+    attachments: extractAttachments(raw.payload),
+  };
+}
+
+async function listMessageIds(token: string, q: string, max: number): Promise<string[]> {
+  const url = `${API}/messages?q=${encodeURIComponent(q)}&maxResults=${max}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return [];
+  const j = (await res.json()) as { messages?: { id: string }[] };
+  return (j.messages ?? []).map((m) => m.id);
+}
+
+async function getMessage(token: string, id: string): Promise<RawMessage | null> {
+  const res = await fetch(`${API}/messages/${id}?format=full`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as RawMessage;
+}
+
+export async function searchEmailsByDossier(args: {
+  ref?: string;
+  adresse?: string;
+  acpNom?: string;
+  occupantNom?: string;
+  syndicEmail?: string;
   limit?: number;
 }): Promise<GmailSearchResult> {
-  if (!gmailConfigured()) {
-    return { ok: true, emails: [] };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: true, emails: [] };
+
+  const limit = Math.max(1, Math.min(args.limit ?? 20, 50));
+  // Construit une query OR sur les champs disponibles
+  const parts: string[] = [];
+  if (args.ref) parts.push(`"${args.ref}"`);
+  if (args.adresse) parts.push(`"${args.adresse}"`);
+  if (args.acpNom) parts.push(`"${args.acpNom}"`);
+  if (args.occupantNom) parts.push(`"${args.occupantNom}"`);
+  if (args.syndicEmail) parts.push(`from:${args.syndicEmail}`);
+  if (parts.length === 0) return { ok: true, emails: [] };
+  const q = parts.join(' OR ');
+
+  const ids = await listMessageIds(auth.access_token, q, limit);
+  if (ids.length === 0) return { ok: true, emails: [] };
+
+  const messages: GmailMessage[] = [];
+  // En série pour éviter rate-limit ; on peut paralléliser plus tard
+  for (const id of ids) {
+    const raw = await getMessage(auth.access_token, id);
+    if (raw) messages.push(toMessage(raw));
   }
-  // Implémentation future : googleapis.gmail.users.messages.list + .get.
-  return { ok: true, emails: [] };
+  return { ok: true, emails: messages };
 }
 
-// TODO : récupère le fil de discussion complet (utile pour reconstruire le
-// contexte d'un échange Gmail).
-export async function getEmailThread(_threadId: string): Promise<GmailThreadResult> {
-  if (!gmailConfigured()) {
-    return { ok: true, messages: [] };
+// Alias pour compatibilité avec les appelants existants
+export async function searchEmailsByIntervention(ref: string, adresse: string): Promise<GmailSearchResult> {
+  return searchEmailsByDossier({ ref, adresse });
+}
+
+export async function getEmailThread(threadId: string): Promise<GmailThreadResult> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: true, messages: [] };
+  const res = await fetch(`${API}/threads/${threadId}?format=full`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    return { ok: false, error: `Gmail HTTP ${res.status} : ${t.slice(0, 200)}` };
   }
-  // Implémentation future : googleapis.gmail.users.threads.get.
-  return { ok: true, messages: [] };
+  const j = (await res.json()) as { messages?: RawMessage[] };
+  return { ok: true, messages: (j.messages ?? []).map(toMessage) };
 }

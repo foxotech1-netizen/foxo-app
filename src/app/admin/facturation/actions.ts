@@ -4,8 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { Resend } from 'resend';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
+import { renderToBuffer } from '@react-pdf/renderer';
+import path from 'node:path';
 import { generateBBA } from '@/lib/facturation/bba';
-import { computeFactureTotals } from '@/lib/facturation/FactureFoxoPdf';
+import { computeFactureTotals, FactureFoxoPdf } from '@/lib/facturation/FactureFoxoPdf';
+import { generateEpcQrDataUrl } from '@/lib/facturation/epc-qr';
+import { uploadFacture } from '@/lib/google-drive';
 import { VENDOR } from '@/lib/constants/vendor';
 import type {
   Article,
@@ -180,6 +184,33 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   const supabase = await createClient();
   const { error } = await supabase.from('factures').update(patch).eq('id', id);
   if (error) return { ok: false, error: error.message };
+
+  // Upload Drive sur émission (best-effort, non bloquant)
+  if (statut === 'envoyee') {
+    try {
+      const { data: f } = await supabase.from('factures').select('*').eq('id', id).maybeSingle();
+      if (f) {
+        const facture = f as Facture;
+        const ttc = facture.montant_ttc ?? 0;
+        let qrDataUrl: string | undefined;
+        try {
+          qrDataUrl = await generateEpcQrDataUrl({
+            beneficiaryName: VENDOR.name,
+            iban: VENDOR.iban,
+            amountEur: ttc > 0 ? ttc : 0.01,
+            bba: facture.reference_structuree ?? undefined,
+          });
+        } catch { /* noop */ }
+        const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
+        const pdf = await renderToBuffer(FactureFoxoPdf({ facture, qrDataUrl, logoSrc }));
+        const date = facture.date_emission ? new Date(facture.date_emission) : new Date();
+        await uploadFacture({ numero: facture.numero, date, bytes: new Uint8Array(pdf) });
+      }
+    } catch (e) {
+      console.warn('[setFactureStatut] uploadFacture skipped:', e);
+    }
+  }
+
   revalidatePath('/admin/facturation');
   return { ok: true };
 }
