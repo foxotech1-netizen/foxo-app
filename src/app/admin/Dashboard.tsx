@@ -39,20 +39,16 @@ function initiales(prenom: string | null, nom: string | null): string {
 
 export function Dashboard({
   rows,
-  techs,
   dashboard,
   onOpenIntervention,
   statutFilter,
 }: {
   rows: InterventionRow[];
-  techs: Utilisateur[];
   dashboard: DashboardData;
   onOpenIntervention: (id: string) => void;
   statutFilter?: string | null;
 }) {
   const today = useMemo(() => new Date(), []);
-  const router = useRouter();
-  const [creatingSlot, setCreatingSlot] = useState<SlotInfo | null>(null);
 
   // ── Section 1 : stats temps réel ────────────────────────────────────────
   const stats = useMemo(() => {
@@ -66,28 +62,6 @@ export function Dashboard({
     const urgent = rows.filter((r) => r.priorite === 'urgente' && r.statut !== 'cloturee').length;
     return { nouvelles, enCours, enSuspens, rapports, closedThisMonth, urgent };
   }, [rows, today]);
-
-  // ── Section 2 : par technicien ──────────────────────────────────────────
-  const techData = useMemo(() => {
-    return techs.map((t, idx) => {
-      const todayIvs = rows.filter(
-        (r) => r.technicien_id === t.id && isSameDay(r.creneau_debut, today),
-      ).sort((a, b) => (a.creneau_debut ?? '').localeCompare(b.creneau_debut ?? ''));
-      const monthRealisees = rows.filter(
-        (r) => r.technicien_id === t.id
-          && ['realisee', 'rapport', 'cloturee'].includes(r.statut)
-          && isThisMonth(r.updated_at, today),
-      ).length;
-      const monthRapports = rows.filter(
-        (r) => r.technicien_id === t.id
-          && ['rapport', 'cloturee'].includes(r.statut)
-          && isThisMonth(r.updated_at, today),
-      ).length;
-      const slots: FreeSlot[] = (dashboard.freeSlotsByTech[t.id] ?? []).slice(0, 3);
-      const color = TECH_AVATAR_COLORS[idx % TECH_AVATAR_COLORS.length];
-      return { tech: t, todayIvs, monthRealisees, monthRapports, slots, color };
-    });
-  }, [techs, rows, dashboard.freeSlotsByTech, today]);
 
   // ── Nouvelles demandes mail (cron analyse auto) ────────────────────────
   const newMailIvs = useMemo(
@@ -114,16 +88,7 @@ export function Dashboard({
 
   return (
     <div className="space-y-5">
-      {creatingSlot && (
-        <CreateInterventionModal
-          slot={creatingSlot}
-          techs={techs}
-          onClose={() => setCreatingSlot(null)}
-          onCreated={() => router.refresh()}
-        />
-      )}
-
-      {/* ── Section 1 : Stats temps réel ─────────────────────────────────── */}
+      {/* ── 1. Stats temps réel ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
         <StatCard
           num={stats.nouvelles}
@@ -161,13 +126,14 @@ export function Dashboard({
         />
       </div>
 
+      {/* ── 2. Alertes prioritaires ──────────────────────────────────────── */}
       {stats.urgent > 0 && (
         <div className="px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold">
           ⚡ {stats.urgent} intervention(s) urgente(s) en attente de traitement
         </div>
       )}
 
-      {/* ── Nouvelles demandes mail (cron analyse auto) ─────────────────── */}
+      {/* ── 3. Nouvelles demandes mail (cron analyse auto) ───────────────── */}
       {newMailIvs.length > 0 && (
         <section>
           <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 dark:text-[#C8C2B8]">
@@ -209,119 +175,7 @@ export function Dashboard({
         </section>
       )}
 
-      {/* ── Section 2 : Par technicien ───────────────────────────────────── */}
-      <section>
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
-          Vue par technicien
-        </h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {techData.length === 0 && (
-            <div className="bg-cream border border-sand-border rounded-2xl p-4 text-[13px] text-ink-muted">
-              Aucun technicien encodé.
-            </div>
-          )}
-          {techData.map(({ tech, todayIvs, monthRealisees, monthRapports, slots, color }) => (
-            <div key={tech.id} className="bg-cream border border-sand-border rounded-2xl p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0"
-                  style={{ background: color.bg, color: '#fff' }}
-                >
-                  {initiales(tech.prenom, tech.nom)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-extrabold text-[14px] text-ink truncate">
-                    {[tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email}
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-ok">
-                    <span className="w-1.5 h-1.5 rounded-full bg-ok" />
-                    En ligne
-                  </div>
-                </div>
-                <Link
-                  href={`/admin?tech=${tech.id}`}
-                  className="text-[10px] text-navy underline hover:no-underline whitespace-nowrap"
-                >
-                  Filtrer →
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <MiniStat num={monthRealisees} label="Réalisées ce mois" />
-                <MiniStat num={monthRapports} label="Rapports ce mois" accent />
-              </div>
-
-              <div className="mb-3">
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5">
-                  Aujourd&apos;hui ({todayIvs.length})
-                </div>
-                {todayIvs.length === 0 ? (
-                  <div className="text-[12px] text-ink-muted bg-sand rounded-md px-2.5 py-2">
-                    Aucune intervention prévue.
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {todayIvs.map((iv) => (
-                      <button
-                        key={iv.id}
-                        type="button"
-                        onClick={() => onOpenIntervention(iv.id)}
-                        className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
-                      >
-                        <span className="font-mono font-bold text-navy text-[11px] dark:text-[#A8C4F2]">
-                          {fmtTime(iv.creneau_debut)}
-                        </span>
-                        <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
-                          {iv.acp?.nom ?? iv.particulier_contact?.nom ?? '—'}
-                        </span>
-                        <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">{iv.type ?? ''}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5">
-                  Prochains créneaux libres
-                </div>
-                {slots.length === 0 ? (
-                  <div className="text-[12px] text-ink-muted bg-sand rounded-md px-2.5 py-2">
-                    Aucun créneau libre.{' '}
-                    <Link href="/admin/planning?tab=manage" className="text-navy underline">
-                      Générer
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {slots.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setCreatingSlot({
-                          id: s.id,
-                          date: s.date,
-                          heure_debut: s.heure_debut,
-                          heure_fin: s.heure_fin,
-                          technicien_id: s.technicien_id,
-                        })}
-                        title="Cliquer pour planifier une intervention sur ce créneau"
-                        className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors hover:bg-ok-mid hover:border-[#E2C9A1] dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A] dark:hover:bg-[#2A8A5A] dark:hover:border-[#E2C9A1]"
-                      >
-                        {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
-                        {' · '}
-                        {s.heure_debut}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Section 3 : À faire aujourd'hui ──────────────────────────────── */}
+      {/* ── 4. À faire aujourd'hui ───────────────────────────────────────── */}
       <section>
         <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
           À faire aujourd&apos;hui
@@ -403,6 +257,166 @@ export function Dashboard({
         </div>
       </section>
     </div>
+  );
+}
+
+// ── 6. Vue par technicien (rendue tout en bas par InterventionsClient) ────
+export function DashboardTechs({
+  rows,
+  techs,
+  dashboard,
+  onOpenIntervention,
+}: {
+  rows: InterventionRow[];
+  techs: Utilisateur[];
+  dashboard: DashboardData;
+  onOpenIntervention: (id: string) => void;
+}) {
+  const today = useMemo(() => new Date(), []);
+  const router = useRouter();
+  const [creatingSlot, setCreatingSlot] = useState<SlotInfo | null>(null);
+
+  const techData = useMemo(() => {
+    return techs.map((t, idx) => {
+      const todayIvs = rows.filter(
+        (r) => r.technicien_id === t.id && isSameDay(r.creneau_debut, today),
+      ).sort((a, b) => (a.creneau_debut ?? '').localeCompare(b.creneau_debut ?? ''));
+      const monthRealisees = rows.filter(
+        (r) => r.technicien_id === t.id
+          && ['realisee', 'rapport', 'cloturee'].includes(r.statut)
+          && isThisMonth(r.updated_at, today),
+      ).length;
+      const monthRapports = rows.filter(
+        (r) => r.technicien_id === t.id
+          && ['rapport', 'cloturee'].includes(r.statut)
+          && isThisMonth(r.updated_at, today),
+      ).length;
+      const slots: FreeSlot[] = (dashboard.freeSlotsByTech[t.id] ?? []).slice(0, 3);
+      const color = TECH_AVATAR_COLORS[idx % TECH_AVATAR_COLORS.length];
+      return { tech: t, todayIvs, monthRealisees, monthRapports, slots, color };
+    });
+  }, [techs, rows, dashboard.freeSlotsByTech, today]);
+
+  return (
+    <section>
+      {creatingSlot && (
+        <CreateInterventionModal
+          slot={creatingSlot}
+          techs={techs}
+          onClose={() => setCreatingSlot(null)}
+          onCreated={() => router.refresh()}
+        />
+      )}
+
+      <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+        Vue par technicien
+      </h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {techData.length === 0 && (
+          <div className="bg-cream border border-sand-border rounded-2xl p-4 text-[13px] text-ink-muted">
+            Aucun technicien encodé.
+          </div>
+        )}
+        {techData.map(({ tech, todayIvs, monthRealisees, monthRapports, slots, color }) => (
+          <div key={tech.id} className="bg-cream border border-sand-border rounded-2xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0"
+                style={{ background: color.bg, color: '#fff' }}
+              >
+                {initiales(tech.prenom, tech.nom)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-extrabold text-[14px] text-ink truncate">
+                  {[tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email}
+                </div>
+                <div className="flex items-center gap-1.5 text-[10px] text-ok">
+                  <span className="w-1.5 h-1.5 rounded-full bg-ok" />
+                  En ligne
+                </div>
+              </div>
+              <Link
+                href={`/admin?tech=${tech.id}`}
+                className="text-[10px] text-navy underline hover:no-underline whitespace-nowrap"
+              >
+                Filtrer →
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <MiniStat num={monthRealisees} label="Réalisées ce mois" />
+              <MiniStat num={monthRapports} label="Rapports ce mois" accent />
+            </div>
+
+            <div className="mb-3">
+              <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5">
+                Aujourd&apos;hui ({todayIvs.length})
+              </div>
+              {todayIvs.length === 0 ? (
+                <div className="text-[12px] text-ink-muted bg-sand rounded-md px-2.5 py-2">
+                  Aucune intervention prévue.
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {todayIvs.map((iv) => (
+                    <button
+                      key={iv.id}
+                      type="button"
+                      onClick={() => onOpenIntervention(iv.id)}
+                      className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                    >
+                      <span className="font-mono font-bold text-navy text-[11px] dark:text-[#A8C4F2]">
+                        {fmtTime(iv.creneau_debut)}
+                      </span>
+                      <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                        {iv.acp?.nom ?? iv.particulier_contact?.nom ?? '—'}
+                      </span>
+                      <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">{iv.type ?? ''}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5">
+                Prochains créneaux libres
+              </div>
+              {slots.length === 0 ? (
+                <div className="text-[12px] text-ink-muted bg-sand rounded-md px-2.5 py-2">
+                  Aucun créneau libre.{' '}
+                  <Link href="/admin/planning?tab=manage" className="text-navy underline">
+                    Générer
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {slots.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setCreatingSlot({
+                        id: s.id,
+                        date: s.date,
+                        heure_debut: s.heure_debut,
+                        heure_fin: s.heure_fin,
+                        technicien_id: s.technicien_id,
+                      })}
+                      title="Cliquer pour planifier une intervention sur ce créneau"
+                      className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors hover:bg-ok-mid hover:border-[#E2C9A1] dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A] dark:hover:bg-[#2A8A5A] dark:hover:border-[#E2C9A1]"
+                    >
+                      {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
+                      {' · '}
+                      {s.heure_debut}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

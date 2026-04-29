@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { DashboardData } from './page';
-import { Dashboard } from './Dashboard';
+import { Dashboard, DashboardTechs } from './Dashboard';
 import {
   STATUT_INFO,
   STATUT_PIPELINE,
@@ -376,11 +376,10 @@ export function InterventionsClient({
         </div>
       )}
 
-      {/* Dashboard (sections 1 → 3) */}
+      {/* Dashboard sections 1-4 : Stats → Alertes → Mail → À faire aujourd'hui */}
       <div className="px-6 pt-4 flex-shrink-0">
         <Dashboard
           rows={rows}
-          techs={techs}
           dashboard={dashboard}
           onOpenIntervention={openDrawer}
           statutFilter={statutParam}
@@ -550,6 +549,16 @@ export function InterventionsClient({
           {filtered.length} intervention(s)
           {filtered.length !== rows.length ? ` sur ${rows.length}` : ''} · Cliquez une ligne pour ouvrir le détail
         </p>
+
+        {/* 6. Vue par technicien — tout en bas */}
+        <div className="mt-5">
+          <DashboardTechs
+            rows={rows}
+            techs={techs}
+            dashboard={dashboard}
+            onOpenIntervention={openDrawer}
+          />
+        </div>
       </div>
 
       {/* Drawer */}
