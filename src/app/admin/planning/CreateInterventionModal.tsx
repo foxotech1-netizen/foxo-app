@@ -103,6 +103,72 @@ export function CreateInterventionModal({
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 
+  // Pré-remplissage depuis /admin/mails — sessionStorage 'foxo_mail_prefill'
+  // (analyse Claude d'un email entrant). Ne tourne qu'une fois au mount.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let raw: string | null = null;
+    try { raw = sessionStorage.getItem('foxo_mail_prefill'); } catch { /* noop */ }
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw) as {
+        analysis?: {
+          nom_client?: string | null;
+          adresse?: string | null;
+          type_probleme?: string | null;
+          telephone?: string | null;
+          email?: string | null;
+          date_souhaitee?: string | null;
+          priorite?: 'urgente' | 'normale' | null;
+          resume?: string | null;
+        };
+      };
+      const a = data?.analysis;
+      if (!a) return;
+
+      // Bascule en mode particulier (les mails entrants sont rarement
+      // d'un syndic enregistré)
+      setDemandeurType('particulier');
+
+      if (a.nom_client) {
+        const parts = a.nom_client.trim().split(/\s+/);
+        if (parts.length >= 2) {
+          setPPrenom(parts[0]);
+          setPNom(parts.slice(1).join(' '));
+        } else {
+          setPNom(a.nom_client);
+        }
+      }
+      if (a.email) setPEmail(a.email);
+      if (a.telephone) setPTel(a.telephone);
+      if (a.adresse) {
+        // Heuristique légère : "Rue X 12, 1000 Bruxelles" → rue + cp + ville
+        const m = a.adresse.match(/^(.+?),?\s*(\d{4})\s+(.+?)$/);
+        if (m) {
+          setPRue(m[1].trim());
+          setPCp(m[2].trim());
+          setPVille(m[3].trim());
+        } else {
+          setPRue(a.adresse);
+        }
+      }
+      if (a.type_probleme) {
+        const allowed = ['Fuite canalisation', 'Fuite chauffage', 'Fuite infiltration', 'Surconsommation eau', 'Autre'] as const;
+        if ((allowed as readonly string[]).includes(a.type_probleme)) {
+          setType(a.type_probleme as typeof allowed[number]);
+        }
+      }
+      if (a.priorite === 'urgente') setPriorite('urgente');
+      if (a.resume) setDescription(a.resume);
+
+      // Cleanup pour éviter le re-prefill au prochain modal
+      try { sessionStorage.removeItem('foxo_mail_prefill'); } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Recherche ACP debounce
   useEffect(() => {
     if (selectedAcp || demandeurType !== 'syndic') return;

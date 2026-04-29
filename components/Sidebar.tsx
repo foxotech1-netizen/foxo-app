@@ -211,6 +211,19 @@ export default function Sidebar({
 
   const activeTech = searchParams.get('tech')
 
+  // Badge unread mails (Gmail) — fetch lazy une fois monté côté client
+  const [unreadMails, setUnreadMails] = useState<number>(0)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!cancelled && data?.ok) setUnreadMails(data.count ?? 0)
+      })
+      .catch(() => { /* ignoré (Google non connecté = silent) */ })
+    return () => { cancelled = true }
+  }, [])
+
   function handleTechClick(id: string) {
     if (activeTech === id) {
       router.push('/admin')
@@ -275,6 +288,9 @@ export default function Sidebar({
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
               </span>
+              {item.href === '/admin/mails' && unreadMails > 0 && (
+                <span style={S.badge}>{unreadMails}</span>
+              )}
             </Link>
           ))}
         </nav>

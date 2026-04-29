@@ -72,6 +72,22 @@ function extractText(p: RawPayload | undefined): string {
   return '';
 }
 
+function extractHtml(p: RawPayload | undefined): string {
+  if (!p) return '';
+  if (p.mimeType === 'text/html' && p.body?.data) {
+    return decodeB64Url(p.body.data);
+  }
+  if (p.parts && p.parts.length > 0) {
+    const html = p.parts.find((x) => x.mimeType === 'text/html' && x.body?.data);
+    if (html?.body?.data) return decodeB64Url(html.body.data);
+    for (const part of p.parts) {
+      const h = extractHtml(part);
+      if (h) return h;
+    }
+  }
+  return '';
+}
+
 function extractAttachments(p: RawPayload | undefined): { filename: string; mime_type: string; size: number }[] {
   if (!p) return [];
   const out: { filename: string; mime_type: string; size: number }[] = [];
@@ -157,6 +173,161 @@ export async function searchEmailsByDossier(args: {
 // Alias pour compatibilité avec les appelants existants
 export async function searchEmailsByIntervention(ref: string, adresse: string): Promise<GmailSearchResult> {
   return searchEmailsByDossier({ ref, adresse });
+}
+
+// ─── Mails inbox (page /admin/mails) ─────────────────────────────────────
+
+export interface MailListItem {
+  id: string;
+  thread_id: string;
+  from: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  unread: boolean;
+}
+
+export interface MailDetail extends MailListItem {
+  to: string;
+  body_text: string;
+  body_html: string;
+  attachments: { filename: string; mime_type: string; size: number }[];
+  label_ids: string[];
+}
+
+interface RawMessageWithLabels extends RawMessage {
+  labelIds?: string[];
+}
+
+// Liste les `limit` derniers mails de la boîte (in:inbox), avec metadata
+// suffisante pour l'affichage liste. Inclut le statut "non lu" via labelIds.
+export async function listInboxMails(args: { limit?: number; q?: string }): Promise<{
+  ok: true; mails: MailListItem[];
+} | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const limit = Math.max(1, Math.min(args.limit ?? 30, 100));
+  const baseQ = args.q?.trim() || 'in:inbox';
+  const url = `${API}/messages?q=${encodeURIComponent(baseQ)}&maxResults=${limit}`;
+  const listRes = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
+  if (!listRes.ok) {
+    return { ok: false, error: `Gmail HTTP ${listRes.status}` };
+  }
+  const listJson = (await listRes.json()) as { messages?: { id: string }[] };
+  const ids = (listJson.messages ?? []).map((m) => m.id);
+  if (ids.length === 0) return { ok: true, mails: [] };
+
+  // Fetch metadata en parallèle (Gmail API supporte ~10 req/s, on reste sage)
+  const fetched = await Promise.all(
+    ids.map(async (id) => {
+      const r = await fetch(`${API}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, {
+        headers: { Authorization: `Bearer ${auth.access_token}` },
+      });
+      if (!r.ok) return null;
+      const raw = (await r.json()) as RawMessageWithLabels;
+      const date = raw.internalDate ? new Date(parseInt(raw.internalDate, 10)).toISOString() : '';
+      const item: MailListItem = {
+        id: raw.id,
+        thread_id: raw.threadId,
+        from: header(raw.payload, 'From'),
+        subject: header(raw.payload, 'Subject') || '(sans objet)',
+        date,
+        snippet: raw.snippet ?? '',
+        unread: (raw.labelIds ?? []).includes('UNREAD'),
+      };
+      return item;
+    }),
+  );
+  const mails = fetched.filter((m): m is MailListItem => m !== null);
+  return { ok: true, mails };
+}
+
+export async function countUnreadMails(): Promise<number> {
+  const auth = await getValidAccessToken();
+  if (!auth) return 0;
+  const url = `${API}/messages?q=${encodeURIComponent('in:inbox is:unread')}&maxResults=1`;
+  try {
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
+    if (!r.ok) return 0;
+    const j = (await r.json()) as { resultSizeEstimate?: number };
+    return j.resultSizeEstimate ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+export async function getMailDetail(id: string): Promise<{ ok: true; mail: MailDetail } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const r = await fetch(`${API}/messages/${id}?format=full`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `Gmail HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  const raw = (await r.json()) as RawMessageWithLabels;
+  const date = raw.internalDate ? new Date(parseInt(raw.internalDate, 10)).toISOString() : '';
+  const labelIds = raw.labelIds ?? [];
+  const detail: MailDetail = {
+    id: raw.id,
+    thread_id: raw.threadId,
+    from: header(raw.payload, 'From'),
+    to: header(raw.payload, 'To'),
+    subject: header(raw.payload, 'Subject') || '(sans objet)',
+    date,
+    snippet: raw.snippet ?? '',
+    body_text: extractText(raw.payload),
+    body_html: extractHtml(raw.payload),
+    attachments: extractAttachments(raw.payload),
+    unread: labelIds.includes('UNREAD'),
+    label_ids: labelIds,
+  };
+  return { ok: true, mail: detail };
+}
+
+// Crée le label FOXO_TRAITE s'il n'existe pas, puis l'ajoute au mail
+// (et retire UNREAD pour décrocher la pastille). Idempotent.
+export async function markMailTraite(id: string): Promise<{ ok: true; label_id: string } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  // 1. Liste les labels existants
+  const labelsRes = await fetch(`${API}/labels`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!labelsRes.ok) return { ok: false, error: `Labels list HTTP ${labelsRes.status}` };
+  const labelsJson = (await labelsRes.json()) as { labels?: { id: string; name: string }[] };
+  let labelId = labelsJson.labels?.find((l) => l.name === 'FOXO_TRAITE')?.id;
+
+  // 2. Crée FOXO_TRAITE si absent
+  if (!labelId) {
+    const createRes = await fetch(`${API}/labels`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'FOXO_TRAITE',
+        labelListVisibility: 'labelShow',
+        messageListVisibility: 'show',
+      }),
+    });
+    if (!createRes.ok) return { ok: false, error: `Label create HTTP ${createRes.status}` };
+    const j = (await createRes.json()) as { id: string };
+    labelId = j.id;
+  }
+
+  // 3. Modify le mail : add FOXO_TRAITE, remove UNREAD
+  const modRes = await fetch(`${API}/messages/${id}/modify`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ addLabelIds: [labelId], removeLabelIds: ['UNREAD'] }),
+  });
+  if (!modRes.ok) {
+    const t = await modRes.text();
+    return { ok: false, error: `Modify HTTP ${modRes.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true, label_id: labelId };
 }
 
 export async function getEmailThread(threadId: string): Promise<GmailThreadResult> {

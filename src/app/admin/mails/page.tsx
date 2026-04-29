@@ -1,19 +1,39 @@
-import { ComingSoon } from '@/components/ComingSoon';
+import Link from 'next/link';
+import { loadTokens } from '@/lib/google-auth';
+import { MailsClient } from './MailsClient';
 
-export default function MailsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function MailsPage() {
+  // Vérifie côté serveur si Google est connecté pour afficher le bandeau
+  const tokens = await loadTokens();
+  const connected = Boolean(tokens?.access_token && tokens?.refresh_token);
+  const accountEmail = tokens?.email ?? null;
+
   return (
-    <ComingSoon
-      title="Mails"
-      subtitle="Centre de communication"
-      icon="✉"
-      description="Tableau de bord des emails entrants et sortants liés aux interventions FoxO. Lecture des demandes par mail, suggestions d'actions générées par Claude API."
-      features={[
-        'Inbox unifiée (info@foxo.be, contact@foxo.be)',
-        'Lecture & extraction automatique des demandes par Claude',
-        'Création d\'intervention en 1 clic depuis un email',
-        'Historique des mails envoyés (rapports, factures, confirmations occupants)',
-        'Templates Resend personnalisables',
-      ]}
-    />
+    <>
+      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+        <div>
+          <h1 className="text-xl font-extrabold text-ink">Mails</h1>
+          <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+            {connected ? <>Boîte connectée : <span className="font-mono">{accountEmail ?? 'compte Google'}</span></> : 'Boîte non connectée'}
+          </p>
+        </div>
+      </header>
+
+      {!connected && (
+        <div className="mx-6 mt-3 px-4 py-3 bg-amber-light border border-[#E8C896] rounded-lg text-[13px] text-[#8A5A1A] flex items-center justify-between gap-3 flex-shrink-0 dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+          <span>
+            ⚠ Connectez votre compte Google dans{' '}
+            <Link href="/admin/parametres" className="underline font-bold">Paramètres → Intégrations Google</Link>
+            {' '}pour afficher la boîte mail.
+          </span>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-hidden">
+        <MailsClient initialConnected={connected} />
+      </div>
+    </>
   );
 }
