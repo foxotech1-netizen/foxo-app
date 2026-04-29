@@ -64,7 +64,10 @@ export default async function TechLayout({
           </form>
         </div>
       </header>
-      <main className="flex-1 px-4 py-4 max-w-[640px] mx-auto w-full pb-20">
+      <main
+        className="flex-1 px-4 py-4 max-w-[640px] mx-auto w-full"
+        style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }}
+      >
         {children}
       </main>
       <PWARegister />

@@ -25,7 +25,10 @@ export default function RdvLayout({
         </div>
       </header>
 
-      <main className="flex-1 px-4 sm:px-6 py-6 max-w-[900px] mx-auto w-full">
+      <main
+        className="flex-1 px-4 sm:px-6 py-6 max-w-[900px] mx-auto w-full"
+        style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }}
+      >
         {children}
       </main>
 

@@ -733,13 +733,14 @@ export function FactureEditor({
         </div>
       )}
 
-      {/* Actions — sticky en bas, ancré au-dessus de la bottom nav mobile */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sticky bottom-[calc(72px+env(safe-area-inset-bottom,0px))] sm:bottom-0 bg-sand pt-3 pb-3 -mx-2 px-2 dark:bg-[#141210] z-10 border-t border-sand-border dark:border-[#2C2A24]">
+      {/* Actions — sticky en bas, ancré au-dessus de la bottom nav mobile.
+          pb-5 (20px) = padding interne + 8px supplémentaires pour respirer. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sticky bottom-[calc(72px+env(safe-area-inset-bottom,0px))] sm:bottom-0 bg-sand pt-3 pb-5 sm:pb-3 -mx-2 px-2 dark:bg-[#141210] z-10 border-t border-sand-border dark:border-[#2C2A24]">
         <button
           type="button"
           onClick={() => handleSave(false)}
           disabled={pending}
-          className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50"
+          className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50 min-h-[52px] sm:min-h-0"
         >
           {pending ? '…' : 'Enregistrer brouillon'}
         </button>
@@ -747,7 +748,7 @@ export function FactureEditor({
           type="button"
           onClick={() => handleSave(true)}
           disabled={pending}
-          className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50"
+          className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50 min-h-[52px] sm:min-h-0"
         >
           ✓ Émettre la facture
         </button>

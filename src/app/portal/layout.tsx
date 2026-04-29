@@ -58,7 +58,10 @@ export default async function PortalLayout({
           </div>
         </div>
 
-        <main className="flex-1 px-3 sm:px-6 py-5 max-w-[1100px] mx-auto w-full">
+        <main
+          className="flex-1 px-3 sm:px-6 py-5 max-w-[1100px] mx-auto w-full"
+          style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }}
+        >
           {children}
         </main>
       </div>

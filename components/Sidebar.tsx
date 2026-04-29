@@ -425,10 +425,12 @@ export default function Sidebar({
             font-family: inherit;
           }
           /* Espace pour le header fixe en haut (#E2C9A1 + logo + label)
-             et la bottom nav en bas */
+             et la bottom nav en bas. Marge confortable au-dessus de la
+             nav (90px = 64 nav + 26 padding) pour que les boutons d'action
+             ne soient jamais collés. */
           main {
-            padding-top: calc(70px + env(safe-area-inset-top, 0px)) !important;
-            padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+            padding-top: calc(80px + env(safe-area-inset-top, 0px)) !important;
+            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
           }
         }
 
