@@ -11,6 +11,9 @@ import type {
   Acp,
   Organisation,
   ParticulierContact,
+  ParticulierMandant,
+  ParticulierLieu,
+  ParticulierContactSurPlace,
   PrioriteIntervention,
   TypeIntervention,
 } from '@/lib/types/database';
@@ -172,14 +175,29 @@ export interface CreateFromSlotSyndic {
   acp_id: string;
   syndic_id: string;
   occupants: SlotOccupant[];
+  // Override facturation optionnel — par défaut l'adresse facturation
+  // est celle du syndic (table organisations.adresse).
+  billing_override?: { rue: string; cp: string; ville: string; bce?: string };
 }
 
 export interface CreateFromSlotParticulier {
   demandeur_type: 'particulier';
-  particulier: ParticulierContact & { acces_logement?: string };
+  // Nouvelle structure mandant / lieu / contact_sur_place. `particulier`
+  // (ancienne structure aplatie) reste pour compat et est dérivé du
+  // mandant + lieu côté server.
+  mandant: ParticulierMandant;
+  lieu: ParticulierLieu;
+  contact_sur_place: ParticulierContactSurPlace;
   // Unités additionnelles à inspecter chez un particulier (cave, communs,
   // appartement annexe, voisin impacté…)
   occupants?: SlotOccupant[];
+}
+
+export interface CreateFromSlotSyndicBilling {
+  // Override facturation : par défaut l'adresse facturation = syndic.
+  // Si custom_address est passé, c'est cette adresse qui sera utilisée.
+  custom_address?: { rue: string; cp: string; ville: string };
+  bce?: string;
 }
 
 export interface CreateInterventionFromSlotInput {
@@ -264,11 +282,40 @@ export async function createInterventionFromSlot(
       creneau_debut: creneauIso,
       adresse: input.adresse_precise?.trim() || null,
       demandeur_type: 'syndic',
+      ...(d.billing_override ? { billing_override: d.billing_override } : {}),
       date_demande: new Date().toISOString(),
     };
   } else {
     const d = input.demandeur;
-    if (!d.particulier?.email) return { ok: false, error: 'Email particulier requis.' };
+    if (!d.mandant?.email) return { ok: false, error: 'Email mandant requis.' };
+    if (!d.mandant?.prenom || !d.mandant?.nom) {
+      return { ok: false, error: 'Prénom + nom mandant requis.' };
+    }
+    if (!d.mandant.adresse_facturation?.rue) {
+      return { ok: false, error: 'Adresse de facturation requise.' };
+    }
+
+    // Adresse intervention : soit même que mandant, soit dérivée de `lieu`
+    const lieuRue = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.rue : d.lieu.rue;
+    const lieuCp = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.code_postal : d.lieu.cp;
+    const lieuVille = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.ville : d.lieu.ville;
+    if (!lieuRue || !lieuCp || !lieuVille) {
+      return { ok: false, error: 'Adresse d\'intervention complète requise.' };
+    }
+
+    // Construit particulier_contact avec champs aplatis (rétrocompat) +
+    // nouvelle structure complète (mandant / lieu / contact_sur_place)
+    const particulierContact: ParticulierContact = {
+      prenom: d.mandant.prenom,
+      nom: d.mandant.nom,
+      email: d.mandant.email,
+      telephone: d.mandant.tel,
+      adresse: { rue: lieuRue, code_postal: lieuCp, ville: lieuVille },
+      mandant: d.mandant,
+      lieu: { meme_que_mandant: d.lieu.meme_que_mandant, rue: lieuRue, cp: lieuCp, ville: lieuVille },
+      contact_sur_place: d.contact_sur_place,
+    };
+
     payload = {
       ref,
       acp_id: null,
@@ -279,10 +326,9 @@ export async function createInterventionFromSlot(
       priorite: input.priorite,
       statut: 'confirmee',
       creneau_debut: creneauIso,
-      adresse: [d.particulier.adresse?.rue, d.particulier.adresse?.code_postal, d.particulier.adresse?.ville]
-        .filter(Boolean).join(', ') || null,
+      adresse: `${lieuRue}, ${lieuCp} ${lieuVille}`,
       demandeur_type: 'particulier',
-      particulier_contact: d.particulier,
+      particulier_contact: particulierContact,
       date_demande: new Date().toISOString(),
     };
   }
@@ -341,8 +387,11 @@ export async function createInterventionFromSlot(
       const { data: acp } = await supabase.from('acps').select('adresse, code_postal, ville').eq('id', acpId).maybeSingle();
       if (acp) adresse = [acp.adresse, acp.code_postal, acp.ville].filter(Boolean).join(', ');
     } else if (input.demandeur.demandeur_type === 'particulier') {
-      const a = input.demandeur.particulier.adresse;
-      adresse = `${a.rue}, ${a.code_postal} ${a.ville}`;
+      const d = input.demandeur;
+      const rue = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.rue : d.lieu.rue;
+      const cp = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.code_postal : d.lieu.cp;
+      const ville = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.ville : d.lieu.ville;
+      adresse = `${rue}, ${cp} ${ville}`;
     }
     await createInterventionFolder({ ref, adresse, year: new Date().getFullYear() });
   } catch (e) {

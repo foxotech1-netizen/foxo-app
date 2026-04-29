@@ -434,7 +434,7 @@ export async function loadInterventionForFacture(interventionId: string): Promis
   const supabase = await createClient();
   const { data: iv, error } = await supabase
     .from('interventions')
-    .select('id, ref, syndic_id, acp_id, demandeur_type, particulier_contact, adresse, syndic:organisations(nom, email, bce, adresse, type), acp:acps(nom, adresse, code_postal, ville)')
+    .select('id, ref, syndic_id, acp_id, demandeur_type, particulier_contact, adresse, billing_override, syndic:organisations(nom, email, bce, adresse, type), acp:acps(nom, adresse, code_postal, ville)')
     .eq('id', interventionId)
     .maybeSingle();
   if (error || !iv) return { ok: false, error: 'Intervention introuvable.' };
@@ -443,8 +443,14 @@ export async function loadInterventionForFacture(interventionId: string): Promis
     id: string; ref: string | null; syndic_id: string | null;
     acp_id: string | null;
     demandeur_type: string | null;
-    particulier_contact: { prenom: string; nom: string; email: string; telephone: string; adresse: { rue: string; code_postal: string; ville: string } } | null;
+    particulier_contact: {
+      prenom: string; nom: string; email: string; telephone: string;
+      adresse: { rue: string; code_postal: string; ville: string };
+      mandant?: { prenom: string; nom: string; email: string; tel: string;
+                  adresse_facturation: { rue: string; code_postal: string; ville: string }; bce?: string };
+    } | null;
     adresse: string | null;
+    billing_override: { rue: string; cp: string; ville: string; bce?: string } | null;
     syndic: { nom: string | null; email: string | null; bce: string | null; adresse: string | null; type: string | null } | null;
     acp: { nom: string | null; adresse: string | null; code_postal: string | null; ville: string | null } | null;
   };
@@ -460,12 +466,28 @@ export async function loadInterventionForFacture(interventionId: string): Promis
     const c = t.particulier_contact;
     client_nom = `${c.prenom} ${c.nom}`.trim();
     client_email = c.email;
-    client_adresse = `${c.adresse.rue}, ${c.adresse.code_postal} ${c.adresse.ville}`;
+    // Préférer adresse de facturation du mandant si présente, sinon adresse
+    // intervention (rétrocompat).
+    if (c.mandant?.adresse_facturation) {
+      const a = c.mandant.adresse_facturation;
+      client_adresse = `${a.rue}, ${a.code_postal} ${a.ville}`;
+      if (c.mandant.bce) client_bce = c.mandant.bce;
+    } else {
+      client_adresse = `${c.adresse.rue}, ${c.adresse.code_postal} ${c.adresse.ville}`;
+    }
   } else if (t.syndic) {
     client_nom = t.syndic.nom;
     client_email = t.syndic.email;
-    client_adresse = t.syndic.adresse;
-    client_bce = t.syndic.bce;
+    // billing_override prioritaire, sinon adresse syndic
+    if (t.billing_override) {
+      const o = t.billing_override;
+      client_adresse = `${o.rue}, ${o.cp} ${o.ville}`;
+      if (o.bce) client_bce = o.bce;
+      else client_bce = t.syndic.bce;
+    } else {
+      client_adresse = t.syndic.adresse;
+      client_bce = t.syndic.bce;
+    }
     client_syndic = t.syndic.type === 'courtier' ? 'Courtier' : 'Syndic';
   }
 

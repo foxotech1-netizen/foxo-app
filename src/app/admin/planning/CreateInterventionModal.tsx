@@ -67,16 +67,36 @@ export function CreateInterventionModal({
     { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '', contact_preference: 'email' },
   ]);
 
-  // Particulier mode
+  // Particulier mode — Mandant
   const [pPrenom, setPPrenom] = useState('');
   const [pNom, setPNom] = useState('');
   const [pEmail, setPEmail] = useState('');
   const [pTel, setPTel] = useState('');
-  const [pRue, setPRue] = useState('');
+  const [pRue, setPRue] = useState('');     // adresse facturation
   const [pCp, setPCp] = useState('');
   const [pVille, setPVille] = useState('');
-  const [pAccesYes, setPAccesYes] = useState(true);
-  const [pAccesInstr, setPAccesInstr] = useState('');
+  const [pBce, setPBce] = useState('');
+
+  // Lieu intervention
+  const [pLieuMeme, setPLieuMeme] = useState(true);
+  const [pLieuRue, setPLieuRue] = useState('');
+  const [pLieuCp, setPLieuCp] = useState('');
+  const [pLieuVille, setPLieuVille] = useState('');
+
+  // Contact sur place
+  const [pContactActif, setPContactActif] = useState(false);
+  const [pContactPrenom, setPContactPrenom] = useState('');
+  const [pContactNom, setPContactNom] = useState('');
+  const [pContactTel, setPContactTel] = useState('');
+  const [pContactEmail, setPContactEmail] = useState('');
+  const [pContactInstr, setPContactInstr] = useState('');
+
+  // Syndic mode — billing override
+  const [billingOverride, setBillingOverride] = useState(false);
+  const [billingRue, setBillingRue] = useState('');
+  const [billingCp, setBillingCp] = useState('');
+  const [billingVille, setBillingVille] = useState('');
+  const [billingBce, setBillingBce] = useState('');
 
   const tech = techs.find((t) => t.id === slot.technicien_id);
   const dateLabel = new Date(slot.date + 'T12:00:00').toLocaleDateString('fr-BE', {
@@ -123,11 +143,26 @@ export function CreateInterventionModal({
     if (demandeurType === 'syndic') {
       if (!selectedAcp) return 'Sélectionne ou crée une ACP.';
       if (!selectedOrg) return 'Sélectionne un syndic.';
+      if (billingOverride) {
+        if (!billingRue.trim() || !billingCp.trim() || !billingVille.trim()) {
+          return 'Adresse de facturation custom complète requise.';
+        }
+      }
     } else {
-      if (!pPrenom.trim() || !pNom.trim()) return 'Prénom et nom requis.';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pEmail.trim())) return 'Email invalide.';
-      if (!pTel.trim()) return 'Téléphone requis.';
-      if (!pRue.trim() || !pCp.trim() || !pVille.trim()) return 'Adresse complète requise.';
+      if (!pPrenom.trim() || !pNom.trim()) return 'Prénom et nom mandant requis.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pEmail.trim())) return 'Email mandant invalide.';
+      if (!pTel.trim()) return 'Téléphone mandant requis.';
+      if (!pRue.trim() || !pCp.trim() || !pVille.trim()) return 'Adresse de facturation complète requise.';
+      if (!pLieuMeme && (!pLieuRue.trim() || !pLieuCp.trim() || !pLieuVille.trim())) {
+        return 'Adresse d\'intervention complète requise.';
+      }
+      if (pContactActif) {
+        if (!pContactPrenom.trim() || !pContactNom.trim()) return 'Prénom + nom du contact sur place requis.';
+        if (!pContactTel.trim()) return 'Téléphone du contact sur place requis.';
+        if (pContactEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pContactEmail.trim())) {
+          return 'Email du contact sur place invalide.';
+        }
+      }
     }
     return null;
   }
@@ -136,10 +171,6 @@ export function CreateInterventionModal({
     const err = validate();
     if (err) { setError(err); return; }
     setError(null);
-
-    const accesNote = pAccesYes
-      ? (pAccesInstr.trim() ? `Accès au logement OK. ${pAccesInstr.trim()}` : 'Accès au logement OK.')
-      : `Pas d'accès direct au logement. ${pAccesInstr.trim()}`.trim();
 
     startTransition(async () => {
       const res = await createInterventionFromSlot({
@@ -158,17 +189,48 @@ export function CreateInterventionModal({
                 occupants: occupants.filter(
                   (o) => o.appartement || o.nom || o.prenom || o.email || o.telephone,
                 ),
+                ...(billingOverride
+                  ? {
+                      billing_override: {
+                        rue: billingRue.trim(),
+                        cp: billingCp.trim(),
+                        ville: billingVille.trim(),
+                        ...(billingBce.trim() ? { bce: billingBce.trim() } : {}),
+                      },
+                    }
+                  : {}),
               }
             : {
                 demandeur_type: 'particulier',
-                particulier: {
+                mandant: {
                   prenom: pPrenom.trim(),
                   nom: pNom.trim(),
                   email: pEmail.trim().toLowerCase(),
-                  telephone: pTel.trim(),
-                  adresse: { rue: pRue.trim(), code_postal: pCp.trim(), ville: pVille.trim() },
-                  // accès rangé en commentaire dans description si non vide
-                  ...(accesNote ? {} : {}),
+                  tel: pTel.trim(),
+                  adresse_facturation: {
+                    rue: pRue.trim(),
+                    code_postal: pCp.trim(),
+                    ville: pVille.trim(),
+                  },
+                  ...(pBce.trim() ? { bce: pBce.trim() } : {}),
+                },
+                lieu: {
+                  meme_que_mandant: pLieuMeme,
+                  rue: pLieuMeme ? pRue.trim() : pLieuRue.trim(),
+                  cp: pLieuMeme ? pCp.trim() : pLieuCp.trim(),
+                  ville: pLieuMeme ? pVille.trim() : pLieuVille.trim(),
+                },
+                contact_sur_place: {
+                  actif: pContactActif,
+                  ...(pContactActif
+                    ? {
+                        prenom: pContactPrenom.trim(),
+                        nom: pContactNom.trim(),
+                        tel: pContactTel.trim(),
+                        ...(pContactEmail.trim() ? { email: pContactEmail.trim().toLowerCase() } : {}),
+                        ...(pContactInstr.trim() ? { instructions: pContactInstr.trim() } : {}),
+                      }
+                    : {}),
                 },
                 occupants: occupants.filter(
                   (o) => o.appartement || o.nom || o.prenom || o.email || o.telephone,
@@ -344,50 +406,191 @@ export function CreateInterventionModal({
               )}
             </Section>
 
+            {/* Adresses syndic — info + override facturation */}
+            {selectedAcp && selectedOrg && (
+              <Section title="Adresses">
+                <div className="bg-sand border border-sand-border rounded-lg p-3 mb-3 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                  <div className="flex items-start gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] w-[110px] flex-shrink-0 mt-0.5">
+                      Intervention
+                    </span>
+                    <span className="text-ink dark:text-[#F0ECE4]">
+                      {[selectedAcp.adresse, selectedAcp.code_postal, selectedAcp.ville].filter(Boolean).join(', ') || '—'}
+                      <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8] ml-1">(ACP)</span>
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2 mt-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] w-[110px] flex-shrink-0 mt-0.5">
+                      Facturation
+                    </span>
+                    <span className="text-ink dark:text-[#F0ECE4]">
+                      {billingOverride
+                        ? <span className="italic">Adresse custom (ci-dessous)</span>
+                        : (
+                          <>
+                            {selectedOrg.adresse || <em className="text-ink-muted dark:text-[#C8C2B8]">—</em>}
+                            <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8] ml-1">
+                              ({selectedOrg.nom})
+                            </span>
+                          </>
+                        )}
+                    </span>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-[12px] cursor-pointer mb-2 dark:text-[#F0ECE4]">
+                  <input
+                    type="checkbox"
+                    checked={billingOverride}
+                    onChange={(e) => setBillingOverride(e.target.checked)}
+                    className="accent-[#1B3A6B]"
+                  />
+                  Utiliser une adresse de facturation différente
+                </label>
+                {billingOverride && (
+                  <div className="space-y-2">
+                    <input
+                      value={billingRue}
+                      onChange={(e) => setBillingRue(e.target.value)}
+                      placeholder="Rue et numéro"
+                      className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        value={billingCp}
+                        onChange={(e) => setBillingCp(e.target.value)}
+                        placeholder="CP"
+                        className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                      />
+                      <input
+                        value={billingVille}
+                        onChange={(e) => setBillingVille(e.target.value)}
+                        placeholder="Ville"
+                        className="col-span-2 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                      />
+                    </div>
+                    <input
+                      value={billingBce}
+                      onChange={(e) => setBillingBce(e.target.value)}
+                      placeholder="BCE / TVA (optionnel)"
+                      className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white font-mono outline-none focus:border-navy-mid"
+                    />
+                  </div>
+                )}
+              </Section>
+            )}
+
           </>
         ) : (
           <>
-            <Section title="Particulier — coordonnées">
+            {/* Mandant (donneur d'ordre) */}
+            <Section title="Mandant (donneur d'ordre)">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Prénom *" value={pPrenom} onChange={setPPrenom} />
                 <Field label="Nom *" value={pNom} onChange={setPNom} />
                 <Field label="Email *" type="email" value={pEmail} onChange={setPEmail} />
                 <Field label="Téléphone *" type="tel" value={pTel} onChange={setPTel} />
               </div>
-            </Section>
-            <Section title="Adresse du logement">
-              <Field label="Rue et numéro *" value={pRue} onChange={setPRue} />
-              <div className="grid grid-cols-3 gap-2 mt-2">
-                <Field label="Code postal *" value={pCp} onChange={setPCp} />
-                <div className="col-span-2">
-                  <Field label="Ville *" value={pVille} onChange={setPVille} />
+              <div className="mt-3">
+                <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+                  Adresse de facturation *
+                </label>
+                <input
+                  value={pRue}
+                  onChange={(e) => setPRue(e.target.value)}
+                  placeholder="Rue et numéro"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+                />
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    value={pCp}
+                    onChange={(e) => setPCp(e.target.value)}
+                    placeholder="CP"
+                    className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                  />
+                  <input
+                    value={pVille}
+                    onChange={(e) => setPVille(e.target.value)}
+                    placeholder="Ville"
+                    className="col-span-2 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                  />
                 </div>
               </div>
-            </Section>
-            <Section title="Accès au logement">
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                {[true, false].map((v) => (
-                  <label
-                    key={String(v)}
-                    className={
-                      'px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-2 text-xs ' +
-                      (pAccesYes === v
-                        ? 'border-navy bg-navy-pale dark:bg-[#1B3A6B] dark:text-white'
-                        : 'border-sand-border bg-white dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]')
-                    }
-                  >
-                    <input type="radio" checked={pAccesYes === v} onChange={() => setPAccesYes(v)} className="accent-[#1B3A6B]" />
-                    {v ? '✓ Oui' : '✕ Non, à organiser'}
-                  </label>
-                ))}
+              <div className="mt-3">
+                <Field label="BCE / TVA (optionnel)" value={pBce} onChange={setPBce} placeholder="BE0123.456.789" />
               </div>
-              <textarea
-                value={pAccesInstr}
-                onChange={(e) => setPAccesInstr(e.target.value)}
-                placeholder="Instructions d'accès (digicode, gardien, horaire…)"
-                rows={2}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
-              />
+            </Section>
+
+            {/* Lieu intervention */}
+            <Section title="Lieu d'intervention">
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2 dark:text-[#F0ECE4]">
+                <input
+                  type="checkbox"
+                  checked={pLieuMeme}
+                  onChange={(e) => setPLieuMeme(e.target.checked)}
+                  className="accent-[#1B3A6B]"
+                />
+                Même adresse que le mandant
+              </label>
+              {!pLieuMeme && (
+                <div>
+                  <input
+                    value={pLieuRue}
+                    onChange={(e) => setPLieuRue(e.target.value)}
+                    placeholder="Rue et numéro de l'intervention"
+                    className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      value={pLieuCp}
+                      onChange={(e) => setPLieuCp(e.target.value)}
+                      placeholder="CP"
+                      className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    />
+                    <input
+                      value={pLieuVille}
+                      onChange={(e) => setPLieuVille(e.target.value)}
+                      placeholder="Ville"
+                      className="col-span-2 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    />
+                  </div>
+                </div>
+              )}
+            </Section>
+
+            {/* Contact sur place */}
+            <Section title="Contact sur place (optionnel)">
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2 dark:text-[#F0ECE4]">
+                <input
+                  type="checkbox"
+                  checked={pContactActif}
+                  onChange={(e) => setPContactActif(e.target.checked)}
+                  className="accent-[#1B3A6B]"
+                />
+                Contact différent du mandant
+              </label>
+              {pContactActif && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Field label="Prénom *" value={pContactPrenom} onChange={setPContactPrenom} />
+                    <Field label="Nom *" value={pContactNom} onChange={setPContactNom} />
+                  </div>
+                  <Field label="Téléphone *" type="tel" value={pContactTel} onChange={setPContactTel} placeholder="+32 ..." />
+                  <Field label="Email (optionnel)" type="email" value={pContactEmail} onChange={setPContactEmail} />
+                  <div>
+                    <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+                      Instructions d&apos;accès
+                    </label>
+                    <textarea
+                      value={pContactInstr}
+                      onChange={(e) => setPContactInstr(e.target.value)}
+                      placeholder="Digicode, gardien, créneau d'accès…"
+                      rows={2}
+                      className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                    />
+                  </div>
+                </div>
+              )}
             </Section>
           </>
         )}
