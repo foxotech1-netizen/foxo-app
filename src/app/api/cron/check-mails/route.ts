@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { runCheckMails } from '@/lib/cron/check-mails';
 
 export const dynamic = 'force-dynamic';
+// Plafond Vercel — sans ça, la fonction peut être tuée à 10s
+// (default Hobby plan) avant que les mails soient analysés.
+export const maxDuration = 60;
 
 function checkBearer(req: Request): boolean {
   const expected = process.env.CRON_SECRET;

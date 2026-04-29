@@ -24,6 +24,28 @@ import { nextRefForYear } from '@/lib/intervention-ref';
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
 
+// Limites runtime — calibrées pour rester sous maxDuration=60s côté
+// Vercel. 5 mails × (10s Gmail + 30s Claude + 5s écriture) ≈ 45s pire cas.
+const MAX_MAILS_PER_RUN = 5;
+const GMAIL_TIMEOUT_MS = 10_000;
+const CLAUDE_TIMEOUT_MS = 30_000;
+
+// Wrapper timeout Promise.race — sert pour les appels où on n'a pas
+// d'AbortController natif (ex: helpers Gmail qui n'exposent pas de
+// signal). Le fetch sous-jacent continue jusqu'à sa propre fin, mais
+// runCheckMails reprend la main au timeout.
+async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`Timeout ${ms}ms: ${label}`)), ms);
+  });
+  try {
+    return await Promise.race([p, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export interface CronMailAnalysis {
   est_demande_intervention: boolean;
   nom_client: string | null;
@@ -152,7 +174,8 @@ async function analyzeMailWithClaude(
     `Aucun champ inventé : si l'info n'est pas explicite, mets null.`,
   ].join('\n');
 
-  const client = new Anthropic({ apiKey });
+  // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
+  const client = new Anthropic({ apiKey, timeout: CLAUDE_TIMEOUT_MS });
   let raw: string;
   try {
     const msg = await client.messages.create({
@@ -321,6 +344,9 @@ async function alreadyConvertedMail(mailId: string): Promise<boolean> {
 }
 
 export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
+  const t0 = Date.now();
+  console.log('[check-mails] start', { dryRun });
+
   const result: CronMailResult = {
     processed: 0, created: 0, labeled_lu: 0, skipped: 0, errors: 0, items: [],
   };
@@ -334,18 +360,36 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
 
   // Filtre Gmail : non lus, pas déjà traités, pas déjà labelisés "lu non-demande"
   const q = 'in:inbox is:unread -label:FOXO_TRAITE -label:FOXO_LU';
-  const list = await listInboxMails({ limit: 30, q });
+  let list: Awaited<ReturnType<typeof listInboxMails>>;
+  try {
+    list = await withTimeout(
+      listInboxMails({ limit: MAX_MAILS_PER_RUN, q }),
+      GMAIL_TIMEOUT_MS,
+      'listInboxMails',
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erreur listInboxMails';
+    console.error('[check-mails] list timeout/error', msg);
+    result.errors++;
+    result.items.push({ mail_id: '', from: '', subject: '', action: 'error', error: msg });
+    return result;
+  }
   if (!list.ok) {
+    console.error('[check-mails] list ko', list.error);
     result.errors++;
     result.items.push({ mail_id: '', from: '', subject: '', action: 'error', error: list.error });
     return result;
   }
+  console.log('[check-mails] list', { count: list.mails.length });
   if (list.mails.length === 0) {
     if (!dryRun) await updateLastCheck();
+    console.log('[check-mails] done', { elapsed_ms: Date.now() - t0, ...result });
     return result;
   }
 
-  for (const m of list.mails) {
+  for (let i = 0; i < list.mails.length; i++) {
+    const m = list.mails[i];
+    console.log('[check-mails] mail', { idx: i + 1, total: list.mails.length, id: m.id, from: m.from });
     result.processed++;
     try {
       // Dédup côté DB : si on a déjà créé une intervention pour ce
@@ -356,7 +400,7 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
         continue;
       }
 
-      const detailRes = await getMailDetail(m.id);
+      const detailRes = await withTimeout(getMailDetail(m.id), GMAIL_TIMEOUT_MS, `getMailDetail:${m.id}`);
       if (!detailRes.ok) {
         result.errors++;
         result.items.push({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: detailRes.error });
@@ -364,6 +408,7 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
         continue;
       }
 
+      // analyzeMailWithClaude porte déjà son timeout SDK (CLAUDE_TIMEOUT_MS)
       const analyzeRes = await analyzeMailWithClaude(apiKey, {
         from: detailRes.mail.from,
         subject: detailRes.mail.subject,
@@ -403,7 +448,11 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
           await logMailEntry({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: createRes.error });
           continue;
         }
-        await addLabelToMail({ mailId: m.id, labelName: 'FOXO_TRAITE', removeUnread: true });
+        await withTimeout(
+          addLabelToMail({ mailId: m.id, labelName: 'FOXO_TRAITE', removeUnread: true }),
+          GMAIL_TIMEOUT_MS,
+          `addLabel:FOXO_TRAITE:${m.id}`,
+        );
         await logMailEntry({
           mail_id: m.id, from: m.from, subject: m.subject,
           action: 'created_intervention',
@@ -418,7 +467,11 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
           analysis,
         });
       } else {
-        await addLabelToMail({ mailId: m.id, labelName: 'FOXO_LU', removeUnread: true });
+        await withTimeout(
+          addLabelToMail({ mailId: m.id, labelName: 'FOXO_LU', removeUnread: true }),
+          GMAIL_TIMEOUT_MS,
+          `addLabel:FOXO_LU:${m.id}`,
+        );
         await logMailEntry({ mail_id: m.id, from: m.from, subject: m.subject, action: 'labeled_lu' });
         result.labeled_lu++;
         result.items.push({
@@ -430,11 +483,20 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
     } catch (e) {
       result.errors++;
       const msg = e instanceof Error ? e.message : 'Erreur inconnue';
+      console.error('[check-mails] mail error', { id: m.id, msg });
       result.items.push({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: msg });
       if (!dryRun) await logMailEntry({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: msg });
     }
   }
 
   if (!dryRun) await updateLastCheck();
+  console.log('[check-mails] done', {
+    elapsed_ms: Date.now() - t0,
+    processed: result.processed,
+    created: result.created,
+    labeled_lu: result.labeled_lu,
+    skipped: result.skipped,
+    errors: result.errors,
+  });
   return result;
 }

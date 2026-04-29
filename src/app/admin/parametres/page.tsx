@@ -3,6 +3,10 @@ import type { Parametre } from '@/lib/types/database';
 import { ParametresClient } from './ParametresClient';
 
 export const dynamic = 'force-dynamic';
+// Le bouton "Vérifier maintenant" appelle triggerCheckMailsNow qui
+// invoque runCheckMails — jusqu'à 5 mails × ~7s ≈ 35s. Le default
+// (10s sur Hobby) tuait l'action avant la fin.
+export const maxDuration = 60;
 
 export default async function ParametresPage() {
   const supabase = await createClient();
