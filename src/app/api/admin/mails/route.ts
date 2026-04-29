@@ -15,12 +15,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const limit = parseInt(url.searchParams.get('limit') ?? '30', 10) || 30;
   const filter = url.searchParams.get('filter');
-  // Filtre Gmail :
-  //   filter=unread → "in:inbox is:unread"
-  //   filter=traite → "in:inbox label:FOXO_TRAITE"
-  //   sinon défaut "in:inbox"
-  let q = 'in:inbox';
-  if (filter === 'unread') q = 'in:inbox is:unread';
+  const label = url.searchParams.get('label');
+  // Construit la query Gmail. Cumulable : filter + label.
+  const parts: string[] = ['in:inbox'];
+  if (filter === 'unread') parts.push('is:unread');
+  if (label) parts.push(`label:"${label.replace(/"/g, '')}"`);
+  const q = parts.join(' ');
 
   const res = await listInboxMails({ limit, q });
   if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: 502 });

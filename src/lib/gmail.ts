@@ -185,6 +185,16 @@ export interface MailListItem {
   date: string;
   snippet: string;
   unread: boolean;
+  label_ids: string[];
+}
+
+export interface GmailLabel {
+  id: string;
+  name: string;
+  type: 'system' | 'user';
+  messages_unread: number;
+  messages_total: number;
+  color: { text_color: string; background_color: string } | null;
 }
 
 export interface MailDetail extends MailListItem {
@@ -229,6 +239,7 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
       if (!r.ok) return null;
       const raw = (await r.json()) as RawMessageWithLabels;
       const date = raw.internalDate ? new Date(parseInt(raw.internalDate, 10)).toISOString() : '';
+      const labelIds = raw.labelIds ?? [];
       const item: MailListItem = {
         id: raw.id,
         thread_id: raw.threadId,
@@ -236,7 +247,8 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
         subject: header(raw.payload, 'Subject') || '(sans objet)',
         date,
         snippet: raw.snippet ?? '',
-        unread: (raw.labelIds ?? []).includes('UNREAD'),
+        unread: labelIds.includes('UNREAD'),
+        label_ids: labelIds,
       };
       return item;
     }),
@@ -398,6 +410,160 @@ export async function markMailTraite(id: string): Promise<{ ok: true; label_id: 
     return { ok: false, error: `Modify HTTP ${modRes.status} : ${t.slice(0, 200)}` };
   }
   return { ok: true, label_id: labelId };
+}
+
+// ─── Labels (page /admin/mails) ──────────────────────────────────────────
+
+interface RawGmailLabel {
+  id: string;
+  name: string;
+  type?: 'system' | 'user';
+  messagesTotal?: number;
+  messagesUnread?: number;
+  color?: { textColor?: string; backgroundColor?: string };
+}
+
+// Liste tous les labels Gmail. Retourne uniquement les labels utilisateur
+// (type=user) — exclut les labels système comme INBOX, UNREAD, IMPORTANT,
+// SENT, DRAFT, SPAM, TRASH, CHAT, STARRED, CATEGORY_*. FOXO_TRAITE et
+// FOXO_LU sont des labels utilisateur, donc inclus.
+//
+// Les compteurs messagesUnread ne sont pas renvoyés par labels.list — on
+// fait un labels.get par label en parallèle pour les obtenir.
+export async function listGmailLabels(): Promise<{ ok: true; labels: GmailLabel[] } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const listRes = await fetch(`${API}/labels`, {
+    headers: { Authorization: `Bearer ${auth.access_token}` },
+  });
+  if (!listRes.ok) {
+    const t = await listRes.text();
+    return { ok: false, error: `Labels list HTTP ${listRes.status} : ${t.slice(0, 200)}` };
+  }
+  const j = (await listRes.json()) as { labels?: RawGmailLabel[] };
+  const userLabels = (j.labels ?? []).filter((l) => l.type === 'user');
+
+  // Fetch détails (messagesUnread, color) en parallèle. Volume usuel < 30.
+  const detailed = await Promise.all(
+    userLabels.map(async (l): Promise<GmailLabel | null> => {
+      const r = await fetch(`${API}/labels/${l.id}`, {
+        headers: { Authorization: `Bearer ${auth.access_token}` },
+      });
+      if (!r.ok) return null;
+      const d = (await r.json()) as RawGmailLabel;
+      return {
+        id: d.id,
+        name: d.name,
+        type: d.type ?? 'user',
+        messages_unread: d.messagesUnread ?? 0,
+        messages_total: d.messagesTotal ?? 0,
+        color: d.color?.textColor && d.color?.backgroundColor
+          ? { text_color: d.color.textColor, background_color: d.color.backgroundColor }
+          : null,
+      };
+    }),
+  );
+  const labels = detailed.filter((x): x is GmailLabel => x !== null)
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  return { ok: true, labels };
+}
+
+// Crée un label utilisateur. Échoue si le nom existe déjà (409).
+export async function createGmailLabel(args: {
+  name: string;
+  textColor?: string;
+  backgroundColor?: string;
+}): Promise<{ ok: true; label: GmailLabel } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const body: Record<string, unknown> = {
+    name: args.name,
+    labelListVisibility: 'labelShow',
+    messageListVisibility: 'show',
+  };
+  if (args.textColor && args.backgroundColor) {
+    body.color = { textColor: args.textColor, backgroundColor: args.backgroundColor };
+  }
+
+  const r = await fetch(`${API}/labels`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `Create label HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  const d = (await r.json()) as RawGmailLabel;
+  const label: GmailLabel = {
+    id: d.id,
+    name: d.name,
+    type: d.type ?? 'user',
+    messages_unread: d.messagesUnread ?? 0,
+    messages_total: d.messagesTotal ?? 0,
+    color: d.color?.textColor && d.color?.backgroundColor
+      ? { text_color: d.color.textColor, background_color: d.color.backgroundColor }
+      : null,
+  };
+  return { ok: true, label };
+}
+
+// Modifie les labels d'un seul mail (add/remove). Les paramètres reçoivent
+// déjà des labelIds Gmail (system ou user) — résolution faite côté client
+// via la liste /labels.
+export async function modifyMailLabels(args: {
+  mailId: string;
+  addLabelIds?: string[];
+  removeLabelIds?: string[];
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const body: Record<string, string[]> = {};
+  if (args.addLabelIds && args.addLabelIds.length > 0) body.addLabelIds = args.addLabelIds;
+  if (args.removeLabelIds && args.removeLabelIds.length > 0) body.removeLabelIds = args.removeLabelIds;
+  if (!body.addLabelIds && !body.removeLabelIds) return { ok: true };
+
+  const r = await fetch(`${API}/messages/${args.mailId}/modify`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `Modify HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
+}
+
+// Modifie les labels en masse via batchModify (1 seule requête HTTP).
+// Gmail accepte jusqu'à 1000 ids par appel. On clamp à 500 par sécurité.
+export async function batchModifyMails(args: {
+  ids: string[];
+  addLabelIds?: string[];
+  removeLabelIds?: string[];
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  if (!args.ids || args.ids.length === 0) return { ok: true };
+
+  const ids = args.ids.slice(0, 500);
+  const body: Record<string, string[]> = { ids };
+  if (args.addLabelIds && args.addLabelIds.length > 0) body.addLabelIds = args.addLabelIds;
+  if (args.removeLabelIds && args.removeLabelIds.length > 0) body.removeLabelIds = args.removeLabelIds;
+
+  const r = await fetch(`${API}/messages/batchModify`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    return { ok: false, error: `BatchModify HTTP ${r.status} : ${t.slice(0, 200)}` };
+  }
+  return { ok: true };
 }
 
 export async function getEmailThread(threadId: string): Promise<GmailThreadResult> {
