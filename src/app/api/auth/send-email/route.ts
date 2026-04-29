@@ -177,24 +177,66 @@ export async function POST(request: Request) {
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
+    console.error('[send-email] RESEND_API_KEY missing');
     return NextResponse.json({ error: 'resend_not_configured' }, { status: 500 });
   }
 
-  const resend = new Resend(apiKey);
   const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
   const subject = SUBJECTS[email_data.email_action_type] ?? 'Code FoxO';
 
-  const { error } = await resend.emails.send({
+  // Logs ciblés — apparaissent dans Vercel runtime logs.
+  // On NE log PAS la clé Resend ni le token email (sensibles).
+  console.info('[send-email] sending', {
+    to: user.email,
     from,
-    to: [user.email],
-    subject,
-    html: buildHtml(email_data.token, email_data.email_action_type),
+    action: email_data.email_action_type,
+    has_api_key: Boolean(apiKey),
+    api_key_prefix: apiKey.slice(0, 6),    // "re_..." pour vérifier le scope
   });
 
-  if (error) {
-    console.error('[auth/send-email] Resend error:', error);
-    return NextResponse.json({ error: 'send_failed' }, { status: 502 });
+  const resend = new Resend(apiKey);
+  let result: Awaited<ReturnType<typeof resend.emails.send>>;
+  try {
+    result = await resend.emails.send({
+      from,
+      to: [user.email],
+      subject,
+      html: buildHtml(email_data.token, email_data.email_action_type),
+    });
+  } catch (e) {
+    // Exception SDK (réseau, parsing, etc.) — distincte d'une error API
+    console.error('[send-email] resend.emails.send threw', e);
+    return NextResponse.json(
+      {
+        error: 'send_threw',
+        detail: e instanceof Error ? e.message : String(e),
+      },
+      { status: 502 },
+    );
   }
 
-  return NextResponse.json({ ok: true });
+  const { data, error } = result;
+  if (error) {
+    // L'erreur Resend a name + message + (parfois) statusCode. On les
+    // remonte tels quels pour faciliter le diagnostic dans Supabase /
+    // Vercel logs.
+    console.error('[send-email] Resend error', {
+      name: error.name,
+      message: error.message,
+      from,
+      to: user.email,
+    });
+    return NextResponse.json(
+      {
+        error: 'send_failed',
+        resend_error_name: error.name,
+        resend_error_message: error.message,
+        from,
+      },
+      { status: 502 },
+    );
+  }
+
+  console.info('[send-email] sent', { id: data?.id, to: user.email, action: email_data.email_action_type });
+  return NextResponse.json({ ok: true, id: data?.id ?? null });
 }
