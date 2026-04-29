@@ -4,8 +4,10 @@ import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
+import { RowMenu } from '@/components/RowMenu';
 import {
   setFactureStatut,
+  deleteFacture,
   importBeobankCsv,
   buildComptableCsvForRange,
   sendComptableEmail,
@@ -135,6 +137,27 @@ export function FacturationListClient({ initialFactures }: { initialFactures: Fa
       const res = await setFactureStatut(id, 'payee');
       if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
       else router.refresh();
+    });
+  }
+
+  function markEnvoyee(id: string) {
+    startTransition(async () => {
+      const res = await setFactureStatut(id, 'envoyee');
+      if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
+      else { setFeedback({ kind: 'ok', msg: 'Facture marquée envoyée.' }); router.refresh(); }
+    });
+  }
+
+  function handleDelete(f: Facture) {
+    const isDraft = f.statut === 'brouillon';
+    const confirmMsg = isDraft
+      ? `Supprimer définitivement le brouillon ${f.numero} ?`
+      : `Annuler la facture ${f.numero} ? (elle sera marquée "annulée", pas supprimée)`;
+    if (!confirm(confirmMsg)) return;
+    startTransition(async () => {
+      const res = await deleteFacture(f.id);
+      if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
+      else { setFeedback({ kind: 'ok', msg: isDraft ? 'Brouillon supprimé.' : 'Facture annulée.' }); router.refresh(); }
     });
   }
 
@@ -271,26 +294,30 @@ export function FacturationListClient({ initialFactures }: { initialFactures: Fa
                       <StatutBadge statut={f.statut} />
                     </td>
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <div className="flex gap-1.5">
-                        <a
-                          href={`/api/admin/facture/${f.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] text-navy underline hover:no-underline dark:text-[#A8C4F2]"
-                        >
-                          PDF
-                        </a>
-                        {f.statut !== 'payee' && f.statut !== 'annulee' && (
-                          <button
-                            type="button"
-                            onClick={() => markPaid(f.id)}
-                            disabled={pending}
-                            className="text-[10px] text-ok underline hover:no-underline disabled:opacity-50 dark:text-[#7AC9A0]"
-                          >
-                            Payée
-                          </button>
-                        )}
-                      </div>
+                      <RowMenu
+                        items={[
+                          { icon: '✏️', label: 'Modifier', href: `/admin/facturation/${f.id}` },
+                          { icon: '📄', label: 'Voir le PDF', href: `/api/admin/facture/${f.id}` },
+                          {
+                            icon: '✉️',
+                            label: 'Marquer envoyée',
+                            onClick: () => markEnvoyee(f.id),
+                            hidden: f.statut !== 'brouillon',
+                          },
+                          {
+                            icon: '✅',
+                            label: 'Marquer payée',
+                            onClick: () => markPaid(f.id),
+                            hidden: f.statut === 'payee' || f.statut === 'annulee',
+                          },
+                          {
+                            icon: '🗑️',
+                            label: f.statut === 'brouillon' ? 'Supprimer' : 'Annuler la facture',
+                            onClick: () => handleDelete(f),
+                            destructive: true,
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))

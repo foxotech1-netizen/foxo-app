@@ -1,8 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { TYPE_CLIENT_LABEL, type Client, type TypeClient } from '@/lib/types/database';
+import { RowMenu } from '@/components/RowMenu';
+import { deleteClient } from '../facturation/actions';
 
 const TYPE_FILTERS: ('tous' | TypeClient)[] = ['tous', 'acp', 'particulier', 'entreprise'];
 const TYPE_COLORS: Record<TypeClient, string> = {
@@ -12,7 +15,18 @@ const TYPE_COLORS: Record<TypeClient, string> = {
 };
 
 export function ClientsListClient({ initial }: { initial: Client[] }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState('');
+
+  function handleDelete(c: Client) {
+    if (!confirm(`Désactiver ${c.nom} ? (les factures liées sont conservées)`)) return;
+    startTransition(async () => {
+      const res = await deleteClient(c.id);
+      if (!res.ok) alert(res.error);
+      else router.refresh();
+    });
+  }
   const [filter, setFilter] = useState<typeof TYPE_FILTERS[number]>('tous');
 
   const filtered = useMemo(() => {
@@ -60,7 +74,7 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
           <table className="w-full border-collapse min-w-[760px]">
             <thead>
               <tr className="bg-sand dark:bg-[#221E1A]">
-                {['Nom', 'Type', 'Ville', 'Email', 'Téléphone', 'BCE'].map((h) => (
+                {['Nom', 'Type', 'Ville', 'Email', 'Téléphone', 'BCE', ''].map((h) => (
                   <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
                     {h}
                   </th>
@@ -70,7 +84,7 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
+                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
                     Aucun client.
                   </td>
                 </tr>
@@ -103,6 +117,20 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
                   </td>
                   <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid dark:text-[#C8C2B8]">
                     {c.bce ?? '—'}
+                  </td>
+                  <td className="px-3.5 py-2.5 whitespace-nowrap">
+                    <RowMenu
+                      items={[
+                        { icon: '✏️', label: 'Modifier', href: `/admin/clients/${c.id}` },
+                        {
+                          icon: '🗑️',
+                          label: 'Désactiver',
+                          destructive: true,
+                          disabled: pending,
+                          onClick: () => handleDelete(c),
+                        },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

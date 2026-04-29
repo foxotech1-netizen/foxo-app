@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Article } from '@/lib/types/database';
 import { saveArticle, deleteArticle, type ArticleInput } from '../facturation/actions';
+import { RowMenu } from '@/components/RowMenu';
 
 function fmtMoney(n: number): string {
   return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -103,23 +104,18 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                       </span>
                     </td>
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setEditing(a)}
-                          className="text-[10px] text-navy underline hover:no-underline dark:text-[#A8C4F2]"
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(a.id)}
-                          disabled={pending}
-                          className="text-[10px] text-terra underline hover:no-underline disabled:opacity-50"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
+                      <RowMenu
+                        items={[
+                          { icon: '✏️', label: 'Modifier', onClick: () => setEditing(a) },
+                          {
+                            icon: '🗑️',
+                            label: 'Supprimer',
+                            destructive: true,
+                            disabled: pending,
+                            onClick: () => handleDelete(a.id),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );

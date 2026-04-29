@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
+import { FactureActions } from './FactureActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,17 +37,10 @@ export default async function EditFacturePage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <a
-            href={`/api/admin/facture/${facture.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90"
-          >
-            📄 Voir le PDF
-          </a>
+          <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"
-            className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]"
+            className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8] min-h-[44px] inline-flex items-center"
           >
             ← Retour
           </Link>
