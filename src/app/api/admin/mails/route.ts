@@ -22,7 +22,13 @@ export async function GET(request: Request) {
   let q = 'in:inbox';
   if (filter === 'unread') q = 'in:inbox is:unread';
 
+  console.error('[mails-debug] GET /api/admin/mails', { limit, filter, q, user_email: user.email });
+
   const res = await listInboxMails({ limit, q });
-  if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: 502 });
+  if (!res.ok) {
+    console.error('[mails-debug] listInboxMails FAILED:', res.error);
+    return NextResponse.json({ ok: false, error: res.error }, { status: 502 });
+  }
+  console.error('[mails-debug] listInboxMails OK:', { count: res.mails.length, sample: res.mails.slice(0, 2).map((m) => ({ id: m.id, from: m.from, subject: m.subject })) });
   return NextResponse.json({ ok: true, mails: res.mails });
 }
