@@ -10,6 +10,22 @@ import {
   testGoogleCalendar,
   testGmail,
 } from '../google/actions';
+import { triggerCheckMailsNow, getMailLastCheck } from './actions';
+
+function formatRelative(iso: string | null | undefined): string {
+  if (!iso) return 'jamais';
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return 'jamais';
+  const diffMs = Date.now() - t;
+  if (diffMs < 0) return 'à l’instant';
+  const min = Math.floor(diffMs / 60_000);
+  if (min < 1) return 'à l’instant';
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const d = Math.floor(h / 24);
+  return `il y a ${d} j`;
+}
 
 const SMS_TEMPLATE_DEFAULTS: Record<string, string> = {
   sms_template_confirmation:
@@ -38,6 +54,8 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [smsAutoConf, setSmsAutoConf] = useState(initial.sms_auto_confirmation === 'true');
   const [smsAutoRappel, setSmsAutoRappel] = useState(initial.sms_auto_rappel_24h === 'true');
   const [mailAutoAnalyse, setMailAutoAnalyse] = useState(initial.mail_auto_analyse === 'true');
+  const [mailLastCheck, setMailLastCheck] = useState<string | null>(initial.mail_last_check || null);
+  const [mailCheckResult, setMailCheckResult] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [smsAutoRapport, setSmsAutoRapport] = useState(initial.sms_auto_rapport === 'true');
   const [twilioSid, setTwilioSid] = useState(initial.twilio_account_sid ?? '');
   const [twilioToken, setTwilioToken] = useState(initial.twilio_auth_token ?? '');
@@ -562,6 +580,48 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             </code>
           </div>
         )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setMailCheckResult(null);
+              startTransition(async () => {
+                const res = await triggerCheckMailsNow();
+                if (!res.ok) {
+                  setMailCheckResult({ kind: 'err', msg: res.error });
+                  return;
+                }
+                const d = res.data!;
+                setMailCheckResult({
+                  kind: 'ok',
+                  msg: `Vérification OK — ${d.created} créé(s), ${d.labeled_lu} non-demande(s), ${d.skipped} ignoré(s), ${d.errors} erreur(s).`,
+                });
+                const r = await getMailLastCheck();
+                if (r.ok) setMailLastCheck(r.data?.value ?? null);
+              });
+            }}
+            disabled={pending}
+            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+          >
+            {pending ? 'Vérification…' : 'Vérifier maintenant'}
+          </button>
+          <span className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+            Dernière vérification : <strong>{formatRelative(mailLastCheck)}</strong>
+          </span>
+        </div>
+
+        {mailCheckResult && (
+          <div className={
+            'mt-2 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+            (mailCheckResult.kind === 'ok'
+              ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+              : 'bg-terra-light border-terra-mid text-terra')
+          }>
+            {mailCheckResult.msg}
+          </div>
+        )}
+
         <p className="text-[11px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
           Mails labelisés <code>FOXO_TRAITE</code> (demande convertie) ou <code>FOXO_LU</code> (pas une demande) après passage. Aucun mail n&apos;est traité deux fois.
         </p>

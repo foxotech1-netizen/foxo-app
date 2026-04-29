@@ -10,7 +10,7 @@ function checkBearer(req: Request): boolean {
   return (req.headers.get('authorization') ?? '') === `Bearer ${expected}`;
 }
 
-export async function GET(request: Request) {
+async function handle(request: Request): Promise<Response> {
   if (!checkBearer(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -37,3 +37,7 @@ export async function GET(request: Request) {
   const result = await runCheckMails(false);
   return NextResponse.json({ ok: true, ...result });
 }
+
+// Vercel cron pousse en GET ; le bouton "Vérifier maintenant" pousse en POST.
+export async function GET(request: Request) { return handle(request); }
+export async function POST(request: Request) { return handle(request); }

@@ -33,6 +33,7 @@ export interface CronMailAnalysis {
   email: string | null;
   priorite: 'normale' | 'urgente' | null;
   resume: string | null;
+  langue: 'fr' | 'nl' | 'en' | null;
 }
 
 export interface CronMailResultItem {
@@ -145,7 +146,8 @@ async function analyzeMailWithClaude(
     `  "telephone": "+32..." | null,`,
     `  "email": "email du demandeur" | null,`,
     `  "priorite": "urgente | normale" | null,`,
-    `  "resume": "1-2 phrases décrivant le problème" | null`,
+    `  "resume": "1-2 phrases décrivant le problème" | null,`,
+    `  "langue": "fr | nl | en" | null`,
     `}`,
     `Aucun champ inventé : si l'info n'est pas explicite, mets null.`,
   ].join('\n');
@@ -176,6 +178,7 @@ async function analyzeMailWithClaude(
     email: typeof parsed.email === 'string' ? parsed.email : null,
     priorite: parsed.priorite === 'urgente' || parsed.priorite === 'normale' ? parsed.priorite : null,
     resume: typeof parsed.resume === 'string' ? parsed.resume : null,
+    langue: parsed.langue === 'fr' || parsed.langue === 'nl' || parsed.langue === 'en' ? parsed.langue : null,
   };
   return { ok: true, analysis };
 }
@@ -200,7 +203,12 @@ async function createInterventionFromMail(
     ? [adr.rue, adr.cp, adr.ville].filter(Boolean).join(', ')
     : null;
 
+  const nomComplet = (analysis.nom_client ?? `${prenom} ${nom}`.trim()) || '';
+  const adresseIntervention = adresseFormatee ?? '';
+
   const particulierContact = {
+    nom_complet: nomComplet,
+    adresse_intervention: adresseIntervention,
     prenom,
     nom: nom || (analysis.nom_client ?? ''),
     email: emailAddr,
@@ -220,6 +228,7 @@ async function createInterventionFromMail(
       ville: adr.ville,
     },
     contact_sur_place: { actif: false },
+    langue: analysis.langue,
   };
 
   const { data: iv, error } = await admin
@@ -235,6 +244,7 @@ async function createInterventionFromMail(
       demandeur_type: 'particulier',
       particulier_contact: particulierContact,
       source: 'mail',
+      source_mail_id: mail.id,
     })
     .select('id, ref')
     .single();
@@ -281,6 +291,35 @@ async function logMailEntry(args: {
   } catch { /* noop */ }
 }
 
+async function updateLastCheck(): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    await admin
+      .from('parametres')
+      .upsert(
+        { cle: 'mail_last_check', valeur: new Date().toISOString(), updated_at: new Date().toISOString() },
+        { onConflict: 'cle' },
+      );
+  } catch (e) {
+    console.warn('[check-mails] mail_last_check update failed:', e);
+  }
+}
+
+async function alreadyConvertedMail(mailId: string): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from('interventions')
+      .select('id')
+      .eq('source_mail_id', mailId)
+      .limit(1)
+      .maybeSingle();
+    return Boolean(data);
+  } catch {
+    return false;
+  }
+}
+
 export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
   const result: CronMailResult = {
     processed: 0, created: 0, labeled_lu: 0, skipped: 0, errors: 0, items: [],
@@ -301,11 +340,22 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
     result.items.push({ mail_id: '', from: '', subject: '', action: 'error', error: list.error });
     return result;
   }
-  if (list.mails.length === 0) return result;
+  if (list.mails.length === 0) {
+    if (!dryRun) await updateLastCheck();
+    return result;
+  }
 
   for (const m of list.mails) {
     result.processed++;
     try {
+      // Dédup côté DB : si on a déjà créé une intervention pour ce
+      // mail_id (label Gmail perdu, p. ex.), on ne refait pas le boulot.
+      if (await alreadyConvertedMail(m.id)) {
+        result.skipped++;
+        result.items.push({ mail_id: m.id, from: m.from, subject: m.subject, action: 'skipped' });
+        continue;
+      }
+
       const detailRes = await getMailDetail(m.id);
       if (!detailRes.ok) {
         result.errors++;
@@ -385,5 +435,6 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
     }
   }
 
+  if (!dryRun) await updateLastCheck();
   return result;
 }
