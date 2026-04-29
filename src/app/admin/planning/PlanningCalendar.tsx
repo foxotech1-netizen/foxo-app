@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
 import { CreateInterventionModal } from './CreateInterventionModal';
 import { ReservedSlotModal } from './ReservedSlotModal';
 import { BlockedSlotModal } from './BlockedSlotModal';
+import { ImportCalendarEventModal, type CalendarEventLite } from './ImportCalendarEventModal';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -28,6 +29,7 @@ export function PlanningCalendar({
   month,
   techs,
   creneaux,
+  googleConnected,
   prevHref,
   nextHref,
 }: {
@@ -35,12 +37,19 @@ export function PlanningCalendar({
   month: number;
   techs: Utilisateur[];
   creneaux: Creneau[];
+  googleConnected: boolean;
   prevHref: string;
   nextHref: string;
 }) {
   const router = useRouter();
   const [techFilter, setTechFilter] = useState<string>('all');
   const [openModal, setOpenModal] = useState<{ kind: 'free' | 'reserved' | 'blocked'; slot: Creneau } | null>(null);
+
+  // Google Calendar events
+  const [showGoogle, setShowGoogle] = useState<boolean>(googleConnected);
+  const [gcalEvents, setGcalEvents] = useState<CalendarEventLite[]>([]);
+  const [gcalLoading, setGcalLoading] = useState(false);
+  const [importEvent, setImportEvent] = useState<CalendarEventLite | null>(null);
 
   function refresh() { router.refresh(); }
 
@@ -77,6 +86,47 @@ export function PlanningCalendar({
     }
     return m;
   }, [filtered]);
+
+  // Fetch Google Calendar events pour le mois affiché. Re-fetch à chaque
+  // changement de mois ou quand le toggle passe de off→on. Ignore les
+  // erreurs côté UI (route renvoie events:[] si Google non connecté).
+  useEffect(() => {
+    if (!googleConnected || !showGoogle) {
+      setGcalEvents([]);
+      return;
+    }
+    let mounted = true;
+    setGcalLoading(true);
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const url = `/api/google/calendar-events?from=${from}&to=${to}&t=${Date.now()}`;
+    fetch(url, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        if (data.ok) setGcalEvents(data.events ?? []);
+      })
+      .catch(() => { /* noop */ })
+      .finally(() => { if (mounted) setGcalLoading(false); });
+    return () => { mounted = false; };
+  }, [googleConnected, showGoogle, year, month]);
+
+  // Bucket des events Google par date YYYY-MM-DD (date locale, pas UTC).
+  const gcalByDate = useMemo(() => {
+    const m = new Map<string, CalendarEventLite[]>();
+    for (const e of gcalEvents) {
+      if (!e.start) continue;
+      const d = new Date(e.start);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!m.has(iso)) m.set(iso, []);
+      m.get(iso)!.push(e);
+    }
+    for (const arr of m.values()) {
+      arr.sort((a, b) => a.start.localeCompare(b.start));
+    }
+    return m;
+  }, [gcalEvents]);
 
   // Calendar grid
   const cells = useMemo(() => buildGrid(year, month, byDate), [year, month, byDate]);
@@ -138,11 +188,37 @@ export function PlanningCalendar({
         {MONTHS[month]} {year} · {counts.libre} libre · {counts.reserve} réservé · {counts.bloque} bloqué
       </div>
 
-      {/* Légende statuts */}
-      <div className="flex flex-wrap gap-3 mb-3">
-        <Legend swatch="bg-ok-light border-ok-mid" label="Libre" />
-        <Legend swatch="bg-navy-light border-navy-mid" label="Réservé" />
-        <Legend swatch="bg-sand-mid border-sand-border" label="Bloqué" />
+      {/* Toggle Google Calendar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex flex-wrap gap-3">
+          <Legend swatch="bg-ok-light border-ok-mid" label="Libre" />
+          <Legend swatch="bg-navy-light border-navy-mid" label="Réservé" />
+          <Legend swatch="bg-sand-mid border-sand-border" label="Bloqué" />
+          {googleConnected && showGoogle && (
+            <>
+              <Legend swatch="bg-[#EEF2FF] border-[#C7D2FE]" label="📅 Google" />
+              <Legend swatch="bg-[#F5F3FF] border-[#DDD6FE]" label="✅ FoxO (importé)" />
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {googleConnected ? (
+            <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer dark:text-[#C8C2B8]">
+              <input
+                type="checkbox"
+                checked={showGoogle}
+                onChange={(e) => setShowGoogle(e.target.checked)}
+                className="accent-[#4F46E5]"
+              />
+              <span>📅 Afficher Google Calendar{gcalLoading ? ' …' : gcalEvents.length > 0 ? ` (${gcalEvents.length})` : ''}</span>
+            </label>
+          ) : (
+            <span className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+              📅 Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Modaux */}
@@ -187,6 +263,27 @@ export function PlanningCalendar({
           onChanged={refresh}
         />
       )}
+      {importEvent && (
+        <ImportCalendarEventModal
+          event={importEvent}
+          techs={techs}
+          onClose={() => setImportEvent(null)}
+          onImported={(_id, ref) => {
+            // Marque l'event comme importé localement (pas besoin de refetch)
+            setGcalEvents((arr) => arr.map((e) =>
+              e.id === importEvent.id ? { ...e, is_foxo_event: true } : e,
+            ));
+            setImportEvent(null);
+            // Refresh la page server-side pour voir l'intervention créée
+            // dans le pipeline / liste interventions.
+            router.refresh();
+            // Feedback léger via window pour éviter de mettre du toast UI ici
+            if (typeof window !== 'undefined') {
+              console.info(`[planning] Intervention ${ref} créée depuis Calendar`);
+            }
+          }}
+        />
+      )}
 
       {/* Calendar */}
       <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
@@ -215,6 +312,33 @@ export function PlanningCalendar({
                 </div>
               )}
               <div className="space-y-1">
+                {/* Google Calendar events (rendus AVANT les créneaux pour
+                    qu'ils flottent en haut visuellement) */}
+                {showGoogle && c.inMonth && (gcalByDate.get(c.iso) ?? []).map((ev) => {
+                  const time = ev.all_day
+                    ? 'Journée'
+                    : new Date(ev.start).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+                  const tooltip = [ev.title, time, ev.location].filter(Boolean).join(' · ');
+                  return (
+                    <button
+                      key={`g-${ev.id}`}
+                      type="button"
+                      onClick={() => setImportEvent(ev)}
+                      className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer flex items-center gap-1"
+                      title={tooltip}
+                      style={ev.is_foxo_event
+                        ? { background: '#F5F3FF', color: '#7C3AED', borderLeft: '3px solid #A78BFA' }
+                        : { background: '#EEF2FF', color: '#4338CA', borderLeft: '3px solid #6366F1' }
+                      }
+                    >
+                      <span className="text-[8px] flex-shrink-0">{ev.is_foxo_event ? '✅' : '📅'}</span>
+                      <span className="truncate flex-1">
+                        {time === 'Journée' ? ev.title : `${time} ${ev.title}`}
+                      </span>
+                    </button>
+                  );
+                })}
+
                 {c.items.map((cr) => {
                   const techColor = cr.technicien_id ? techColorMap.get(cr.technicien_id) : null;
                   const time = cr.heure_debut.replace(':', 'h');

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { TECH_EMAILS } from '@/lib/auth/roles';
+import { loadTokens } from '@/lib/google-auth';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
 import { PlanningCalendar } from './PlanningCalendar';
 import { CreneauxClient } from './CreneauxClient';
@@ -54,6 +55,11 @@ export default async function PlanningPage({
 
   const techs = (techRes.data ?? []) as Utilisateur[];
   const creneaux = (creneauxRes.data ?? []) as Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'intervention_id'>[];
+
+  // Statut Google — utilisé pour activer/désactiver le toggle
+  // "Afficher Google Calendar" dans PlanningCalendar.
+  const tokens = await loadTokens();
+  const googleConnected = Boolean(tokens?.access_token && tokens?.refresh_token);
 
   const prev = new Date(year, month - 1, 1);
   const next = new Date(year, month + 1, 1);
@@ -124,6 +130,7 @@ export default async function PlanningPage({
             month={month}
             techs={techs}
             creneaux={creneaux}
+            googleConnected={googleConnected}
             prevHref={`/admin/planning?tab=calendar&m=${fmtMonth(prev.getFullYear(), prev.getMonth())}`}
             nextHref={`/admin/planning?tab=calendar&m=${fmtMonth(next.getFullYear(), next.getMonth())}`}
           />
