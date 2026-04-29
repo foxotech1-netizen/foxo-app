@@ -67,23 +67,14 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setError(null);
     const params = new URLSearchParams({ limit: '30' });
     if (filter === 'unread') params.set('filter', 'unread');
-    const url = `/api/admin/mails?${params}`;
-    console.error('[mails-debug] client fetch', url);
-    fetch(url)
-      .then(async (r) => {
-        const data = await r.json().catch(() => ({ ok: false, error: 'Réponse JSON invalide' }));
-        console.error('[mails-debug] client response', { status: r.status, ok: data?.ok, count: data?.mails?.length, error: data?.error });
-        return data;
-      })
+    fetch(`/api/admin/mails?${params}`)
+      .then((r) => r.json())
       .then((data) => {
         if (!mounted) return;
         if (!data.ok) { setError(data.error ?? 'Erreur'); return; }
         setMails(data.mails ?? []);
       })
-      .catch((e) => {
-        console.error('[mails-debug] client fetch threw', e);
-        if (mounted) setError(e instanceof Error ? e.message : 'Erreur');
-      })
+      .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, [initialConnected, filter]);
@@ -113,7 +104,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const out = mails.filter((m) => {
+    return mails.filter((m) => {
       if (q) {
         const matches = [m.from, m.subject, m.snippet].some((s) => s.toLowerCase().includes(q));
         if (!matches) return false;
@@ -121,10 +112,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       if (filter === 'lies' && !hasInterventionRef(m)) return false;
       return true;
     });
-    if (mails.length > 0 && out.length === 0) {
-      console.error('[mails-debug] filter dropped all mails', { mails_total: mails.length, filter, query: q });
-    }
-    return out;
   }, [mails, query, filter]);
 
   async function analyzeMail() {

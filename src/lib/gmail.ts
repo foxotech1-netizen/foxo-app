@@ -205,30 +205,20 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
   ok: true; mails: MailListItem[];
 } | { ok: false; error: string }> {
   const auth = await getValidAccessToken();
-  if (!auth) {
-    console.error('[mails-debug] listInboxMails: getValidAccessToken returned null (pas de token valide)');
-    return { ok: false, error: 'Google non connecté.' };
-  }
-  console.error('[mails-debug] listInboxMails: token OK pour', auth.email);
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
 
   const limit = Math.max(1, Math.min(args.limit ?? 30, 100));
   const baseQ = args.q?.trim() || 'in:inbox';
   const url = `${API}/messages?q=${encodeURIComponent(baseQ)}&maxResults=${limit}`;
-  console.error('[mails-debug] Gmail GET', url);
 
   const listRes = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
   if (!listRes.ok) {
     const body = await listRes.text();
-    console.error('[mails-debug] Gmail HTTP', listRes.status, 'body:', body.slice(0, 500));
     return { ok: false, error: `Gmail HTTP ${listRes.status} : ${body.slice(0, 200)}` };
   }
   const listJson = (await listRes.json()) as { messages?: { id: string }[]; resultSizeEstimate?: number };
-  console.error('[mails-debug] Gmail list response:', { messages_count: listJson.messages?.length ?? 0, resultSizeEstimate: listJson.resultSizeEstimate });
   const ids = (listJson.messages ?? []).map((m) => m.id);
-  if (ids.length === 0) {
-    console.error('[mails-debug] Aucun message — résultat vide pour q="' + baseQ + '"');
-    return { ok: true, mails: [] };
-  }
+  if (ids.length === 0) return { ok: true, mails: [] };
 
   // Fetch metadata en parallèle (Gmail API supporte ~10 req/s, on reste sage)
   const fetched = await Promise.all(
@@ -236,11 +226,7 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
       const r = await fetch(`${API}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, {
         headers: { Authorization: `Bearer ${auth.access_token}` },
       });
-      if (!r.ok) {
-        const txt = await r.text();
-        console.error('[mails-debug] metadata fetch failed for', id, 'HTTP', r.status, txt.slice(0, 200));
-        return null;
-      }
+      if (!r.ok) return null;
       const raw = (await r.json()) as RawMessageWithLabels;
       const date = raw.internalDate ? new Date(parseInt(raw.internalDate, 10)).toISOString() : '';
       const item: MailListItem = {
@@ -256,7 +242,6 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
     }),
   );
   const mails = fetched.filter((m): m is MailListItem => m !== null);
-  console.error('[mails-debug] listInboxMails: built', mails.length, '/', ids.length, 'mails');
   return { ok: true, mails };
 }
 

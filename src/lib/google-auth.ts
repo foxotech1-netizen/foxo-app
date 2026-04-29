@@ -215,37 +215,19 @@ export async function clearTokens(): Promise<void> {
 // Retourne null si aucun compte Google n'est connecté.
 export async function getValidAccessToken(): Promise<{ access_token: string; email: string | null } | null> {
   const row = await loadTokens();
-  if (!row) {
-    console.error('[mails-debug] getValidAccessToken: aucune ligne google_tokens en DB');
-    return null;
-  }
-  if (!row.access_token) {
-    console.error('[mails-debug] getValidAccessToken: row trouvée mais access_token vide', { email: row.email, hasRefresh: !!row.refresh_token });
-    return null;
-  }
+  if (!row || !row.access_token) return null;
 
   const now = Date.now();
   const expiryMs = row.expiry ? new Date(row.expiry).getTime() : 0;
-  const remainingS = Math.round((expiryMs - now) / 1000);
-  console.error('[mails-debug] getValidAccessToken: token loaded', { email: row.email, expiry_in_s: remainingS, scope: row.scope?.slice(0, 80) });
-
   // Marge de 60s pour éviter les races
   if (expiryMs - now > 60_000) {
     return { access_token: row.access_token, email: row.email };
   }
 
   // Token expiré → refresh si possible
-  if (!row.refresh_token) {
-    console.error('[mails-debug] getValidAccessToken: token expiré ET pas de refresh_token → null');
-    return null;
-  }
-  console.error('[mails-debug] getValidAccessToken: refresh nécessaire…');
+  if (!row.refresh_token) return null;
   const r = await refreshAccessToken(row.refresh_token);
-  if (!r.ok) {
-    console.error('[mails-debug] getValidAccessToken: refresh FAILED:', r.error);
-    return null;
-  }
-  console.error('[mails-debug] getValidAccessToken: refresh OK');
+  if (!r.ok) return null;
   await saveTokens({
     access_token: r.access_token,
     expiry: r.expiry,
