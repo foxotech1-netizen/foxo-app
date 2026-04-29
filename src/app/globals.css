@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
-/* Active le variant `dark:` Tailwind v4 sur la classe `.dark` posée par
-   next-themes sur <html>. Permet d'utiliser dark:text-white, etc. */
-@custom-variant dark (&:where(.dark, .dark *));
+/* Active le variant `dark:` Tailwind v4 sur :
+   - .dark               (legacy / autres parties qui posent encore .dark)
+   - .theme-nuit         (thème sombre d'origine)
+   - .theme-ardoise      (thème sombre océan)
+   next-themes ne supporte qu'une seule classe par thème dans `value`,
+   donc on ne peut pas combiner .dark + .theme-nuit. Le custom-variant
+   matche directement les classes de thème sombres. */
+@custom-variant dark (&:where(
+  .dark, .dark *,
+  .theme-nuit, .theme-nuit *,
+  .theme-ardoise, .theme-ardoise *
+));
 
 /* ─────────────────────────────────────────────────────────────────────────
    PALETTE — variables thématisables.
@@ -67,7 +76,7 @@
   color-scheme: light;
 }
 
-.dark {
+.dark, .theme-nuit {
   /* Surfaces */
   --color-sand:        #141210;
   --color-sand-mid:    #1A1814;
@@ -183,6 +192,13 @@
   --color-sky-foxo:       #4a9bbf;
   --color-sky-light-foxo: #2d4a5a;
 
+  /* Pales/lights cartes — repris de .dark pour rester lisibles */
+  --color-amber-light: #2A220E;
+  --color-terra-light: #2E1A12;
+  --color-terra-mid:   #5A2E18;
+  --color-ok-light:    #14281E;
+  --color-ok-mid:      #2A4F3A;
+
   /* Sidebar */
   --sidebar-bg:        linear-gradient(180deg, #222222 0%, #1a1a1a 100%);
   --sidebar-logo-bg:   #156082;
@@ -258,31 +274,31 @@ body {
    Les composants qui utilisent déjà bg-white / dark:bg-... gardent la
    priorité (Tailwind utilities ont une spécificité supérieure).
    ───────────────────────────────────────────────────────────────────────── */
-.dark input[type="text"],
-.dark input[type="email"],
-.dark input[type="tel"],
-.dark input[type="number"],
-.dark input[type="date"],
-.dark input[type="time"],
-.dark input[type="datetime-local"],
-.dark input[type="password"],
-.dark input[type="search"],
-.dark input[type="url"],
-.dark input:not([type]),
-.dark textarea,
-.dark select {
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="text"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="email"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="tel"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="number"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="date"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="time"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="datetime-local"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="password"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="search"],
+:where(.dark, .theme-nuit, .theme-ardoise) input[type="url"],
+:where(.dark, .theme-nuit, .theme-ardoise) input:not([type]),
+:where(.dark, .theme-nuit, .theme-ardoise) textarea,
+:where(.dark, .theme-nuit, .theme-ardoise) select {
   background: #221E1A;
   color: #F0ECE4;
   border-color: #2C2A24;
 }
-.dark input::placeholder,
-.dark textarea::placeholder {
+:where(.dark, .theme-nuit, .theme-ardoise) input::placeholder,
+:where(.dark, .theme-nuit, .theme-ardoise) textarea::placeholder {
   color: #8A8278;
   opacity: 1;
 }
-.dark input:disabled,
-.dark textarea:disabled,
-.dark select:disabled {
+:where(.dark, .theme-nuit, .theme-ardoise) input:disabled,
+:where(.dark, .theme-nuit, .theme-ardoise) textarea:disabled,
+:where(.dark, .theme-nuit, .theme-ardoise) select:disabled {
   background: #1A1814;
   color: #8A8278;
 }
@@ -294,7 +310,7 @@ body {
 .stat-num {
   color: var(--color-ink);
 }
-.dark .stat-num {
+:where(.dark, .theme-nuit, .theme-ardoise) .stat-num {
   color: #FFFFFF;
 }
 

@@ -28,9 +28,9 @@ export function ThemeProvider({ children, ...rest }: Props) {
       storageKey="foxo-theme"
       value={{
         sable: 'theme-sable',
-        nuit: 'dark theme-nuit',
+        nuit: 'theme-nuit',
         ocean: 'theme-ocean',
-        ardoise: 'dark theme-ardoise',
+        ardoise: 'theme-ardoise',
       }}
       disableTransitionOnChange={false}
       {...rest}
