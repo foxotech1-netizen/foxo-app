@@ -156,19 +156,42 @@ export async function POST(
         .map((o) => (o.email ?? '').toLowerCase())
         .filter(Boolean),
     );
+    // Charge aussi les apt existants pour dédupliquer les parties_communes
+    // qui n'ont pas d'email mais un appartement unique
+    const { data: existingApts } = await admin
+      .from('occupants')
+      .select('appartement')
+      .eq('intervention_id', id);
+    const existingAptKeys = new Set(
+      ((existingApts ?? []) as { appartement: string | null }[])
+        .map((o) => (o.appartement ?? '').toLowerCase().trim())
+        .filter(Boolean),
+    );
     const toInsert = analysis.occupants
-      .filter((o) => o.email && !existingEmails.has(o.email.toLowerCase()))
-      .map((o) => ({
-        intervention_id: id,
-        appartement: o.appartement || null,
-        prenom: o.prenom || null,
-        nom: o.nom || null,
-        email: o.email || null,
-        telephone: o.telephone || null,
-        conf: 'en_attente' as const,
-        contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
-        instructions: '[extrait du mail]',
-      }));
+      .filter((o) => {
+        // parties_communes : autorisé sans email mais dédup sur apt
+        if (o.type === 'parties_communes') {
+          return Boolean(o.appartement) && !existingAptKeys.has(o.appartement.toLowerCase().trim());
+        }
+        // Autres : requiert email NON déjà présent
+        return Boolean(o.email) && !existingEmails.has(o.email.toLowerCase());
+      })
+      .map((o) => {
+        const instructions = o.notes
+          ? `[extrait du mail] ${o.notes}`
+          : '[extrait du mail]';
+        return {
+          intervention_id: id,
+          appartement: o.appartement || null,
+          prenom: o.prenom || null,
+          nom: o.nom || (o.type === 'parties_communes' ? 'Parties communes' : null),
+          email: o.email || null,
+          telephone: o.telephone || null,
+          conf: 'en_attente' as const,
+          contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
+          instructions,
+        };
+      });
     if (toInsert.length > 0) {
       const { error: insErr } = await admin.from('occupants').insert(toInsert);
       if (!insErr) newOccupantsCount = toInsert.length;

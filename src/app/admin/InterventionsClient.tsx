@@ -231,7 +231,7 @@ export function InterventionsClient({
       nom_societe: string | null;
       nom_immeuble: string | null;
       reference_externe: string | null;
-      occupants: { prenom: string; nom: string; email: string; appartement: string; telephone: string }[];
+      occupants: { prenom: string; nom: string; email: string; appartement: string; telephone: string; type: 'occupant' | 'proprietaire' | 'parties_communes'; notes: string }[];
     };
   };
   const [reanalysis, setReanalysis] = useState<ReanalysisData | null>(null);

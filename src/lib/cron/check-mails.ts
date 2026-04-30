@@ -46,12 +46,16 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
   }
 }
 
+export type CronOccupantType = 'occupant' | 'proprietaire' | 'parties_communes';
+
 export interface CronExtractedOccupant {
   prenom: string;
   nom: string;
   email: string;
   appartement: string;
   telephone: string;
+  type: CronOccupantType;
+  notes: string;            // état de l'apt, actions déjà prises, urgence
 }
 
 export type CronDemandeurType = 'syndic' | 'courtier' | 'particulier';
@@ -179,11 +183,25 @@ export async function analyzeMailWithClaude(
   apiKey: string,
   mail: { from: string; subject: string; date: string; cc: string; body_text: string; body_html: string },
 ): Promise<{ ok: true; analysis: CronMailAnalysis } | { ok: false; error: string }> {
-  const bodyText = mail.body_text?.trim() ? mail.body_text : stripHtml(mail.body_html ?? '');
-  const truncated = bodyText.slice(0, 6000);
+  // Combine body_text + HTML stripé pour donner à Claude le contenu le
+  // plus complet possible. Certains mails ont uniquement HTML, d'autres
+  // mélangent les deux. La concaténation peut produire des doublons mais
+  // c'est OK — Claude ignore les répétitions.
+  const txt = (mail.body_text ?? '').trim();
+  const htmlStripped = stripHtml(mail.body_html ?? '').trim();
+  let combined = '';
+  if (txt && htmlStripped && txt.length > htmlStripped.length * 1.2) {
+    combined = txt;
+  } else if (txt && htmlStripped) {
+    // Préfère HTML stripé (souvent plus structuré), texte en fallback
+    combined = htmlStripped.length > txt.length ? htmlStripped : txt;
+  } else {
+    combined = txt || htmlStripped;
+  }
+  const truncated = combined.slice(0, 8000);
+  const wordCount = truncated.split(/\s+/).filter(Boolean).length;
 
-  // Liste CC pré-parsée — donne à Claude un format propre plutôt qu'un
-  // header brut. Vide si le mail n'a pas de Cc.
+  // Liste CC pré-parsée
   const ccPairs = parseAddressList(mail.cc ?? '');
   const ccBlock = ccPairs.length > 0
     ? ccPairs.map((p) => `- "${p.name}" <${p.email}>`).join('\n')
@@ -191,9 +209,12 @@ export async function analyzeMailWithClaude(
 
   const userMessage = [
     `Tu analyses les emails entrants chez FoxO (détection de fuites en Belgique). Ton rôle :`,
+    ``,
     `1. Décider si l'email est une demande d'intervention concrète (fuite, dégât des eaux, surconsommation, inspection caméra…) — vrai pour les particuliers, syndics, courtiers qui sollicitent FoxO.`,
     `   FAUX pour : newsletters, factures fournisseurs, notifications automatiques, spam, mails internes, échanges sans demande nouvelle.`,
+    ``,
     `2. Si c'est une demande, extraire les données du demandeur principal.`,
+    ``,
     `3. Déterminer le type_demandeur :`,
     `   - "syndic" : mentionne copropriété, ACP, immeuble, syndic, lot, AG, parties communes, gestionnaire d'immeuble`,
     `   - "courtier" : mentionne assurance, sinistre, police, compagnie d'assurance, expertise, dégât assuré`,
@@ -202,23 +223,51 @@ export async function analyzeMailWithClaude(
     `   - nom_societe : cabinet syndic, compagnie d'assurance (ex: "Wave-Immo SPRL", "BelGestion", "Assur Plus") — null si particulier`,
     `   - nom_immeuble : nom de la résidence ou adresse de l'ACP (ex: "Résidence Bellevue", "Rue de la Loi 42") — null si particulier`,
     `   - reference_externe : référence dossier syndic/courtier mentionnée (ex: "DOS-2026-123", "REF/456/2026") — null si absente`,
-    `4. Analyser la liste CC pour identifier d'éventuels OCCUPANTS (résidents des appartements concernés). Le numéro d'appartement est souvent dans le nom :`,
-    `   - "Dupont Apt 101 <dupont@gmail.com>" → appartement="101"`,
-    `   - "Marie Leroy - Apt 3B <m.leroy@hotmail.com>" → appartement="3B"`,
-    `   - "Pierre Martin (2ème étage) <pmartin@gmail.com>" → appartement="2ème étage"`,
-    `   - "appartement 5 <occupant5@gmail.com>" → appartement="5"`,
-    `   Cherche aussi les téléphones associés à ces noms dans le corps du mail (ex: "Marie : 0488 12 34 56").`,
-    `   IGNORE les CC qui sont clairement des copies internes (foxo.be, syndic, etc.) — ne mets QUE des résidents/occupants.`,
+    ``,
+    `## Extraction des occupants et appartements`,
+    ``,
+    `Lis ATTENTIVEMENT TOUT le corps du mail ET les CC. Ne t'arrête pas à la première mention.`,
+    `Identifie TOUS les occupants ou zones mentionnés, sous toutes ces formes :`,
+    ``,
+    `(a) Nom entre parenthèses après un numéro/code d'appartement :`,
+    `    "appartement K09 (Mme Vlasselaer)"  → apt="K09", nom="Vlasselaer", prenom="Mme"`,
+    `    "apt 3B (Marie Dupont)"             → apt="3B",  nom="Dupont",     prenom="Marie"`,
+    ``,
+    `(b) Nom associé à un local commercial / cave / garage :`,
+    `    "magasin M09 (Mr Leman)"            → apt="M09", nom="Leman",      prenom="Mr"`,
+    `    "cave C12 (Famille Smets)"          → apt="C12", nom="Smets",      prenom=""`,
+    ``,
+    `(c) Zones communes : crée AUSSI un occupant avec nom="Parties communes" :`,
+    `    "rez-de-chaussée côté escaliers"    → apt="RDC - Escaliers", nom="Parties communes", type="parties_communes"`,
+    `    "couloir 2e étage"                  → apt="Couloir 2e",      nom="Parties communes", type="parties_communes"`,
+    ``,
+    `(d) Adresses email en CC avec un nom (cf. section ## CC) :`,
+    `    "Vlasselaer Marie <m.vlasselaer@gmail.com>"`,
+    `    → si le corps mentionne aussi "apt K09 (Vlasselaer)", FUSIONNE :`,
+    `       un seul occupant { apt:"K09", nom:"Vlasselaer", prenom:"Marie", email:"m.vlasselaer@gmail.com" }`,
+    `    → si la même personne est mentionnée 2 fois, ne crée qu'une entrée.`,
+    ``,
+    `(e) Téléphones (formats belges +32 / 04xx / 02xx) trouvés à proximité d'un nom dans le corps :`,
+    `    "Mme Leman : 0488 12 34 56" → ajoute telephone à l'occupant Leman`,
+    ``,
+    `Pour chaque occupant, capture aussi des notes spécifiques :`,
+    `   - Actions déjà prises : "eau coupée", "vanne fermée", "sinistre déclaré"`,
+    `   - État de l'apt : "infiltrations visibles", "moisissures", "non habité"`,
+    `   - Urgence particulière à cet occupant`,
+    `   Concatène en une chaîne courte (max 200 chars).`,
+    ``,
+    `IGNORE les CC qui sont des copies internes (domaines foxo.be, syndic, le sender lui-même, etc.) — ne mets QUE des résidents/occupants/parties_communes.`,
     ``,
     `## EMAIL`,
-    `From : ${mail.from}`,
-    `Sujet : ${mail.subject}`,
-    `Date : ${mail.date}`,
+    `From    : ${mail.from}`,
+    `Sujet   : ${mail.subject}`,
+    `Date    : ${mail.date}`,
+    `Mots    : ${wordCount}`,
     ``,
     `## CC`,
     ccBlock,
     ``,
-    `## CORPS`,
+    `## CORPS DU MAIL`,
     truncated,
     ``,
     `## SORTIE`,
@@ -241,14 +290,18 @@ export async function analyzeMailWithClaude(
     `    {`,
     `      "prenom": "string",`,
     `      "nom": "string",`,
-    `      "email": "string",`,
-    `      "appartement": "string (numéro/étage/description)",`,
-    `      "telephone": "string ou \\"\\"" `,
+    `      "email": "string ou \\"\\"",`,
+    `      "appartement": "string (numéro/code/zone)",`,
+    `      "telephone": "string ou \\"\\"",`,
+    `      "type": "occupant | proprietaire | parties_communes",`,
+    `      "notes": "string courte ou \\"\\"" `,
     `    }`,
     `  ]`,
     `}`,
+    ``,
     `Aucun champ inventé : si l'info n'est pas explicite, mets null (ou "" pour les champs occupant string requis).`,
-    `Si aucun occupant identifiable dans les CC, retourne occupants: [].`,
+    `IMPORTANT : si aucun occupant n'est trouvé MAIS qu'une zone commune est touchée → crée au moins une entrée parties_communes.`,
+    `Si vraiment rien d'identifiable, retourne occupants: [].`,
   ].join('\n');
 
   // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
@@ -269,7 +322,9 @@ export async function analyzeMailWithClaude(
   const parsed = tryParseJson(raw);
   if (!parsed) return { ok: false, error: 'Réponse Claude non parsable.' };
 
-  // Extraction sûre du tableau d'occupants
+  // Extraction sûre du tableau d'occupants. On accepte les
+  // parties_communes même sans email ni téléphone (cas des zones
+  // communes touchées sans contact identifiable).
   const occupantsRaw = Array.isArray((parsed as { occupants?: unknown }).occupants)
     ? ((parsed as { occupants: unknown[] }).occupants)
     : [];
@@ -278,16 +333,24 @@ export async function analyzeMailWithClaude(
       if (!o || typeof o !== 'object') return null;
       const r = o as Record<string, unknown>;
       const email = typeof r.email === 'string' ? r.email.trim() : '';
-      // Filtre : un occupant doit AU MOINS avoir un email valide ou un téléphone
       const tel = typeof r.telephone === 'string' ? r.telephone.trim() : '';
-      if (!email && !tel) return null;
-      return {
-        prenom: typeof r.prenom === 'string' ? r.prenom.trim() : '',
-        nom: typeof r.nom === 'string' ? r.nom.trim() : '',
-        email,
-        appartement: typeof r.appartement === 'string' ? r.appartement.trim() : '',
-        telephone: tel,
-      };
+      const apt = typeof r.appartement === 'string' ? r.appartement.trim() : '';
+      const nom = typeof r.nom === 'string' ? r.nom.trim() : '';
+      const prenom = typeof r.prenom === 'string' ? r.prenom.trim() : '';
+      const tRaw = typeof r.type === 'string' ? r.type : '';
+      const type: CronOccupantType = tRaw === 'parties_communes' || tRaw === 'proprietaire'
+        ? tRaw
+        : 'occupant';
+      const notes = typeof r.notes === 'string' ? r.notes.trim().slice(0, 200) : '';
+
+      // Filtre : un occupant doit avoir AU MOINS un email, un téléphone,
+      // ou (pour les parties communes / zones identifiées) un appartement
+      // + un nom non vide.
+      const hasContact = Boolean(email || tel);
+      const hasZone = type === 'parties_communes' && (apt || nom);
+      if (!hasContact && !hasZone) return null;
+
+      return { prenom, nom, email, appartement: apt, telephone: tel, type, notes };
     })
     .filter((x): x is CronExtractedOccupant => x !== null);
 
@@ -522,25 +585,32 @@ async function createInterventionFromMail(
     console.warn('[check-mails] timeline insert skipped:', e);
   }
 
-  // Création automatique des occupants extraits depuis les CC.
-  // contact_preference : email si email présent, sinon sms si tel,
-  // sinon email par défaut (au moins on a un canal listé).
+  // Création automatique des occupants extraits.
+  // - contact_preference : email si email présent, sinon sms si tel,
+  //   sinon email par défaut.
+  // - parties_communes : pas de filtre email/tel (zone sans contact).
+  // - instructions : "[extrait du mail]" + notes spécifiques (état apt,
+  //   actions déjà prises) renvoyées par Claude.
   const occupantsToInsert = (analysis.occupants ?? [])
-    .filter((o) => o.email || o.telephone)
-    .map((o) => ({
-      intervention_id: iv.id,
-      appartement: o.appartement || null,
-      etage: null,
-      prenom: o.prenom || null,
-      nom: o.nom || null,
-      email: o.email || null,
-      telephone: o.telephone || null,
-      conf: 'en_attente' as const,
-      contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
-      // Marqueur "extrait du mail" : on stocke la source dans instructions
-      // de manière neutre (pas de colonne dédiée, mais lisible côté UI)
-      instructions: '[extrait du mail]',
-    }));
+    .filter((o) => o.type === 'parties_communes' || o.email || o.telephone)
+    .map((o) => {
+      const baseMarker = '[extrait du mail]';
+      const instructions = o.notes
+        ? `${baseMarker} ${o.notes}`
+        : baseMarker;
+      return {
+        intervention_id: iv.id,
+        appartement: o.appartement || null,
+        etage: null,
+        prenom: o.prenom || null,
+        nom: o.nom || (o.type === 'parties_communes' ? 'Parties communes' : null),
+        email: o.email || null,
+        telephone: o.telephone || null,
+        conf: 'en_attente' as const,
+        contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
+        instructions,
+      };
+    });
   if (occupantsToInsert.length > 0) {
     try {
       const { error: occErr } = await admin.from('occupants').insert(occupantsToInsert);
