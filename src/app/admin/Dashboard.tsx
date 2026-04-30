@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
@@ -137,44 +137,10 @@ export function Dashboard({
 
       {/* ── 3. Nouvelles demandes mail (cron analyse auto) ───────────────── */}
       {newMailIvs.length > 0 && (
-        <section>
-          <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 dark:text-[#C8C2B8]">
-            📧 Nouvelles demandes mail ({newMailIvs.length})
-          </h3>
-          <div className="bg-cream border border-sand-border rounded-2xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-            <div className="space-y-1.5">
-              {newMailIvs.map((iv) => (
-                <button
-                  key={iv.id}
-                  type="button"
-                  onClick={() => onOpenIntervention(iv.id)}
-                  className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-2 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
-                >
-                  <span className="inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
-                    📧 Mail
-                  </span>
-                  <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0 dark:text-[#A8C4F2]">
-                    {iv.ref ?? '?'}
-                  </span>
-                  <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
-                    {iv.particulier_contact
-                      ? `${iv.particulier_contact.prenom ?? ''} ${iv.particulier_contact.nom ?? ''}`.trim()
-                      : '—'}
-                  </span>
-                  <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">
-                    {iv.type ?? ''}
-                  </span>
-                  {iv.priorite === 'urgente' && (
-                    <span className="text-[10px] font-bold text-terra">⚡</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
-              Créées automatiquement par le cron à partir de mails entrants. Aucune action n&apos;a été envoyée au client — c&apos;est à toi de planifier.
-            </p>
-          </div>
-        </section>
+        <NewMailSection
+          mails={newMailIvs}
+          onOpenIntervention={onOpenIntervention}
+        />
       )}
 
       {/* ── 4. À faire aujourd'hui ───────────────────────────────────────── */}
@@ -500,5 +466,396 @@ function TodoCard({
         ) : children}
       </div>
     </div>
+  );
+}
+
+// ─── Section Nouvelles demandes mail — kebab menu + batch reanalyze ───
+//
+// Pour chaque ligne :
+//   • Clic = ouvre le drawer (comportement legacy)
+//   • Bouton ⋯ = menu avec Réanalyser / Ouvrir / Supprimer
+// En haut de section :
+//   • Bouton "🔄 Tout réanalyser" si > 1 mail (séquentiel pour éviter
+//     le rate limit Anthropic)
+//   • Progress bar pendant batch
+//   • Toast inline avec résultat
+
+interface ReanalysisAnalysis {
+  est_demande_intervention: boolean;
+  nom_client: string | null;
+  adresse: string | null;
+  type_probleme: string | null;
+  telephone: string | null;
+  email: string | null;
+  priorite: 'normale' | 'urgente' | null;
+  resume: string | null;
+  langue: 'fr' | 'nl' | 'en' | null;
+  type_demandeur: 'syndic' | 'courtier' | 'particulier' | null;
+  nom_societe: string | null;
+  nom_immeuble: string | null;
+  reference_externe: string | null;
+  occupants: { prenom: string; nom: string; email: string; appartement: string; telephone: string }[];
+}
+
+function computeDifferences(iv: InterventionRow, analysis: ReanalysisAnalysis): boolean {
+  const pc = iv.particulier_contact;
+  const currentNom = pc ? `${pc.prenom ?? ''} ${pc.nom ?? ''}`.trim() : '';
+  const checks: [string | null, string | null][] = [
+    [analysis.nom_client, currentNom || null],
+    [analysis.email, pc?.email ?? null],
+    [analysis.telephone, pc?.telephone ?? null],
+    [analysis.type_probleme, iv.type],
+    [analysis.priorite, iv.priorite ?? null],
+  ];
+  for (const [a, b] of checks) {
+    const av = (a ?? '').trim().toLowerCase();
+    const bv = (b ?? '').trim().toLowerCase();
+    if (a !== null && av !== bv) return true;
+  }
+  return false;
+}
+
+function shortSummary(analysis: ReanalysisAnalysis): string {
+  const parts: string[] = [];
+  if (analysis.type_demandeur) {
+    const icon = analysis.type_demandeur === 'syndic' ? '🏢 Syndic'
+      : analysis.type_demandeur === 'courtier' ? '🛡️ Courtier'
+      : '👤 Particulier';
+    parts.push(analysis.nom_societe ? `${icon} ${analysis.nom_societe}` : icon);
+  }
+  if (analysis.type_probleme) parts.push(analysis.type_probleme);
+  if (analysis.occupants?.length) parts.push(`${analysis.occupants.length} occupant${analysis.occupants.length > 1 ? 's' : ''}`);
+  return parts.join(' · ');
+}
+
+function NewMailSection({
+  mails, onOpenIntervention,
+}: {
+  mails: InterventionRow[];
+  onOpenIntervention: (id: string) => void;
+}) {
+  const router = useRouter();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [reanalyzingIds, setReanalyzingIds] = useState<Set<string>>(new Set());
+  const [diffIds, setDiffIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [batchState, setBatchState] = useState<{
+    running: boolean; current: number; total: number; updated: number; errors: number;
+  } | null>(null);
+  const [toast, setToast] = useState<{ kind: 'ok' | 'err' | 'warn'; msg: string } | null>(null);
+
+  // Auto-dismiss toast après 5s
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  // Ferme le menu sur clic extérieur
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!openMenuId) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [openMenuId]);
+
+  async function reanalyzeOne(iv: InterventionRow): Promise<{ ok: boolean; updated: boolean; analysis?: ReanalysisAnalysis }> {
+    setReanalyzingIds((s) => new Set(s).add(iv.id));
+    try {
+      const r = await fetch(`/api/admin/interventions/${iv.id}/reanalyze`, { method: 'POST' });
+      const data = await r.json();
+      if (!data.ok) {
+        setToast({
+          kind: 'err',
+          msg: data.code === 'google_not_connected'
+            ? 'Google non connecté — connecte le compte dans /admin/parametres.'
+            : `Échec analyse ${iv.ref}: ${data.error ?? '?'}`,
+        });
+        return { ok: false, updated: false };
+      }
+      const analysis = data.analysis as ReanalysisAnalysis;
+      const diff = computeDifferences(iv, analysis);
+      if (diff) {
+        setDiffIds((s) => new Set(s).add(iv.id));
+      }
+      return { ok: true, updated: diff, analysis };
+    } catch (e) {
+      setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+      return { ok: false, updated: false };
+    } finally {
+      setReanalyzingIds((s) => {
+        const next = new Set(s);
+        next.delete(iv.id);
+        return next;
+      });
+    }
+  }
+
+  async function handleReanalyze(iv: InterventionRow) {
+    setOpenMenuId(null);
+    const result = await reanalyzeOne(iv);
+    if (!result.ok || !result.analysis) return;
+    if (result.updated) {
+      setToast({
+        kind: 'warn',
+        msg: `⚠️ Différences détectées sur ${iv.ref} — drawer ouvert pour validation.`,
+      });
+      onOpenIntervention(iv.id);
+    } else {
+      setToast({
+        kind: 'ok',
+        msg: `✅ Analyse terminée${result.analysis ? ' : ' + shortSummary(result.analysis) : ''}.`,
+      });
+    }
+  }
+
+  async function batchReanalyze() {
+    if (mails.length === 0) return;
+    setBatchState({ running: true, current: 0, total: mails.length, updated: 0, errors: 0 });
+    let updated = 0;
+    let errors = 0;
+    for (let i = 0; i < mails.length; i++) {
+      setBatchState({ running: true, current: i + 1, total: mails.length, updated, errors });
+      const r = await reanalyzeOne(mails[i]);
+      if (!r.ok) errors++;
+      else if (r.updated) updated++;
+    }
+    setBatchState(null);
+    setToast({
+      kind: errors > 0 ? 'warn' : 'ok',
+      msg: `${mails.length} analysée${mails.length > 1 ? 's' : ''}, ${updated} avec différences${errors ? `, ${errors} erreur${errors > 1 ? 's' : ''}` : ''}.`,
+    });
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(true);
+    try {
+      const r = await fetch(`/api/admin/interventions/${id}`, { method: 'DELETE' });
+      const data = await r.json();
+      if (!data.ok) {
+        setToast({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
+        return;
+      }
+      setToast({ kind: 'ok', msg: `✅ ${data.deleted_ref ?? 'Intervention'} supprimée.` });
+      setConfirmDeleteId(null);
+      // Refresh server data pour retirer la ligne du tableau
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+          📧 Nouvelles demandes mail ({mails.length})
+        </h3>
+        {mails.length > 1 && (
+          <button
+            type="button"
+            onClick={batchReanalyze}
+            disabled={Boolean(batchState?.running)}
+            className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+          >
+            {batchState?.running ? `Analyse ${batchState.current}/${batchState.total}…` : '🔄 Tout réanalyser'}
+          </button>
+        )}
+      </div>
+
+      {batchState?.running && (
+        <div className="mb-2 bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5 dark:bg-[#1A2540] dark:border-[#2C4878]">
+          <div className="text-[11px] text-navy font-semibold mb-1 dark:text-[#A8C4F2]">
+            Analyse en cours… {batchState.current}/{batchState.total}
+            {batchState.updated > 0 && <span className="text-[#8A5A1A] dark:text-[#E8C896] ml-2">· {batchState.updated} avec diff</span>}
+          </div>
+          <div className="h-1.5 bg-sand-mid rounded-full overflow-hidden">
+            <div
+              className="h-full bg-navy transition-all"
+              style={{ width: `${Math.round((batchState.current / batchState.total) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className={
+          'mb-2 px-3 py-2 text-[11px] font-semibold rounded-md border ' +
+          (toast.kind === 'ok'
+            ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
+            : toast.kind === 'warn'
+              ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A] dark:bg-[#2A220E] dark:border-[#5A4A30] dark:text-[#E8C896]'
+              : 'bg-terra-light border-terra-mid text-terra')
+        }>
+          {toast.msg}
+        </div>
+      )}
+
+      <div className="bg-cream border border-sand-border rounded-2xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <div className="space-y-1.5">
+          {mails.map((iv) => {
+            const reanalyzing = reanalyzingIds.has(iv.id);
+            const hasDiff = diffIds.has(iv.id);
+            const fullName = iv.particulier_contact
+              ? `${iv.particulier_contact.prenom ?? ''} ${iv.particulier_contact.nom ?? ''}`.trim()
+              : '—';
+            const showMenu = openMenuId === iv.id;
+            return (
+              <div
+                key={iv.id}
+                className="relative bg-white border border-sand-border rounded-md transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] flex items-center gap-2 px-2.5 py-2 text-[12px] hover:bg-navy-pale dark:hover:bg-[#2A2520]"
+              >
+                <button
+                  type="button"
+                  onClick={() => onOpenIntervention(iv.id)}
+                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                >
+                  <span className="inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
+                    📧 Mail
+                  </span>
+                  <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0 dark:text-[#A8C4F2]">
+                    {iv.ref ?? '?'}
+                  </span>
+                  <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                    {fullName}
+                  </span>
+                  <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">
+                    {iv.type ?? ''}
+                  </span>
+                  {iv.priorite === 'urgente' && (
+                    <span className="text-[10px] font-bold text-terra">⚡</span>
+                  )}
+                  {hasDiff && (
+                    <span
+                      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]"
+                      title="Différences détectées par la dernière réanalyse"
+                    >
+                      ⚠️ À vérifier
+                    </span>
+                  )}
+                  {reanalyzing && (
+                    <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">…</span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuId((cur) => cur === iv.id ? null : iv.id);
+                  }}
+                  className="flex-shrink-0 px-1.5 py-0.5 text-ink-mid hover:text-navy text-[14px] leading-none dark:text-[#C8C2B8] dark:hover:text-[#A8C4F2]"
+                  aria-label="Actions"
+                  aria-expanded={showMenu}
+                >
+                  ⋯
+                </button>
+
+                {showMenu && (
+                  <div
+                    ref={menuRef}
+                    className="absolute top-full right-0 mt-1 z-20 bg-cream border border-sand-border rounded-md shadow-lg min-w-[200px] dark:bg-[#1C1A16] dark:border-[#2C2A24]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MenuItem
+                      icon="🔄"
+                      label={reanalyzing ? 'Analyse en cours…' : 'Réanalyser le mail'}
+                      onClick={() => handleReanalyze(iv)}
+                      disabled={reanalyzing}
+                    />
+                    <MenuItem
+                      icon="📋"
+                      label="Ouvrir le dossier"
+                      onClick={() => { setOpenMenuId(null); onOpenIntervention(iv.id); }}
+                    />
+                    <MenuItem
+                      icon="🗑"
+                      label="Supprimer"
+                      danger
+                      onClick={() => { setOpenMenuId(null); setConfirmDeleteId(iv.id); }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+          Créées automatiquement par le cron à partir de mails entrants. Aucune action n&apos;a été envoyée au client — c&apos;est à toi de planifier.
+        </p>
+      </div>
+
+      {confirmDeleteId && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget && !deleting) setConfirmDeleteId(null); }}
+          className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
+        >
+          <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
+            <h2 className="text-[14px] font-extrabold text-terra mb-2 dark:text-[#FFB897]">
+              🗑 Supprimer cette intervention
+            </h2>
+            <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
+              Êtes-vous sûr de vouloir supprimer l&apos;intervention{' '}
+              <strong className="font-mono text-ink dark:text-[#F0ECE4]">
+                {mails.find((m) => m.id === confirmDeleteId)?.ref ?? '?'}
+              </strong> ?{' '}
+              <strong className="text-terra">Action irréversible.</strong>
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteId(null)}
+                disabled={deleting}
+                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(confirmDeleteId)}
+                disabled={deleting}
+                className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
+                style={{ background: '#C4622D' }}
+              >
+                {deleting ? 'Suppression…' : 'Supprimer définitivement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MenuItem({
+  icon, label, onClick, disabled, danger,
+}: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={
+        'w-full text-left px-3 py-2 text-[12px] font-semibold flex items-center gap-2 disabled:opacity-50 ' +
+        (danger
+          ? 'text-terra hover:bg-terra-light dark:text-[#FFB897] dark:hover:bg-[#5A2E18]'
+          : 'text-ink hover:bg-sand-hover dark:text-[#F0ECE4] dark:hover:bg-[#2A2520]')
+      }
+    >
+      <span className="text-[14px]">{icon}</span>
+      {label}
+    </button>
   );
 }
