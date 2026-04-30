@@ -2,6 +2,7 @@ import { Resend } from 'resend';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dispatchRapportToSyndic } from '@/lib/rapport/dispatch';
 import { VENDOR } from '@/lib/constants/vendor';
+import { getEmailForDoc } from '@/lib/notifications';
 import type { StatutIntervention } from '@/lib/types/database';
 
 const ADMIN_NOTIF_EMAIL = 'info@foxo.be';
@@ -64,8 +65,24 @@ type Context = {
     creneau_debut: string | null;
     adresse: string | null;
     statut: StatutIntervention;
+    particulier_contact: { email: string | null } | null;
   };
+  acp: {
+    nom: string;
+    email_facturation: string | null;
+    email_rapport: string | null;
+    email_factures: string | null;
+    email_rapports: string | null;
+    email_communications: string | null;
+  } | null;
   acpNom: string | null;
+  syndic: {
+    nom: string;
+    email: string;
+    email_factures: string | null;
+    email_rapports: string | null;
+    email_communications: string | null;
+  } | null;
   syndicNom: string | null;
   syndicEmail: string | null;
   occupants: { id: string; nom: string | null; email: string | null; appartement: string | null }[];
@@ -79,20 +96,38 @@ async function loadContext(interventionId: string): Promise<Context | null> {
 
   const { data: iv } = await admin
     .from('interventions')
-    .select('id, ref, type, description, creneau_debut, adresse, statut, acp_id, syndic_id')
+    .select('id, ref, type, description, creneau_debut, adresse, statut, acp_id, syndic_id, particulier_contact')
     .eq('id', interventionId)
     .maybeSingle();
   if (!iv) return null;
 
   const [acpRes, orgRes, occRes] = await Promise.all([
     iv.acp_id
-      ? admin.from('acps').select('nom').eq('id', iv.acp_id).maybeSingle()
+      ? admin.from('acps').select('nom, email_facturation, email_rapport, email_factures, email_rapports, email_communications').eq('id', iv.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.syndic_id
-      ? admin.from('organisations').select('nom, email').eq('id', iv.syndic_id).maybeSingle()
+      ? admin.from('organisations').select('nom, email, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
     admin.from('occupants').select('id, nom, email, appartement').eq('intervention_id', iv.id),
   ]);
+
+  type AcpEmails = {
+    nom: string;
+    email_facturation: string | null;
+    email_rapport: string | null;
+    email_factures: string | null;
+    email_rapports: string | null;
+    email_communications: string | null;
+  };
+  type SyndicEmails = {
+    nom: string;
+    email: string;
+    email_factures: string | null;
+    email_rapports: string | null;
+    email_communications: string | null;
+  };
+  const acp = acpRes.data as AcpEmails | null;
+  const syndic = orgRes.data as SyndicEmails | null;
 
   return {
     iv: {
@@ -103,10 +138,13 @@ async function loadContext(interventionId: string): Promise<Context | null> {
       creneau_debut: iv.creneau_debut,
       adresse: iv.adresse,
       statut: iv.statut as StatutIntervention,
+      particulier_contact: iv.particulier_contact as { email: string | null } | null,
     },
-    acpNom: (acpRes.data as { nom: string } | null)?.nom ?? null,
-    syndicNom: (orgRes.data as { nom: string } | null)?.nom ?? null,
-    syndicEmail: (orgRes.data as { email: string } | null)?.email ?? null,
+    acp,
+    acpNom: acp?.nom ?? null,
+    syndic,
+    syndicNom: syndic?.nom ?? null,
+    syndicEmail: syndic?.email ?? null,
     occupants: (occRes.data ?? []) as Context['occupants'],
   };
 }
@@ -141,8 +179,12 @@ async function notifyNouvelle(ctx: Context): Promise<void> {
 }
 
 async function notifyConfirmee(ctx: Context): Promise<void> {
-  // Email syndic
-  if (ctx.syndicEmail) {
+  // Destinataire résolu via la cascade ACP → Syndic → ... — type 'communication'
+  const recipient = getEmailForDoc(
+    { acp: ctx.acp, syndic: ctx.syndic, particulier_contact: ctx.iv.particulier_contact },
+    'communication',
+  );
+  if (recipient.email) {
     const html = buildShell(
       buildHeader('Intervention confirmée') +
       `<p style="font-size:14px;line-height:1.6;margin:0 0 12px">Bonjour${ctx.syndicNom ? ' ' + escapeHtml(ctx.syndicNom) : ''},</p>
@@ -150,7 +192,7 @@ async function notifyConfirmee(ctx: Context): Promise<void> {
        <p style="font-size:13px;color:#6B6558;line-height:1.6">Détails dans votre portail : <a href="https://portal.foxo.be" style="color:#1B3A6B">portal.foxo.be</a></p>`
     );
     await sendOne({
-      to: ctx.syndicEmail,
+      to: recipient.email,
       subject: `Intervention confirmée — ${ctx.acpNom ?? ctx.iv.adresse ?? ''} (${ctx.iv.ref ?? ''})`,
       html,
     });
@@ -176,7 +218,13 @@ async function notifyConfirmee(ctx: Context): Promise<void> {
 }
 
 async function notifyCloturee(ctx: Context): Promise<void> {
-  if (!ctx.syndicEmail) return;
+  // Cloturée = facture en attachment → on adresse à l'email factures
+  // (avec cascade ACP → Syndic → legacy → fallback).
+  const recipient = getEmailForDoc(
+    { acp: ctx.acp, syndic: ctx.syndic, particulier_contact: ctx.iv.particulier_contact },
+    'facture',
+  );
+  if (!recipient.email) return;
 
   // Tente d'attacher la facture si elle existe
   let attachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined;
@@ -202,7 +250,7 @@ async function notifyCloturee(ctx: Context): Promise<void> {
      <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">${escapeHtml(VENDOR.name)} · ${escapeHtml(VENDOR.email)}</p>`
   );
   await sendOne({
-    to: ctx.syndicEmail,
+    to: recipient.email,
     subject: `Intervention clôturée — ${ctx.acpNom ?? ctx.iv.adresse ?? ''} (${ctx.iv.ref ?? ''})`,
     html,
     attachments,

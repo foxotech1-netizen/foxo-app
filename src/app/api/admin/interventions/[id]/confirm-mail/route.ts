@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import { sendEmail } from '@/lib/gmail';
-import type { Intervention, ParticulierContact, Utilisateur } from '@/lib/types/database';
+import { getEmailForDoc } from '@/lib/notifications';
+import type { Acp, Intervention, Organisation, ParticulierContact, Utilisateur } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -64,18 +65,32 @@ export async function POST(
 
   const { data: iv, error: ivErr } = await supabase
     .from('interventions')
-    .select('*')
+    .select(`
+      *,
+      acp:acps(nom, email_facturation, email_rapport, email_factures, email_rapports, email_communications),
+      syndic:organisations(nom, email, email_factures, email_rapports, email_communications)
+    `)
     .eq('id', id)
     .maybeSingle();
   if (ivErr) return NextResponse.json({ ok: false, error: ivErr.message }, { status: 500 });
   if (!iv) return NextResponse.json({ ok: false, error: 'Intervention introuvable.' }, { status: 404 });
 
-  const intervention = iv as Intervention;
+  type IvWithRels = Intervention & {
+    acp: Acp | Acp[] | null;
+    syndic: Organisation | Organisation[] | null;
+  };
+  const ivJoined = iv as unknown as IvWithRels;
+  const intervention = ivJoined as Intervention;
+  const acp = Array.isArray(ivJoined.acp) ? (ivJoined.acp[0] ?? null) : ivJoined.acp;
+  const syndic = Array.isArray(ivJoined.syndic) ? (ivJoined.syndic[0] ?? null) : ivJoined.syndic;
   const pc = intervention.particulier_contact as ParticulierContact | null;
-  const clientEmail = pc?.email ?? pc?.mandant?.email ?? null;
+
+  // Cascade ACP → Syndic → legacy → particulier (type 'communication')
+  const recipient = getEmailForDoc({ acp, syndic, particulier_contact: pc }, 'communication');
+  const clientEmail = recipient.email;
   if (!clientEmail) {
     return NextResponse.json(
-      { ok: false, error: 'Aucun email client (particulier_contact.email manquant).' },
+      { ok: false, error: 'Aucun email destinataire (cascade ACP/Syndic/particulier vide).' },
       { status: 400 },
     );
   }

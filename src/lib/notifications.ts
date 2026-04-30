@@ -29,7 +29,9 @@ export type DocType = 'facture' | 'rapport' | 'communication';
 export interface EmailResolutionInput {
   acp?: Pick<Acp, 'email_factures' | 'email_rapports' | 'email_communications' | 'email_facturation' | 'email_rapport'> | null;
   syndic?: Pick<Organisation, 'email_factures' | 'email_rapports' | 'email_communications' | 'email'> | null;
-  particulier_contact?: Pick<ParticulierContact, 'email'> | null;
+  // particulier_contact peut venir de la DB où email est nullable, ou du type
+  // strict ParticulierContact où email est string. On accepte les deux.
+  particulier_contact?: { email?: string | null } | null;
 }
 
 export interface EmailResolution {

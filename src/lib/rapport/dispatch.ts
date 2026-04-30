@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
 import { uploadRapport } from '@/lib/google-drive';
-import type { Acp, Intervention, Organisation, Rapport, Utilisateur } from '@/lib/types/database';
+import { getEmailForDoc } from '@/lib/notifications';
+import type { Acp, Intervention, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
 export type BuildResult =
@@ -29,7 +30,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
       ? supabase.from('acps').select('*').eq('id', iv.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.syndic_id
-      ? supabase.from('organisations').select('id, nom, email, type').eq('id', iv.syndic_id).maybeSingle()
+      ? supabase.from('organisations').select('id, nom, email, type, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.technicien_id
       ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
@@ -39,7 +40,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   ]);
 
   const acp = acpRes.data as Acp | null;
-  const syndic = syndicRes.data as Pick<Organisation, 'id' | 'nom' | 'email' | 'type'> | null;
+  const syndic = syndicRes.data as Pick<Organisation, 'id' | 'nom' | 'email' | 'type' | 'email_factures' | 'email_rapports' | 'email_communications'> | null;
   const tech = techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
   const rapport = rapRes.data as Rapport | null;
   const appartements = ((occRes.data ?? []) as { appartement: string | null }[])
@@ -75,12 +76,21 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     generatedAt: new Date().toISOString(),
   });
 
+  // Destinataire résolu via la cascade ACP → Syndic → legacy → particulier
+  // Voir lib/notifications.ts pour le détail. On garde syndicEmail comme
+  // fallback dans le type pour compat avec les callers existants.
+  const recipient = getEmailForDoc({
+    acp,
+    syndic,
+    particulier_contact: iv.particulier_contact as ParticulierContact | null,
+  }, 'rapport');
+
   return {
     ok: true,
     pdfBuffer,
     ref,
     acpNom,
-    syndicEmail: syndic?.email ?? null,
+    syndicEmail: recipient.email ?? syndic?.email ?? null,
     syndicNom: syndic?.nom ?? null,
     technicienNom: techNom,
   };
