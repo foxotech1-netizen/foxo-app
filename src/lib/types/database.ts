@@ -107,6 +107,11 @@ export interface Organisation {
   telephone: string | null;
   bce: string | null;
   adresse: string | null;
+  // Emails fonctionnels dédiés (override de `email`). NULL = retombe
+  // sur le legacy `email`.
+  email_factures: string | null;
+  email_rapports: string | null;
+  email_communications: string | null;
   created_at?: string;
 }
 
@@ -117,8 +122,16 @@ export interface Acp {
   ville: string | null;
   code_postal: string | null;
   bce: string | null;
+  // Emails legacy (un seul champ pour rapport, un seul pour factu)
   email_rapport: string | null;
   email_facturation: string | null;
+  // Emails fonctionnels dédiés — overrident le syndic. NULL = hérite.
+  email_factures: string | null;
+  email_rapports: string | null;
+  email_communications: string | null;
+  // Syndic gestionnaire de l'ACP (lien explicite, en plus du lien
+  // implicite par intervention.syndic_id).
+  syndic_id_ref: string | null;
 }
 
 export interface Utilisateur {
@@ -231,6 +244,11 @@ export interface Client {
   contact_telephone: string | null;
   notes: string | null;
   actif: boolean;
+  // Syndic gestionnaire (clients de type 'acp') + emails dédiés override
+  syndic_id_ref: string | null;
+  email_factures: string | null;
+  email_rapports: string | null;
+  email_communications: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -215,15 +215,22 @@ export function OrganisationDrawer({
           )}
 
           {tab === 'infos' && (
-            <div className="bg-cream border border-sand-border rounded-xl p-4 text-[13px] dark:bg-[#1C1A16] dark:border-[#2C2A24] space-y-2">
-              <KV label="Nom" value={org.nom} />
-              <KV label="Type" value={org.type === 'syndic' ? 'Syndic' : 'Courtier'} />
-              <KV label="Email principal" value={org.email} mono />
-              <KV label="Contact" value={org.contact} />
-              <KV label="Téléphone" value={org.telephone} mono />
-              <KV label="BCE" value={org.bce} mono />
-              <KV label="Adresse" value={org.adresse} />
-            </div>
+            <>
+              <div className="bg-cream border border-sand-border rounded-xl p-4 text-[13px] dark:bg-[#1C1A16] dark:border-[#2C2A24] space-y-2 mb-3">
+                <KV label="Nom" value={org.nom} />
+                <KV label="Type" value={org.type === 'syndic' ? 'Syndic' : 'Courtier'} />
+                <KV label="Email principal" value={org.email} mono />
+                <KV label="Contact" value={org.contact} />
+                <KV label="Téléphone" value={org.telephone} mono />
+                <KV label="BCE" value={org.bce} mono />
+                <KV label="Adresse" value={org.adresse} />
+              </div>
+              <SyndicEmailsBlock org={org} onSaved={(updated) => {
+                // Update local org reference (parent ne sait pas — on refresh côté server)
+                Object.assign(org, updated);
+                setFeedback({ kind: 'ok', msg: 'Emails dédiés sauvegardés ✓' });
+              }} />
+            </>
           )}
 
           {tab === 'delegues' && (
@@ -430,6 +437,99 @@ function DelegueEditCard({
           {saving ? '…' : '💾 Sauvegarder'}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Section "📧 Emails dédiés" — éditable, appelle PATCH /api/admin/syndics/[id]
+function SyndicEmailsBlock({
+  org, onSaved,
+}: {
+  org: Organisation;
+  onSaved: (updated: Partial<Organisation>) => void;
+}) {
+  const [factures, setFactures] = useState(org.email_factures ?? '');
+  const [rapports, setRapports] = useState(org.email_rapports ?? '');
+  const [communications, setCommunications] = useState(org.email_communications ?? '');
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const r = await fetch(`/api/admin/syndics/${org.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_factures: factures || null,
+          email_rapports: rapports || null,
+          email_communications: communications || null,
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        alert(data.error ?? 'Échec sauvegarde.');
+        return;
+      }
+      onSaved({
+        email_factures: factures || null,
+        email_rapports: rapports || null,
+        email_communications: communications || null,
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls = 'w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]';
+
+  return (
+    <div className="bg-cream border border-sand-border rounded-xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+        📧 Emails dédiés
+      </div>
+      <p className="text-[10px] text-ink-muted mb-3 italic dark:text-[#C8C2B8]">
+        Si vide, on retombe sur l&apos;email principal {org.email}.
+      </p>
+      <div className="space-y-2">
+        <EmailField label="Factures" value={factures} onChange={setFactures} placeholder={`p.ex. factures@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Rapports" value={rapports} onChange={setRapports} placeholder={`p.ex. rapports@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Communications" value={communications} onChange={setCommunications} placeholder={`p.ex. info@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+      </div>
+      <div className="flex justify-end mt-3">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50"
+        >
+          {saving ? '…' : '💾 Sauvegarder'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EmailField({
+  label, value, onChange, placeholder, cls,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  cls: string;
+}) {
+  return (
+    <div>
+      <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">
+        {label}
+      </label>
+      <input
+        type="email"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={cls}
+      />
     </div>
   );
 }

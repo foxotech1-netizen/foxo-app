@@ -1743,7 +1743,10 @@ export function InterventionsClient({
               )}
 
               {tab === 'documents' && (
-                <DocumentsBlock interventionId={selected.id} />
+                <>
+                  <DocumentRecipients interventionId={selected.id} />
+                  <DocumentsBlock interventionId={selected.id} />
+                </>
               )}
 
               {tab === 'ia' && (
@@ -1794,6 +1797,99 @@ function StatCard({
     <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
       <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
       <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
+    </div>
+  );
+}
+
+// Affiche les destinataires email résolus pour chaque type de document
+// (facture / rapport / communication) avec la source de la résolution.
+// Charge dynamiquement /api/admin/interventions/[id]/recipients.
+function DocumentRecipients({ interventionId }: { interventionId: string }) {
+  type Recipient = {
+    doc: 'facture' | 'rapport' | 'communication';
+    email: string | null;
+    source: 'acp' | 'syndic' | 'acp_legacy' | 'syndic_general' | 'particulier' | null;
+  };
+  const [data, setData] = useState<{
+    recipients: Recipient[];
+    acp_id: string | null;
+    syndic_id: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch(`/api/admin/interventions/${interventionId}/recipients`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => { if (mounted && d.ok) setData(d); })
+      .catch(() => { /* noop */ });
+    return () => { mounted = false; };
+  }, [interventionId]);
+
+  if (!data) return null;
+
+  const ICONS: Record<Recipient['doc'], string> = {
+    facture: '💶 Facture',
+    rapport: '📄 Rapport',
+    communication: '📣 Communication',
+  };
+  const sourceLabel = (s: Recipient['source']) => {
+    if (s === 'acp') return 'ACP';
+    if (s === 'syndic') return 'Syndic';
+    if (s === 'acp_legacy') return 'ACP (legacy)';
+    if (s === 'syndic_general') return 'Syndic (général)';
+    if (s === 'particulier') return 'Particulier';
+    return null;
+  };
+
+  // Lien "Modifier" : préférer ACP s'il existe, sinon syndic
+  const editHref = data.acp_id
+    ? `/admin/clients/${data.acp_id}`
+    : data.syndic_id
+      ? '/admin/syndics'
+      : null;
+
+  return (
+    <div className="bg-cream border border-sand-border rounded-xl p-3 mb-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+          Destinataires emails
+        </div>
+        {editHref && (
+          <a
+            href={editHref}
+            className="text-[10px] text-navy hover:underline dark:text-[#A8C4F2]"
+          >
+            ✏️ Modifier
+          </a>
+        )}
+      </div>
+      <div className="space-y-1">
+        {data.recipients.map((r) => (
+          <div key={r.doc} className="flex items-center gap-2 text-[12px]">
+            <span className="font-bold text-ink dark:text-[#F0ECE4] w-[140px] flex-shrink-0">
+              {ICONS[r.doc]}
+            </span>
+            <span className="text-ink-mid dark:text-[#C8C2B8]">→</span>
+            {r.email ? (
+              <>
+                <a
+                  href={`mailto:${r.email}`}
+                  className="font-mono text-[11px] text-navy hover:underline truncate flex-1 dark:text-[#A8C4F2]"
+                >
+                  {r.email}
+                </a>
+                {sourceLabel(r.source) && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sand-mid text-ink-muted flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+                    {sourceLabel(r.source)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="italic text-terra text-[11px]">Aucun email configuré</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

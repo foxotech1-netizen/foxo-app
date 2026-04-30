@@ -683,6 +683,11 @@ export interface ClientInput {
   contact_telephone?: string | null;
   notes?: string | null;
   actif?: boolean;
+  // ACP : lien syndic + emails dédiés override
+  syndic_id_ref?: string | null;
+  email_factures?: string | null;
+  email_rapports?: string | null;
+  email_communications?: string | null;
 }
 
 export async function saveClient(input: ClientInput): Promise<ActionResult<{ id: string }>> {
@@ -710,6 +715,10 @@ export async function saveClient(input: ClientInput): Promise<ActionResult<{ id:
     contact_telephone: input.contact_telephone?.trim() || null,
     notes: input.notes?.trim() || null,
     actif: input.actif ?? true,
+    syndic_id_ref: input.syndic_id_ref || null,
+    email_factures: input.email_factures?.trim().toLowerCase() || null,
+    email_rapports: input.email_rapports?.trim().toLowerCase() || null,
+    email_communications: input.email_communications?.trim().toLowerCase() || null,
     updated_at: new Date().toISOString(),
   };
 
