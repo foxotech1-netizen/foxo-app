@@ -465,7 +465,7 @@ export async function loadInterventionForFacture(interventionId: string): Promis
   const supabase = await createClient();
   const { data: iv, error } = await supabase
     .from('interventions')
-    .select('id, ref, syndic_id, acp_id, demandeur_type, particulier_contact, adresse, billing_override, syndic:organisations(nom, email, bce, adresse, type), acp:acps(nom, adresse, code_postal, ville)')
+    .select('id, ref, syndic_id, acp_id, demandeur_type, particulier_contact, adresse, billing_override, syndic:organisations(nom, email, bce, adresse, type), acp:acps(nom, adresse, code_postal, ville, bce)')
     .eq('id', interventionId)
     .maybeSingle();
   if (error || !iv) return { ok: false, error: 'Intervention introuvable.' };
@@ -483,7 +483,7 @@ export async function loadInterventionForFacture(interventionId: string): Promis
     adresse: string | null;
     billing_override: { rue: string; cp: string; ville: string; bce?: string } | null;
     syndic: { nom: string | null; email: string | null; bce: string | null; adresse: string | null; type: string | null } | null;
-    acp: { nom: string | null; adresse: string | null; code_postal: string | null; ville: string | null } | null;
+    acp: { nom: string | null; adresse: string | null; code_postal: string | null; ville: string | null; bce: string | null } | null;
   };
   const t = iv as unknown as IvJoined;
 
@@ -507,19 +507,39 @@ export async function loadInterventionForFacture(interventionId: string): Promis
       client_adresse = `${c.adresse.rue}, ${c.adresse.code_postal} ${c.adresse.ville}`;
     }
   } else if (t.syndic) {
-    client_nom = t.syndic.nom;
-    client_email = t.syndic.email;
-    // billing_override prioritaire, sinon adresse syndic
-    if (t.billing_override) {
-      const o = t.billing_override;
-      client_adresse = `${o.rue}, ${o.cp} ${o.ville}`;
-      if (o.bce) client_bce = o.bce;
-      else client_bce = t.syndic.bce;
+    // Cas standard belge : ACP est le débiteur, syndic est le gestionnaire
+    // (c/o). Si l'intervention est rattachée à un ACP → utilise ses
+    // infos comme destinataire ; sinon fallback sur syndic = client direct.
+    if (t.acp) {
+      client_nom = t.acp.nom;
+      client_bce = t.acp.bce;
+      client_email = t.syndic.email;        // facture envoyée au syndic
+      // c/o = nom du syndic (gestionnaire)
+      client_syndic = t.syndic.nom ? `c/o ${t.syndic.nom}` : null;
+      // Adresse de correspondance = adresse du syndic
+      // (override de facturation prioritaire si défini)
+      if (t.billing_override) {
+        const o = t.billing_override;
+        client_adresse = `${o.rue}, ${o.cp} ${o.ville}`;
+        if (o.bce) client_bce = o.bce;
+      } else {
+        client_adresse = t.syndic.adresse;
+      }
     } else {
-      client_adresse = t.syndic.adresse;
-      client_bce = t.syndic.bce;
+      // Pas d'ACP rattaché → syndic = client direct (legacy / cas hors copro)
+      client_nom = t.syndic.nom;
+      client_email = t.syndic.email;
+      if (t.billing_override) {
+        const o = t.billing_override;
+        client_adresse = `${o.rue}, ${o.cp} ${o.ville}`;
+        if (o.bce) client_bce = o.bce;
+        else client_bce = t.syndic.bce;
+      } else {
+        client_adresse = t.syndic.adresse;
+        client_bce = t.syndic.bce;
+      }
+      client_syndic = t.syndic.type === 'courtier' ? 'Courtier' : 'Syndic';
     }
-    client_syndic = t.syndic.type === 'courtier' ? 'Courtier' : 'Syndic';
   }
 
   const acpAdresse = t.acp

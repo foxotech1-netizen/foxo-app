@@ -295,9 +295,13 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
           </View>
           <View style={styles.clientBox}>
             <Text style={styles.clientLabel}>Facturé à</Text>
-            <Text style={styles.clientName}>{facture.client_nom ?? '—'}</Text>
-            {facture.client_bce && <Text style={styles.clientLine}>BCE {facture.client_bce}</Text>}
+            <Text style={styles.clientName}>
+              {facture.client_nom ?? '—'}
+              {facture.client_bce ? ` – BCE ${facture.client_bce}` : ''}
+            </Text>
+            {/* Ligne c/o {syndic} — gestionnaire (Belgique) */}
             {facture.client_syndic && <Text style={styles.clientLine}>{facture.client_syndic}</Text>}
+            {/* Adresse de correspondance (syndic) */}
             {facture.client_adresse && <Text style={styles.clientLine}>{facture.client_adresse}</Text>}
             {facture.client_email && <Text style={styles.clientLine}>{facture.client_email}</Text>}
           </View>
@@ -360,7 +364,7 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
               <Text style={styles.detailsLine}>Appartements : {details.appartements}</Text>
             )}
             {details.adresse_intervention && (
-              <Text style={styles.detailsLine}>Adresse : {details.adresse_intervention}</Text>
+              <Text style={styles.detailsLine}>Adresse d&apos;intervention : {details.adresse_intervention}</Text>
             )}
             {details.reference_assurance && (
               <Text style={styles.detailsLine}>Référence assurance : {details.reference_assurance}</Text>
