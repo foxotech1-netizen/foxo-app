@@ -161,6 +161,16 @@ async function handlePOST(
       nextPc.mandant.adresse_facturation = { rue, code_postal: cp, ville };
     }
   }
+  // Bloc assureur (extrait par le nouveau prompt FoxO) — stocké dans
+  // particulier_contact.assureur. Override l'existant si Claude a re-extrait.
+  if (analysis.assurance) {
+    (nextPc as unknown as Record<string, unknown>).assureur = {
+      nom: analysis.assurance.nom_contact,
+      email: analysis.assurance.email,
+      telephone: analysis.assurance.telephone,
+      reference_police: analysis.assurance.reference_police,
+    };
+  }
 
   // Matching org/client (peut créer si nouveau)
   setPhase('match_org_or_client');
@@ -229,8 +239,16 @@ async function handlePOST(
     patch.type = analysis.type_probleme;
   }
   if (analysis.priorite) patch.priorite = analysis.priorite;
-  if (analysis.resume) patch.description = analysis.resume;
+  // Description : description_precise > resume (le nouveau prompt FoxO
+  // remplit description_precise avec un texte plus contextuel que resume).
+  const newDescription = analysis.description_precise ?? analysis.resume;
+  if (newDescription) patch.description = newDescription;
   if (analysis.reference_externe) patch.reference_externe = analysis.reference_externe;
+  // action_requise → notes_tech (la migration 2026-05-19 doit être
+  // appliquée pour que ça persiste, sinon le retry strippe la colonne).
+  if (analysis.action_requise) {
+    patch.notes_tech = `[IA action requise] ${analysis.action_requise}`;
+  }
 
   const { error: updErr } = await admin.from('interventions').update(patch).eq('id', id);
   if (updErr) {

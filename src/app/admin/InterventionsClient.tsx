@@ -245,6 +245,13 @@ export function InterventionsClient({
       reference_externe: string | null;
       occupants: { prenom: string; nom: string; email: string; appartement: string; etage: string; telephone: string; type: 'occupant' | 'proprietaire' | 'parties_communes'; notes: string }[];
       delegue: { prenom: string | null; nom: string | null; email: string | null; telephone: string | null } | null;
+      // Champs ajoutés par le nouveau prompt FoxO opérationnel
+      description_precise?: string | null;
+      appartements_concernes?: string[];
+      zones_communes?: string[];
+      assurance?: { nom_contact: string | null; email: string | null; telephone: string | null; reference_police: string | null } | null;
+      action_requise?: string | null;
+      type_email?: 'nouvelle_demande' | 'suivi_dossier' | 'confirmation_rdv' | 'annulation' | 'rapport_demande' | 'autre' | null;
     };
   };
   const [reanalysis, setReanalysis] = useState<ReanalysisData | null>(null);
@@ -1220,6 +1227,22 @@ export function InterventionsClient({
                         </div>
                       )}
 
+                      {/* 📋 Action requise — extraite par l'IA et stockée dans notes_tech avec marker */}
+                      {(() => {
+                        const notes = selected.notes_tech ?? '';
+                        // /s flag = ES2018, on évite — utilise [\s\S] à la place
+                        const m = notes.match(/^\[IA action requise\]\s*([\s\S]+)$/);
+                        if (!m) return null;
+                        return (
+                          <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
+                            <div className="font-bold mb-1 text-[#8A5A1A] dark:text-[#F0D896]">
+                              📋 Action requise
+                            </div>
+                            <div className="text-[#5A3F15] dark:text-[#F0D896]">{m[1].trim()}</div>
+                          </div>
+                        );
+                      })()}
+
                       {/* Bouton Réanalyser — visible pour toute intervention
                           source='mail' avec un source_mail_id, peu importe
                           le statut (nouvelle / attente / confirmee / etc.).
@@ -1433,6 +1456,42 @@ export function InterventionsClient({
                       }}
                     />
                   </Block>
+
+                  {/* 🛡️ Assurance — extrait du mail par l'IA, stocké dans particulier_contact.assureur */}
+                  {(() => {
+                    type Assureur = { nom: string | null; email: string | null; telephone: string | null; reference_police: string | null };
+                    const ass = (selected.particulier_contact as unknown as { assureur?: Assureur } | null)?.assureur;
+                    if (!ass || (!ass.nom && !ass.email && !ass.telephone && !ass.reference_police)) return null;
+                    return (
+                      <Block title="🛡️ Assurance">
+                        <div className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                          {ass.nom && (
+                            <div className="font-bold text-ink dark:text-[#F0ECE4]">{ass.nom}</div>
+                          )}
+                          {(ass.email || ass.telephone) && (
+                            <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
+                              {ass.email && (
+                                <a href={`mailto:${ass.email}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
+                                  ✉ {ass.email}
+                                </a>
+                              )}
+                              {ass.telephone && (
+                                <a href={`tel:${ass.telephone}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
+                                  📞 {ass.telephone}
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          {ass.reference_police && (
+                            <div className="text-[10px] font-mono text-ink-mid mt-1 dark:text-[#C8C2B8]">
+                              <span className="text-[9px] uppercase font-bold tracking-wider text-ink-muted">Réf. police : </span>
+                              {ass.reference_police}
+                            </div>
+                          )}
+                        </div>
+                      </Block>
+                    );
+                  })()}
 
                   {/* ② Technicien — dropdown éditable */}
                   <Block id="section-technicien" title="Technicien">

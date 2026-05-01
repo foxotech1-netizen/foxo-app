@@ -56,7 +56,7 @@ export interface CronExtractedOccupant {
   etage: string;
   telephone: string;
   type: CronOccupantType;
-  notes: string;            // état de l'apt, actions déjà prises, urgence
+  notes: string;            // remarques (clés, accès, urgence, état apt)
 }
 
 export type CronDemandeurType = 'syndic' | 'courtier' | 'particulier';
@@ -71,8 +71,30 @@ export interface CronDelegueExtracted {
   telephone: string | null;
 }
 
+// Bloc assurance/courtier — à stocker dans particulier_contact.assureur
+// pour rester compatible avec l'existant (pas de nouvelle table).
+export interface CronInsuranceExtracted {
+  nom_contact: string | null;
+  email: string | null;
+  telephone: string | null;
+  reference_police: string | null;
+}
+
+// Type du mail — détermine si on crée une intervention ou pas.
+// Seuls 'nouvelle_demande' et (parfois) 'rapport_demande' déclenchent une création.
+export type CronMailType =
+  | 'nouvelle_demande'
+  | 'suivi_dossier'
+  | 'confirmation_rdv'
+  | 'annulation'
+  | 'rapport_demande'
+  | 'autre';
+
 export interface CronMailAnalysis {
   est_demande_intervention: boolean;
+  type_email: CronMailType | null;
+  // Champs aplatis (rétrocompat avec le code aval qui les lit).
+  // Ils sont populés depuis demandeur/acp/intervention par le parser.
   nom_client: string | null;
   adresse: string | null;
   type_probleme: string | null;
@@ -88,6 +110,12 @@ export interface CronMailAnalysis {
   adresse_immeuble: string | null;
   reference_externe: string | null;
   delegue: CronDelegueExtracted | null;
+  // Nouveaux champs (prompt FoxO opérationnel).
+  description_precise: string | null;
+  appartements_concernes: string[];
+  zones_communes: string[];
+  assurance: CronInsuranceExtracted | null;
+  action_requise: string | null;
 }
 
 export interface CronMailResultItem {
@@ -221,66 +249,39 @@ export async function analyzeMailWithClaude(
     : '(aucun)';
 
   const userMessage = [
-    `Tu analyses les emails entrants chez FoxO (détection de fuites en Belgique). Ton rôle :`,
+    `Tu es l'assistant opérationnel de FoxO, spécialisé dans la détection de fuites pour des résidences gérées par des syndics à Bruxelles.`,
     ``,
-    `1. Décider si l'email est une demande d'intervention concrète (fuite, dégât des eaux, surconsommation, inspection caméra…) — vrai pour les particuliers, syndics, courtiers qui sollicitent FoxO.`,
-    `   FAUX pour : newsletters, factures fournisseurs, notifications automatiques, spam, mails internes, échanges sans demande nouvelle.`,
+    `Analyse ce mail et extrait TOUTES les informations en JSON strict. Lis TOUT le corps du mail et les CC.`,
     ``,
-    `2. Si c'est une demande, extraire les données du demandeur principal.`,
+    `## CONTACTS RÉCURRENTS À RECONNAÎTRE`,
+    `- Regimo SRL : Thomas Malrain, Mariana Cabral de Almeida, Alexis Kotsaridis`,
+    `- IGS / IG Syndic : Caroline Mignon (cm@igsyndic.be), Kevin Duwyn (kd@igsyndic.be)`,
+    `- Ettik / B-Safe : Frédéric Aelvoet (assurance/facturation)`,
+    `- Moons Assurances : Alain Moons`,
     ``,
-    `3. Déterminer le type_demandeur :`,
-    `   - "syndic" : mentionne copropriété, ACP, immeuble, syndic, lot, AG, parties communes, gestionnaire d'immeuble`,
-    `   - "courtier" : mentionne assurance, sinistre, police, compagnie d'assurance, expertise, dégât assuré`,
-    `   - "particulier" : demande personnelle, maison, appartement perso, propriétaire occupant`,
-    `   Aussi extraire :`,
-    `   - nom_societe : cabinet syndic, compagnie d'assurance (ex: "Wave-Immo SPRL", "BelGestion", "Assur Plus") — null si particulier`,
-    `   - nom_immeuble : nom de la résidence/ACP (ex: "Résidence Bellevue", "Le Châtelain", "ACP Forest 14") — null si particulier ou non identifiable`,
-    `   - adresse_immeuble : adresse postale de l'immeuble si différente de adresse (ex: "Rue de la Loi 42, 1000 Bruxelles") — null sinon`,
-    `   - reference_externe : référence dossier syndic/courtier mentionnée (ex: "DOS-2026-123", "REF/456/2026") — null si absente`,
+    `## RÈGLES D'EXTRACTION`,
+    `- Lis TOUT le corps du mail, ne t'arrête pas à la première mention.`,
+    `- Chaque adresse en CC est un occupant potentiel à identifier.`,
+    `- Format occupant typique : "Apt X (Nom Prénom)", "Appartement X — Nom",`,
+    `  ou "• AXX — NOM Prénom — 04XX XX XX XX / email".`,
+    `- Si quelqu'un détient des clés de l'apt voisin → mets dans 'remarques'.`,
+    `- Si une référence sinistre est mentionnée → mets dans acp.reference_sinistre.`,
+    `- Si le mail est juste un suivi/confirmation (pas une nouvelle demande) →`,
+    `  est_demande_intervention=false ET type_email approprié.`,
+    `- Si spam/newsletter/automatique → est_demande_intervention=false, type_email="autre".`,
     ``,
-    `## Extraction du délégué (l'humain qui envoie le mail)`,
+    `## type_email`,
+    `- "nouvelle_demande" : nouvelle intervention à planifier`,
+    `- "suivi_dossier" : relance/échange sur un dossier existant`,
+    `- "confirmation_rdv" : confirmation de rendez-vous`,
+    `- "annulation" : annulation d'intervention`,
+    `- "rapport_demande" : demande de rapport sur intervention faite`,
+    `- "autre" : tout le reste (spam, newsletter, fournisseur, interne…)`,
     ``,
-    `Le From: est le DÉLÉGUÉ du syndic — la personne physique qui agit pour la société. La société = nom_societe ; le délégué = un humain avec son propre nom + email + téléphone.`,
-    `   - Le From: contient souvent le nom d'affichage : "Kevin Duwyn <kd@igsyndic.be>" → délégué prenom="Kevin", nom="Duwyn", email="kd@igsyndic.be"`,
-    `   - Cherche aussi dans la SIGNATURE du mail : "Cordialement, Kevin Duwyn — IG Syndic SPRL — 02 123 45 67"`,
-    `   - Le téléphone du délégué peut être fixe (02xxx) ou mobile (04xx / +32 4xx)`,
-    `   - Si type_demandeur = "particulier", remplis quand même delegue avec les coordonnées du sender (le particulier EST son propre délégué)`,
-    `   - Si vraiment aucune info → mets delegue=null (mais email_delegue devrait au minimum être l'email From:)`,
-    ``,
-    `## Extraction des occupants et appartements`,
-    ``,
-    `Lis ATTENTIVEMENT TOUT le corps du mail ET les CC. Ne t'arrête pas à la première mention.`,
-    `Identifie TOUS les occupants ou zones mentionnés, sous toutes ces formes :`,
-    ``,
-    `(a) Nom entre parenthèses après un numéro/code d'appartement :`,
-    `    "appartement K09 (Mme Vlasselaer) au 2ème"  → apt="K09", etage="2ème", nom="Vlasselaer", prenom=""`,
-    `    "apt 3B (Marie Dupont)"                     → apt="3B",  etage="3", nom="Dupont", prenom="Marie"`,
-    `    Détecte aussi l'étage isolément (ex: "rez-de-chaussée côté escaliers" → etage="rez-de-chaussée")`,
-    ``,
-    `(b) Nom associé à un local commercial / cave / garage :`,
-    `    "magasin M09 (Mr Leman)"            → apt="M09", nom="Leman",      prenom="Mr"`,
-    `    "cave C12 (Famille Smets)"          → apt="C12", nom="Smets",      prenom=""`,
-    ``,
-    `(c) Zones communes : crée AUSSI un occupant avec nom="Parties communes" :`,
-    `    "rez-de-chaussée côté escaliers"    → apt="RDC - Escaliers", nom="Parties communes", type="parties_communes"`,
-    `    "couloir 2e étage"                  → apt="Couloir 2e",      nom="Parties communes", type="parties_communes"`,
-    ``,
-    `(d) Adresses email en CC avec un nom (cf. section ## CC) :`,
-    `    "Vlasselaer Marie <m.vlasselaer@gmail.com>"`,
-    `    → si le corps mentionne aussi "apt K09 (Vlasselaer)", FUSIONNE :`,
-    `       un seul occupant { apt:"K09", nom:"Vlasselaer", prenom:"Marie", email:"m.vlasselaer@gmail.com" }`,
-    `    → si la même personne est mentionnée 2 fois, ne crée qu'une entrée.`,
-    ``,
-    `(e) Téléphones (formats belges +32 / 04xx / 02xx) trouvés à proximité d'un nom dans le corps :`,
-    `    "Mme Leman : 0488 12 34 56" → ajoute telephone à l'occupant Leman`,
-    ``,
-    `Pour chaque occupant, capture aussi des notes spécifiques :`,
-    `   - Actions déjà prises : "eau coupée", "vanne fermée", "sinistre déclaré"`,
-    `   - État de l'apt : "infiltrations visibles", "moisissures", "non habité"`,
-    `   - Urgence particulière à cet occupant`,
-    `   Concatène en une chaîne courte (max 200 chars).`,
-    ``,
-    `IGNORE les CC qui sont des copies internes (domaines foxo.be, syndic, le sender lui-même, etc.) — ne mets QUE des résidents/occupants/parties_communes.`,
+    `## demandeur.type`,
+    `- "syndic" : copropriété, ACP, immeuble, AG, parties communes, gestionnaire`,
+    `- "courtier" : assurance, sinistre, police, compagnie, expertise, dégât assuré`,
+    `- "particulier" : demande personnelle, maison/appartement perso`,
     ``,
     `## EMAIL`,
     `From    : ${mail.from}`,
@@ -294,46 +295,67 @@ export async function analyzeMailWithClaude(
     `## CORPS DU MAIL`,
     truncated,
     ``,
-    `## SORTIE`,
-    `Retourne UNIQUEMENT du JSON pur, sans backticks, sans markdown :`,
+    `## SORTIE — UNIQUEMENT ce JSON sans markdown ni backticks`,
     `{`,
     `  "est_demande_intervention": true | false,`,
-    `  "nom_client": "Prénom Nom" | null,`,
-    `  "adresse": "rue + numéro, code postal + ville" | null,`,
-    `  "type_probleme": "Fuite canalisation | Fuite chauffage | Fuite infiltration | Surconsommation eau | Autre" | null,`,
-    `  "telephone": "+32..." | null,`,
-    `  "email": "email du demandeur" | null,`,
-    `  "priorite": "urgente | normale" | null,`,
-    `  "resume": "1-2 phrases décrivant le problème" | null,`,
-    `  "langue": "fr | nl | en" | null,`,
-    `  "type_demandeur": "syndic | courtier | particulier" | null,`,
-    `  "nom_societe": "string" | null,`,
-    `  "nom_immeuble": "string" | null,`,
-    `  "adresse_immeuble": "string" | null,`,
-    `  "reference_externe": "string" | null,`,
-    `  "delegue": {`,
-    `    "prenom": "string ou null",`,
+    `  "type_email": "nouvelle_demande" | "suivi_dossier" | "confirmation_rdv" | "annulation" | "rapport_demande" | "autre",`,
+    ``,
+    `  "demandeur": {`,
+    `    "type": "syndic" | "courtier" | "particulier" | null,`,
+    `    "nom_societe": "string ou null",`,
+    `    "nom_contact": "string ou null",`,
+    `    "email_contact": "string ou null",`,
+    `    "telephone_contact": "string ou null"`,
+    `  },`,
+    ``,
+    `  "acp": {`,
     `    "nom": "string ou null",`,
-    `    "email": "string ou null",`,
-    `    "telephone": "string ou null"`,
-    `  } | null,`,
+    `    "adresse": "string ou null",`,
+    `    "code_postal": "string ou null",`,
+    `    "ville": "string ou null",`,
+    `    "reference_sinistre": "string ou null"`,
+    `  },`,
+    ``,
+    `  "intervention": {`,
+    `    "type_probleme": "Fuite canalisation" | "Fuite chauffage" | "Fuite infiltration" | "Surconsommation eau" | "Recherche fuite" | "Humidité" | "Autre" | null,`,
+    `    "description_precise": "string ou null",`,
+    `    "priorite": "normale" | "urgente",`,
+    `    "appartements_concernes": ["A03", "A04", ...],`,
+    `    "zones_communes": ["RDC escaliers", ...]`,
+    `  },`,
+    ``,
     `  "occupants": [`,
     `    {`,
-    `      "prenom": "string",`,
-    `      "nom": "string",`,
+    `      "appartement": "string ou \\"\\"",`,
+    `      "nom": "string ou \\"\\"",`,
+    `      "prenom": "string ou \\"\\"",`,
     `      "email": "string ou \\"\\"",`,
-    `      "appartement": "string (numéro/code/zone)",`,
-    `      "etage": "string ou \\"\\"",`,
     `      "telephone": "string ou \\"\\"",`,
-    `      "type": "occupant | proprietaire | parties_communes",`,
-    `      "notes": "string courte ou \\"\\"" `,
+    `      "type": "occupant" | "proprietaire" | "parties_communes",`,
+    `      "remarques": "string courte ou \\"\\""`,
     `    }`,
-    `  ]`,
+    `  ],`,
+    ``,
+    `  "assurance": {`,
+    `    "nom_contact": "string ou null",`,
+    `    "email": "string ou null",`,
+    `    "telephone": "string ou null",`,
+    `    "reference_police": "string ou null"`,
+    `  },`,
+    ``,
+    `  "resume": "1-2 phrases ou null",`,
+    `  "priorite": "normale" | "urgente",`,
+    `  "langue": "fr" | "nl" | "en",`,
+    `  "reference_externe": "string ou null",`,
+    `  "action_requise": "string ou null"`,
     `}`,
     ``,
-    `Aucun champ inventé : si l'info n'est pas explicite, mets null (ou "" pour les champs occupant string requis).`,
-    `IMPORTANT : si aucun occupant n'est trouvé MAIS qu'une zone commune est touchée → crée au moins une entrée parties_communes.`,
-    `Si vraiment rien d'identifiable, retourne occupants: [].`,
+    `IMPORTANT :`,
+    `- Aucun champ inventé : si l'info n'est pas explicite, null (ou "" pour les strings d'occupant).`,
+    `- Si aucun occupant identifié MAIS zone commune touchée → au moins une entrée parties_communes.`,
+    `- Sinon "occupants": [].`,
+    `- Si pas d'assurance mentionnée → tous les champs assurance à null.`,
+    `- Le From: doit toujours être identifiable comme demandeur.email_contact / nom_contact (au moins).`,
   ].join('\n');
 
   // Log diagnostique — prompt complet + meta du mail. Activable via
@@ -395,9 +417,58 @@ export async function analyzeMailWithClaude(
     occupants_raw: (parsed as { occupants?: unknown }).occupants,
   });
 
-  // Extraction sûre du tableau d'occupants. On accepte les
-  // parties_communes même sans email ni téléphone (cas des zones
-  // communes touchées sans contact identifiable).
+  // ── Helpers d'extraction sécurisés ─────────────────────────────────
+  function strOrEmpty(v: unknown): string {
+    return typeof v === 'string' ? v.trim() : '';
+  }
+  function strOrNull(v: unknown): string | null {
+    if (typeof v !== 'string') return null;
+    const t = v.trim();
+    return t ? t : null;
+  }
+  function getObj(parent: unknown, key: string): Record<string, unknown> | null {
+    if (!parent || typeof parent !== 'object') return null;
+    const v = (parent as Record<string, unknown>)[key];
+    return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null;
+  }
+  function strArray(v: unknown): string[] {
+    if (!Array.isArray(v)) return [];
+    return v
+      .map((x) => (typeof x === 'string' ? x.trim() : ''))
+      .filter((x): x is string => Boolean(x));
+  }
+
+  // ── demandeur (objet nested) ──────────────────────────────────────
+  const dem = getObj(parsed, 'demandeur');
+  const td = dem ? dem.type : (parsed as { type_demandeur?: unknown }).type_demandeur;
+  const typeDemandeur: CronDemandeurType | null =
+    td === 'syndic' || td === 'courtier' || td === 'particulier' ? td : null;
+  const nom_societe = dem
+    ? strOrNull(dem.nom_societe)
+    : strOrNull((parsed as { nom_societe?: unknown }).nom_societe);
+  const dem_email = dem ? strOrNull(dem.email_contact) : null;
+  const dem_tel = dem ? strOrNull(dem.telephone_contact) : null;
+  const dem_nom = dem ? strOrNull(dem.nom_contact) : null;
+
+  // ── acp (objet nested) ────────────────────────────────────────────
+  const acpObj = getObj(parsed, 'acp');
+  const acp_nom = acpObj ? strOrNull(acpObj.nom) : strOrNull((parsed as { nom_immeuble?: unknown }).nom_immeuble);
+  const acp_adresse_full = acpObj
+    ? [acpObj.adresse, acpObj.code_postal, acpObj.ville].map(strOrEmpty).filter(Boolean).join(', ')
+    : strOrEmpty((parsed as { adresse_immeuble?: unknown }).adresse_immeuble);
+  const reference_sinistre = acpObj ? strOrNull(acpObj.reference_sinistre) : null;
+
+  // ── intervention (objet nested) ───────────────────────────────────
+  const ivObj = getObj(parsed, 'intervention');
+  const type_probleme = ivObj
+    ? strOrNull(ivObj.type_probleme)
+    : strOrNull((parsed as { type_probleme?: unknown }).type_probleme);
+  const description_precise = ivObj ? strOrNull(ivObj.description_precise) : null;
+  const iv_priorite = ivObj?.priorite;
+  const appartements_concernes = ivObj ? strArray(ivObj.appartements_concernes) : [];
+  const zones_communes = ivObj ? strArray(ivObj.zones_communes) : [];
+
+  // ── occupants (array — clé 'remarques' nouvelle, fallback 'notes') ─
   const occupantsRaw = Array.isArray((parsed as { occupants?: unknown }).occupants)
     ? ((parsed as { occupants: unknown[] }).occupants)
     : [];
@@ -405,50 +476,57 @@ export async function analyzeMailWithClaude(
     .map((o): CronExtractedOccupant | null => {
       if (!o || typeof o !== 'object') return null;
       const r = o as Record<string, unknown>;
-      const email = typeof r.email === 'string' ? r.email.trim() : '';
-      const tel = typeof r.telephone === 'string' ? r.telephone.trim() : '';
-      const apt = typeof r.appartement === 'string' ? r.appartement.trim() : '';
-      const etage = typeof r.etage === 'string' ? r.etage.trim() : '';
-      const nom = typeof r.nom === 'string' ? r.nom.trim() : '';
-      const prenom = typeof r.prenom === 'string' ? r.prenom.trim() : '';
+      const email = strOrEmpty(r.email);
+      const tel = strOrEmpty(r.telephone);
+      const apt = strOrEmpty(r.appartement);
+      const etage = strOrEmpty(r.etage);
+      const nom = strOrEmpty(r.nom);
+      const prenom = strOrEmpty(r.prenom);
       const tRaw = typeof r.type === 'string' ? r.type : '';
       const type: CronOccupantType = tRaw === 'parties_communes' || tRaw === 'proprietaire'
         ? tRaw
         : 'occupant';
-      const notes = typeof r.notes === 'string' ? r.notes.trim().slice(0, 200) : '';
+      // Le nouveau prompt utilise 'remarques' ; on accepte 'notes' aussi
+      // par rétrocompat si jamais Claude rechute sur l'ancienne clé.
+      const remarquesRaw = strOrEmpty(r.remarques) || strOrEmpty(r.notes);
+      const notes = remarquesRaw.slice(0, 300);
 
-      // Filtre : un occupant doit avoir AU MOINS un email, un téléphone,
-      // ou (pour les parties communes / zones identifiées) un appartement
-      // + un nom non vide.
       const hasContact = Boolean(email || tel);
       const hasZone = type === 'parties_communes' && (apt || nom);
-      if (!hasContact && !hasZone) return null;
+      const hasIdentity = Boolean(nom || apt);
+      // Filtre permissif : nom OU appartement suffit (cf. fix turn précédent)
+      if (!hasContact && !hasZone && !hasIdentity) return null;
 
       return { prenom, nom, email, appartement: apt, etage, telephone: tel, type, notes };
     })
     .filter((x): x is CronExtractedOccupant => x !== null);
 
-  // Délégué : extrait par Claude OU dérivé du From: en fallback (le
-  // sender est par défaut le délégué pour syndic/courtier/particulier).
-  const delegueRaw = (parsed as { delegue?: unknown }).delegue;
-  let delegue: CronDelegueExtracted | null = null;
-  if (delegueRaw && typeof delegueRaw === 'object') {
-    const dr = delegueRaw as Record<string, unknown>;
-    const dp = typeof dr.prenom === 'string' ? dr.prenom.trim() : '';
-    const dn = typeof dr.nom === 'string' ? dr.nom.trim() : '';
-    const de = typeof dr.email === 'string' ? dr.email.trim() : '';
-    const dt = typeof dr.telephone === 'string' ? dr.telephone.trim() : '';
-    if (dp || dn || de || dt) {
-      delegue = {
-        prenom: dp || null,
-        nom: dn || null,
-        email: de || null,
-        telephone: dt || null,
-      };
+  // ── assurance (objet nested) ──────────────────────────────────────
+  const assObj = getObj(parsed, 'assurance');
+  let assurance: CronInsuranceExtracted | null = null;
+  if (assObj) {
+    const an = strOrNull(assObj.nom_contact);
+    const ae = strOrNull(assObj.email);
+    const at = strOrNull(assObj.telephone);
+    const ap = strOrNull(assObj.reference_police);
+    if (an || ae || at || ap) {
+      assurance = { nom_contact: an, email: ae, telephone: at, reference_police: ap };
     }
   }
-  // Fallback : si Claude n'a rien extrait mais qu'on a un From: avec
-  // email + nom d'affichage, dérive le délégué basique du From:.
+
+  // ── Délégué : reconstruit depuis demandeur.{nom_contact,email_contact} ─
+  // Le nouveau prompt n'a plus de bloc 'delegue' séparé — c'est demandeur.nom_contact.
+  // Fallback sur le From: si rien trouvé.
+  let delegue: CronDelegueExtracted | null = null;
+  if (dem_nom || dem_email || dem_tel) {
+    const split = splitName(dem_nom);
+    delegue = {
+      prenom: split.prenom || null,
+      nom: split.nom || (dem_nom && !split.nom ? dem_nom : null),
+      email: dem_email,
+      telephone: dem_tel,
+    };
+  }
   if (!delegue) {
     const fromEmail = extractEmailAddr(mail.from);
     const fromNameMatch = mail.from.match(/^"?([^"<]+?)"?\s*<[^>]+>/);
@@ -464,31 +542,61 @@ export async function analyzeMailWithClaude(
     }
   }
 
-  const td = (parsed as { type_demandeur?: unknown }).type_demandeur;
-  const typeDemandeur: CronDemandeurType | null =
-    td === 'syndic' || td === 'courtier' || td === 'particulier' ? td : null;
+  // ── Top-level fields ──────────────────────────────────────────────
+  const teRaw = (parsed as { type_email?: unknown }).type_email;
+  const validTypes: CronMailType[] = ['nouvelle_demande', 'suivi_dossier', 'confirmation_rdv', 'annulation', 'rapport_demande', 'autre'];
+  const type_email: CronMailType | null = typeof teRaw === 'string' && (validTypes as string[]).includes(teRaw)
+    ? (teRaw as CronMailType)
+    : null;
+
+  const topPriorite = (parsed as { priorite?: unknown }).priorite;
+  const priorite: 'normale' | 'urgente' | null =
+    iv_priorite === 'urgente' || iv_priorite === 'normale' ? iv_priorite
+    : topPriorite === 'urgente' || topPriorite === 'normale' ? topPriorite
+    : null;
+
+  const langue = (parsed as { langue?: unknown }).langue;
+  const langueOk: 'fr' | 'nl' | 'en' | null =
+    langue === 'fr' || langue === 'nl' || langue === 'en' ? langue : null;
+
+  // reference_externe : préfère reference_sinistre du bloc acp s'il y en a,
+  // sinon le top-level reference_externe.
+  const reference_externe = reference_sinistre
+    ?? strOrNull((parsed as { reference_externe?: unknown }).reference_externe);
+
+  // nom_client : composé depuis demandeur.nom_contact si particulier,
+  // sinon nom_societe. Rétrocompat avec ancien champ nom_client si présent.
+  const legacyNomClient = strOrNull((parsed as { nom_client?: unknown }).nom_client);
+  const nom_client = legacyNomClient
+    ?? (typeDemandeur === 'particulier' ? dem_nom : nom_societe);
+
+  // adresse : adresse de l'ACP > legacy 'adresse'
+  const legacyAdresse = strOrNull((parsed as { adresse?: unknown }).adresse);
+  const adresse = (acp_adresse_full || null) ?? legacyAdresse;
 
   const analysis: CronMailAnalysis = {
     est_demande_intervention: parsed.est_demande_intervention === true,
-    nom_client: typeof parsed.nom_client === 'string' ? parsed.nom_client : null,
-    adresse: typeof parsed.adresse === 'string' ? parsed.adresse : null,
-    type_probleme: typeof parsed.type_probleme === 'string' ? parsed.type_probleme : null,
-    telephone: typeof parsed.telephone === 'string' ? parsed.telephone : null,
-    email: typeof parsed.email === 'string' ? parsed.email : null,
-    priorite: parsed.priorite === 'urgente' || parsed.priorite === 'normale' ? parsed.priorite : null,
-    resume: typeof parsed.resume === 'string' ? parsed.resume : null,
-    langue: parsed.langue === 'fr' || parsed.langue === 'nl' || parsed.langue === 'en' ? parsed.langue : null,
+    type_email,
+    nom_client,
+    adresse,
+    type_probleme,
+    telephone: dem_tel,
+    email: dem_email,
+    priorite,
+    resume: strOrNull((parsed as { resume?: unknown }).resume),
+    langue: langueOk,
     occupants,
     type_demandeur: typeDemandeur,
-    nom_societe: typeof (parsed as { nom_societe?: unknown }).nom_societe === 'string'
-      ? (parsed as { nom_societe: string }).nom_societe : null,
-    nom_immeuble: typeof (parsed as { nom_immeuble?: unknown }).nom_immeuble === 'string'
-      ? (parsed as { nom_immeuble: string }).nom_immeuble : null,
-    adresse_immeuble: typeof (parsed as { adresse_immeuble?: unknown }).adresse_immeuble === 'string'
-      ? (parsed as { adresse_immeuble: string }).adresse_immeuble : null,
-    reference_externe: typeof (parsed as { reference_externe?: unknown }).reference_externe === 'string'
-      ? (parsed as { reference_externe: string }).reference_externe : null,
+    nom_societe,
+    nom_immeuble: acp_nom,
+    adresse_immeuble: acp_adresse_full || null,
+    reference_externe,
     delegue,
+    description_precise,
+    appartements_concernes,
+    zones_communes,
+    assurance,
+    action_requise: strOrNull((parsed as { action_requise?: unknown }).action_requise),
   };
   const rawOccupantsCount = Array.isArray((parsed as { occupants?: unknown }).occupants)
     ? (parsed as { occupants: unknown[] }).occupants.length : 0;
@@ -716,7 +824,7 @@ async function createInterventionFromMail(
   const nomComplet = (analysis.nom_client ?? `${prenom} ${nom}`.trim()) || '';
   const adresseIntervention = adresseFormatee ?? '';
 
-  const particulierContact = {
+  const particulierContact: Record<string, unknown> = {
     nom_complet: nomComplet,
     adresse_intervention: adresseIntervention,
     prenom,
@@ -741,6 +849,17 @@ async function createInterventionFromMail(
     langue: analysis.langue,
     nom_immeuble: analysis.nom_immeuble ?? null,
   };
+  // Bloc assureur — stocké dans particulier_contact pour rester
+  // compatible (pas de nouvelle table). Lu par le drawer pour
+  // afficher la section 🛡️ Assurance.
+  if (analysis.assurance) {
+    particulierContact.assureur = {
+      nom: analysis.assurance.nom_contact,
+      email: analysis.assurance.email,
+      telephone: analysis.assurance.telephone,
+      reference_police: analysis.assurance.reference_police,
+    };
+  }
 
   // Matching org/client/délégué/ACP selon type_demandeur
   let organisationId: string | null = null;
@@ -795,6 +914,23 @@ async function createInterventionFromMail(
   // contient déjà mandant/lieu. L'org/client_id sert de lien externe.
   const demandeurType = 'particulier';
 
+  // Description : préfère description_precise (nouveau prompt FoxO) ;
+  // sinon resume ; sinon fallback sujet. Si aucun occupant n'est extrait
+  // mais que des appartements/zones communes sont mentionnés, on les
+  // append à la description pour ne pas perdre l'info terrain.
+  const baseDesc = analysis.description_precise
+    ?? analysis.resume
+    ?? `(extrait par IA — sujet : ${mail.subject})`;
+  let description = baseDesc;
+  if (analysis.occupants.length === 0) {
+    const appList = analysis.appartements_concernes?.join(', ') || '';
+    const zoneList = analysis.zones_communes?.join(', ') || '';
+    const extras: string[] = [];
+    if (appList) extras.push(`Appartements concernés : ${appList}`);
+    if (zoneList) extras.push(`Zones communes : ${zoneList}`);
+    if (extras.length > 0) description = `${baseDesc}\n\n${extras.join('\n')}`;
+  }
+
   // Insert intervention. Si la migration 2026-05-17 (delegue_id) n'est
   // pas encore appliquée en prod, l'insert échoue avec 42703 sur la
   // colonne delegue_id — on retombe sur un insert sans cette colonne.
@@ -803,7 +939,7 @@ async function createInterventionFromMail(
     statut: 'nouvelle',
     priorite,
     type,
-    description: analysis.resume ?? `(extrait par IA — sujet : ${mail.subject})`,
+    description,
     adresse: adresseFormatee,
     date_demande: new Date().toISOString().slice(0, 10),
     demandeur_type: demandeurType,
@@ -815,35 +951,45 @@ async function createInterventionFromMail(
     client_id: clientId,
     acp_id: acpId,
   };
+  // notes_tech : on y stocke action_requise (si extrait) — visible côté
+  // drawer comme bandeau 📋 Action requise. Si la migration 2026-05-19
+  // n'est pas appliquée, le retry plus bas strippe cette colonne.
+  if (analysis.action_requise) {
+    baseIvPayload.notes_tech = `[IA action requise] ${analysis.action_requise}`;
+  }
   const fullIvPayload: Record<string, unknown> = { ...baseIvPayload, delegue_id: delegueId };
 
+  // Insert avec auto-strip cascade : si une colonne manque (migration
+  // pending), on parse le nom dans le message d'erreur 42703 et on
+  // retire cette colonne précisément, puis on retente. Évite de devoir
+  // hardcoder chaque migration future.
   let iv: { id: string; ref: string } | null = null;
   let insertErr: { code?: string; message: string } | null = null;
-  {
+  let workingPayload: Record<string, unknown> = { ...fullIvPayload };
+  for (let attempt = 0; attempt < 5; attempt++) {
     const { data, error } = await admin
       .from('interventions')
-      .insert(fullIvPayload)
+      .insert(workingPayload)
       .select('id, ref')
       .single();
     if (data && !error) {
       iv = { id: data.id as string, ref: data.ref as string };
-    } else {
-      insertErr = error ? { code: (error as { code?: string }).code, message: error.message } : null;
-      const colMissing = insertErr?.code === '42703' || /column .* does not exist/i.test(insertErr?.message ?? '');
-      if (colMissing) {
-        console.warn('[check-mails] interventions.delegue_id absent — retry sans la colonne (apply migration 2026-05-17)');
-        const retry = await admin
-          .from('interventions')
-          .insert(baseIvPayload)
-          .select('id, ref')
-          .single();
-        if (retry.data && !retry.error) {
-          iv = { id: retry.data.id as string, ref: retry.data.ref as string };
-        } else {
-          insertErr = retry.error ? { code: (retry.error as { code?: string }).code, message: retry.error.message } : insertErr;
-        }
-      }
+      break;
     }
+    insertErr = error ? { code: (error as { code?: string }).code, message: error.message } : null;
+    const colMissing = insertErr?.code === '42703' || /column .* does not exist/i.test(insertErr?.message ?? '');
+    if (!colMissing) break;
+    // Parse le nom de la colonne manquante
+    const m = (insertErr?.message ?? '').match(/column\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+(?:of\s+relation|does not exist)/i);
+    const missingCol = m?.[1];
+    if (!missingCol || !(missingCol in workingPayload)) {
+      console.warn('[check-mails] colonne 42703 non parsable, abandon insert');
+      break;
+    }
+    console.warn(`[check-mails] interventions.${missingCol} absent — strip et retry (apply la migration correspondante)`);
+    const stripped: Record<string, unknown> = { ...workingPayload };
+    delete stripped[missingCol];
+    workingPayload = stripped;
   }
   if (!iv) return { ok: false, error: insertErr?.message ?? 'Insert failed' };
 
