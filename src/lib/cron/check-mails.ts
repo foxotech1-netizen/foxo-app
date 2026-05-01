@@ -839,16 +839,29 @@ async function createInterventionFromMail(
       };
     });
   if (occupantsToInsertFull.length > 0) {
-    await safeInsertOccupants(occupantsToInsertFull);
+    const insertRes = await safeInsertOccupants(occupantsToInsertFull);
+    if (!insertRes.ok) {
+      console.warn('[check-mails] occupants insert failed', {
+        intervention_id: iv.id,
+        error: insertRes.error,
+        code: insertRes.code,
+        stripped_columns: insertRes.stripped_columns,
+      });
+    }
   }
 
   return { ok: true, intervention_id: iv.id as string, ref: iv.ref as string };
 }
 
-// Insert occupants avec fallback si la colonne type_occupant n'existe
-// pas (migration 2026-05-17 pas appliquée). On retire la colonne et on
-// retente — le défaut SQL 'occupant' s'appliquera ensuite quand la
-// migration sera passée.
+// Insert occupants avec auto-strip cascade de toute colonne signalée
+// "does not exist" (code 42703). Évite d'avoir à hardcoder chaque
+// migration pending — on parse le nom de la colonne dans le message
+// d'erreur, on la retire de toutes les rows, et on retente. Boucle
+// jusqu'à 6 fois max (sécurité anti-infini).
+//
+// Renvoie un résultat structuré : la route appelante peut alors logger
+// l'échec et propager l'erreur côté UI au lieu de prétendre que tout
+// est ok.
 export type OccupantInsertRow = {
   intervention_id: string;
   appartement: string | null;
@@ -862,35 +875,104 @@ export type OccupantInsertRow = {
   instructions: string;
   type_occupant: CronOccupantType;
 };
-export async function safeInsertOccupants(rows: OccupantInsertRow[]): Promise<void> {
+
+export type SafeInsertOccupantsResult =
+  | { ok: true; inserted: number; stripped_columns: string[] }
+  | { ok: false; error: string; code: string | null; details: string | null; hint: string | null; stripped_columns: string[] };
+
+// Extrait le nom de la colonne mentionnée dans une erreur PostgREST
+// "column 'foo' of relation 'occupants' does not exist" ou variantes.
+function parseMissingColumn(message: string): string | null {
+  const m1 = message.match(/column\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+of\s+relation/i);
+  if (m1) return m1[1];
+  const m2 = message.match(/column\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+does not exist/i);
+  if (m2) return m2[1];
+  // PostgREST renvoie parfois juste "foo does not exist" sans "column"
+  const m3 = message.match(/(?:^|\s)([a-z_][a-z0-9_]*)\s+does not exist/i);
+  if (m3) return m3[1];
+  return null;
+}
+
+export async function safeInsertOccupants(rows: OccupantInsertRow[]): Promise<SafeInsertOccupantsResult> {
   const admin = createAdminClient();
-  try {
-    const { error } = await admin.from('occupants').insert(rows);
-    if (!error) {
-      console.log('[check-mails] occupants créés :', rows.length);
-      return;
+  const strippedColumns: string[] = [];
+  let workingRows: Record<string, unknown>[] = rows.map((r) => ({ ...r }));
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      const { data, error } = await admin
+        .from('occupants')
+        .insert(workingRows)
+        .select('id');
+      console.error('[safeInsertOccupants] result', {
+        attempt,
+        rows_count: workingRows.length,
+        first_row_keys: workingRows[0] ? Object.keys(workingRows[0]) : [],
+        stripped_so_far: strippedColumns,
+        data_count: Array.isArray(data) ? data.length : null,
+        error: error ? {
+          code: (error as { code?: string }).code ?? null,
+          message: error.message,
+          details: (error as { details?: string }).details ?? null,
+          hint: (error as { hint?: string }).hint ?? null,
+        } : null,
+      });
+
+      if (!error) {
+        return {
+          ok: true,
+          inserted: Array.isArray(data) ? data.length : workingRows.length,
+          stripped_columns: strippedColumns,
+        };
+      }
+
+      const code = (error as { code?: string }).code ?? null;
+      const colMissing = code === '42703' || /column .* does not exist/i.test(error.message);
+      if (!colMissing) {
+        return {
+          ok: false,
+          error: error.message,
+          code,
+          details: (error as { details?: string }).details ?? null,
+          hint: (error as { hint?: string }).hint ?? null,
+          stripped_columns: strippedColumns,
+        };
+      }
+
+      const colName = parseMissingColumn(error.message)
+        ?? parseMissingColumn((error as { details?: string }).details ?? '');
+      if (!colName) {
+        return {
+          ok: false,
+          error: `column missing but name unparsable: ${error.message}`,
+          code,
+          details: (error as { details?: string }).details ?? null,
+          hint: (error as { hint?: string }).hint ?? null,
+          stripped_columns: strippedColumns,
+        };
+      }
+      console.warn(`[safeInsertOccupants] colonne '${colName}' absente — strip et retry`);
+      strippedColumns.push(colName);
+      workingRows = workingRows.map((r) => {
+        const copy: Record<string, unknown> = { ...r };
+        delete copy[colName];
+        return copy;
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erreur inconnue';
+      console.error('[safeInsertOccupants] threw', { attempt, message: msg });
+      return { ok: false, error: msg, code: null, details: null, hint: null, stripped_columns: strippedColumns };
     }
-    const code = (error as { code?: string }).code;
-    const colMissing = code === '42703' || /column .* does not exist/i.test(error.message);
-    if (!colMissing) {
-      console.warn('[check-mails] occupants insert failed:', error.message);
-      return;
-    }
-    console.warn('[check-mails] occupants.type_occupant absent — retry sans (apply migration 2026-05-17)');
-    const stripped = rows.map((r) => {
-      const { type_occupant: _drop, ...rest } = r;
-      void _drop;
-      return rest;
-    });
-    const retry = await admin.from('occupants').insert(stripped);
-    if (retry.error) {
-      console.warn('[check-mails] occupants insert retry failed:', retry.error.message);
-    } else {
-      console.log('[check-mails] occupants créés (sans type_occupant) :', rows.length);
-    }
-  } catch (e) {
-    console.warn('[check-mails] occupants insert threw:', e);
   }
+
+  return {
+    ok: false,
+    error: 'Trop de colonnes manquantes (6 strip successifs). Vérifie que la table occupants existe et a les colonnes de base.',
+    code: null,
+    details: null,
+    hint: null,
+    stripped_columns: strippedColumns,
+  };
 }
 
 async function logMailEntry(args: {

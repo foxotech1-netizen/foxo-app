@@ -763,10 +763,22 @@ export function InterventionsClient({
           return;
         }
         setReanalysis(null);
-        setReanalyzeMsg({
-          kind: 'ok',
-          msg: `Analyse appliquée ✓${data.new_occupants_count ? ` · ${data.new_occupants_count} nouveau(x) occupant(s)` : ''}`,
-        });
+        // Si l'intervention est OK mais que l'insert occupants a planté,
+        // on affiche un warning détaillé (colonne manquante, RLS, etc.)
+        if (data.occupants_error) {
+          const stripped = Array.isArray(data.occupants_stripped_columns) && data.occupants_stripped_columns.length > 0
+            ? ` · colonnes strippées : ${data.occupants_stripped_columns.join(', ')}`
+            : '';
+          setReanalyzeMsg({
+            kind: 'err',
+            msg: `Analyse OK mais occupants non insérés : [${data.occupants_error_code ?? '?'}] ${data.occupants_error}${stripped}`,
+          });
+        } else {
+          setReanalyzeMsg({
+            kind: 'ok',
+            msg: `Analyse appliquée ✓${data.new_occupants_count ? ` · ${data.new_occupants_count} nouveau(x) occupant(s)` : ''}`,
+          });
+        }
         // Refresh occupants + intervention via reload occupants + router.refresh
         await refreshOccupants();
         router.refresh();

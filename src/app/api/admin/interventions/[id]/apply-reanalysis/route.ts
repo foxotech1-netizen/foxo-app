@@ -318,8 +318,27 @@ async function handlePOST(
     if (toInsert.length > 0) {
       console.error('[apply-reanalysis] calling safeInsertOccupants',
         toInsert.map((o) => ({ apt: o.appartement, nom: o.nom, email: o.email, type: o.type_occupant })));
-      await safeInsertOccupants(toInsert);
-      newOccupantsCount = toInsert.length;
+      const insertResult = await safeInsertOccupants(toInsert);
+      console.error('[apply-reanalysis] safeInsertOccupants result', insertResult);
+      if (insertResult.ok) {
+        newOccupantsCount = insertResult.inserted;
+      } else {
+        // L'insert a vraiment échoué — on remonte l'info au client pour
+        // que le drawer affiche l'erreur au lieu de prétendre que tout
+        // est ok. L'intervention est déjà mise à jour, donc on garde le
+        // 200 mais on ajoute occupants_error dans la réponse.
+        return NextResponse.json({
+          ok: true,
+          new_occupants_count: 0,
+          occupants_error: insertResult.error,
+          occupants_error_code: insertResult.code,
+          occupants_error_details: insertResult.details,
+          occupants_error_hint: insertResult.hint,
+          occupants_stripped_columns: insertResult.stripped_columns,
+          organisation_id: organisationId,
+          client_id: clientId,
+        });
+      }
     }
   } else {
     console.error('[apply-reanalysis] no occupants in body — analysis.occupants is empty/null');
