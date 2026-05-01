@@ -52,6 +52,12 @@ export async function GET(request: Request) {
   const url = new URL('https://nominatim.openstreetmap.org/search');
   url.searchParams.set('q', q);
   url.searchParams.set('countrycodes', 'be');
+  // Bounded + viewbox = restreint dur les résultats à la bounding box
+  // Belgique (lon 2.5→6.4°E, lat 49.5→51.5°N). Sans `bounded=1`, le
+  // viewbox n'est qu'une préférence et Nominatim peut renvoyer hors-zone.
+  // Format viewbox : "x1,y1,x2,y2" = "lon_min,lat_min,lon_max,lat_max".
+  url.searchParams.set('viewbox', '2.5,49.5,6.4,51.5');
+  url.searchParams.set('bounded', '1');
   url.searchParams.set('format', 'json');
   url.searchParams.set('addressdetails', '1');
   url.searchParams.set('limit', '5');
