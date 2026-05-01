@@ -12,6 +12,7 @@ import {
   type StatutIntervention,
 } from '@/lib/types/database';
 import type { Acp, Utilisateur } from '@/lib/types/database';
+import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
 import { updateInterventionStatus, resendRapportToSyndic, assignTechnician, saveRapportDraftFromAdmin, searchAcpsForIntervention } from './actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
@@ -1286,12 +1287,16 @@ export function InterventionsClient({
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Adresse</label>
-                        <input
-                          value={formDraft.adresse}
-                          onChange={(e) => setFormDraft((f) => ({ ...f, adresse: e.target.value }))}
+                        <AddressAutocomplete
+                          label="Adresse"
+                          value={addressFromString(formDraft.adresse)}
+                          onChange={(addr) => {
+                            const composed = addr.code_postal || addr.ville
+                              ? `${addr.adresse}, ${addr.code_postal} ${addr.ville}`.trim()
+                              : addr.adresse;
+                            setFormDraft((f) => ({ ...f, adresse: composed }));
+                          }}
                           placeholder="rue + n°, code postal + ville"
-                          className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2">

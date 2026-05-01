@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import type { Slot } from '@/lib/portal/availability';
 import { submitRdv } from './actions';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 
 const TYPES = [
   'Fuite canalisation',
@@ -579,29 +580,28 @@ function Step1(props: {
           <Field label="Téléphone" type="tel" value={props.telephone} onChange={props.setTelephone} placeholder="+32 ..." required />
         </div>
         <div className="mt-3">
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">
-            Adresse de facturation <span className="text-terra">*</span>
-          </label>
-          <input
-            value={props.rue}
-            onChange={(e) => props.setRue(e.target.value)}
-            placeholder="Rue et numéro"
-            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+          <AddressAutocomplete
+            label="Adresse de facturation"
+            required
+            value={{
+              adresse: props.rue,
+              rue: props.rue,
+              numero: '',
+              code_postal: props.codePostal,
+              ville: props.ville,
+              pays: 'Belgique',
+              lat: null,
+              lng: null,
+              verified: false,
+            }}
+            onChange={(addr) => {
+              const composed = addr.numero ? `${addr.rue} ${addr.numero}`.trim() : addr.rue;
+              props.setRue(composed || addr.adresse);
+              props.setCodePostal(addr.code_postal);
+              props.setVille(addr.ville);
+            }}
+            placeholder="Commence à taper la rue…"
           />
-          <div className="grid grid-cols-3 gap-2">
-            <input
-              value={props.codePostal}
-              onChange={(e) => props.setCodePostal(e.target.value)}
-              placeholder="Code postal"
-              className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-            />
-            <input
-              value={props.ville}
-              onChange={(e) => props.setVille(e.target.value)}
-              placeholder="Ville"
-              className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-            />
-          </div>
         </div>
         <div className="mt-3">
           <Field

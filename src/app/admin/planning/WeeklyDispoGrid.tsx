@@ -35,8 +35,39 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
-  // Lundi de la semaine d'application — point de départ pour les N semaines
-  const [weekStart] = useState<Date>(() => startOfMondayThisWeek());
+  // Lundi de la semaine d'application — point de départ pour les N semaines.
+  // Le date picker accepte n'importe quel jour ; on snap au lundi le plus
+  // proche (passé) côté handler.
+  const [weekStart, setWeekStart] = useState<Date>(() => startOfMondayThisWeek());
+
+  function snapToMonday(d: Date): Date {
+    const dow = d.getDay();
+    const offset = dow === 0 ? -6 : 1 - dow;
+    const m = new Date(d);
+    m.setDate(d.getDate() + offset);
+    m.setHours(0, 0, 0, 0);
+    return m;
+  }
+
+  function handleStartDateChange(input: string) {
+    if (!input) return;
+    const [y, m, d] = input.split('-').map(Number);
+    if (!y || !m || !d) return;
+    const date = new Date(y, m - 1, d);
+    if (Number.isNaN(date.getTime())) return;
+    setWeekStart(snapToMonday(date));
+  }
+
+  // Date de fin = dimanche de la (N-1)e semaine après weekStart
+  const rangeEnd = useMemo(() => {
+    const end = new Date(weekStart);
+    end.setDate(weekStart.getDate() + weeks * 7 - 1);
+    return end;
+  }, [weekStart, weeks]);
+
+  function fmtLong(d: Date): string {
+    return d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  }
 
   // Drag select
   const [dragging, setDragging] = useState<{ mode: 'add' | 'remove' } | null>(null);
@@ -135,7 +166,10 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       parts.push(`${data.created} créé(s)`);
       if (data.skipped_existing) parts.push(`${data.skipped_existing} déjà existant(s)`);
       if (data.skipped) parts.push(`${data.skipped} dans le passé`);
-      setMsg({ kind: 'ok', msg: `✓ ${parts.join(' · ')}` });
+      // Toast inclut le nom du technicien (visible dans la barre statut)
+      const tech = techs.find((t) => t.id === techId);
+      const techLabel = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email || 'tech' : 'technicien';
+      setMsg({ kind: 'ok', msg: `✅ ${data.created} créneau${data.created > 1 ? 'x' : ''} créé${data.created > 1 ? 's' : ''} pour ${techLabel} · ${parts.slice(1).join(' · ')}`.trim() });
       setSelected(new Set());
       router.refresh();
     } catch (e) {
@@ -199,6 +233,28 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         >
           ✕ Tout effacer
         </button>
+      </div>
+
+      {/* Sélecteur de semaine de départ + résumé */}
+      <div className="bg-cream border border-sand-border rounded-xl px-3 py-2.5 mb-3 flex flex-wrap items-center gap-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <label className="text-[11px] font-bold text-ink-muted dark:text-[#C8C2B8]">
+          Semaine de départ
+        </label>
+        <input
+          type="date"
+          value={isoDate(weekStart)}
+          onChange={(e) => handleStartDateChange(e.target.value)}
+          className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+        />
+        <span className="text-[11px] text-ink dark:text-[#F0ECE4]">
+          → <strong>{fmtLong(weekStart)}</strong>
+        </span>
+        {cellCount > 0 && (
+          <span className="text-[11px] text-ink-muted ml-auto dark:text-[#C8C2B8]">
+            Créera des créneaux du <strong className="text-ink dark:text-[#F0ECE4]">{fmtLong(weekStart)}</strong> au{' '}
+            <strong className="text-ink dark:text-[#F0ECE4]">{fmtLong(rangeEnd)}</strong>
+          </span>
+        )}
       </div>
 
       {/* Grille jours × créneaux */}
