@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
@@ -8,9 +8,6 @@ import { RowMenu } from '@/components/RowMenu';
 import {
   setFactureStatut,
   deleteFacture,
-  importBeobankCsv,
-  buildComptableCsvForRange,
-  sendComptableEmail,
 } from './actions';
 
 const STATUTS: ('tous' | StatutFacture)[] = ['tous', 'brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'];
@@ -35,12 +32,11 @@ function thisMonthRange(): { from: string; to: string } {
 
 export function FacturationListClient({ initialFactures }: { initialFactures: Facture[] }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS[number]>('tous');
-  const csvFileRef = useRef<HTMLInputElement>(null);
 
   // Marque les factures dont l'échéance est dépassée ET non payées comme "en_retard"
   // côté UI (sans persister — l'admin peut explicitement marquer comme payée)
@@ -73,64 +69,6 @@ export function FacturationListClient({ initialFactures }: { initialFactures: Fa
     const enRetard = factures.filter((f) => f.statut === 'en_retard').length;
     return { totalMois, enAttente, enRetard, count: monthRange.length };
   }, [factures]);
-
-  function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFeedback(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result ?? '');
-      startTransition(async () => {
-        const res = await importBeobankCsv(text);
-        if (!res.ok) {
-          setFeedback({ kind: 'err', msg: res.error });
-        } else {
-          setFeedback({
-            kind: 'ok',
-            msg: `Import : ${res.data?.matched ?? 0} matchée(s), ${res.data?.unmatched ?? 0} non matchée(s).`,
-          });
-          router.refresh();
-        }
-      });
-    };
-    reader.readAsText(file, 'utf-8');
-    if (csvFileRef.current) csvFileRef.current.value = '';
-  }
-
-  function handleExportCsv() {
-    setFeedback(null);
-    const r = thisMonthRange();
-    startTransition(async () => {
-      const res = await buildComptableCsvForRange(r.from, r.to);
-      if (!res.ok) {
-        setFeedback({ kind: 'err', msg: res.error });
-        return;
-      }
-      const blob = new Blob([res.data!.csv], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `factures-${r.from}-${r.to}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setFeedback({ kind: 'ok', msg: `Export généré (${res.data!.count} factures).` });
-    });
-  }
-
-  function handleSendComptable() {
-    if (!confirm('Envoyer l\'export du mois en cours au comptable ?')) return;
-    setFeedback(null);
-    const r = thisMonthRange();
-    startTransition(async () => {
-      const res = await sendComptableEmail(r.from, r.to);
-      if (!res.ok) {
-        setFeedback({ kind: 'err', msg: res.error });
-      } else {
-        setFeedback({ kind: 'ok', msg: `Email envoyé au comptable (${res.data?.sent ?? 0} factures).` });
-      }
-    });
-  }
 
   function markPaid(id: string) {
     startTransition(async () => {
@@ -190,36 +128,6 @@ export function FacturationListClient({ initialFactures }: { initialFactures: Fa
             </option>
           ))}
         </select>
-        <input
-          ref={csvFileRef}
-          type="file"
-          accept=".csv,text/csv"
-          onChange={handleCsvUpload}
-          className="hidden"
-          id="csv-import"
-        />
-        <label
-          htmlFor="csv-import"
-          className="bg-[#A17244] text-white px-3.5 py-2.5 rounded-lg text-xs font-bold hover:opacity-90 cursor-pointer"
-        >
-          ⬇ Import Beobank CSV
-        </label>
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={pending}
-          className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2.5 rounded-lg text-xs font-bold hover:bg-sand-hover disabled:opacity-50"
-        >
-          ⬆ Export comptable
-        </button>
-        <button
-          type="button"
-          onClick={handleSendComptable}
-          disabled={pending}
-          className="bg-ok text-white px-3.5 py-2.5 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
-        >
-          ✉ Envoyer au comptable
-        </button>
       </div>
 
       {feedback && (

@@ -311,6 +311,8 @@ export interface Facture {
   date_echeance: string | null;
   date_paiement: string | null;
   sent_at: string | null;
+  rappel_envoye_at: string | null;
+  rappel_count: number | null;
   created_at: string;
   updated_at: string;
 }

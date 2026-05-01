@@ -412,13 +412,14 @@ export async function sendComptableEmail(from: string, to: string): Promise<Acti
   if (!guard.ok) return guard;
 
   const supabase = await createClient();
-  // Récupère email comptable depuis parametres
+  // Récupère email comptable + identité de l'admin pour la traçabilité
   const { data: param } = await supabase
     .from('parametres').select('valeur').eq('cle', 'email_comptable').maybeSingle();
   const emailComptable = (param?.valeur ?? '').trim();
   if (!emailComptable) {
     return { ok: false, error: 'Email comptable non configuré (voir /admin/parametres).' };
   }
+  const { data: { user } } = await supabase.auth.getUser();
 
   const csvRes = await buildComptableCsvForRange(from, to);
   if (!csvRes.ok) return csvRes;
@@ -426,6 +427,8 @@ export async function sendComptableEmail(from: string, to: string): Promise<Acti
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, error: 'RESEND_API_KEY non configurée.' };
 
+  const description = `Export ${from} → ${to} (${csvRes.data!.count} factures) → ${emailComptable}`;
+  let sendError: string | null = null;
   const resend = new Resend(apiKey);
   try {
     await resend.emails.send({
@@ -441,9 +444,25 @@ export async function sendComptableEmail(from: string, to: string): Promise<Acti
       ],
     });
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : 'Erreur Resend.' };
+    sendError = e instanceof Error ? e.message : 'Erreur Resend.';
   }
 
+  // Trace dans sms_logs (table générique des envois admin) — populé
+  // en histo dans /admin/facturation/export.
+  try {
+    await supabase.from('sms_logs').insert({
+      to_phone: emailComptable,
+      channel: 'email',
+      type: 'export_comptable',
+      message: description,
+      status: sendError ? 'failed' : 'sent',
+      error: sendError,
+      cost_estimate_eur: 0,
+      sent_by: user?.email ?? 'admin',
+    });
+  } catch { /* noop log */ }
+
+  if (sendError) return { ok: false, error: sendError };
   return { ok: true, data: { sent: csvRes.data!.count } };
 }
 
