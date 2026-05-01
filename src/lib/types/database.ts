@@ -173,6 +173,15 @@ export interface Intervention {
   client_id: string | null;
   delegue_id: string | null;
   notes_tech: string | null;
+  action_requise: string | null;
+  assureur: {
+    nom: string | null;
+    email: string | null;
+    telephone: string | null;
+    reference_sinistre: string | null;
+    reference_police: string | null;
+  } | null;
+  appartements_concernes: string[] | null;
 }
 
 export interface Rapport {

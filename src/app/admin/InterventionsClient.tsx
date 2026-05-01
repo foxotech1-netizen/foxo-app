@@ -1227,18 +1227,21 @@ export function InterventionsClient({
                         </div>
                       )}
 
-                      {/* 📋 Action requise — extraite par l'IA et stockée dans notes_tech avec marker */}
+                      {/* 📋 Action requise — extraite par l'IA. Lit en priorité
+                          la colonne action_requise (migration 2026-05-20),
+                          fallback sur le marker dans notes_tech (compat ancien). */}
                       {(() => {
+                        const fromCol = selected.action_requise;
                         const notes = selected.notes_tech ?? '';
-                        // /s flag = ES2018, on évite — utilise [\s\S] à la place
                         const m = notes.match(/^\[IA action requise\]\s*([\s\S]+)$/);
-                        if (!m) return null;
+                        const text = fromCol ?? (m ? m[1].trim() : null);
+                        if (!text) return null;
                         return (
                           <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
                             <div className="font-bold mb-1 text-[#8A5A1A] dark:text-[#F0D896]">
                               📋 Action requise
                             </div>
-                            <div className="text-[#5A3F15] dark:text-[#F0D896]">{m[1].trim()}</div>
+                            <div className="text-[#5A3F15] dark:text-[#F0D896]">{text}</div>
                           </div>
                         );
                       })()}
@@ -1457,16 +1460,28 @@ export function InterventionsClient({
                     />
                   </Block>
 
-                  {/* 🛡️ Assurance — extrait du mail par l'IA, stocké dans particulier_contact.assureur */}
+                  {/* 🛡️ Assurance — colonne assureur (migration 2026-05-20)
+                      avec fallback particulier_contact.assureur (legacy) */}
                   {(() => {
-                    type Assureur = { nom: string | null; email: string | null; telephone: string | null; reference_police: string | null };
-                    const ass = (selected.particulier_contact as unknown as { assureur?: Assureur } | null)?.assureur;
-                    if (!ass || (!ass.nom && !ass.email && !ass.telephone && !ass.reference_police)) return null;
+                    type Assureur = {
+                      nom?: string | null;
+                      nom_contact?: string | null;
+                      email: string | null;
+                      telephone: string | null;
+                      reference_sinistre?: string | null;
+                      reference_police: string | null;
+                    };
+                    const fromCol = selected.assureur as Assureur | null;
+                    const fromPc = (selected.particulier_contact as unknown as { assureur?: Assureur } | null)?.assureur ?? null;
+                    const ass = fromCol ?? fromPc;
+                    if (!ass) return null;
+                    const nom = ass.nom ?? ass.nom_contact ?? null;
+                    if (!nom && !ass.email && !ass.telephone && !ass.reference_police && !ass.reference_sinistre) return null;
                     return (
                       <Block title="🛡️ Assurance">
                         <div className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
-                          {ass.nom && (
-                            <div className="font-bold text-ink dark:text-[#F0ECE4]">{ass.nom}</div>
+                          {nom && (
+                            <div className="font-bold text-ink dark:text-[#F0ECE4]">{nom}</div>
                           )}
                           {(ass.email || ass.telephone) && (
                             <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
@@ -1482,8 +1497,14 @@ export function InterventionsClient({
                               )}
                             </div>
                           )}
-                          {ass.reference_police && (
+                          {ass.reference_sinistre && (
                             <div className="text-[10px] font-mono text-ink-mid mt-1 dark:text-[#C8C2B8]">
+                              <span className="text-[9px] uppercase font-bold tracking-wider text-ink-muted">Sinistre : </span>
+                              {ass.reference_sinistre}
+                            </div>
+                          )}
+                          {ass.reference_police && (
+                            <div className="text-[10px] font-mono text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
                               <span className="text-[9px] uppercase font-bold tracking-wider text-ink-muted">Réf. police : </span>
                               {ass.reference_police}
                             </div>
@@ -1492,6 +1513,9 @@ export function InterventionsClient({
                       </Block>
                     );
                   })()}
+
+                  {/* 🔗 Dossiers liés + 📧 Mails liés — fetch via /liens */}
+                  <LiensPanel interventionId={selected.id} />
 
                   {/* ② Technicien — dropdown éditable */}
                   <Block id="section-technicien" title="Technicien">
@@ -2814,6 +2838,300 @@ function AcpPicker({
         </div>
       )}
     </div>
+  );
+}
+
+// LiensPanel — affiche les dossiers liés + mails liés depuis
+// /api/admin/interventions/[id]/liens. Si la migration 2026-05-20
+// n'est pas appliquée, les sections sont vides (graceful).
+function LiensPanel({ interventionId }: { interventionId: string }) {
+  type Lien = {
+    type_lien: string; source: string; note: string | null; created_at: string;
+    liee_id: string; liee_ref: string | null; liee_statut: string; liee_updated_at: string;
+  };
+  type MailLink = {
+    id: string; gmail_message_id: string;
+    from_email: string | null; from_name: string | null;
+    subject: string | null; date: string | null; snippet: string | null;
+    type_mail: string; created_at: string;
+  };
+  const [liens, setLiens] = useState<Lien[]>([]);
+  const [mails, setMails] = useState<MailLink[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [showLier, setShowLier] = useState(false);
+  // Lier modal
+  const [searchQ, setSearchQ] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; ref: string | null }[]>([]);
+  const [lierTarget, setLierTarget] = useState<{ id: string; ref: string | null } | null>(null);
+  const [lierType, setLierType] = useState<'meme_dossier' | 'suivi' | 'doublon' | 'related'>('related');
+  const [lierNote, setLierNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch(`/api/admin/interventions/${interventionId}/liens`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        if (data.ok) {
+          setLiens(data.liens ?? []);
+          setMails(data.mails ?? []);
+        }
+        setLoaded(true);
+      })
+      .catch(() => mounted && setLoaded(true));
+    return () => { mounted = false; };
+  }, [interventionId]);
+
+  // Recherche d'interventions à lier (par ref ou client)
+  useEffect(() => {
+    if (!showLier) return;
+    const q = searchQ.trim();
+    if (q.length < 2) { setSearchResults([]); return; }
+    const t = setTimeout(async () => {
+      // Recherche directe via une query simple sur la table interventions
+      // exposée à l'admin via RLS. On utilise le /admin/interventions/search
+      // s'il existait — sinon, query côté drawer non disponible. À défaut,
+      // on offre un fallback : coller un UUID directement.
+      try {
+        const r = await fetch(`/api/admin/mails?q=${encodeURIComponent(q)}`);
+        // Pas d'endpoint dédié — on n'utilise pas ce fetch
+        void r;
+      } catch { /* noop */ }
+      setSearchResults([]);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchQ, showLier]);
+
+  async function lierManually() {
+    if (!lierTarget) {
+      setMsg({ kind: 'err', msg: 'Choisis une intervention.' });
+      return;
+    }
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/admin/interventions/${interventionId}/lier`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intervention_liee_id: lierTarget.id,
+          type_lien: lierType,
+          note: lierNote || null,
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setMsg({ kind: 'err', msg: data.error ?? 'Échec création lien.' });
+        return;
+      }
+      setMsg({ kind: 'ok', msg: '✓ Lien créé.' });
+      setShowLier(false);
+      setLierTarget(null); setLierNote(''); setSearchQ('');
+      // Recharge
+      const r2 = await fetch(`/api/admin/interventions/${interventionId}/liens`, { cache: 'no-store' });
+      const data2 = await r2.json();
+      if (data2.ok) {
+        setLiens(data2.liens ?? []);
+        setMails(data2.mails ?? []);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) return null;
+
+  // Bandeau "doublon possible" si un lien type_lien='doublon' existe
+  const doublonLink = liens.find((l) => l.type_lien === 'doublon');
+
+  return (
+    <>
+      {doublonLink && (
+        <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
+          <div className="font-bold mb-0.5 text-[#8A5A1A] dark:text-[#F0D896]">⚠️ Doublon possible</div>
+          <div className="text-[#5A3F15] dark:text-[#F0D896]">
+            Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="font-mono font-bold underline">{doublonLink.liee_ref ?? '?'}</Link>
+            {doublonLink.note && <> · <span className="italic">{doublonLink.note}</span></>}
+          </div>
+        </div>
+      )}
+
+      {/* Dossiers liés */}
+      <Block title={`🔗 Dossiers liés (${liens.length})`}>
+        {liens.length === 0 ? (
+          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+            Aucun lien pour ce dossier.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {liens.map((l) => (
+              <div key={l.liee_id} className="flex items-center justify-between gap-2 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <Link href={`/admin/interventions/${l.liee_id}`} target="_blank" className="font-mono text-[12px] font-bold text-navy hover:underline dark:text-[#A8C4F2]">
+                    {l.liee_ref ?? '?'}
+                  </Link>
+                  <LienBadge type={l.type_lien} source={l.source} />
+                  {l.note && <span className="text-[10px] text-ink-muted italic truncate dark:text-[#C8C2B8]">{l.note}</span>}
+                </div>
+                <span className="text-[10px] text-ink-muted whitespace-nowrap dark:text-[#C8C2B8]">{l.liee_statut}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowLier(!showLier)}
+          className="mt-2 text-[10px] bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#A8C4F2] dark:border-[#3D3A32]"
+        >
+          🔗 Lier manuellement
+        </button>
+        {showLier && (
+          <div className="mt-2 bg-sand border border-sand-border rounded-md p-2.5 space-y-2 dark:bg-[#141210] dark:border-[#2C2A24]">
+            <input
+              value={searchQ}
+              onChange={(e) => setSearchQ(e.target.value)}
+              placeholder="UUID de l'intervention liée (copie depuis l'autre drawer)"
+              className="w-full px-2 py-1.5 border border-sand-border rounded text-[11px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+            />
+            {searchQ.trim().length >= 8 && (
+              <button
+                type="button"
+                onClick={() => setLierTarget({ id: searchQ.trim(), ref: null })}
+                className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold"
+              >
+                Utiliser cet ID
+              </button>
+            )}
+            {searchResults.length > 0 && (
+              <div className="bg-white border border-sand-border rounded-md max-h-[160px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                {searchResults.map((res) => (
+                  <button
+                    key={res.id}
+                    type="button"
+                    onClick={() => { setLierTarget(res); setSearchQ(res.ref ?? res.id); }}
+                    className="block w-full text-left px-2 py-1.5 text-[11px] hover:bg-sand dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                  >
+                    <span className="font-mono font-bold">{res.ref ?? '?'}</span>
+                    <span className="ml-2 text-[10px] text-ink-muted">{res.id.slice(0, 8)}…</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {lierTarget && (
+              <>
+                <div className="text-[11px] text-ok dark:text-[#7AC9A0]">
+                  Cible : <span className="font-mono font-bold">{lierTarget.ref ?? lierTarget.id.slice(0, 8) + '…'}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['meme_dossier', 'suivi', 'doublon', 'related'] as const).map((t) => (
+                    <label key={t} className={
+                      'px-2 py-1 border rounded text-[10px] font-bold cursor-pointer text-center ' +
+                      (lierType === t
+                        ? 'bg-navy text-white border-navy'
+                        : 'bg-white text-ink-mid border-sand-border dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
+                    }>
+                      <input type="radio" checked={lierType === t} onChange={() => setLierType(t)} className="sr-only" />
+                      {t === 'meme_dossier' ? 'Même dossier' : t === 'suivi' ? 'Suivi' : t === 'doublon' ? 'Doublon' : 'Lié'}
+                    </label>
+                  ))}
+                </div>
+                <input
+                  value={lierNote}
+                  onChange={(e) => setLierNote(e.target.value)}
+                  placeholder="Note (optionnel)"
+                  className="w-full px-2 py-1.5 border border-sand-border rounded text-[11px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                />
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={lierManually}
+                    disabled={saving}
+                    className="text-[10px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50"
+                  >
+                    {saving ? '…' : '💾 Créer le lien'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowLier(false); setLierTarget(null); }}
+                    className="text-[10px] bg-sand-mid text-ink-mid px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </>
+            )}
+            {msg && (
+              <div className={'text-[10px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                {msg.msg}
+              </div>
+            )}
+          </div>
+        )}
+      </Block>
+
+      {/* Mails liés */}
+      <Block title={`📧 Mails liés (${mails.length})`}>
+        {mails.length === 0 ? (
+          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+            Aucun mail rattaché.
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {mails.map((m) => (
+              <Link
+                key={m.id}
+                href={`/admin/mails?id=${encodeURIComponent(m.gmail_message_id)}`}
+                className="block bg-white border border-sand-border rounded-md px-2.5 py-1.5 hover:bg-sand-hover dark:bg-[#221E1A] dark:border-[#3D3A32]"
+              >
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="font-bold text-[12px] text-ink dark:text-[#F0ECE4] flex-1 truncate">
+                    {m.subject ?? '(sans sujet)'}
+                  </div>
+                  <MailTypeBadge type={m.type_mail} />
+                </div>
+                <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8] truncate mt-0.5">
+                  {m.from_name || m.from_email || '—'}
+                  {m.date && <span className="ml-2 font-mono">{new Date(m.date).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </Block>
+    </>
+  );
+}
+
+function LienBadge({ type, source }: { type: string; source: string }) {
+  const label = type === 'meme_dossier' ? 'Même dossier'
+    : type === 'suivi' ? 'Suivi'
+    : type === 'doublon' ? 'Doublon'
+    : 'Lié';
+  const color = type === 'doublon' ? 'bg-amber-light text-[#8A5A1A] border-[#E8C896]'
+    : type === 'meme_dossier' ? 'bg-navy-pale text-navy border-navy-light'
+    : type === 'suivi' ? 'bg-ok-light text-ok border-ok-mid'
+    : 'bg-sand-mid text-ink-mid border-sand-border';
+  return (
+    <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${color}`}>
+      {label}{source === 'auto' ? ' · auto' : ''}
+    </span>
+  );
+}
+
+function MailTypeBadge({ type }: { type: string }) {
+  const label = type === 'entrant' ? 'Entrant'
+    : type === 'suivi' ? 'Suivi'
+    : type === 'assurance' ? 'Assurance'
+    : type === 'confirmation' ? 'Confirmation'
+    : type === 'annulation' ? 'Annulation'
+    : type === 'rapport_demande' ? 'Rapport'
+    : type;
+  return (
+    <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+      {label}
+    </span>
   );
 }
 

@@ -71,23 +71,39 @@ export interface CronDelegueExtracted {
   telephone: string | null;
 }
 
-// Bloc assurance/courtier — à stocker dans particulier_contact.assureur
-// pour rester compatible avec l'existant (pas de nouvelle table).
+// Bloc assurance/courtier — persisté dans interventions.assureur (jsonb)
+// après la migration 2026-05-20 ; fallback dans particulier_contact.assureur
+// pour les bases qui n'ont pas encore appliqué la migration.
 export interface CronInsuranceExtracted {
   nom_contact: string | null;
   email: string | null;
   telephone: string | null;
+  reference_sinistre: string | null;
   reference_police: string | null;
 }
 
+// Contact d'un demandeur (ex: plusieurs gestionnaires d'un même syndic).
+// Persisté dans la table delegues — un de ces contacts est marqué
+// est_principal et finit dans intervention.delegue_id.
+export interface CronDemandeurContact {
+  nom: string;
+  prenom: string;
+  email: string;
+  telephone: string;
+  est_principal: boolean;
+}
+
 // Type du mail — détermine si on crée une intervention ou pas.
-// Seuls 'nouvelle_demande' et (parfois) 'rapport_demande' déclenchent une création.
+// Seuls 'nouvelle_demande' et (parfois) 'rapport_demande') déclenchent
+// une création. 'assurance' = mail courtier sur dossier existant
+// (déclenche un rattachement, pas une création).
 export type CronMailType =
   | 'nouvelle_demande'
   | 'suivi_dossier'
   | 'confirmation_rdv'
   | 'annulation'
   | 'rapport_demande'
+  | 'assurance'
   | 'autre';
 
 export interface CronMailAnalysis {
@@ -116,6 +132,7 @@ export interface CronMailAnalysis {
   zones_communes: string[];
   assurance: CronInsuranceExtracted | null;
   action_requise: string | null;
+  contacts: CronDemandeurContact[];
 }
 
 export interface CronMailResultItem {
@@ -258,6 +275,7 @@ export async function analyzeMailWithClaude(
     `- IGS / IG Syndic : Caroline Mignon (cm@igsyndic.be), Kevin Duwyn (kd@igsyndic.be)`,
     `- Ettik / B-Safe : Frédéric Aelvoet (assurance/facturation)`,
     `- Moons Assurances : Alain Moons`,
+    `- Carmelo Allegretti : entrepreneur`,
     ``,
     `## RÈGLES D'EXTRACTION`,
     `- Lis TOUT le corps du mail, ne t'arrête pas à la première mention.`,
@@ -276,6 +294,7 @@ export async function analyzeMailWithClaude(
     `- "confirmation_rdv" : confirmation de rendez-vous`,
     `- "annulation" : annulation d'intervention`,
     `- "rapport_demande" : demande de rapport sur intervention faite`,
+    `- "assurance" : mail courtier (sinistre, police, expertise) sur dossier existant`,
     `- "autre" : tout le reste (spam, newsletter, fournisseur, interne…)`,
     ``,
     `## demandeur.type`,
@@ -298,22 +317,27 @@ export async function analyzeMailWithClaude(
     `## SORTIE — UNIQUEMENT ce JSON sans markdown ni backticks`,
     `{`,
     `  "est_demande_intervention": true | false,`,
-    `  "type_email": "nouvelle_demande" | "suivi_dossier" | "confirmation_rdv" | "annulation" | "rapport_demande" | "autre",`,
+    `  "type_email": "nouvelle_demande" | "suivi_dossier" | "confirmation_rdv" | "annulation" | "rapport_demande" | "assurance" | "autre",`,
     ``,
     `  "demandeur": {`,
     `    "type": "syndic" | "courtier" | "particulier" | null,`,
     `    "nom_societe": "string ou null",`,
-    `    "nom_contact": "string ou null",`,
-    `    "email_contact": "string ou null",`,
-    `    "telephone_contact": "string ou null"`,
+    `    "contacts": [`,
+    `      {`,
+    `        "nom": "string",`,
+    `        "prenom": "string",`,
+    `        "email": "string ou \\"\\"",`,
+    `        "telephone": "string ou \\"\\"",`,
+    `        "est_principal": true | false`,
+    `      }`,
+    `    ]`,
     `  },`,
     ``,
     `  "acp": {`,
     `    "nom": "string ou null",`,
     `    "adresse": "string ou null",`,
     `    "code_postal": "string ou null",`,
-    `    "ville": "string ou null",`,
-    `    "reference_sinistre": "string ou null"`,
+    `    "ville": "string ou null"`,
     `  },`,
     ``,
     `  "intervention": {`,
@@ -340,8 +364,9 @@ export async function analyzeMailWithClaude(
     `    "nom_contact": "string ou null",`,
     `    "email": "string ou null",`,
     `    "telephone": "string ou null",`,
+    `    "reference_sinistre": "string ou null",`,
     `    "reference_police": "string ou null"`,
-    `  },`,
+    `  } | null,`,
     ``,
     `  "resume": "1-2 phrases ou null",`,
     `  "priorite": "normale" | "urgente",`,
@@ -446,9 +471,49 @@ export async function analyzeMailWithClaude(
   const nom_societe = dem
     ? strOrNull(dem.nom_societe)
     : strOrNull((parsed as { nom_societe?: unknown }).nom_societe);
-  const dem_email = dem ? strOrNull(dem.email_contact) : null;
-  const dem_tel = dem ? strOrNull(dem.telephone_contact) : null;
-  const dem_nom = dem ? strOrNull(dem.nom_contact) : null;
+
+  // Contacts[] (nouveau format) — array de gestionnaires/délégués.
+  // Rétrocompat : si seul nom_contact/email_contact/telephone_contact
+  // (ancien format) est fourni, on construit un array d'1 élément.
+  const contactsRaw = dem ? dem.contacts : null;
+  const contacts: CronDemandeurContact[] = [];
+  if (Array.isArray(contactsRaw)) {
+    for (const c of contactsRaw) {
+      if (!c || typeof c !== 'object') continue;
+      const r = c as Record<string, unknown>;
+      const nom = strOrEmpty(r.nom);
+      const prenom = strOrEmpty(r.prenom);
+      const email = strOrEmpty(r.email);
+      const telephone = strOrEmpty(r.telephone);
+      const est_principal = r.est_principal === true;
+      if (!nom && !prenom && !email && !telephone) continue;
+      contacts.push({ nom, prenom, email, telephone, est_principal });
+    }
+  } else if (dem) {
+    // Fallback ancien format (nom_contact/email_contact/telephone_contact)
+    const oldNom = strOrEmpty(dem.nom_contact);
+    const oldEmail = strOrEmpty(dem.email_contact);
+    const oldTel = strOrEmpty(dem.telephone_contact);
+    if (oldNom || oldEmail || oldTel) {
+      const split = splitName(oldNom);
+      contacts.push({
+        nom: split.nom || oldNom,
+        prenom: split.prenom,
+        email: oldEmail,
+        telephone: oldTel,
+        est_principal: true,
+      });
+    }
+  }
+  // Si aucun contact n'a été marqué principal, marque le premier
+  if (contacts.length > 0 && !contacts.some((c) => c.est_principal)) {
+    contacts[0].est_principal = true;
+  }
+
+  const principal = contacts.find((c) => c.est_principal) ?? contacts[0] ?? null;
+  const dem_nom = principal ? `${principal.prenom} ${principal.nom}`.trim() || null : null;
+  const dem_email = principal?.email || null;
+  const dem_tel = principal?.telephone || null;
 
   // ── acp (objet nested) ────────────────────────────────────────────
   const acpObj = getObj(parsed, 'acp');
@@ -509,9 +574,22 @@ export async function analyzeMailWithClaude(
     const ae = strOrNull(assObj.email);
     const at = strOrNull(assObj.telephone);
     const ap = strOrNull(assObj.reference_police);
-    if (an || ae || at || ap) {
-      assurance = { nom_contact: an, email: ae, telephone: at, reference_police: ap };
+    const asin = strOrNull(assObj.reference_sinistre);
+    if (an || ae || at || ap || asin) {
+      assurance = {
+        nom_contact: an,
+        email: ae,
+        telephone: at,
+        reference_sinistre: asin,
+        reference_police: ap,
+      };
     }
+  }
+  // Rétrocompat : ancienne version stockait reference_sinistre dans acp.
+  // Si on n'a rien dans assurance.reference_sinistre, regarde acp.reference_sinistre.
+  if (assurance && !assurance.reference_sinistre && acpObj) {
+    const acpSin = strOrNull(acpObj.reference_sinistre);
+    if (acpSin) assurance.reference_sinistre = acpSin;
   }
 
   // ── Délégué : reconstruit depuis demandeur.{nom_contact,email_contact} ─
@@ -544,7 +622,7 @@ export async function analyzeMailWithClaude(
 
   // ── Top-level fields ──────────────────────────────────────────────
   const teRaw = (parsed as { type_email?: unknown }).type_email;
-  const validTypes: CronMailType[] = ['nouvelle_demande', 'suivi_dossier', 'confirmation_rdv', 'annulation', 'rapport_demande', 'autre'];
+  const validTypes: CronMailType[] = ['nouvelle_demande', 'suivi_dossier', 'confirmation_rdv', 'annulation', 'rapport_demande', 'assurance', 'autre'];
   const type_email: CronMailType | null = typeof teRaw === 'string' && (validTypes as string[]).includes(teRaw)
     ? (teRaw as CronMailType)
     : null;
@@ -559,9 +637,10 @@ export async function analyzeMailWithClaude(
   const langueOk: 'fr' | 'nl' | 'en' | null =
     langue === 'fr' || langue === 'nl' || langue === 'en' ? langue : null;
 
-  // reference_externe : préfère reference_sinistre du bloc acp s'il y en a,
-  // sinon le top-level reference_externe.
-  const reference_externe = reference_sinistre
+  // reference_externe : priorité = assurance.reference_sinistre >
+  // legacy acp.reference_sinistre > top-level reference_externe.
+  const reference_externe = (assurance?.reference_sinistre ?? null)
+    ?? reference_sinistre
     ?? strOrNull((parsed as { reference_externe?: unknown }).reference_externe);
 
   // nom_client : composé depuis demandeur.nom_contact si particulier,
@@ -597,6 +676,7 @@ export async function analyzeMailWithClaude(
     zones_communes,
     assurance,
     action_requise: strOrNull((parsed as { action_requise?: unknown }).action_requise),
+    contacts,
   };
   const rawOccupantsCount = Array.isArray((parsed as { occupants?: unknown }).occupants)
     ? (parsed as { occupants: unknown[] }).occupants.length : 0;
@@ -718,6 +798,191 @@ export async function matchAcpForOrganisation(args: {
     return { id: data.id as string, created: false };
   }
   return null;
+}
+
+// ─── Détection de doublons / dossiers liés ──────────────────────────────
+//
+// Avant de créer une nouvelle intervention depuis un mail, on cherche
+// un dossier existant qui correspond. Trois signaux à confiance haute :
+//   1. reference_sinistre (assurance) identique → même_dossier
+//   2. ACP identique + email occupant déjà connu + < 30j → suivi
+//   3. ACP identique + un appartement_concerné en commun + < 30j → même_dossier
+// Renvoie le 1er match trouvé (ou null), avec son type_lien.
+
+export type CronDoublonType = 'meme_dossier' | 'suivi' | 'doublon' | 'related';
+
+export interface CronDoublonResult {
+  intervention_id: string;
+  ref: string | null;
+  type_lien: CronDoublonType;
+  reason: string;        // libellé humain pour les logs et la timeline
+}
+
+export async function detectDoublon(args: {
+  acp_id: string | null;
+  occupant_emails: string[];
+  appartements_concernes: string[];
+  reference_sinistre: string | null;
+}): Promise<CronDoublonResult | null> {
+  const admin = createAdminClient();
+  // 1. Match par reference_sinistre — confiance maximale, pas de window
+  if (args.reference_sinistre) {
+    const { data } = await admin
+      .from('interventions')
+      .select('id, ref')
+      .eq('reference_externe', args.reference_sinistre)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.id) {
+      return {
+        intervention_id: data.id as string,
+        ref: (data.ref as string) ?? null,
+        type_lien: 'meme_dossier',
+        reason: `Référence sinistre identique : ${args.reference_sinistre}`,
+      };
+    }
+  }
+
+  // Window 30j pour les heuristiques ACP-based
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const sinceIso = thirtyDaysAgo.toISOString();
+
+  if (args.acp_id) {
+    // 2. ACP identique + email occupant connu + < 30j → suivi
+    if (args.occupant_emails.length > 0) {
+      const { data: ivs } = await admin
+        .from('interventions')
+        .select('id, ref, created_at')
+        .eq('acp_id', args.acp_id)
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false });
+      const ivList = (ivs ?? []) as { id: string; ref: string | null; created_at: string }[];
+      if (ivList.length > 0) {
+        const ivIds = ivList.map((r) => r.id);
+        const { data: matchOcc } = await admin
+          .from('occupants')
+          .select('intervention_id, email')
+          .in('intervention_id', ivIds)
+          .in('email', args.occupant_emails);
+        const matchedIvId = ((matchOcc ?? []) as { intervention_id: string; email: string }[])[0]?.intervention_id;
+        if (matchedIvId) {
+          const matched = ivList.find((iv) => iv.id === matchedIvId);
+          if (matched) {
+            return {
+              intervention_id: matched.id,
+              ref: matched.ref,
+              type_lien: 'suivi',
+              reason: 'Même ACP + occupant déjà connu (< 30j)',
+            };
+          }
+        }
+      }
+    }
+
+    // 3. ACP identique + appartement commun + < 30j → meme_dossier
+    if (args.appartements_concernes.length > 0) {
+      // Postgres array overlap : column && '{val1,val2}'::text[]
+      // PostgREST : .overlaps('appartements_concernes', [...])
+      const { data: ivs, error: aptErr } = await admin
+        .from('interventions')
+        .select('id, ref, appartements_concernes, created_at')
+        .eq('acp_id', args.acp_id)
+        .gte('created_at', sinceIso)
+        .overlaps('appartements_concernes', args.appartements_concernes)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!aptErr && ivs?.id) {
+        const apts = Array.isArray(ivs.appartements_concernes) ? ivs.appartements_concernes : [];
+        return {
+          intervention_id: ivs.id as string,
+          ref: (ivs.ref as string) ?? null,
+          type_lien: 'meme_dossier',
+          reason: `Même ACP + appartement(s) commun(s) (< 30j) : ${apts.join(', ')}`,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+// Crée le lien bidirectionnel A↔B dans intervention_liens.
+// Idempotent : ON CONFLICT DO NOTHING via le UNIQUE de la table.
+export async function createInterventionLien(args: {
+  intervention_id: string;
+  intervention_liee_id: string;
+  type_lien: CronDoublonType;
+  source: 'auto' | 'manuel';
+  note: string | null;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const rows = [
+    {
+      intervention_id: args.intervention_id,
+      intervention_liee_id: args.intervention_liee_id,
+      type_lien: args.type_lien,
+      source: args.source,
+      note: args.note,
+    },
+    {
+      intervention_id: args.intervention_liee_id,
+      intervention_liee_id: args.intervention_id,
+      type_lien: args.type_lien,
+      source: args.source,
+      note: args.note,
+    },
+  ];
+  const { error } = await admin.from('intervention_liens').insert(rows);
+  if (error) {
+    // 23505 = duplicate (le lien existe déjà) — silencieux
+    const code = (error as { code?: string }).code;
+    if (code !== '23505') {
+      console.warn('[check-mails] intervention_liens insert failed:', error.message);
+    }
+  }
+}
+
+// Rattache un mail Gmail à une intervention (table intervention_mails).
+// Utilisé quand on détecte un doublon (mail rattaché à l'existant) OU
+// au moment de la création d'une nouvelle intervention (mail-source).
+export async function recordInterventionMail(args: {
+  intervention_id: string;
+  gmail_message_id: string;
+  from: string;
+  subject: string;
+  date: string;
+  snippet: string | null;
+  type_mail: 'entrant' | 'suivi' | 'assurance' | 'confirmation' | 'annulation' | 'rapport_demande';
+}): Promise<void> {
+  const admin = createAdminClient();
+  const fromEmail = extractEmailAddr(args.from) ?? args.from;
+  const fromNameMatch = args.from.match(/^"?([^"<]+?)"?\s*<[^>]+>/);
+  const fromName = fromNameMatch ? fromNameMatch[1].trim() : null;
+  const dateIso = (() => {
+    try { return new Date(args.date).toISOString(); } catch { return null; }
+  })();
+  const { error } = await admin.from('intervention_mails').insert({
+    intervention_id: args.intervention_id,
+    gmail_message_id: args.gmail_message_id,
+    from_email: fromEmail,
+    from_name: fromName,
+    subject: args.subject,
+    date: dateIso,
+    snippet: args.snippet ?? null,
+    type_mail: args.type_mail,
+  });
+  if (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== '23505') {
+      // 42P01 = table absente → migration 2026-05-20 pas appliquée
+      if (code !== '42P01') {
+        console.warn('[check-mails] intervention_mails insert failed:', error.message);
+      }
+    }
+  }
 }
 
 export async function matchOrCreateOrganisation(args: {
@@ -879,19 +1144,45 @@ async function createInterventionFromMail(
     // (org_id, email). Email du délégué = celui extrait par Claude OU
     // l'email du sender en fallback.
     if (organisationId) {
-      const dEmail = analysis.delegue?.email ?? emailAddr;
-      if (dEmail) {
-        const matchedDel = await matchOrCreateDelegue({
+      // Tous les contacts du syndic → delegues. Le 1er principal est
+      // assigné à l'intervention (delegue_id). Les autres restent en DB
+      // pour faciliter les futures attributions.
+      const allContacts: CronDemandeurContact[] = analysis.contacts.length > 0
+        ? analysis.contacts
+        : [{
+            nom: analysis.delegue?.nom ?? '',
+            prenom: analysis.delegue?.prenom ?? '',
+            email: analysis.delegue?.email ?? emailAddr,
+            telephone: analysis.delegue?.telephone ?? tel ?? '',
+            est_principal: true,
+          }];
+      let principalDelegueId: string | null = null;
+      for (const c of allContacts) {
+        if (!c.email) continue;
+        const matched = await matchOrCreateDelegue({
           organisation_id: organisationId,
-          email: dEmail,
-          prenom: analysis.delegue?.prenom ?? null,
-          nom: analysis.delegue?.nom ?? null,
-          telephone: analysis.delegue?.telephone ?? tel ?? null,
+          email: c.email,
+          prenom: c.prenom || null,
+          nom: c.nom || null,
+          telephone: c.telephone || null,
         });
-        delegueId = matchedDel?.id ?? null;
+        if (!matched) continue;
+        if (c.est_principal && !principalDelegueId) {
+          principalDelegueId = matched.id;
+        }
+        // Marque est_contact_principal en DB pour le principal
+        if (c.est_principal) {
+          try {
+            await admin
+              .from('delegues')
+              .update({ est_contact_principal: true })
+              .eq('id', matched.id);
+          } catch { /* migration 2026-05-20 peut être pending */ }
+        }
       }
+      delegueId = principalDelegueId;
+
       // ACP : match par nom partiel sur le syndic (best effort).
-      // Si pas trouvée, l'admin associera manuellement via le drawer.
       if (analysis.nom_immeuble) {
         const matchedAcp = await matchAcpForOrganisation({
           organisation_id: organisationId,
@@ -913,6 +1204,71 @@ async function createInterventionFromMail(
   // particulier (pas de courtier comme valeur), et que particulier_contact
   // contient déjà mandant/lieu. L'org/client_id sert de lien externe.
   const demandeurType = 'particulier';
+
+  // ── Détection de doublon AVANT création ────────────────────────────
+  // Si on trouve un dossier existant qui correspond, on rattache le mail
+  // (intervention_mails) et on log dans la timeline — pas de nouvelle
+  // intervention créée.
+  const occupantEmails = analysis.occupants
+    .map((o) => o.email.trim().toLowerCase())
+    .filter(Boolean);
+  let doublon: CronDoublonResult | null = null;
+  try {
+    doublon = await detectDoublon({
+      acp_id: acpId,
+      occupant_emails: occupantEmails,
+      appartements_concernes: analysis.appartements_concernes,
+      reference_sinistre: analysis.assurance?.reference_sinistre ?? analysis.reference_externe ?? null,
+    });
+  } catch (e) {
+    console.warn('[check-mails] detectDoublon threw:', e);
+  }
+  if (doublon) {
+    console.log('[check-mails] doublon détecté — rattachement', {
+      target: doublon.intervention_id,
+      ref: doublon.ref,
+      type_lien: doublon.type_lien,
+      reason: doublon.reason,
+    });
+    // Détermine le type_mail à enregistrer selon analysis.type_email
+    const typeMail: 'entrant' | 'suivi' | 'assurance' | 'confirmation' | 'annulation' | 'rapport_demande' =
+      analysis.type_email === 'assurance' ? 'assurance'
+      : analysis.type_email === 'confirmation_rdv' ? 'confirmation'
+      : analysis.type_email === 'annulation' ? 'annulation'
+      : analysis.type_email === 'rapport_demande' ? 'rapport_demande'
+      : analysis.type_email === 'suivi_dossier' ? 'suivi'
+      : 'entrant';
+    await recordInterventionMail({
+      intervention_id: doublon.intervention_id,
+      gmail_message_id: mail.id,
+      from: mail.from,
+      subject: mail.subject,
+      date: new Date().toISOString(),
+      snippet: analysis.resume ?? null,
+      type_mail: typeMail,
+    });
+    // Timeline
+    try {
+      await admin.from('intervention_timeline').insert({
+        intervention_id: doublon.intervention_id,
+        type: 'mail_lie',
+        message: `📧 Mail lié automatiquement (${doublon.type_lien}) — ${mail.from} — ${mail.subject}`,
+        payload: { mail_id: mail.id, reason: doublon.reason, analysis },
+        created_by: 'cron:check-mails',
+      });
+    } catch { /* noop */ }
+    // Update assureur sur l'intervention existante si on a de nouvelles infos
+    if (analysis.assurance) {
+      try {
+        await admin
+          .from('interventions')
+          .update({ assureur: analysis.assurance, updated_at: new Date().toISOString() })
+          .eq('id', doublon.intervention_id);
+      } catch { /* migration 2026-05-20 peut être pending */ }
+    }
+    // Renvoie l'intervention existante — pas de nouvelle création.
+    return { ok: true, intervention_id: doublon.intervention_id, ref: doublon.ref ?? '' };
+  }
 
   // Description : préfère description_precise (nouveau prompt FoxO) ;
   // sinon resume ; sinon fallback sujet. Si aucun occupant n'est extrait
@@ -950,6 +1306,13 @@ async function createInterventionFromMail(
     organisation_id: organisationId,
     client_id: clientId,
     acp_id: acpId,
+    // Nouvelles colonnes (migration 2026-05-20). Si absentes, l'auto-strip
+    // cascade les retire à l'insert.
+    action_requise: analysis.action_requise ?? null,
+    assureur: analysis.assurance ?? null,
+    appartements_concernes: analysis.appartements_concernes.length > 0
+      ? analysis.appartements_concernes
+      : null,
   };
   // notes_tech : on y stocke action_requise (si extrait) — visible côté
   // drawer comme bandeau 📋 Action requise. Si la migration 2026-05-19
@@ -1005,6 +1368,18 @@ async function createInterventionFromMail(
   } catch (e) {
     console.warn('[check-mails] timeline insert skipped:', e);
   }
+
+  // Rattache le mail-source à l'intervention (migration 2026-05-20).
+  // Best-effort : la fonction noop si la table n'existe pas (42P01).
+  await recordInterventionMail({
+    intervention_id: iv.id,
+    gmail_message_id: mail.id,
+    from: mail.from,
+    subject: mail.subject,
+    date: new Date().toISOString(),
+    snippet: analysis.resume ?? null,
+    type_mail: 'entrant',
+  });
 
   // Création automatique des occupants extraits.
   // - contact_preference : email si email présent, sinon sms si tel,
