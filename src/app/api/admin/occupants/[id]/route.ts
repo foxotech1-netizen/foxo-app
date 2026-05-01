@@ -32,6 +32,31 @@ function sanitize(b: OccupantInput): Record<string, string | null> {
   return out;
 }
 
+// SELECT en cascade — chaque niveau retire des colonnes ajoutées par
+// une migration récente. Permet au drawer de rester fonctionnel même
+// si une migration n'est pas encore appliquée en prod (les colonnes
+// absentes sont rendues `null` côté client).
+//
+// L1 : SELECT complet (toutes migrations appliquées)
+// L2 : sans token_sent_at + confirmation_token (migration 2026-05-11)
+// L3 : sans contact_preference (migrations plus anciennes)
+// L4 : core minimal — id + nom + email + telephone + appartement + conf
+const SELECT_LEVELS: { cols: string; padding?: Record<string, null> }[] = [
+  { cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token' },
+  {
+    cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference',
+    padding: { token_sent_at: null, confirmation_token: null },
+  },
+  {
+    cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf',
+    padding: { token_sent_at: null, confirmation_token: null, contact_preference: null },
+  },
+  {
+    cols: 'id, appartement, nom, email, telephone, conf',
+    padding: { token_sent_at: null, confirmation_token: null, contact_preference: null, etage: null, prenom: null, instructions: null },
+  },
+];
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -43,58 +68,69 @@ export async function GET(
   }
   const { id } = await params;
 
-  // SELECT complet (avec les colonnes ajoutées par la migration
-  // 2026-05-11_occupants_token.sql).
-  const { data, error } = await supabase
-    .from('occupants')
-    .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token')
-    .eq('intervention_id', id)
-    .order('appartement', { ascending: true });
+  // Note : `intervention_id` (pas `id`) — l'id passé en paramètre est
+  // l'id de l'intervention parente, pas celui d'un occupant.
+  const errors: { level: number; cols: string; code: string | null; message: string }[] = [];
 
-  if (!error) {
-    return NextResponse.json({ ok: true, occupants: data ?? [] });
-  }
-
-  // Log détaillé — apparaît dans Vercel runtime logs
-  console.error('[occupants GET] supabase error', {
-    intervention_id: id,
-    code: (error as { code?: string }).code ?? null,
-    message: error.message,
-    details: (error as { details?: string }).details ?? null,
-    hint: (error as { hint?: string }).hint ?? null,
-  });
-
-  // Fallback : si l'erreur est "column does not exist" (code 42703),
-  // la migration 2026-05-11_occupants_token.sql n'est probablement
-  // pas appliquée. On retombe sur le SELECT legacy pour ne pas casser
-  // le drawer.
-  const code = (error as { code?: string }).code;
-  if (code === '42703' || /column .* does not exist/i.test(error.message)) {
-    console.warn('[occupants GET] fallback to legacy columns — apply migration 2026-05-11_occupants_token.sql');
-    const { data: legacyData, error: legacyErr } = await supabase
+  for (let i = 0; i < SELECT_LEVELS.length; i++) {
+    const lvl = SELECT_LEVELS[i];
+    const { data, error } = await supabase
       .from('occupants')
-      .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference')
+      .select(lvl.cols)
       .eq('intervention_id', id)
       .order('appartement', { ascending: true });
-    if (legacyErr) {
-      console.error('[occupants GET] legacy fallback failed too', legacyErr);
-      return NextResponse.json({ ok: false, error: legacyErr.message }, { status: 500 });
+
+    if (!error) {
+      const rows = (data ?? []) as unknown as Record<string, unknown>[];
+      const occupants = lvl.padding
+        ? rows.map((o) => ({ ...lvl.padding, ...o }))
+        : rows;
+      const response: Record<string, unknown> = { ok: true, occupants };
+      if (i > 0) {
+        response._warning = `fallback_level_${i}`;
+        response._missing_columns = Object.keys(lvl.padding ?? {});
+        console.warn(`[occupants GET] succeeded at fallback level ${i}`, {
+          intervention_id: id,
+          missing: Object.keys(lvl.padding ?? {}),
+          previous_errors: errors,
+        });
+      }
+      return NextResponse.json(response);
     }
-    // Renvoie les colonnes manquantes en null pour rester compatible
-    // avec le DrawerOccupant côté client.
-    const padded = (legacyData ?? []).map((o) => ({
-      ...o,
-      token_sent_at: null,
-      confirmation_token: null,
-    }));
-    return NextResponse.json({
-      ok: true,
-      occupants: padded,
-      _warning: 'migration_2026-05-11_pending',
+
+    const code = (error as { code?: string }).code ?? null;
+    const isColMissing = code === '42703' || /column .* does not exist/i.test(error.message);
+    errors.push({ level: i, cols: lvl.cols, code, message: error.message });
+    console.error(`[occupants GET] level ${i} failed`, {
+      intervention_id: id,
+      code,
+      message: error.message,
+      details: (error as { details?: string }).details ?? null,
+      hint: (error as { hint?: string }).hint ?? null,
     });
+
+    // Si l'erreur n'est pas "column missing", inutile de retenter — c'est
+    // probablement un problème de RLS, table absente, etc.
+    if (!isColMissing) {
+      return NextResponse.json({
+        ok: false,
+        error: error.message,
+        code,
+        details: (error as { details?: string }).details ?? null,
+        hint: (error as { hint?: string }).hint ?? null,
+        intervention_id: id,
+      }, { status: 500 });
+    }
   }
 
-  return NextResponse.json({ ok: false, error: error.message, code: code ?? null }, { status: 500 });
+  // Tous les niveaux ont échoué avec column-missing — table corrompue
+  // ou colonne core absente. On renvoie tous les essais pour debug.
+  return NextResponse.json({
+    ok: false,
+    error: 'Tous les SELECT ont échoué — table occupants probablement mal configurée.',
+    intervention_id: id,
+    attempts: errors,
+  }, { status: 500 });
 }
 
 // POST — créer un occupant pour cette intervention
