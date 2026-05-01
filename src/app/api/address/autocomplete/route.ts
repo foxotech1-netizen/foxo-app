@@ -45,6 +45,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = (searchParams.get('q') ?? '').trim();
   if (q.length < 4) {
+    console.error('[nominatim] short query, no fetch', { q, len: q.length });
     return NextResponse.json({ ok: true, suggestions: [] });
   }
 
@@ -56,24 +57,30 @@ export async function GET(request: Request) {
   url.searchParams.set('limit', '5');
   url.searchParams.set('accept-language', 'fr');
 
+  console.error('[nominatim] url:', url.toString());
+
   try {
     const res = await fetch(url.toString(), {
       headers: {
-        // User-Agent identifiable (politique Nominatim)
+        // User-Agent identifiable (politique Nominatim — sans ça, 403)
         'User-Agent': 'FoxO/1.0 (info@foxo.be)',
         Accept: 'application/json',
       },
-      // Cache 1h côté serveur — Nominatim apprécie qu'on ne tape pas
-      // pour des requêtes identiques rapprochées.
-      next: { revalidate: 3600 },
+      // Pas de next.revalidate ici — la route est en force-dynamic donc
+      // la combinaison crée des warnings sans bénéfice. Nominatim côté
+      // serveur reste largement sous le rate-limit (debounce client 400ms).
+      cache: 'no-store',
     });
     if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      console.error('[nominatim] HTTP error', { status: res.status, statusText: res.statusText, body_preview: txt.slice(0, 200) });
       return NextResponse.json(
-        { ok: false, error: `Nominatim ${res.status}: ${res.statusText}` },
+        { ok: false, error: `Nominatim ${res.status}: ${res.statusText}`, body_preview: txt.slice(0, 200) },
         { status: 502 },
       );
     }
     const raw = (await res.json()) as NominatimResult[];
+    console.error('[nominatim] results:', Array.isArray(raw) ? raw.length : 'not-array');
     const suggestions: AddressSuggestion[] = (Array.isArray(raw) ? raw : []).map((r) => {
       const a = r.address ?? {};
       const rue = a.road ?? a.pedestrian ?? '';
@@ -91,6 +98,7 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ ok: true, suggestions });
   } catch (e) {
+    console.error('[nominatim] threw', e);
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : 'Erreur réseau Nominatim.' },
       { status: 502 },

@@ -585,7 +585,7 @@ function Step1(props: {
             required
             value={{
               adresse: props.rue,
-              rue: props.rue,
+              rue: '',
               numero: '',
               code_postal: props.codePostal,
               ville: props.ville,
@@ -595,10 +595,9 @@ function Step1(props: {
               verified: false,
             }}
             onChange={(addr) => {
-              const composed = addr.numero ? `${addr.rue} ${addr.numero}`.trim() : addr.rue;
-              props.setRue(composed || addr.adresse);
-              props.setCodePostal(addr.code_postal);
-              props.setVille(addr.ville);
+              props.setRue(addr.adresse);
+              if (addr.code_postal) props.setCodePostal(addr.code_postal);
+              if (addr.ville) props.setVille(addr.ville);
             }}
             placeholder="Commence à taper la rue…"
           />

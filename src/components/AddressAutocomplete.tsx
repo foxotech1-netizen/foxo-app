@@ -57,6 +57,12 @@ export function AddressAutocomplete({
   className?: string;
   label?: string;
 }) {
+  // L'input est entièrement contrôlé par l'état INTERNE du composant
+  // (`query`). On ne re-sync PAS sur `value.adresse` à chaque render —
+  // sinon une normalisation côté parent (ex: setAdresse(addr.rue) au
+  // lieu de addr.adresse) écraserait la saisie utilisateur en cours.
+  // L'init `value.adresse` ne sert que pour l'hydratation au premier
+  // mount (ex: édition d'un client existant).
   const [query, setQuery] = useState<string>(value.adresse || '');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -64,10 +70,16 @@ export function AddressAutocomplete({
   const [error, setError] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const ignoreNextFetch = useRef(false);
-
-  // Re-sync l'input quand le parent reset value.adresse
+  // Hydrate `query` UNE seule fois si une valeur initiale arrive après
+  // le mount (ex: <Suspense> qui débloque les data après le 1er render).
+  // Une fois que l'utilisateur a tapé OU sélectionné, plus de re-sync.
+  const userTouched = useRef(false);
   useEffect(() => {
-    setQuery(value.adresse || '');
+    if (userTouched.current) return;
+    if (value.adresse && value.adresse !== query) {
+      setQuery(value.adresse);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.adresse]);
 
   // Debounce 400ms + min 4 chars (cf. politique Nominatim)
@@ -77,6 +89,7 @@ export function AddressAutocomplete({
       return;
     }
     const q = query.trim();
+    console.log('[autocomplete] query:', q);
     if (q.length < 4) {
       setSuggestions([]);
       setError(null);
@@ -87,6 +100,7 @@ export function AddressAutocomplete({
       try {
         const r = await fetch(`/api/address/autocomplete?q=${encodeURIComponent(q)}`);
         const data = await r.json();
+        console.log('[autocomplete] response', { ok: data.ok, count: (data.suggestions ?? []).length, error: data.error });
         if (data.ok) {
           setSuggestions(data.suggestions ?? []);
           setError(null);
@@ -94,6 +108,7 @@ export function AddressAutocomplete({
           setError(data.error ?? 'Erreur autocomplete.');
         }
       } catch (e) {
+        console.error('[autocomplete] fetch threw:', e);
         setError(e instanceof Error ? e.message : 'Erreur réseau.');
       } finally {
         setLoading(false);
@@ -117,6 +132,7 @@ export function AddressAutocomplete({
   function selectSuggestion(s: Suggestion) {
     const adresse = composeAdresse(s.rue, s.numero);
     ignoreNextFetch.current = true; // éviter de re-fetch après l'autofill
+    userTouched.current = true;
     setQuery(adresse);
     setSuggestions([]);
     setOpen(false);
@@ -134,6 +150,7 @@ export function AddressAutocomplete({
   }
 
   function handleManualChange(text: string) {
+    userTouched.current = true;
     setQuery(text);
     setOpen(true);
     onChange({
@@ -150,6 +167,7 @@ export function AddressAutocomplete({
   }
 
   function handleClear() {
+    userTouched.current = true;
     setQuery('');
     setSuggestions([]);
     onChange({

@@ -143,7 +143,7 @@ export function ClientForm({
           label="Rue et numéro"
           value={{
             adresse,
-            rue: adresse,
+            rue: '',
             numero: '',
             code_postal: codePostal,
             ville,
@@ -153,10 +153,14 @@ export function ClientForm({
             verified: false,
           } as AddressValue}
           onChange={(addr) => {
-            const composed = addr.numero ? `${addr.rue} ${addr.numero}`.trim() : (addr.rue || addr.adresse);
-            setAdresse(composed);
-            setCodePostal(addr.code_postal);
-            setVille(addr.ville);
+            // addr.adresse est :
+            //   - le texte tapé en saisie manuelle, OU
+            //   - la composition rue+numéro après sélection Nominatim
+            // Dans les deux cas on prend tel quel — pas de re-composition
+            // ici sinon on perdrait des caractères (cf. bug 2026-05-19).
+            setAdresse(addr.adresse);
+            if (addr.code_postal) setCodePostal(addr.code_postal);
+            if (addr.ville) setVille(addr.ville);
             if (addr.pays) setPays(addr.pays);
           }}
           placeholder="Commence à taper la rue…"
