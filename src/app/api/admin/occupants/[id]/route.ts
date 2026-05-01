@@ -42,13 +42,59 @@ export async function GET(
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
   const { id } = await params;
+
+  // SELECT complet (avec les colonnes ajoutées par la migration
+  // 2026-05-11_occupants_token.sql).
   const { data, error } = await supabase
     .from('occupants')
     .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token')
     .eq('intervention_id', id)
     .order('appartement', { ascending: true });
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, occupants: data ?? [] });
+
+  if (!error) {
+    return NextResponse.json({ ok: true, occupants: data ?? [] });
+  }
+
+  // Log détaillé — apparaît dans Vercel runtime logs
+  console.error('[occupants GET] supabase error', {
+    intervention_id: id,
+    code: (error as { code?: string }).code ?? null,
+    message: error.message,
+    details: (error as { details?: string }).details ?? null,
+    hint: (error as { hint?: string }).hint ?? null,
+  });
+
+  // Fallback : si l'erreur est "column does not exist" (code 42703),
+  // la migration 2026-05-11_occupants_token.sql n'est probablement
+  // pas appliquée. On retombe sur le SELECT legacy pour ne pas casser
+  // le drawer.
+  const code = (error as { code?: string }).code;
+  if (code === '42703' || /column .* does not exist/i.test(error.message)) {
+    console.warn('[occupants GET] fallback to legacy columns — apply migration 2026-05-11_occupants_token.sql');
+    const { data: legacyData, error: legacyErr } = await supabase
+      .from('occupants')
+      .select('id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference')
+      .eq('intervention_id', id)
+      .order('appartement', { ascending: true });
+    if (legacyErr) {
+      console.error('[occupants GET] legacy fallback failed too', legacyErr);
+      return NextResponse.json({ ok: false, error: legacyErr.message }, { status: 500 });
+    }
+    // Renvoie les colonnes manquantes en null pour rester compatible
+    // avec le DrawerOccupant côté client.
+    const padded = (legacyData ?? []).map((o) => ({
+      ...o,
+      token_sent_at: null,
+      confirmation_token: null,
+    }));
+    return NextResponse.json({
+      ok: true,
+      occupants: padded,
+      _warning: 'migration_2026-05-11_pending',
+    });
+  }
+
+  return NextResponse.json({ ok: false, error: error.message, code: code ?? null }, { status: 500 });
 }
 
 // POST — créer un occupant pour cette intervention
@@ -75,6 +121,15 @@ export async function POST(
     .insert({ ...fields, intervention_id: id, conf: 'en_attente' })
     .select('id')
     .single();
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    console.error('[occupants POST] supabase error', {
+      intervention_id: id,
+      code: (error as { code?: string }).code ?? null,
+      message: error.message,
+      details: (error as { details?: string }).details ?? null,
+      hint: (error as { hint?: string }).hint ?? null,
+    });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true, id: data?.id });
 }
