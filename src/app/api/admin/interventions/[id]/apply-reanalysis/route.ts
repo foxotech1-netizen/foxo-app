@@ -58,7 +58,15 @@ export async function POST(
     .select('*')
     .eq('id', id)
     .maybeSingle();
-  if (ivErr) return NextResponse.json({ ok: false, error: ivErr.message }, { status: 500 });
+  if (ivErr) {
+    console.error('[apply-reanalysis] load intervention error', {
+      intervention_id: id,
+      code: (ivErr as { code?: string }).code ?? null,
+      message: ivErr.message,
+      details: (ivErr as { details?: string }).details ?? null,
+    });
+    return NextResponse.json({ ok: false, error: ivErr.message }, { status: 500 });
+  }
   if (!ivRow) return NextResponse.json({ ok: false, error: 'Intervention introuvable.' }, { status: 404 });
   const intervention = ivRow as Intervention;
 
@@ -142,7 +150,38 @@ export async function POST(
   if (analysis.reference_externe) patch.reference_externe = analysis.reference_externe;
 
   const { error: updErr } = await admin.from('interventions').update(patch).eq('id', id);
-  if (updErr) return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
+  if (updErr) {
+    console.error('[apply-reanalysis] update error', {
+      intervention_id: id,
+      code: (updErr as { code?: string }).code ?? null,
+      message: updErr.message,
+      details: (updErr as { details?: string }).details ?? null,
+      hint: (updErr as { hint?: string }).hint ?? null,
+      patch_keys: Object.keys(patch),
+    });
+    // Si une colonne manque (migration pending), on retire les champs
+    // optionnels et on retente.
+    const code = (updErr as { code?: string }).code;
+    const colMissing = code === '42703' || /column .* does not exist/i.test(updErr.message);
+    if (colMissing) {
+      const safePatch: Record<string, unknown> = { updated_at: patch.updated_at };
+      // Garde uniquement les champs qui existent depuis longtemps en DB
+      const safeKeys = ['type', 'description', 'priorite', 'adresse', 'particulier_contact'];
+      for (const k of safeKeys) {
+        if (k in patch) safePatch[k] = patch[k];
+      }
+      console.warn('[apply-reanalysis] retry with safe patch', { keys: Object.keys(safePatch) });
+      const { error: retryErr } = await admin.from('interventions').update(safePatch).eq('id', id);
+      if (retryErr) {
+        console.error('[apply-reanalysis] retry failed', retryErr);
+        return NextResponse.json({ ok: false, error: retryErr.message }, { status: 500 });
+      }
+      // OK, mais signale qu'une migration est pending
+      console.warn('[apply-reanalysis] partial update — apply migration 2026-05-12_intervention_demandeur_links.sql for full update');
+    } else {
+      return NextResponse.json({ ok: false, error: updErr.message }, { status: 500 });
+    }
+  }
 
   // Ajoute uniquement les NOUVEAUX occupants (email pas déjà présent)
   let newOccupantsCount = 0;
