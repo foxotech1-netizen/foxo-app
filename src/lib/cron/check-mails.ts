@@ -53,12 +53,23 @@ export interface CronExtractedOccupant {
   nom: string;
   email: string;
   appartement: string;
+  etage: string;
   telephone: string;
   type: CronOccupantType;
   notes: string;            // état de l'apt, actions déjà prises, urgence
 }
 
 export type CronDemandeurType = 'syndic' | 'courtier' | 'particulier';
+
+// Délégué = la personne physique qui envoie le mail au nom du syndic.
+// Le syndic = nom_societe (organisation). Le délégué a son propre nom +
+// email + téléphone (souvent dans la signature).
+export interface CronDelegueExtracted {
+  prenom: string | null;
+  nom: string | null;
+  email: string | null;
+  telephone: string | null;
+}
 
 export interface CronMailAnalysis {
   est_demande_intervention: boolean;
@@ -75,6 +86,7 @@ export interface CronMailAnalysis {
   nom_societe: string | null;
   nom_immeuble: string | null;
   reference_externe: string | null;
+  delegue: CronDelegueExtracted | null;
 }
 
 export interface CronMailResultItem {
@@ -224,14 +236,24 @@ export async function analyzeMailWithClaude(
     `   - nom_immeuble : nom de la résidence ou adresse de l'ACP (ex: "Résidence Bellevue", "Rue de la Loi 42") — null si particulier`,
     `   - reference_externe : référence dossier syndic/courtier mentionnée (ex: "DOS-2026-123", "REF/456/2026") — null si absente`,
     ``,
+    `## Extraction du délégué (l'humain qui envoie le mail)`,
+    ``,
+    `Le From: est le DÉLÉGUÉ du syndic — la personne physique qui agit pour la société. La société = nom_societe ; le délégué = un humain avec son propre nom + email + téléphone.`,
+    `   - Le From: contient souvent le nom d'affichage : "Kevin Duwyn <kd@igsyndic.be>" → délégué prenom="Kevin", nom="Duwyn", email="kd@igsyndic.be"`,
+    `   - Cherche aussi dans la SIGNATURE du mail : "Cordialement, Kevin Duwyn — IG Syndic SPRL — 02 123 45 67"`,
+    `   - Le téléphone du délégué peut être fixe (02xxx) ou mobile (04xx / +32 4xx)`,
+    `   - Si type_demandeur = "particulier", remplis quand même delegue avec les coordonnées du sender (le particulier EST son propre délégué)`,
+    `   - Si vraiment aucune info → mets delegue=null (mais email_delegue devrait au minimum être l'email From:)`,
+    ``,
     `## Extraction des occupants et appartements`,
     ``,
     `Lis ATTENTIVEMENT TOUT le corps du mail ET les CC. Ne t'arrête pas à la première mention.`,
     `Identifie TOUS les occupants ou zones mentionnés, sous toutes ces formes :`,
     ``,
     `(a) Nom entre parenthèses après un numéro/code d'appartement :`,
-    `    "appartement K09 (Mme Vlasselaer)"  → apt="K09", nom="Vlasselaer", prenom="Mme"`,
-    `    "apt 3B (Marie Dupont)"             → apt="3B",  nom="Dupont",     prenom="Marie"`,
+    `    "appartement K09 (Mme Vlasselaer) au 2ème"  → apt="K09", etage="2ème", nom="Vlasselaer", prenom=""`,
+    `    "apt 3B (Marie Dupont)"                     → apt="3B",  etage="3", nom="Dupont", prenom="Marie"`,
+    `    Détecte aussi l'étage isolément (ex: "rez-de-chaussée côté escaliers" → etage="rez-de-chaussée")`,
     ``,
     `(b) Nom associé à un local commercial / cave / garage :`,
     `    "magasin M09 (Mr Leman)"            → apt="M09", nom="Leman",      prenom="Mr"`,
@@ -286,12 +308,19 @@ export async function analyzeMailWithClaude(
     `  "nom_societe": "string" | null,`,
     `  "nom_immeuble": "string" | null,`,
     `  "reference_externe": "string" | null,`,
+    `  "delegue": {`,
+    `    "prenom": "string ou null",`,
+    `    "nom": "string ou null",`,
+    `    "email": "string ou null",`,
+    `    "telephone": "string ou null"`,
+    `  } | null,`,
     `  "occupants": [`,
     `    {`,
     `      "prenom": "string",`,
     `      "nom": "string",`,
     `      "email": "string ou \\"\\"",`,
     `      "appartement": "string (numéro/code/zone)",`,
+    `      "etage": "string ou \\"\\"",`,
     `      "telephone": "string ou \\"\\"",`,
     `      "type": "occupant | proprietaire | parties_communes",`,
     `      "notes": "string courte ou \\"\\"" `,
@@ -376,6 +405,7 @@ export async function analyzeMailWithClaude(
       const email = typeof r.email === 'string' ? r.email.trim() : '';
       const tel = typeof r.telephone === 'string' ? r.telephone.trim() : '';
       const apt = typeof r.appartement === 'string' ? r.appartement.trim() : '';
+      const etage = typeof r.etage === 'string' ? r.etage.trim() : '';
       const nom = typeof r.nom === 'string' ? r.nom.trim() : '';
       const prenom = typeof r.prenom === 'string' ? r.prenom.trim() : '';
       const tRaw = typeof r.type === 'string' ? r.type : '';
@@ -391,9 +421,45 @@ export async function analyzeMailWithClaude(
       const hasZone = type === 'parties_communes' && (apt || nom);
       if (!hasContact && !hasZone) return null;
 
-      return { prenom, nom, email, appartement: apt, telephone: tel, type, notes };
+      return { prenom, nom, email, appartement: apt, etage, telephone: tel, type, notes };
     })
     .filter((x): x is CronExtractedOccupant => x !== null);
+
+  // Délégué : extrait par Claude OU dérivé du From: en fallback (le
+  // sender est par défaut le délégué pour syndic/courtier/particulier).
+  const delegueRaw = (parsed as { delegue?: unknown }).delegue;
+  let delegue: CronDelegueExtracted | null = null;
+  if (delegueRaw && typeof delegueRaw === 'object') {
+    const dr = delegueRaw as Record<string, unknown>;
+    const dp = typeof dr.prenom === 'string' ? dr.prenom.trim() : '';
+    const dn = typeof dr.nom === 'string' ? dr.nom.trim() : '';
+    const de = typeof dr.email === 'string' ? dr.email.trim() : '';
+    const dt = typeof dr.telephone === 'string' ? dr.telephone.trim() : '';
+    if (dp || dn || de || dt) {
+      delegue = {
+        prenom: dp || null,
+        nom: dn || null,
+        email: de || null,
+        telephone: dt || null,
+      };
+    }
+  }
+  // Fallback : si Claude n'a rien extrait mais qu'on a un From: avec
+  // email + nom d'affichage, dérive le délégué basique du From:.
+  if (!delegue) {
+    const fromEmail = extractEmailAddr(mail.from);
+    const fromNameMatch = mail.from.match(/^"?([^"<]+?)"?\s*<[^>]+>/);
+    if (fromEmail) {
+      const fromName = fromNameMatch ? fromNameMatch[1].trim() : '';
+      const split = splitName(fromName);
+      delegue = {
+        prenom: split.prenom || null,
+        nom: split.nom || null,
+        email: fromEmail,
+        telephone: null,
+      };
+    }
+  }
 
   const td = (parsed as { type_demandeur?: unknown }).type_demandeur;
   const typeDemandeur: CronDemandeurType | null =
@@ -417,6 +483,7 @@ export async function analyzeMailWithClaude(
       ? (parsed as { nom_immeuble: string }).nom_immeuble : null,
     reference_externe: typeof (parsed as { reference_externe?: unknown }).reference_externe === 'string'
       ? (parsed as { reference_externe: string }).reference_externe : null,
+    delegue,
   };
   const rawOccupantsCount = Array.isArray((parsed as { occupants?: unknown }).occupants)
     ? (parsed as { occupants: unknown[] }).occupants.length : 0;
@@ -445,6 +512,66 @@ export async function analyzeMailWithClaude(
 
 interface MatchedOrgResult { id: string; created: boolean }
 interface MatchedClientResult { id: string; created: boolean }
+interface MatchedDelegueResult { id: string; created: boolean }
+
+// Match-or-create d'un délégué pour une organisation donnée. Le match se
+// fait par (organisation_id, lower(email)) — un index UNIQUE existe sur
+// cette paire (migration 2026-05-13_delegues.sql). Si le délégué existe
+// mais sans nom/téléphone et qu'on a ces infos, on les complète.
+export async function matchOrCreateDelegue(args: {
+  organisation_id: string;
+  email: string;
+  prenom: string | null;
+  nom: string | null;
+  telephone: string | null;
+}): Promise<MatchedDelegueResult | null> {
+  if (!args.email) return null;
+  const admin = createAdminClient();
+  const { data: existing, error: lookupErr } = await admin
+    .from('delegues')
+    .select('id, prenom, nom, telephone')
+    .eq('organisation_id', args.organisation_id)
+    .ilike('email', args.email)
+    .limit(1)
+    .maybeSingle();
+  if (lookupErr) {
+    console.warn('[check-mails] delegue lookup failed:', lookupErr.message);
+  }
+  if (existing?.id) {
+    // Patch non-destructif : remplit les champs vides côté DB
+    const patch: Record<string, string> = {};
+    if (!existing.prenom && args.prenom) patch.prenom = args.prenom;
+    if (!existing.nom && args.nom) patch.nom = args.nom;
+    if (!existing.telephone && args.telephone) patch.telephone = args.telephone;
+    if (Object.keys(patch).length > 0) {
+      const { error: patchErr } = await admin
+        .from('delegues')
+        .update(patch)
+        .eq('id', existing.id);
+      if (patchErr) console.warn('[check-mails] delegue patch failed:', patchErr.message);
+    }
+    return { id: existing.id as string, created: false };
+  }
+  const { data: created, error } = await admin
+    .from('delegues')
+    .insert({
+      organisation_id: args.organisation_id,
+      email: args.email,
+      prenom: args.prenom,
+      nom: args.nom,
+      telephone: args.telephone,
+      role: 'delegue',
+      actif: true,
+    })
+    .select('id')
+    .single();
+  if (error || !created) {
+    console.warn('[check-mails] delegue create failed:', error?.message);
+    return null;
+  }
+  console.log('[check-mails] nouveau délégué créé :', { email: args.email, org: args.organisation_id });
+  return { id: created.id as string, created: true };
+}
 
 export async function matchOrCreateOrganisation(args: {
   type: 'syndic' | 'courtier';
@@ -579,6 +706,7 @@ async function createInterventionFromMail(
   // Matching org/client selon type_demandeur
   let organisationId: string | null = null;
   let clientId: string | null = null;
+  let delegueId: string | null = null;
   if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
     const matched = await matchOrCreateOrganisation({
       type: analysis.type_demandeur,
@@ -587,6 +715,23 @@ async function createInterventionFromMail(
       telephone: tel,
     });
     organisationId = matched?.id ?? null;
+
+    // Délégué : la personne physique qui a envoyé le mail. Match par
+    // (org_id, email). Email du délégué = celui extrait par Claude OU
+    // l'email du sender en fallback.
+    if (organisationId) {
+      const dEmail = analysis.delegue?.email ?? emailAddr;
+      if (dEmail) {
+        const matchedDel = await matchOrCreateDelegue({
+          organisation_id: organisationId,
+          email: dEmail,
+          prenom: analysis.delegue?.prenom ?? null,
+          nom: analysis.delegue?.nom ?? null,
+          telephone: analysis.delegue?.telephone ?? tel ?? null,
+        });
+        delegueId = matchedDel?.id ?? null;
+      }
+    }
   } else if (analysis.type_demandeur === 'particulier') {
     const matched = await matchOrCreateClient({
       prenom, nom, email: emailAddr, telephone: tel,
@@ -601,27 +746,56 @@ async function createInterventionFromMail(
   // contient déjà mandant/lieu. L'org/client_id sert de lien externe.
   const demandeurType = 'particulier';
 
-  const { data: iv, error } = await admin
-    .from('interventions')
-    .insert({
-      ref,
-      statut: 'nouvelle',
-      priorite,
-      type,
-      description: analysis.resume ?? `(extrait par IA — sujet : ${mail.subject})`,
-      adresse: adresseFormatee,
-      date_demande: new Date().toISOString().slice(0, 10),
-      demandeur_type: demandeurType,
-      particulier_contact: particulierContact,
-      source: 'mail',
-      source_mail_id: mail.id,
-      reference_externe: analysis.reference_externe ?? null,
-      organisation_id: organisationId,
-      client_id: clientId,
-    })
-    .select('id, ref')
-    .single();
-  if (error || !iv) return { ok: false, error: error?.message ?? 'Insert failed' };
+  // Insert intervention. Si la migration 2026-05-17 (delegue_id) n'est
+  // pas encore appliquée en prod, l'insert échoue avec 42703 sur la
+  // colonne delegue_id — on retombe sur un insert sans cette colonne.
+  const baseIvPayload: Record<string, unknown> = {
+    ref,
+    statut: 'nouvelle',
+    priorite,
+    type,
+    description: analysis.resume ?? `(extrait par IA — sujet : ${mail.subject})`,
+    adresse: adresseFormatee,
+    date_demande: new Date().toISOString().slice(0, 10),
+    demandeur_type: demandeurType,
+    particulier_contact: particulierContact,
+    source: 'mail',
+    source_mail_id: mail.id,
+    reference_externe: analysis.reference_externe ?? null,
+    organisation_id: organisationId,
+    client_id: clientId,
+  };
+  const fullIvPayload: Record<string, unknown> = { ...baseIvPayload, delegue_id: delegueId };
+
+  let iv: { id: string; ref: string } | null = null;
+  let insertErr: { code?: string; message: string } | null = null;
+  {
+    const { data, error } = await admin
+      .from('interventions')
+      .insert(fullIvPayload)
+      .select('id, ref')
+      .single();
+    if (data && !error) {
+      iv = { id: data.id as string, ref: data.ref as string };
+    } else {
+      insertErr = error ? { code: (error as { code?: string }).code, message: error.message } : null;
+      const colMissing = insertErr?.code === '42703' || /column .* does not exist/i.test(insertErr?.message ?? '');
+      if (colMissing) {
+        console.warn('[check-mails] interventions.delegue_id absent — retry sans la colonne (apply migration 2026-05-17)');
+        const retry = await admin
+          .from('interventions')
+          .insert(baseIvPayload)
+          .select('id, ref')
+          .single();
+        if (retry.data && !retry.error) {
+          iv = { id: retry.data.id as string, ref: retry.data.ref as string };
+        } else {
+          insertErr = retry.error ? { code: (retry.error as { code?: string }).code, message: retry.error.message } : insertErr;
+        }
+      }
+    }
+  }
+  if (!iv) return { ok: false, error: insertErr?.message ?? 'Insert failed' };
 
   // Timeline
   try {
@@ -642,40 +816,81 @@ async function createInterventionFromMail(
   // - parties_communes : pas de filtre email/tel (zone sans contact).
   // - instructions : "[extrait du mail]" + notes spécifiques (état apt,
   //   actions déjà prises) renvoyées par Claude.
-  const occupantsToInsert = (analysis.occupants ?? [])
+  const occupantsToInsertFull: OccupantInsertRow[] = (analysis.occupants ?? [])
     .filter((o) => o.type === 'parties_communes' || o.email || o.telephone)
     .map((o) => {
       const baseMarker = '[extrait du mail]';
       const instructions = o.notes
         ? `${baseMarker} ${o.notes}`
         : baseMarker;
+      const contactPref: 'email' | 'sms' = o.email ? 'email' : (o.telephone ? 'sms' : 'email');
       return {
         intervention_id: iv.id,
         appartement: o.appartement || null,
-        etage: null,
+        etage: o.etage || null,
         prenom: o.prenom || null,
         nom: o.nom || (o.type === 'parties_communes' ? 'Parties communes' : null),
         email: o.email || null,
         telephone: o.telephone || null,
         conf: 'en_attente' as const,
-        contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
+        contact_preference: contactPref,
         instructions,
+        type_occupant: o.type,
       };
     });
-  if (occupantsToInsert.length > 0) {
-    try {
-      const { error: occErr } = await admin.from('occupants').insert(occupantsToInsert);
-      if (occErr) {
-        console.warn('[check-mails] occupants insert failed:', occErr.message);
-      } else {
-        console.log('[check-mails] occupants créés :', occupantsToInsert.length);
-      }
-    } catch (e) {
-      console.warn('[check-mails] occupants insert threw:', e);
-    }
+  if (occupantsToInsertFull.length > 0) {
+    await safeInsertOccupants(occupantsToInsertFull);
   }
 
   return { ok: true, intervention_id: iv.id as string, ref: iv.ref as string };
+}
+
+// Insert occupants avec fallback si la colonne type_occupant n'existe
+// pas (migration 2026-05-17 pas appliquée). On retire la colonne et on
+// retente — le défaut SQL 'occupant' s'appliquera ensuite quand la
+// migration sera passée.
+export type OccupantInsertRow = {
+  intervention_id: string;
+  appartement: string | null;
+  etage: string | null;
+  prenom: string | null;
+  nom: string | null;
+  email: string | null;
+  telephone: string | null;
+  conf: 'en_attente';
+  contact_preference: 'email' | 'sms' | 'whatsapp' | 'both';
+  instructions: string;
+  type_occupant: CronOccupantType;
+};
+export async function safeInsertOccupants(rows: OccupantInsertRow[]): Promise<void> {
+  const admin = createAdminClient();
+  try {
+    const { error } = await admin.from('occupants').insert(rows);
+    if (!error) {
+      console.log('[check-mails] occupants créés :', rows.length);
+      return;
+    }
+    const code = (error as { code?: string }).code;
+    const colMissing = code === '42703' || /column .* does not exist/i.test(error.message);
+    if (!colMissing) {
+      console.warn('[check-mails] occupants insert failed:', error.message);
+      return;
+    }
+    console.warn('[check-mails] occupants.type_occupant absent — retry sans (apply migration 2026-05-17)');
+    const stripped = rows.map((r) => {
+      const { type_occupant: _drop, ...rest } = r;
+      void _drop;
+      return rest;
+    });
+    const retry = await admin.from('occupants').insert(stripped);
+    if (retry.error) {
+      console.warn('[check-mails] occupants insert retry failed:', retry.error.message);
+    } else {
+      console.log('[check-mails] occupants créés (sans type_occupant) :', rows.length);
+    }
+  } catch (e) {
+    console.warn('[check-mails] occupants insert threw:', e);
+  }
 }
 
 async function logMailEntry(args: {

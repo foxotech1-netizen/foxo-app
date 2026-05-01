@@ -5,7 +5,10 @@ import { roleForEmail } from '@/lib/auth/roles';
 import {
   matchOrCreateOrganisation,
   matchOrCreateClient,
+  matchOrCreateDelegue,
+  safeInsertOccupants,
   type CronMailAnalysis,
+  type OccupantInsertRow,
 } from '@/lib/cron/check-mails';
 import type { Intervention, ParticulierContact } from '@/lib/types/database';
 
@@ -158,6 +161,7 @@ async function handlePOST(
   setPhase('match_org_or_client');
   let organisationId: string | null = intervention.organisation_id;
   let clientId: string | null = intervention.client_id;
+  let delegueId: string | null = (intervention as { delegue_id?: string | null }).delegue_id ?? null;
   if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
     const matched = await matchOrCreateOrganisation({
       type: analysis.type_demandeur,
@@ -166,6 +170,23 @@ async function handlePOST(
       telephone: analysis.telephone ?? '',
     });
     if (matched) organisationId = matched.id;
+
+    // Délégué : si Claude a extrait des infos OU si on a un email du
+    // sender, on match-or-create dans la table delegues.
+    if (organisationId) {
+      setPhase('match_delegue');
+      const dEmail = analysis.delegue?.email ?? analysis.email ?? '';
+      if (dEmail) {
+        const matchedDel = await matchOrCreateDelegue({
+          organisation_id: organisationId,
+          email: dEmail,
+          prenom: analysis.delegue?.prenom ?? null,
+          nom: analysis.delegue?.nom ?? null,
+          telephone: analysis.delegue?.telephone ?? analysis.telephone ?? null,
+        });
+        if (matchedDel) delegueId = matchedDel.id;
+      }
+    }
   } else if (analysis.type_demandeur === 'particulier') {
     const parts = (analysis.nom_client ?? '').trim().split(/\s+/);
     const matched = await matchOrCreateClient({
@@ -184,6 +205,7 @@ async function handlePOST(
     particulier_contact: nextPc,
     organisation_id: organisationId,
     client_id: clientId,
+    delegue_id: delegueId,
     updated_at: new Date().toISOString(),
   };
   if (analysis.adresse) patch.adresse = analysis.adresse;
@@ -252,7 +274,7 @@ async function handlePOST(
         .map((o) => (o.appartement ?? '').toLowerCase().trim())
         .filter(Boolean),
     );
-    const toInsert = analysis.occupants
+    const toInsert: OccupantInsertRow[] = analysis.occupants
       .filter((o) => {
         // parties_communes : autorisé sans email mais dédup sur apt
         if (o.type === 'parties_communes') {
@@ -268,6 +290,7 @@ async function handlePOST(
         return {
           intervention_id: id,
           appartement: o.appartement || null,
+          etage: o.etage || null,
           prenom: o.prenom || null,
           nom: o.nom || (o.type === 'parties_communes' ? 'Parties communes' : null),
           email: o.email || null,
@@ -275,25 +298,12 @@ async function handlePOST(
           conf: 'en_attente' as const,
           contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
           instructions,
+          type_occupant: o.type,
         };
       });
     if (toInsert.length > 0) {
-      const { error: insErr } = await admin.from('occupants').insert(toInsert);
-      if (insErr) {
-        console.error('[apply-reanalysis] occupants insert error', {
-          intervention_id: id,
-          code: (insErr as { code?: string }).code ?? null,
-          message: insErr.message,
-          details: (insErr as { details?: string }).details ?? null,
-          hint: (insErr as { hint?: string }).hint ?? null,
-          row_count: toInsert.length,
-          first_row_keys: Object.keys(toInsert[0]),
-        });
-        // Ne pas faire échouer la requête entière — l'intervention est déjà
-        // mise à jour. Le caller verra new_occupants_count=0 et un warn.
-      } else {
-        newOccupantsCount = toInsert.length;
-      }
+      await safeInsertOccupants(toInsert);
+      newOccupantsCount = toInsert.length;
     }
   }
 

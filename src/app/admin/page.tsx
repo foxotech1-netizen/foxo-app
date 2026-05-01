@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { TECH_EMAILS } from '@/lib/auth/roles';
-import type { Acp, Intervention, Occupant, Organisation, Utilisateur, InterventionRow, CreneauDisponible } from '@/lib/types/database';
+import type { Acp, Delegue, Intervention, Occupant, Organisation, Utilisateur, InterventionRow, CreneauDisponible } from '@/lib/types/database';
 import { InterventionsClient } from './InterventionsClient';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export default async function AdminPipelinePage() {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayISO = `${todayStart.getFullYear()}-${String(todayStart.getMonth() + 1).padStart(2, '0')}-${String(todayStart.getDate()).padStart(2, '0')}`;
 
-  const [interventionsRes, acpsRes, orgsRes, usersRes, slotsRes] = await Promise.all([
+  const [interventionsRes, acpsRes, orgsRes, usersRes, slotsRes, deleguesRes] = await Promise.all([
     supabase
       .from('interventions')
       .select('*')
@@ -40,6 +40,10 @@ export default async function AdminPipelinePage() {
       .gte('date', todayISO)
       .order('date', { ascending: true })
       .order('heure_debut', { ascending: true }),
+    // Délégués : pour le drawer "Demandeur" — on charge tous les
+    // délégués actifs et on map par ID. Si la table n'existe pas
+    // encore (migration absente), on tolère l'erreur silencieusement.
+    supabase.from('delegues').select('id, prenom, nom, email, telephone'),
   ]);
 
   if (interventionsRes.error) {
@@ -51,16 +55,25 @@ export default async function AdminPipelinePage() {
   const orgs: Pick<Organisation, 'id' | 'nom' | 'type' | 'email'>[] = orgsRes.data ?? [];
   const techs: Utilisateur[] = usersRes.data ?? [];
   const freeSlots: FreeSlot[] = (slotsRes.data ?? []) as FreeSlot[];
+  type DelegueLite = Pick<Delegue, 'id' | 'prenom' | 'nom' | 'email' | 'telephone'>;
+  const delegues: DelegueLite[] = (deleguesRes.data as DelegueLite[] | null) ?? [];
 
+  // Si on intervention pointe vers un syndic via syndic_id ou
+  // organisation_id, on prend l'organisation matchée. Idem pour le
+  // délégué : iv.delegue_id → table delegues.
   const acpMap = new Map(acps.map((a) => [a.id, a]));
   const orgMap = new Map(orgs.map((o) => [o.id, o]));
   const techMap = new Map(techs.map((t) => [t.id, t]));
+  const delegueMap = new Map(delegues.map((d) => [d.id, d]));
 
   const rows: InterventionRow[] = interventions.map((iv) => ({
     ...iv,
     acp: iv.acp_id ? (acpMap.get(iv.acp_id) ?? null) : null,
-    syndic: iv.syndic_id ? (orgMap.get(iv.syndic_id) ?? null) : null,
+    syndic: iv.syndic_id
+      ? (orgMap.get(iv.syndic_id) ?? null)
+      : iv.organisation_id ? (orgMap.get(iv.organisation_id) ?? null) : null,
     technicien: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
+    delegue: iv.delegue_id ? (delegueMap.get(iv.delegue_id) ?? null) : null,
   }));
 
   // Group free slots by technicien

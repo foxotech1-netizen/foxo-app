@@ -171,6 +171,7 @@ export interface Intervention {
   reference_externe: string | null;
   organisation_id: string | null;
   client_id: string | null;
+  delegue_id: string | null;
 }
 
 export interface Rapport {
@@ -184,6 +185,8 @@ export interface Rapport {
 
 export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
 
+export type TypeOccupant = 'occupant' | 'proprietaire' | 'parties_communes';
+
 export interface Occupant {
   id: string;
   intervention_id: string;
@@ -196,6 +199,7 @@ export interface Occupant {
   instructions: string | null;
   conf: 'confirme' | 'en_attente' | 'decline' | null;
   contact_preference: ContactPreference | null;
+  type_occupant: TypeOccupant | null;
 }
 
 export type StatutCreneau = 'libre' | 'reserve' | 'bloque';
@@ -341,6 +345,7 @@ export interface InterventionRow extends Intervention {
   acp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'> | null;
   syndic: Pick<Organisation, 'id' | 'nom' | 'type' | 'email'> | null;
   technicien: Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
+  delegue: Pick<Delegue, 'id' | 'prenom' | 'nom' | 'email' | 'telephone'> | null;
 }
 
 // Libellés et couleurs des statuts

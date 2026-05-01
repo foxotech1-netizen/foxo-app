@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { DashboardData } from './page';
 import { Dashboard, DashboardTechs } from './Dashboard';
@@ -149,6 +150,7 @@ export function InterventionsClient({
     conf: 'confirme' | 'en_attente' | 'decline' | null;
     contact_preference?: 'email' | 'sms' | 'whatsapp' | 'both' | null;
     token_sent_at?: string | null;
+    type_occupant?: 'occupant' | 'proprietaire' | 'parties_communes' | null;
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
@@ -231,7 +233,8 @@ export function InterventionsClient({
       nom_societe: string | null;
       nom_immeuble: string | null;
       reference_externe: string | null;
-      occupants: { prenom: string; nom: string; email: string; appartement: string; telephone: string; type: 'occupant' | 'proprietaire' | 'parties_communes'; notes: string }[];
+      occupants: { prenom: string; nom: string; email: string; appartement: string; etage: string; telephone: string; type: 'occupant' | 'proprietaire' | 'parties_communes'; notes: string }[];
+      delegue: { prenom: string | null; nom: string | null; email: string | null; telephone: string | null } | null;
     };
   };
   const [reanalysis, setReanalysis] = useState<ReanalysisData | null>(null);
@@ -1284,10 +1287,49 @@ export function InterventionsClient({
                     </div>
                   </Block>
 
-                  {selected.demandeur_type !== 'particulier' && selected.syndic && (
-                    <Block title="Demandeur (syndic)">
-                      <div className="font-bold text-[13px]">{selected.syndic.nom}</div>
-                      {selected.syndic.type && <TypeBadge type={selected.syndic.type} className="mt-1" />}
+                  {/* 👤 Demandeur — syndic/courtier + délégué (humain qui a envoyé le mail) */}
+                  {(selected.syndic || selected.delegue) && (
+                    <Block title="👤 Demandeur">
+                      {selected.syndic && (
+                        <div className="mb-2">
+                          <Link
+                            href={selected.syndic.type === 'syndic' ? `/admin/syndics?id=${selected.syndic.id}` : `/admin/clients?id=${selected.syndic.id}`}
+                            className="font-bold text-[13px] text-navy hover:underline dark:text-[#A8C4F2]"
+                          >
+                            {selected.syndic.nom}
+                          </Link>
+                          {selected.syndic.type && <TypeBadge type={selected.syndic.type} className="ml-2" />}
+                        </div>
+                      )}
+                      {selected.delegue && (
+                        <div className="bg-white border border-sand-border rounded-md px-2.5 py-1.5 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-ink dark:text-[#F0ECE4]">
+                              {[selected.delegue.prenom, selected.delegue.nom].filter(Boolean).join(' ') || selected.delegue.email}
+                            </span>
+                            {selected.source === 'mail' && (
+                              <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
+                                    title="Délégué identifié automatiquement depuis le mail">
+                                📧 mail
+                              </span>
+                            )}
+                          </div>
+                          {(selected.delegue.email || selected.delegue.telephone) && (
+                            <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
+                              {selected.delegue.email && (
+                                <a href={`mailto:${selected.delegue.email}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
+                                  ✉ {selected.delegue.email}
+                                </a>
+                              )}
+                              {selected.delegue.telephone && (
+                                <a href={`tel:${selected.delegue.telephone}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
+                                  📞 {selected.delegue.telephone}
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </Block>
                   )}
 
@@ -1449,9 +1491,22 @@ export function InterventionsClient({
                           return (
                             <div key={o.id} className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-ink dark:text-[#F0ECE4] flex items-center gap-1.5">
+                                <span className="font-bold text-ink dark:text-[#F0ECE4] flex items-center gap-1.5 flex-wrap">
                                   {o.appartement ?? '—'}
                                   {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">· {o.etage}</span> : null}
+                                  {o.type_occupant && o.type_occupant !== 'occupant' && (
+                                    <span
+                                      className={
+                                        'inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ' +
+                                        (o.type_occupant === 'parties_communes'
+                                          ? 'bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]'
+                                          : 'bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE] dark:bg-[#2D1B54] dark:text-[#C4B5FD] dark:border-[#4C2BA0]')
+                                      }
+                                      title={o.type_occupant === 'parties_communes' ? 'Zone commune (escaliers, couloir, hall…)' : 'Propriétaire bailleur (ne réside pas)'}
+                                    >
+                                      {o.type_occupant === 'parties_communes' ? '🏛 communs' : '🏠 propriétaire'}
+                                    </span>
+                                  )}
                                   {fromMail && (
                                     <span
                                       className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"

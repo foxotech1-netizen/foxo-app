@@ -42,18 +42,22 @@ function sanitize(b: OccupantInput): Record<string, string | null> {
 // L3 : sans contact_preference (migrations plus anciennes)
 // L4 : core minimal — id + nom + email + telephone + appartement + conf
 const SELECT_LEVELS: { cols: string; padding?: Record<string, null> }[] = [
-  { cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token' },
+  { cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token, type_occupant' },
+  {
+    cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference, token_sent_at, confirmation_token',
+    padding: { type_occupant: null },
+  },
   {
     cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf, contact_preference',
-    padding: { token_sent_at: null, confirmation_token: null },
+    padding: { type_occupant: null, token_sent_at: null, confirmation_token: null },
   },
   {
     cols: 'id, appartement, etage, prenom, nom, email, telephone, instructions, conf',
-    padding: { token_sent_at: null, confirmation_token: null, contact_preference: null },
+    padding: { type_occupant: null, token_sent_at: null, confirmation_token: null, contact_preference: null },
   },
   {
     cols: 'id, appartement, nom, email, telephone, conf',
-    padding: { token_sent_at: null, confirmation_token: null, contact_preference: null, etage: null, prenom: null, instructions: null },
+    padding: { type_occupant: null, token_sent_at: null, confirmation_token: null, contact_preference: null, etage: null, prenom: null, instructions: null },
   },
 ];
 
