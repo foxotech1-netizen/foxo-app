@@ -29,17 +29,57 @@ interface ApplyBody {
 // - Match/crée organisation_id ou client_id selon type_demandeur
 // - Insère les nouveaux occupants extraits (email non déjà présent)
 // - Insert intervention_timeline type='mail_reanalyse'
+//
+// Wrap top-level try/catch : tout throw imprévu est attrapé et le détail
+// renvoyé dans le response body (utile pour debugger via DevTools quand
+// l'admin n'a pas accès aux Vercel logs).
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  let phase = 'init';
+  try {
+    return await handlePOST(request, params, (p) => { phase = p; });
+  } catch (e) {
+    const err = e as Error & { code?: string; details?: string; hint?: string };
+    console.error('[apply-reanalysis] uncaught throw', {
+      phase,
+      name: err.name,
+      message: err.message,
+      code: err.code ?? null,
+      details: err.details ?? null,
+      hint: err.hint ?? null,
+      stack: err.stack?.slice(0, 2000) ?? null,
+    });
+    return NextResponse.json({
+      ok: false,
+      error: `Exception côté serveur (phase ${phase}): ${err.message}`,
+      detail: {
+        name: err.name,
+        code: err.code ?? null,
+        details: err.details ?? null,
+        hint: err.hint ?? null,
+        stack: err.stack?.split('\n').slice(0, 8).join('\n') ?? null,
+        phase,
+      },
+    }, { status: 500 });
+  }
+}
+
+async function handlePOST(
+  request: Request,
+  paramsPromise: Promise<{ id: string }>,
+  setPhase: (p: string) => void,
+): Promise<Response> {
+  setPhase('auth');
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || roleForEmail(user.email) !== 'admin') {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
-  const { id } = await params;
+  const { id } = await paramsPromise;
 
+  setPhase('parse_body');
   let body: ApplyBody;
   try {
     body = (await request.json()) as ApplyBody;
@@ -53,6 +93,7 @@ export async function POST(
   }
 
   // Charge l'intervention
+  setPhase('load_intervention');
   const { data: ivRow, error: ivErr } = await supabase
     .from('interventions')
     .select('*')
@@ -70,9 +111,11 @@ export async function POST(
   if (!ivRow) return NextResponse.json({ ok: false, error: 'Intervention introuvable.' }, { status: 404 });
   const intervention = ivRow as Intervention;
 
+  setPhase('admin_client');
   const admin = createAdminClient();
 
   // Construction du nouveau particulier_contact (merge non-destructif)
+  setPhase('build_particulier_contact');
   const pc = (intervention.particulier_contact as ParticulierContact | null) ?? null;
   const nextPc: ParticulierContact = pc ? { ...pc } : {
     prenom: '', nom: '', email: '', telephone: '',
@@ -112,6 +155,7 @@ export async function POST(
   }
 
   // Matching org/client (peut créer si nouveau)
+  setPhase('match_org_or_client');
   let organisationId: string | null = intervention.organisation_id;
   let clientId: string | null = intervention.client_id;
   if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
@@ -135,6 +179,7 @@ export async function POST(
   }
 
   // Update intervention
+  setPhase('update_intervention');
   const patch: Record<string, unknown> = {
     particulier_contact: nextPc,
     organisation_id: organisationId,
@@ -184,6 +229,7 @@ export async function POST(
   }
 
   // Ajoute uniquement les NOUVEAUX occupants (email pas déjà présent)
+  setPhase('insert_occupants');
   let newOccupantsCount = 0;
   if (analysis.occupants && analysis.occupants.length > 0) {
     const { data: existing } = await admin
@@ -233,11 +279,26 @@ export async function POST(
       });
     if (toInsert.length > 0) {
       const { error: insErr } = await admin.from('occupants').insert(toInsert);
-      if (!insErr) newOccupantsCount = toInsert.length;
+      if (insErr) {
+        console.error('[apply-reanalysis] occupants insert error', {
+          intervention_id: id,
+          code: (insErr as { code?: string }).code ?? null,
+          message: insErr.message,
+          details: (insErr as { details?: string }).details ?? null,
+          hint: (insErr as { hint?: string }).hint ?? null,
+          row_count: toInsert.length,
+          first_row_keys: Object.keys(toInsert[0]),
+        });
+        // Ne pas faire échouer la requête entière — l'intervention est déjà
+        // mise à jour. Le caller verra new_occupants_count=0 et un warn.
+      } else {
+        newOccupantsCount = toInsert.length;
+      }
     }
   }
 
   // Timeline
+  setPhase('timeline');
   try {
     await admin.from('intervention_timeline').insert({
       intervention_id: id,
