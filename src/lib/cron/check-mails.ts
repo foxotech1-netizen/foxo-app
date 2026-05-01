@@ -85,6 +85,7 @@ export interface CronMailAnalysis {
   type_demandeur: CronDemandeurType | null;
   nom_societe: string | null;
   nom_immeuble: string | null;
+  adresse_immeuble: string | null;
   reference_externe: string | null;
   delegue: CronDelegueExtracted | null;
 }
@@ -233,7 +234,8 @@ export async function analyzeMailWithClaude(
     `   - "particulier" : demande personnelle, maison, appartement perso, propriétaire occupant`,
     `   Aussi extraire :`,
     `   - nom_societe : cabinet syndic, compagnie d'assurance (ex: "Wave-Immo SPRL", "BelGestion", "Assur Plus") — null si particulier`,
-    `   - nom_immeuble : nom de la résidence ou adresse de l'ACP (ex: "Résidence Bellevue", "Rue de la Loi 42") — null si particulier`,
+    `   - nom_immeuble : nom de la résidence/ACP (ex: "Résidence Bellevue", "Le Châtelain", "ACP Forest 14") — null si particulier ou non identifiable`,
+    `   - adresse_immeuble : adresse postale de l'immeuble si différente de adresse (ex: "Rue de la Loi 42, 1000 Bruxelles") — null sinon`,
     `   - reference_externe : référence dossier syndic/courtier mentionnée (ex: "DOS-2026-123", "REF/456/2026") — null si absente`,
     ``,
     `## Extraction du délégué (l'humain qui envoie le mail)`,
@@ -307,6 +309,7 @@ export async function analyzeMailWithClaude(
     `  "type_demandeur": "syndic | courtier | particulier" | null,`,
     `  "nom_societe": "string" | null,`,
     `  "nom_immeuble": "string" | null,`,
+    `  "adresse_immeuble": "string" | null,`,
     `  "reference_externe": "string" | null,`,
     `  "delegue": {`,
     `    "prenom": "string ou null",`,
@@ -481,6 +484,8 @@ export async function analyzeMailWithClaude(
       ? (parsed as { nom_societe: string }).nom_societe : null,
     nom_immeuble: typeof (parsed as { nom_immeuble?: unknown }).nom_immeuble === 'string'
       ? (parsed as { nom_immeuble: string }).nom_immeuble : null,
+    adresse_immeuble: typeof (parsed as { adresse_immeuble?: unknown }).adresse_immeuble === 'string'
+      ? (parsed as { adresse_immeuble: string }).adresse_immeuble : null,
     reference_externe: typeof (parsed as { reference_externe?: unknown }).reference_externe === 'string'
       ? (parsed as { reference_externe: string }).reference_externe : null,
     delegue,
@@ -571,6 +576,40 @@ export async function matchOrCreateDelegue(args: {
   }
   console.log('[check-mails] nouveau délégué créé :', { email: args.email, org: args.organisation_id });
   return { id: created.id as string, created: true };
+}
+
+// Match-or-create d'une ACP/immeuble pour un syndic donné. Cherche par
+// nom partiel (ILIKE) avec filtre syndic_id|syndic_id_ref. Ne crée pas
+// automatiquement si non trouvé : on préfère laisser l'admin associer
+// manuellement depuis le drawer pour éviter les doublons (les noms
+// d'immeubles sont souvent ambigus : "Résidence du Parc" peut exister
+// dans plusieurs villes).
+interface MatchedAcpResult { id: string; created: boolean }
+export async function matchAcpForOrganisation(args: {
+  organisation_id: string;
+  nom_immeuble: string;
+}): Promise<MatchedAcpResult | null> {
+  if (!args.nom_immeuble || !args.organisation_id) return null;
+  const admin = createAdminClient();
+  const safe = args.nom_immeuble.replace(/[%_,()]/g, ' ').trim();
+  if (!safe) return null;
+  // Recherche par nom partiel filtrée par syndic (deux colonnes legacy)
+  const { data, error } = await admin
+    .from('acps')
+    .select('id, syndic_id, syndic_id_ref')
+    .or(`syndic_id.eq.${args.organisation_id},syndic_id_ref.eq.${args.organisation_id}`)
+    .ilike('nom', `%${safe}%`)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.warn('[check-mails] acp lookup failed:', error.message);
+    return null;
+  }
+  if (data?.id) {
+    console.log('[check-mails] ACP matchée :', { nom: args.nom_immeuble, id: data.id });
+    return { id: data.id as string, created: false };
+  }
+  return null;
 }
 
 export async function matchOrCreateOrganisation(args: {
@@ -703,10 +742,11 @@ async function createInterventionFromMail(
     nom_immeuble: analysis.nom_immeuble ?? null,
   };
 
-  // Matching org/client selon type_demandeur
+  // Matching org/client/délégué/ACP selon type_demandeur
   let organisationId: string | null = null;
   let clientId: string | null = null;
   let delegueId: string | null = null;
+  let acpId: string | null = null;
   if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
     const matched = await matchOrCreateOrganisation({
       type: analysis.type_demandeur,
@@ -730,6 +770,15 @@ async function createInterventionFromMail(
           telephone: analysis.delegue?.telephone ?? tel ?? null,
         });
         delegueId = matchedDel?.id ?? null;
+      }
+      // ACP : match par nom partiel sur le syndic (best effort).
+      // Si pas trouvée, l'admin associera manuellement via le drawer.
+      if (analysis.nom_immeuble) {
+        const matchedAcp = await matchAcpForOrganisation({
+          organisation_id: organisationId,
+          nom_immeuble: analysis.nom_immeuble,
+        });
+        acpId = matchedAcp?.id ?? null;
       }
     }
   } else if (analysis.type_demandeur === 'particulier') {
@@ -764,6 +813,7 @@ async function createInterventionFromMail(
     reference_externe: analysis.reference_externe ?? null,
     organisation_id: organisationId,
     client_id: clientId,
+    acp_id: acpId,
   };
   const fullIvPayload: Record<string, unknown> = { ...baseIvPayload, delegue_id: delegueId };
 

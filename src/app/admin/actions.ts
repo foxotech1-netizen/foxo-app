@@ -386,3 +386,38 @@ export async function emitFacture(input: EmitFactureInput): Promise<EmitFactureR
   revalidatePath('/admin');
   return { ok: true, data: { numero, montantTTC: totals.ttc } };
 }
+
+// ── Recherche d'ACPs pour association manuelle depuis le drawer ─────────
+// Filtre par syndic si organisationId est fourni, sinon recherche libre.
+// Le syndic peut être lié à l'ACP via deux colonnes legacy :
+//   - acps.syndic_id (FK historique)
+//   - acps.syndic_id_ref (FK plus récente)
+// On accepte les deux pour ne pas perdre de matchs.
+export async function searchAcpsForIntervention(args: {
+  query: string;
+  organisationId: string | null;
+}): Promise<{ ok: true; data: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville' | 'code_postal'>[] } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return { ok: false, error: 'Accès refusé.' };
+  }
+  const q = (args.query ?? '').trim();
+  let query = supabase
+    .from('acps')
+    .select('id, nom, adresse, ville, code_postal, syndic_id, syndic_id_ref')
+    .order('nom', { ascending: true })
+    .limit(20);
+  if (args.organisationId) {
+    query = query.or(`syndic_id.eq.${args.organisationId},syndic_id_ref.eq.${args.organisationId}`);
+  }
+  if (q.length >= 1) {
+    const safe = q.replace(/[,()]/g, ' ');
+    query = query.or(`nom.ilike.%${safe}%,adresse.ilike.%${safe}%,ville.ilike.%${safe}%`);
+  }
+  const { data, error } = await query;
+  if (error) return { ok: false, error: error.message };
+  type Row = Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville' | 'code_postal'>;
+  return { ok: true, data: (data ?? []) as Row[] };
+}
+

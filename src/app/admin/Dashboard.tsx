@@ -775,6 +775,11 @@ function NewMailSection({
                       onClick={() => { setOpenMenuId(null); onOpenIntervention(iv.id); }}
                     />
                     <MenuItem
+                      icon="↗"
+                      label="Ouvrir dans un nouvel onglet"
+                      onClick={() => { setOpenMenuId(null); window.open(`/admin/interventions/${iv.id}`, '_blank'); }}
+                    />
+                    <MenuItem
                       icon="🗑"
                       label="Supprimer"
                       danger

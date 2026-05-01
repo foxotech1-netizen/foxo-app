@@ -11,8 +11,8 @@ import {
   type InterventionRow,
   type StatutIntervention,
 } from '@/lib/types/database';
-import type { Utilisateur } from '@/lib/types/database';
-import { updateInterventionStatus, resendRapportToSyndic, assignTechnician, saveRapportDraftFromAdmin } from './actions';
+import type { Acp, Utilisateur } from '@/lib/types/database';
+import { updateInterventionStatus, resendRapportToSyndic, assignTechnician, saveRapportDraftFromAdmin, searchAcpsForIntervention } from './actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
@@ -107,12 +107,20 @@ export function InterventionsClient({
   loadError,
   dashboard,
   serverNowIso,
+  fullPage = false,
+  initialSelectedId = null,
 }: {
   initialRows: InterventionRow[];
   techs: Utilisateur[];
   loadError: string | null;
   dashboard: DashboardData;
   serverNowIso: string;
+  // Mode page complète (route /admin/interventions/[id]) — masque la
+  // liste, étend le drawer en pleine largeur, et auto-sélectionne
+  // l'intervention `initialSelectedId`. Le bouton "Fermer" devient
+  // "← Retour" qui renvoie à /admin.
+  fullPage?: boolean;
+  initialSelectedId?: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -133,7 +141,7 @@ export function InterventionsClient({
   const [rows, setRows] = useState(initialRows);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS_FILTRE[number]>('tous');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia'>('dossier');
   const [iaSaveMessage, setIaSaveMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [iaSavePending, startIaSaveTransition] = useTransition();
@@ -232,6 +240,7 @@ export function InterventionsClient({
       type_demandeur: 'syndic' | 'courtier' | 'particulier' | null;
       nom_societe: string | null;
       nom_immeuble: string | null;
+      adresse_immeuble: string | null;
       reference_externe: string | null;
       occupants: { prenom: string; nom: string; email: string; appartement: string; etage: string; telephone: string; type: 'occupant' | 'proprietaire' | 'parties_communes'; notes: string }[];
       delegue: { prenom: string | null; nom: string | null; email: string | null; telephone: string | null } | null;
@@ -378,12 +387,27 @@ export function InterventionsClient({
       .finally(() => setDrawerOccupantsLoading(false));
   }
   function closeDrawer() {
+    // En mode page complète, "Fermer" = retour à la liste /admin
+    if (fullPage) {
+      router.push('/admin');
+      return;
+    }
     setSelectedId(null);
     setStatusMessage(null);
     setAssignMessage(null);
     setIaSaveMessage(null);
     setDrawerOccupants([]);
   }
+
+  // Mode page complète : ouvre automatiquement le drawer pour
+  // l'intervention demandée au mount. openDrawer initialise tous les
+  // brouillons de formulaire et déclenche le fetch des occupants.
+  useEffect(() => {
+    if (fullPage && initialSelectedId && rows.some((r) => r.id === initialSelectedId)) {
+      openDrawer(initialSelectedId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleAiRapportSave(sections: { degats: string; inspection: string; conclusion: string; recommandations: string }) {
     if (!selected) return;
@@ -838,7 +862,9 @@ export function InterventionsClient({
         />
       )}
 
-      {/* Topbar */}
+      {/* Topbar + liste — masqués en mode page complète */}
+      {!fullPage && (
+      <>
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
         <div>
           <h1 className="text-xl font-extrabold text-ink">Tableau de bord</h1>
@@ -993,6 +1019,15 @@ export function InterventionsClient({
                             />
                           )}
                           <div className="font-mono text-xs font-medium text-navy">{iv.ref ?? '—'}</div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); window.open(`/admin/interventions/${iv.id}`, '_blank'); }}
+                            className="text-[10px] text-ink-muted/40 hover:text-navy transition-colors"
+                            title="Ouvrir dans un nouvel onglet"
+                            aria-label="Ouvrir dans un nouvel onglet"
+                          >
+                            ↗
+                          </button>
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {iv.priorite === 'urgente' && (
@@ -1012,10 +1047,21 @@ export function InterventionsClient({
                         </div>
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <div className="font-bold text-[13px]">{iv.acp?.nom ?? '—'}</div>
-                        <div className="text-[10px] text-ink-muted truncate max-w-[200px]">
-                          {[iv.acp?.adresse, iv.acp?.ville].filter(Boolean).join(', ') || '—'}
-                        </div>
+                        {iv.acp ? (
+                          <>
+                            <div className="font-bold text-[13px]">{iv.acp.nom}</div>
+                            <div className="text-[10px] text-ink-muted truncate max-w-[200px]">
+                              {[iv.acp.adresse, iv.acp.ville].filter(Boolean).join(', ') || '—'}
+                            </div>
+                          </>
+                        ) : iv.source === 'mail' ? (
+                          <span className="inline-block text-[9px] font-bold text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-1.5 py-0.5"
+                                title="ACP non identifiée — associer manuellement dans le drawer">
+                            ⚠️ à associer
+                          </span>
+                        ) : (
+                          <span className="text-ink-muted text-[12px]">—</span>
+                        )}
                       </td>
                       <td className="px-3.5 py-2.5 text-[11px] text-ink-mid whitespace-nowrap">
                         {iv.type ?? '—'}
@@ -1064,14 +1110,24 @@ export function InterventionsClient({
           />
         </div>
       </div>
+      </>
+      )}
 
-      {/* Drawer */}
+      {/* Drawer (côté liste) ou contenu pleine page */}
       {selected && (
         <div
-          onClick={(e) => { if (e.target === e.currentTarget) closeDrawer(); }}
-          className="fixed inset-0 bg-navy-deep/45 z-50 flex justify-end"
+          onClick={(e) => { if (!fullPage && e.target === e.currentTarget) closeDrawer(); }}
+          className={
+            fullPage
+              ? 'flex flex-col h-full bg-cream'
+              : 'fixed inset-0 bg-navy-deep/45 z-50 flex justify-end'
+          }
         >
-          <div className="w-[460px] bg-cream h-screen overflow-y-auto shadow-2xl border-l border-sand-border flex flex-col">
+          <div className={
+            fullPage
+              ? 'w-full max-w-[1100px] mx-auto bg-cream flex-1 overflow-y-auto flex flex-col'
+              : 'w-[460px] bg-cream h-screen overflow-y-auto shadow-2xl border-l border-sand-border flex flex-col'
+          }>
             <header className="px-5 pt-5 bg-sand border-b border-sand-border">
               <div className="flex justify-between items-start">
                 <div>
@@ -1088,12 +1144,26 @@ export function InterventionsClient({
                     {[selected.acp?.adresse, selected.acp?.ville].filter(Boolean).join(', ')}
                   </div>
                 </div>
-                <button
-                  onClick={closeDrawer}
-                  className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border"
-                >
-                  ✕
-                </button>
+                <div className="flex gap-1.5">
+                  {!fullPage && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(`/admin/interventions/${selected.id}`, '_blank')}
+                      className="bg-sand-mid h-8 px-2 rounded-md text-ink-mid hover:bg-sand-border text-[12px] font-bold"
+                      title="Ouvrir dans un nouvel onglet"
+                      aria-label="Ouvrir dans un nouvel onglet"
+                    >
+                      ↗
+                    </button>
+                  )}
+                  <button
+                    onClick={closeDrawer}
+                    className="bg-sand-mid h-8 px-2.5 rounded-md text-ink-mid hover:bg-sand-border text-[12px] font-bold"
+                    title={fullPage ? 'Retour à la liste' : 'Fermer'}
+                  >
+                    {fullPage ? '← Retour' : '✕'}
+                  </button>
+                </div>
               </div>
               <div className="mt-3"><Pipebar statut={selected.statut} /></div>
               <div className="flex justify-between items-center mt-2 pb-4">
@@ -1123,11 +1193,11 @@ export function InterventionsClient({
                   {selected.source === 'mail' && (
                     <>
                       <MailStepper steps={[
-                        { key: 'infos',    label: 'Infos',         done: Boolean(formDraft.nom_client && formDraft.email && formDraft.telephone), active: selected.statut === 'nouvelle' },
-                        { key: 'tech',     label: 'Technicien',    done: Boolean(selected.technicien_id), active: Boolean(formDraft.nom_client) && !selected.technicien_id },
-                        { key: 'creneau',  label: 'Créneau',       done: Boolean(selected.creneau_debut), active: Boolean(selected.technicien_id) && !selected.creneau_debut },
-                        { key: 'occup',    label: 'Occupants',     done: drawerOccupants.some((o) => o.token_sent_at), active: Boolean(selected.creneau_debut) },
-                        { key: 'confirm',  label: 'Confirmation',  done: selected.statut === 'confirmee' || selected.statut === 'realisee' || selected.statut === 'rapport' || selected.statut === 'cloturee', active: selected.statut === 'attente' },
+                        { key: 'infos',    label: 'Infos',         sectionId: 'section-infos',        done: Boolean(formDraft.nom_client && formDraft.email && formDraft.telephone), active: selected.statut === 'nouvelle' },
+                        { key: 'tech',     label: 'Technicien',    sectionId: 'section-technicien',   done: Boolean(selected.technicien_id), active: Boolean(formDraft.nom_client) && !selected.technicien_id },
+                        { key: 'creneau',  label: 'Créneau',       sectionId: 'section-creneau',      done: Boolean(selected.creneau_debut), active: Boolean(selected.technicien_id) && !selected.creneau_debut },
+                        { key: 'occup',    label: 'Occupants',     sectionId: 'section-occupants',    done: drawerOccupants.some((o) => o.token_sent_at), active: Boolean(selected.creneau_debut) },
+                        { key: 'confirm',  label: 'Confirmation',  sectionId: 'section-confirmation', done: selected.statut === 'confirmee' || selected.statut === 'realisee' || selected.statut === 'rapport' || selected.statut === 'cloturee', active: selected.statut === 'attente' },
                       ]} />
                       {/* Bandeau bleu : seulement statut='nouvelle' (intervention non encore traitée) */}
                       {selected.statut === 'nouvelle' && (
@@ -1205,7 +1275,7 @@ export function InterventionsClient({
                   </Block>
 
                   {/* ① Édition rapide des infos */}
-                  <Block title={`Infos${selected.demandeur_type === 'particulier' ? ' particulier' : ''}`}>
+                  <Block id="section-infos" title={`Infos${selected.demandeur_type === 'particulier' ? ' particulier' : ''}`}>
                     <div className="space-y-2">
                       <div>
                         <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Nom client</label>
@@ -1345,8 +1415,22 @@ export function InterventionsClient({
                     </Block>
                   )}
 
+                  {/* 🏢 ACP / Immeuble — éditable */}
+                  <Block title="🏢 ACP / Immeuble">
+                    <AcpPicker
+                      interventionId={selected.id}
+                      organisationId={selected.organisation_id ?? selected.syndic?.id ?? null}
+                      currentAcp={selected.acp}
+                      onSaved={(acp) => {
+                        setRows((rs) => rs.map((r) =>
+                          r.id === selected.id ? { ...r, acp_id: acp?.id ?? null, acp: acp ?? null } : r,
+                        ));
+                      }}
+                    />
+                  </Block>
+
                   {/* ② Technicien — dropdown éditable */}
-                  <Block title="Technicien">
+                  <Block id="section-technicien" title="Technicien">
                     <div className="flex items-center gap-2">
                       <select
                         value={pendingTechId}
@@ -1377,7 +1461,7 @@ export function InterventionsClient({
                   </Block>
 
                   {/* ③ Créneau — picker */}
-                  <Block title="Créneau">
+                  <Block id="section-creneau" title="Créneau">
                     {selected.creneau_debut && (
                       <p className="text-[12px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
                         Actuel : <strong className="text-ink dark:text-[#F0ECE4]">{fmtDate(selected.creneau_debut, true)}</strong>
@@ -1473,7 +1557,7 @@ export function InterventionsClient({
                     />
                   </Block>
 
-                  <Block title={`Appartements / unités (${drawerOccupants.length})`}>
+                  <Block id="section-occupants" title={`Appartements / unités (${drawerOccupants.length})`}>
                     {drawerOccupantsLoading ? (
                       <span className="text-ink-muted dark:text-[#C8C2B8]">Chargement…</span>
                     ) : (
@@ -1657,7 +1741,7 @@ export function InterventionsClient({
 
                   {/* ⑤ Confirmation client */}
                   {selected.creneau_debut && (selected.particulier_contact?.email || selected.particulier_contact?.mandant?.email) && (
-                    <Block title="📤 Confirmation client">
+                    <Block id="section-confirmation" title="📤 Confirmation client">
                       <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
                         Envoie un récapitulatif (date, heure, adresse, technicien) au demandeur via Gmail.
                       </p>
@@ -2478,9 +2562,200 @@ function ColorPicker({
   );
 }
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+// Picker ACP/Immeuble — recherche filtrée par syndic + bouton lien
+// vers création nouvelle ACP. Sauvegarde optimiste via PATCH
+// /api/admin/interventions/[id] avec { acp_id }.
+function AcpPicker({
+  interventionId, organisationId, currentAcp, onSaved,
+}: {
+  interventionId: string;
+  organisationId: string | null;
+  currentAcp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'> | null;
+  onSaved: (acp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'> | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville' | 'code_postal'>[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Recherche debounce
+  useEffect(() => {
+    if (!editing) return;
+    setLoading(true);
+    const t = setTimeout(async () => {
+      const res = await searchAcpsForIntervention({ query, organisationId });
+      if (res.ok) setResults(res.data);
+      setLoading(false);
+    }, 250);
+    return () => { clearTimeout(t); setLoading(false); };
+  }, [query, organisationId, editing]);
+
+  async function selectAcp(acp: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'>) {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/admin/interventions/${interventionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acp_id: acp.id }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setMsg({ kind: 'err', msg: data.error ?? 'Échec association.' });
+        return;
+      }
+      onSaved(acp);
+      setEditing(false);
+      setMsg({ kind: 'ok', msg: '✓ ACP associée.' });
+    } catch (e) {
+      setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function clearAcp() {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch(`/api/admin/interventions/${interventionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acp_id: null }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setMsg({ kind: 'err', msg: data.error ?? 'Échec déliaison.' });
+        return;
+      }
+      onSaved(null);
+      setMsg({ kind: 'ok', msg: '✓ ACP retirée.' });
+    } catch (e) {
+      setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (currentAcp && !editing) {
+    return (
+      <div>
+        <div className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+          <div className="font-bold text-ink dark:text-[#F0ECE4]">{currentAcp.nom ?? '—'}</div>
+          <div className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+            {[currentAcp.adresse, currentAcp.ville].filter(Boolean).join(', ') || '—'}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5 mt-1.5">
+          <button
+            type="button"
+            onClick={() => { setEditing(true); setQuery(''); setResults([]); }}
+            className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold"
+          >
+            ✏️ Changer
+          </button>
+          <button
+            type="button"
+            onClick={clearAcp}
+            disabled={saving}
+            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50"
+          >
+            ✕ Retirer
+          </button>
+        </div>
+        {msg && (
+          <div className={'mt-1.5 text-[11px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+            {msg.msg}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border mb-3">
+    <div>
+      {!currentAcp && !editing ? (
+        <div>
+          <div className="text-[11px] text-ink-muted italic mb-1.5 dark:text-[#C8C2B8]">
+            Aucune ACP/immeuble associée à cette intervention.
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setEditing(true); setQuery(''); setResults([]); }}
+              className="text-[10px] bg-navy text-white px-2.5 py-1.5 rounded font-bold"
+            >
+              🔍 Associer une ACP
+            </button>
+            <Link
+              href="/admin/syndics?new=acp"
+              target="_blank"
+              className="text-[10px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1.5 rounded font-bold"
+            >
+              ➕ Nouvelle ACP
+            </Link>
+          </div>
+          {msg && (
+            <div className={'mt-1.5 text-[11px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+              {msg.msg}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={organisationId ? 'Rechercher dans les ACPs du syndic…' : 'Rechercher (nom, adresse, ville)…'}
+            autoFocus
+            className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          />
+          <div className="mt-2 max-h-[200px] overflow-y-auto bg-white border border-sand-border rounded-md divide-y divide-sand-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
+            {loading && <div className="px-2 py-2 text-[11px] text-ink-muted">Chargement…</div>}
+            {!loading && results.length === 0 && (
+              <div className="px-2 py-2 text-[11px] text-ink-muted">Aucun résultat.</div>
+            )}
+            {!loading && results.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => selectAcp(a)}
+                disabled={saving}
+                className="block w-full text-left px-2.5 py-2 text-[12px] hover:bg-sand disabled:opacity-50 dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+              >
+                <div className="font-bold">{a.nom}</div>
+                <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                  {[a.adresse, a.code_postal, a.ville].filter(Boolean).join(', ') || '—'}
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={saving}
+              className="text-[10px] text-ink-muted underline"
+            >
+              Annuler
+            </button>
+            {!organisationId && (
+              <span className="text-[10px] text-ink-muted italic">
+                ⚠️ Aucun syndic défini sur cette intervention — recherche élargie à toutes les ACPs.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Block({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
+  return (
+    <div id={id} className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border mb-3 scroll-mt-4">
       <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
         {title}
       </div>

@@ -23,6 +23,7 @@ interface PatchBody {
   email?: unknown;               // → particulier_contact.email + .mandant.email
   description?: unknown;         // notes
   priorite?: unknown;
+  acp_id?: unknown;              // string | null — association ACP/immeuble
 }
 
 const REF_RE = /^\d{4}-\d{3,5}$/;
@@ -100,6 +101,10 @@ export async function PATCH(
     patch.type = body.type;
   }
   if (typeof body.description === 'string') patch.description = body.description;
+  // Association ACP/immeuble — on accepte string (uuid) ou null (déliaison)
+  if (typeof body.acp_id === 'string' || body.acp_id === null) {
+    patch.acp_id = body.acp_id;
+  }
   if (typeof body.priorite === 'string') {
     if (body.priorite !== 'normale' && body.priorite !== 'urgente') {
       return NextResponse.json({ ok: false, error: 'Priorité invalide.' }, { status: 400 });

@@ -6,6 +6,7 @@ import {
   matchOrCreateOrganisation,
   matchOrCreateClient,
   matchOrCreateDelegue,
+  matchAcpForOrganisation,
   safeInsertOccupants,
   type CronMailAnalysis,
   type OccupantInsertRow,
@@ -166,6 +167,7 @@ async function handlePOST(
   let organisationId: string | null = intervention.organisation_id;
   let clientId: string | null = intervention.client_id;
   let delegueId: string | null = (intervention as { delegue_id?: string | null }).delegue_id ?? null;
+  let acpId: string | null = intervention.acp_id;
   if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
     const matched = await matchOrCreateOrganisation({
       type: analysis.type_demandeur,
@@ -190,6 +192,15 @@ async function handlePOST(
         });
         if (matchedDel) delegueId = matchedDel.id;
       }
+      // ACP : ne change pas si déjà associée manuellement, sinon tente
+      // un match par nom_immeuble (best effort).
+      if (!acpId && analysis.nom_immeuble) {
+        const matchedAcp = await matchAcpForOrganisation({
+          organisation_id: organisationId,
+          nom_immeuble: analysis.nom_immeuble,
+        });
+        if (matchedAcp) acpId = matchedAcp.id;
+      }
     }
   } else if (analysis.type_demandeur === 'particulier') {
     const parts = (analysis.nom_client ?? '').trim().split(/\s+/);
@@ -210,6 +221,7 @@ async function handlePOST(
     organisation_id: organisationId,
     client_id: clientId,
     delegue_id: delegueId,
+    acp_id: acpId,
     updated_at: new Date().toISOString(),
   };
   if (analysis.adresse) patch.adresse = analysis.adresse;
