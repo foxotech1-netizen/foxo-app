@@ -3,18 +3,28 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Utilisateur } from '@/lib/types/database';
-
-const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
-const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17] as const;
-type Hour = typeof HOURS[number];
-type DayIdx = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+import { FOXO_SLOTS, FOXO_DAYS, FOXO_DAYS_SHORT, type FoxoDay } from '@/lib/foxo-slots';
 
 const ALLOWED_WEEKS = [1, 2, 4, 8] as const;
 type WeekCount = typeof ALLOWED_WEEKS[number];
 
-// Clé unique d'une cellule dans la Set : "day-hour"
-function cellKey(day: number, hour: number): string {
-  return `${day}-${hour}`;
+// Cellule = (dayIdx 0..6, slotIdx 0..4)
+function cellKey(day: number, slotIdx: number): string {
+  return `${day}-${slotIdx}`;
+}
+
+function startOfMondayThisWeek(): Date {
+  const now = new Date();
+  const dow = now.getDay();
+  const offset = dow === 0 ? -6 : 1 - dow;
+  const m = new Date(now);
+  m.setDate(now.getDate() + offset);
+  m.setHours(0, 0, 0, 0);
+  return m;
+}
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
@@ -25,12 +35,15 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
+  // Lundi de la semaine d'application — point de départ pour les N semaines
+  const [weekStart] = useState<Date>(() => startOfMondayThisWeek());
+
   // Drag select
   const [dragging, setDragging] = useState<{ mode: 'add' | 'remove' } | null>(null);
 
-  function toggleCell(day: number, hour: number, mode?: 'add' | 'remove') {
+  function toggleCell(day: number, slotIdx: number, mode?: 'add' | 'remove') {
     setSelected((s) => {
-      const k = cellKey(day, hour);
+      const k = cellKey(day, slotIdx);
       const next = new Set(s);
       if (mode === 'add') next.add(k);
       else if (mode === 'remove') next.delete(k);
@@ -40,36 +53,39 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     });
   }
 
-  const onMouseDown = useCallback((day: number, hour: number) => {
-    const k = cellKey(day, hour);
+  const onMouseDown = useCallback((day: number, slotIdx: number) => {
+    const k = cellKey(day, slotIdx);
     const isOn = selected.has(k);
     const mode: 'add' | 'remove' = isOn ? 'remove' : 'add';
     setDragging({ mode });
-    toggleCell(day, hour, mode);
+    toggleCell(day, slotIdx, mode);
   }, [selected]);
 
-  const onMouseEnter = useCallback((day: number, hour: number) => {
+  const onMouseEnter = useCallback((day: number, slotIdx: number) => {
     if (!dragging) return;
-    toggleCell(day, hour, dragging.mode);
+    toggleCell(day, slotIdx, dragging.mode);
   }, [dragging]);
 
   function endDrag() { setDragging(null); }
 
+  // Presets
   function presetSemaineStandard() {
+    // Lun–Ven × Matin 1 / Matin 2 / Après-midi (slotIdx 0, 1, 2)
     const next = new Set<string>();
-    for (let day = 0; day < 5; day++) {           // Lun-Ven
-      for (let h = 8; h < 17; h++) {              // 8h-17h (donc 8 → 16h dernier)
-        next.add(cellKey(day, h));
+    for (let day = 0; day < 5; day++) {
+      for (const slotIdx of [0, 1, 2]) {
+        next.add(cellKey(day, slotIdx));
       }
     }
     setSelected(next);
   }
 
-  function selectAllWeekdaysFull() {
+  function presetAvecSoirees() {
+    // Lun–Ven × tous les créneaux (5)
     const next = new Set<string>();
     for (let day = 0; day < 5; day++) {
-      for (const h of HOURS) {
-        next.add(cellKey(day, h));
+      for (let slotIdx = 0; slotIdx < FOXO_SLOTS.length; slotIdx++) {
+        next.add(cellKey(day, slotIdx));
       }
     }
     setSelected(next);
@@ -89,15 +105,26 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     setSaving(true);
     setMsg(null);
     try {
-      const slots: { day: number; hour: number }[] = [];
+      const slotsPayload: { day: FoxoDay; heure_debut: string; heure_fin: string }[] = [];
       for (const k of selected) {
-        const [d, h] = k.split('-').map(Number);
-        slots.push({ day: d, hour: h });
+        const [d, s] = k.split('-').map(Number);
+        const slot = FOXO_SLOTS[s];
+        if (!slot) continue;
+        slotsPayload.push({
+          day: FOXO_DAYS[d],
+          heure_debut: slot.heure_debut,
+          heure_fin: slot.heure_fin,
+        });
       }
       const r = await fetch('/api/admin/planning/dispos/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ technicien_id: techId, slots, weeks }),
+        body: JSON.stringify({
+          technicien_id: techId,
+          slots: slotsPayload,
+          weeks,
+          start_date: isoDate(weekStart),
+        }),
       });
       const data = await r.json();
       if (!data.ok) {
@@ -109,6 +136,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       if (data.skipped_existing) parts.push(`${data.skipped_existing} déjà existant(s)`);
       if (data.skipped) parts.push(`${data.skipped} dans le passé`);
       setMsg({ kind: 'ok', msg: `✓ ${parts.join(' · ')}` });
+      setSelected(new Set());
       router.refresh();
     } catch (e) {
       setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
@@ -155,33 +183,33 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           onClick={presetSemaineStandard}
           className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
         >
-          Lun–Ven 8h–17h
+          Semaine standard
         </button>
         <button
           type="button"
-          onClick={selectAllWeekdaysFull}
+          onClick={presetAvecSoirees}
           className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
         >
-          Lun–Ven toute la journée
+          Avec soirées
         </button>
         <button
           type="button"
           onClick={clearAll}
           className="text-[11px] bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-bold dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
         >
-          ✕ Effacer tout
+          ✕ Tout effacer
         </button>
       </div>
 
-      {/* Grille heures × jours */}
+      {/* Grille jours × créneaux */}
       <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <div
           className="grid"
-          style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}
+          style={{ gridTemplateColumns: '90px repeat(7, 1fr)' }}
         >
           {/* Header — coin vide + jours */}
           <div className="bg-sand border-b border-r border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]" />
-          {DAYS.map((d) => (
+          {FOXO_DAYS_SHORT.map((d) => (
             <div
               key={d}
               className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:bg-[#141210] dark:border-[#2C2A24] dark:text-[#C8C2B8]"
@@ -190,11 +218,12 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
             </div>
           ))}
 
-          {/* Lignes : heure + 7 cases */}
-          {HOURS.map((h) => (
+          {/* Lignes : créneau + 7 cases */}
+          {FOXO_SLOTS.map((slot, slotIdx) => (
             <Row
-              key={h}
-              hour={h}
+              key={slotIdx}
+              slot={slot}
+              slotIdx={slotIdx}
               selected={selected}
               onMouseDownCell={onMouseDown}
               onMouseEnterCell={onMouseEnter}
@@ -245,37 +274,43 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       )}
 
       <p className="text-[10px] text-ink-muted italic mt-2 dark:text-[#C8C2B8]">
-        Astuce : maintiens le clic et glisse pour sélectionner plusieurs cases en un seul geste.
-        Les créneaux qui existent déjà ou tombent dans le passé sont automatiquement ignorés.
+        Astuce : maintiens le clic et glisse pour sélectionner plusieurs cases.
+        Les créneaux dans le passé ou déjà existants sont automatiquement ignorés.
       </p>
     </div>
   );
 }
 
 function Row({
-  hour, selected, onMouseDownCell, onMouseEnterCell,
+  slot, slotIdx, selected, onMouseDownCell, onMouseEnterCell,
 }: {
-  hour: Hour;
+  slot: typeof FOXO_SLOTS[number];
+  slotIdx: number;
   selected: Set<string>;
-  onMouseDownCell: (day: number, hour: number) => void;
-  onMouseEnterCell: (day: number, hour: number) => void;
+  onMouseDownCell: (day: number, slotIdx: number) => void;
+  onMouseEnterCell: (day: number, slotIdx: number) => void;
 }) {
   return (
     <>
-      <div className="bg-sand border-b border-r border-sand-border text-[10px] font-mono font-bold text-ink-muted text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
-        {String(hour).padStart(2, '0')}h
+      <div className="bg-sand border-b border-r border-sand-border text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24]">
+        <div className="text-[11px] font-mono font-extrabold text-ink dark:text-[#F0ECE4]">
+          {slot.heure_debut}
+        </div>
+        <div className="text-[9px] font-mono text-ink-muted dark:text-[#C8C2B8]">
+          →{slot.heure_fin}
+        </div>
       </div>
       {[0, 1, 2, 3, 4, 5, 6].map((day) => {
-        const k = cellKey(day, hour);
+        const k = cellKey(day, slotIdx);
         const on = selected.has(k);
         return (
           <button
             key={k}
             type="button"
-            onMouseDown={(e) => { e.preventDefault(); onMouseDownCell(day, hour); }}
-            onMouseEnter={() => onMouseEnterCell(day, hour)}
+            onMouseDown={(e) => { e.preventDefault(); onMouseDownCell(day, slotIdx); }}
+            onMouseEnter={() => onMouseEnterCell(day, slotIdx)}
             className={
-              'h-10 border-b border-r border-sand-border last:border-r-0 transition-colors cursor-pointer dark:border-[#2C2A24] ' +
+              'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors cursor-pointer dark:border-[#2C2A24] ' +
               (on
                 ? 'bg-navy hover:brightness-110'
                 : 'bg-white hover:bg-sand-hover dark:bg-[#221E1A] dark:hover:bg-[#2A2520]')

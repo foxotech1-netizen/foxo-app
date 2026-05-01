@@ -8,15 +8,16 @@ import { CreateInterventionModal } from './CreateInterventionModal';
 import { ReservedSlotModal } from './ReservedSlotModal';
 import { BlockedSlotModal } from './BlockedSlotModal';
 import { ImportCalendarEventModal, type CalendarEventLite } from './ImportCalendarEventModal';
+import { FOXO_SLOTS, FOXO_DAYS } from '@/lib/foxo-slots';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-// Heures affichées dans la vue Semaine. Chaque ligne représente un créneau
-// d'1h commençant à cette heure (ex. "08h" = créneau 08:00→09:00).
-const WEEK_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17] as const;
+
+const VIEW_STORAGE_KEY = 'foxo-planning-view';
+const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
 
 function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -30,7 +31,11 @@ const TECH_COLORS = [
 ];
 
 type Creneau = Pick<CreneauDisponible, 'id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'technicien_id' | 'intervention_id'>
-  & { intervention_color?: string | null };
+  & {
+    intervention_color?: string | null;
+    intervention_ref?: string | null;
+    client_name?: string | null;
+  };
 
 export function PlanningCalendar({
   year,
@@ -53,8 +58,22 @@ export function PlanningCalendar({
   const [techFilter, setTechFilter] = useState<string>('all');
   const [openModal, setOpenModal] = useState<{ kind: 'free' | 'reserved' | 'blocked'; slot: Creneau } | null>(null);
 
-  // Mode d'affichage — Semaine (par défaut) ou Mois (legacy)
-  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  // Mode d'affichage — Semaine (défaut) ou Mois.
+  // Persistant via localStorage 'foxo-planning-view'. Note : on ne peut
+  // pas lire localStorage à l'init (SSR mismatch) → on initialise à 'week'
+  // puis on hydrate dans un useEffect.
+  const [viewMode, setViewModeState] = useState<'week' | 'month'>('week');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const v = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (v === 'month' || v === 'week') setViewModeState(v);
+    } catch { /* noop */ }
+  }, []);
+  const setViewMode = (v: 'week' | 'month') => {
+    setViewModeState(v);
+    try { window.localStorage.setItem(VIEW_STORAGE_KEY, v); } catch { /* noop */ }
+  };
   // Lundi de la semaine affichée. Initialisé sur la semaine du jour.
   const [weekMonday, setWeekMonday] = useState<Date>(() => {
     const now = new Date();
@@ -73,6 +92,66 @@ export function PlanningCalendar({
   const [importEvent, setImportEvent] = useState<CalendarEventLite | null>(null);
 
   function refresh() { router.refresh(); }
+
+  // Crée un créneau "libre" à la volée (depuis une cellule "+" en vue
+  // semaine), puis ouvre la modal de création d'intervention. Le tech
+  // est celui sélectionné dans le filtre — quand le filtre est "all"
+  // on ne montre pas le bouton "+".
+  const [creatingSlot, setCreatingSlot] = useState(false);
+  async function createSlotAndOpenModal(date: string, slotIdx: number, technicien_id: string) {
+    if (creatingSlot) return;
+    setCreatingSlot(true);
+    try {
+      const slot = FOXO_SLOTS[slotIdx];
+      if (!slot) return;
+      // Calcule le day-index (0=lundi) depuis la date pour le payload bulk
+      const d = new Date(date + 'T12:00:00');
+      const dow = d.getDay();
+      const dayIdx = dow === 0 ? 6 : dow - 1;
+      // start_date = lundi de la semaine de la date cliquée
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - dayIdx);
+      monday.setHours(0, 0, 0, 0);
+      const r = await fetch('/api/admin/planning/dispos/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          technicien_id,
+          weeks: 1,
+          start_date: isoDate(monday),
+          slots: [{
+            day: FOXO_DAYS[dayIdx],
+            heure_debut: slot.heure_debut,
+            heure_fin: slot.heure_fin,
+          }],
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok || !data.ids?.[0]) {
+        // Si le créneau existe déjà côté DB, refresh pour le faire apparaître
+        if (data.ok) router.refresh();
+        return;
+      }
+      const newId = data.ids[0] as string;
+      setOpenModal({
+        kind: 'free',
+        slot: {
+          id: newId,
+          date,
+          heure_debut: slot.heure_debut,
+          heure_fin: slot.heure_fin,
+          statut: 'libre',
+          technicien_id,
+          intervention_id: null,
+        },
+      });
+      router.refresh();
+    } catch {
+      /* noop */
+    } finally {
+      setCreatingSlot(false);
+    }
+  }
 
   const techColorMap = useMemo(() => {
     const m = new Map<string, typeof TECH_COLORS[number]>();
@@ -292,10 +371,22 @@ export function PlanningCalendar({
         </div>
       </div>
 
-      <div className="text-[11px] text-ink-muted mb-3 capitalize">
+      <div className="text-[11px] text-ink-muted mb-3">
         {viewMode === 'week'
-          ? <>Semaine du {weekMonday.toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' })}</>
-          : <>{MONTHS[month]} {year} · {counts.libre} libre · {counts.reserve} réservé · {counts.bloque} bloqué</>
+          ? (() => {
+              const sun = new Date(weekMonday);
+              sun.setDate(weekMonday.getDate() + 6);
+              const sameMonth = weekMonday.getMonth() === sun.getMonth();
+              const sameYear = weekMonday.getFullYear() === sun.getFullYear();
+              if (sameMonth && sameYear) {
+                return `${weekMonday.getDate()} — ${sun.getDate()} ${MONTHS_SHORT[sun.getMonth()]} ${sun.getFullYear()}`;
+              }
+              if (sameYear) {
+                return `${weekMonday.getDate()} ${MONTHS_SHORT[weekMonday.getMonth()]} — ${sun.getDate()} ${MONTHS_SHORT[sun.getMonth()]} ${sun.getFullYear()}`;
+              }
+              return `${weekMonday.getDate()} ${MONTHS_SHORT[weekMonday.getMonth()]} ${weekMonday.getFullYear()} — ${sun.getDate()} ${MONTHS_SHORT[sun.getMonth()]} ${sun.getFullYear()}`;
+            })()
+          : <span className="capitalize">{MONTHS[month]} {year} · {counts.libre} libre · {counts.reserve} réservé · {counts.bloque} bloqué</span>
         }
       </div>
 
@@ -402,12 +493,12 @@ export function PlanningCalendar({
         />
       )}
 
-      {/* Calendar — vue Semaine */}
+      {/* Calendar — vue Semaine (5 créneaux fixes FoxO × 7 jours) */}
       {viewMode === 'week' && (
         <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
           <div
             className="grid"
-            style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}
+            style={{ gridTemplateColumns: '90px repeat(7, 1fr)' }}
           >
             {/* Header — coin vide + 7 jours avec date */}
             <div className="bg-sand border-b border-r border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]" />
@@ -437,27 +528,39 @@ export function PlanningCalendar({
               );
             })}
 
-            {/* Lignes : heure + 7 cases */}
-            {WEEK_HOURS.map((h) => (
-              <Fragment key={h}>
-                <div className="bg-sand border-b border-r border-sand-border text-[10px] font-mono font-bold text-ink-muted text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
-                  {String(h).padStart(2, '0')}h
+            {/* Lignes : créneau FoxO + 7 cases */}
+            {FOXO_SLOTS.map((slot, slotIdx) => (
+              <Fragment key={slotIdx}>
+                <div className="bg-sand border-b border-r border-sand-border text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24]">
+                  <div className="text-[11px] font-mono font-extrabold text-ink dark:text-[#F0ECE4]">
+                    {slot.heure_debut}
+                  </div>
+                  <div className="text-[9px] font-mono text-ink-muted dark:text-[#C8C2B8]">
+                    →{slot.heure_fin}
+                  </div>
                 </div>
                 {weekDates.map((d) => {
                   const iso = isoDate(d);
-                  const hh = `${String(h).padStart(2, '0')}:`;
-                  const cellCreneaux = (byDate.get(iso) ?? []).filter((c) => c.heure_debut.startsWith(hh));
+                  const cellCreneaux = (byDate.get(iso) ?? []).filter((c) => c.heure_debut.slice(0, 5) === slot.heure_debut);
+                  const slotStartH = parseInt(slot.heure_debut.split(':')[0], 10);
+                  const slotEndH = parseInt(slot.heure_fin.split(':')[0], 10);
+                  // Les events Google qui tombent dans la fenêtre du créneau
                   const cellGcal = (gcalByDate.get(iso) ?? []).filter((ev) => {
-                    if (ev.all_day) return h === WEEK_HOURS[0];
+                    if (ev.all_day) return slotIdx === 0;
                     const dt = new Date(ev.start);
-                    return dt.getHours() === h;
+                    const evH = dt.getHours();
+                    return evH >= slotStartH && evH < slotEndH;
                   });
                   const isTodayCell = iso === todayStr;
+                  const showPlus = cellCreneaux.length === 0
+                    && techFilter !== 'all'
+                    && techFilter !== ''
+                    && !creatingSlot;
                   return (
                     <div
-                      key={`${iso}-${h}`}
+                      key={`${iso}-${slotIdx}`}
                       className={
-                        'border-b border-r border-sand-border last:border-r-0 min-h-[56px] p-1 space-y-0.5 dark:border-[#2C2A24] ' +
+                        'border-b border-r border-sand-border last:border-r-0 min-h-[64px] p-1 space-y-0.5 relative dark:border-[#2C2A24] ' +
                         (isTodayCell
                           ? 'bg-navy-pale dark:bg-[rgba(122,168,232,.08)]'
                           : 'bg-cream dark:bg-[#1C1A16]')
@@ -486,56 +589,80 @@ export function PlanningCalendar({
                         );
                       })}
                       {cellCreneaux.map((cr) => {
+                        const techIdx = cr.technicien_id ? techs.findIndex((t) => t.id === cr.technicien_id) : -1;
                         const techColor = cr.technicien_id ? techColorMap.get(cr.technicien_id) : null;
+                        const techBadge = techIdx >= 0 ? `T.${techIdx + 1}` : null;
+
                         if (cr.statut === 'libre') {
                           return (
                             <button
                               key={cr.id}
                               type="button"
                               onClick={() => setOpenModal({ kind: 'free', slot: cr })}
-                              className="w-full text-left text-[10px] font-bold rounded px-1 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                              className="w-full text-left rounded px-1.5 py-1 hover:brightness-95 cursor-pointer flex items-center gap-1 border"
                               title="Cliquer pour planifier une intervention"
-                              style={techColor
-                                ? { background: '#1F6B45', color: '#FFFFFF', borderLeft: `3px solid ${techColor.bg}` }
-                                : { background: '#1F6B45', color: '#FFFFFF' }
-                              }
+                              style={{
+                                background: '#E8F5EE',
+                                borderColor: '#1F6B45',
+                                color: '#1F6B45',
+                              }}
                             >
-                              Libre
+                              <span className="text-[10px] font-bold flex-1 truncate">Libre</span>
+                              {techBadge && (
+                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: '#A17244', color: '#FFFFFF' }}>
+                                  {techBadge}
+                                </span>
+                              )}
                             </button>
                           );
                         }
                         if (cr.statut === 'reserve') {
                           const customColor = cr.intervention_color ?? null;
-                          const reserveStyle = customColor
-                            ? { background: customColor, color: '#FFFFFF', borderLeft: `3px solid ${customColor}` }
-                            : techColor
-                              ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
-                              : { background: '#D6E4F7', color: '#1B3A6B' };
+                          const bg = customColor ?? '#1B3A6B';
+                          const clientLabel = cr.client_name || cr.intervention_ref || 'Réservé';
                           return (
                             <button
                               key={cr.id}
                               type="button"
                               onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
-                              className="w-full text-left text-[10px] font-bold rounded px-1 py-0.5 truncate hover:brightness-95 cursor-pointer"
-                              title="Cliquer pour modifier l'intervention"
-                              style={reserveStyle}
+                              className="w-full text-left rounded px-1.5 py-1 hover:brightness-95 cursor-pointer flex items-center gap-1"
+                              title={`Cliquer pour modifier — ${clientLabel}`}
+                              style={{ background: bg, color: '#FFFFFF', borderLeft: techColor ? `3px solid ${techColor.bg}` : undefined }}
                             >
-                              Réservé ✓
+                              <span className="text-[8px]">✓</span>
+                              <span className="text-[11px] font-bold flex-1 truncate">{clientLabel}</span>
+                              {techBadge && (
+                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: '#A17244', color: '#FFFFFF' }}>
+                                  {techBadge}
+                                </span>
+                              )}
                             </button>
                           );
                         }
+                        // bloqué — non cliquable
                         return (
-                          <button
+                          <div
                             key={cr.id}
-                            type="button"
-                            onClick={() => setOpenModal({ kind: 'blocked', slot: cr })}
-                            className="w-full text-left text-[10px] font-bold rounded px-1 py-0.5 truncate bg-sand-mid text-ink-muted hover:bg-sand-border cursor-pointer dark:bg-[#3D3A32] dark:text-[#C8C2B8]"
-                            title="Cliquer pour modifier le motif ou débloquer"
+                            className="w-full rounded px-1.5 py-1 bg-sand-mid text-ink-muted text-[10px] font-bold flex items-center gap-1 dark:bg-[#3D3A32] dark:text-[#C8C2B8]"
+                            title="Créneau bloqué"
                           >
-                            Bloqué
-                          </button>
+                            <span className="text-[8px]">🚫</span>
+                            <span className="flex-1 truncate">Bloqué</span>
+                            {techBadge && <span className="text-[9px] opacity-70">{techBadge}</span>}
+                          </div>
                         );
                       })}
+                      {showPlus && (
+                        <button
+                          type="button"
+                          onClick={() => createSlotAndOpenModal(iso, slotIdx, techFilter)}
+                          className="absolute inset-0 flex items-center justify-center text-[18px] font-bold text-ink-muted/30 hover:text-navy hover:bg-sand-hover/50 transition-colors cursor-pointer dark:text-[#C8C2B8]/30 dark:hover:text-[#7AA8E8]"
+                          title="Créer un créneau libre pour ce technicien"
+                          aria-label="Créer un créneau"
+                        >
+                          +
+                        </button>
+                      )}
                     </div>
                   );
                 })}

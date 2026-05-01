@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { TECH_EMAILS } from '@/lib/auth/roles';
 import { loadTokens } from '@/lib/google-auth';
-import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
+import type { CreneauDisponible, ParticulierContact, Utilisateur } from '@/lib/types/database';
 import { PlanningCalendar } from './PlanningCalendar';
 import { WeeklyDispoGrid } from './WeeklyDispoGrid';
 
@@ -53,7 +53,7 @@ export default async function PlanningPage({
       .order('prenom', { ascending: true }),
     supabase
       .from('creneaux_disponibles')
-      .select('id, technicien_id, date, heure_debut, heure_fin, statut, intervention_id, intervention:interventions(color)')
+      .select('id, technicien_id, date, heure_debut, heure_fin, statut, intervention_id, intervention:interventions(color, ref, particulier_contact)')
       .gte('date', startStr)
       .lte('date', endStr)
       .order('date', { ascending: true })
@@ -65,10 +65,15 @@ export default async function PlanningPage({
   // (pattern Supabase pour les relations) — on prend le premier élément
   // ou null. On l'aplatit en `intervention_color` pour éviter d'exposer
   // la forme join au composant client.
+  type IvRel = { color: string | null; ref: string | null; particulier_contact: ParticulierContact | null };
   type CreneauJoinRow = Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'intervention_id'>
-    & { intervention: { color: string | null }[] | { color: string | null } | null };
+    & { intervention: IvRel[] | IvRel | null };
   const creneaux = ((creneauxRes.data ?? []) as unknown as CreneauJoinRow[]).map((c) => {
     const ivRel = Array.isArray(c.intervention) ? c.intervention[0] : c.intervention;
+    const pc = ivRel?.particulier_contact ?? null;
+    const clientName = pc
+      ? [pc.prenom, pc.nom].filter(Boolean).join(' ').trim() || null
+      : null;
     return {
       id: c.id,
       technicien_id: c.technicien_id,
@@ -78,6 +83,8 @@ export default async function PlanningPage({
       statut: c.statut,
       intervention_id: c.intervention_id,
       intervention_color: ivRel?.color ?? null,
+      intervention_ref: ivRel?.ref ?? null,
+      client_name: clientName,
     };
   });
 
