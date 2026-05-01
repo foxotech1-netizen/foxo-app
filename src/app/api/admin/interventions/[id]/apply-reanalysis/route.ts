@@ -94,6 +94,10 @@ async function handlePOST(
   if (!analysis || typeof analysis !== 'object') {
     return NextResponse.json({ ok: false, error: 'analysis manquante.' }, { status: 400 });
   }
+  // Log diagnostique : combien d'occupants on reçoit du client, avec
+  // les champs critiques pour le filtre (apt/nom/email/tel).
+  console.error('[apply-reanalysis] received occupants:',
+    JSON.stringify(analysis.occupants ?? null));
 
   // Charge l'intervention
   setPhase('load_intervention');
@@ -250,61 +254,75 @@ async function handlePOST(
     }
   }
 
-  // Ajoute uniquement les NOUVEAUX occupants (email pas déjà présent)
+  // Insert des occupants extraits par Claude.
+  //
+  // Filtre permissif : on accepte tout occupant qui a AU MOINS un nom
+  // OU un appartement défini. Avant on exigeait un email — on perdait
+  // alors les occupants identifiés dans le corps du mail mais sans
+  // adresse en CC (cas typique : "appartement K09 (Mme Vlasselaer)").
+  //
+  // Dédup intelligent : on construit des Sets sur (email, appartement,
+  // nom) déjà présents pour cette intervention, et on skip si AU MOINS
+  // une de ces clés matche — pas de doublon mais on garde la souplesse
+  // du nouveau filtre.
   setPhase('insert_occupants');
   let newOccupantsCount = 0;
-  if (analysis.occupants && analysis.occupants.length > 0) {
+  const incomingOccupants = Array.isArray(analysis.occupants) ? analysis.occupants : [];
+  if (incomingOccupants.length > 0) {
     const { data: existing } = await admin
       .from('occupants')
-      .select('email')
+      .select('email, appartement, nom')
       .eq('intervention_id', id);
-    const existingEmails = new Set(
-      ((existing ?? []) as { email: string | null }[])
-        .map((o) => (o.email ?? '').toLowerCase())
-        .filter(Boolean),
-    );
-    // Charge aussi les apt existants pour dédupliquer les parties_communes
-    // qui n'ont pas d'email mais un appartement unique
-    const { data: existingApts } = await admin
-      .from('occupants')
-      .select('appartement')
-      .eq('intervention_id', id);
-    const existingAptKeys = new Set(
-      ((existingApts ?? []) as { appartement: string | null }[])
-        .map((o) => (o.appartement ?? '').toLowerCase().trim())
-        .filter(Boolean),
-    );
-    const toInsert: OccupantInsertRow[] = analysis.occupants
-      .filter((o) => {
-        // parties_communes : autorisé sans email mais dédup sur apt
-        if (o.type === 'parties_communes') {
-          return Boolean(o.appartement) && !existingAptKeys.has(o.appartement.toLowerCase().trim());
-        }
-        // Autres : requiert email NON déjà présent
-        return Boolean(o.email) && !existingEmails.has(o.email.toLowerCase());
-      })
-      .map((o) => {
-        const instructions = o.notes
-          ? `[extrait du mail] ${o.notes}`
-          : '[extrait du mail]';
-        return {
-          intervention_id: id,
-          appartement: o.appartement || null,
-          etage: o.etage || null,
-          prenom: o.prenom || null,
-          nom: o.nom || (o.type === 'parties_communes' ? 'Parties communes' : null),
-          email: o.email || null,
-          telephone: o.telephone || null,
-          conf: 'en_attente' as const,
-          contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
-          instructions,
-          type_occupant: o.type,
-        };
+    type ExistingRow = { email: string | null; appartement: string | null; nom: string | null };
+    const existingRows = (existing ?? []) as ExistingRow[];
+    const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().trim();
+    const existingEmails = new Set(existingRows.map((o) => norm(o.email)).filter(Boolean));
+    const existingApts = new Set(existingRows.map((o) => norm(o.appartement)).filter(Boolean));
+    const existingNoms = new Set(existingRows.map((o) => norm(o.nom)).filter(Boolean));
+
+    const candidates = incomingOccupants.filter((o) => Boolean(o.nom || o.appartement));
+    const dropped = incomingOccupants.length - candidates.length;
+    const toInsert: OccupantInsertRow[] = [];
+    let skippedDup = 0;
+    for (const o of candidates) {
+      const ek = norm(o.email);
+      const ak = norm(o.appartement);
+      const nk = norm(o.nom);
+      const isDup = (ek && existingEmails.has(ek))
+        || (ak && existingApts.has(ak))
+        || (nk && existingNoms.has(nk));
+      if (isDup) { skippedDup++; continue; }
+      const instructions = o.notes
+        ? `[extrait du mail] ${o.notes}`
+        : '[extrait du mail]';
+      toInsert.push({
+        intervention_id: id,
+        appartement: o.appartement || null,
+        etage: o.etage || null,
+        prenom: o.prenom || null,
+        nom: o.nom || (o.type === 'parties_communes' ? 'Parties communes' : null),
+        email: o.email || null,
+        telephone: o.telephone || null,
+        conf: 'en_attente' as const,
+        contact_preference: o.email ? 'email' : (o.telephone ? 'sms' : 'email'),
+        instructions,
+        type_occupant: o.type,
       });
+    }
+    console.error('[apply-reanalysis] occupants triage', {
+      received: incomingOccupants.length,
+      dropped_no_name_no_apt: dropped,
+      skipped_dup: skippedDup,
+      to_insert: toInsert.length,
+    });
     if (toInsert.length > 0) {
+      console.error('[apply-reanalysis] calling safeInsertOccupants',
+        toInsert.map((o) => ({ apt: o.appartement, nom: o.nom, email: o.email, type: o.type_occupant })));
       await safeInsertOccupants(toInsert);
       newOccupantsCount = toInsert.length;
     }
+  } else {
+    console.error('[apply-reanalysis] no occupants in body — analysis.occupants is empty/null');
   }
 
   // Timeline
