@@ -304,6 +304,32 @@ export async function analyzeMailWithClaude(
     `Si vraiment rien d'identifiable, retourne occupants: [].`,
   ].join('\n');
 
+  // Log diagnostique — prompt complet + meta du mail. Activable via
+  // CHECK_MAILS_VERBOSE=1 (en prod, garde uniquement les versions
+  // résumées pour ne pas saturer Vercel runtime logs).
+  const verbose = process.env.CHECK_MAILS_VERBOSE === '1';
+  if (verbose) {
+    console.info('[analyzeMailWithClaude] prompt full', {
+      from: mail.from,
+      subject: mail.subject,
+      cc_pairs_count: ccPairs.length,
+      body_chars: truncated.length,
+      word_count: wordCount,
+      prompt_chars: userMessage.length,
+      prompt: userMessage,
+    });
+  } else {
+    console.info('[analyzeMailWithClaude] prompt summary', {
+      from: mail.from,
+      subject: mail.subject,
+      cc_pairs_count: ccPairs.length,
+      cc_preview: ccBlock.slice(0, 300),
+      body_chars: truncated.length,
+      word_count: wordCount,
+      prompt_chars: userMessage.length,
+    });
+  }
+
   // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
   const client = new Anthropic({ apiKey, timeout: CLAUDE_TIMEOUT_MS });
   let raw: string;
@@ -316,11 +342,26 @@ export async function analyzeMailWithClaude(
     const block = msg.content[0];
     raw = block && block.type === 'text' ? block.text : '';
   } catch (e) {
+    console.error('[analyzeMailWithClaude] anthropic threw', e);
     return { ok: false, error: e instanceof Error ? e.message : 'Erreur Anthropic.' };
   }
 
+  console.info('[analyzeMailWithClaude] claude raw response', {
+    raw_chars: raw.length,
+    raw_preview: raw.slice(0, 1500),
+  });
+
   const parsed = tryParseJson(raw);
-  if (!parsed) return { ok: false, error: 'Réponse Claude non parsable.' };
+  if (!parsed) {
+    console.error('[analyzeMailWithClaude] JSON parse failed', { raw_full: raw });
+    return { ok: false, error: 'Réponse Claude non parsable.' };
+  }
+  console.info('[analyzeMailWithClaude] parsed JSON', {
+    est_demande: (parsed as { est_demande_intervention?: unknown }).est_demande_intervention,
+    occupants_count: Array.isArray((parsed as { occupants?: unknown }).occupants)
+      ? (parsed as { occupants: unknown[] }).occupants.length : 0,
+    occupants_raw: (parsed as { occupants?: unknown }).occupants,
+  });
 
   // Extraction sûre du tableau d'occupants. On accepte les
   // parties_communes même sans email ni téléphone (cas des zones
@@ -377,6 +418,16 @@ export async function analyzeMailWithClaude(
     reference_externe: typeof (parsed as { reference_externe?: unknown }).reference_externe === 'string'
       ? (parsed as { reference_externe: string }).reference_externe : null,
   };
+  const rawOccupantsCount = Array.isArray((parsed as { occupants?: unknown }).occupants)
+    ? (parsed as { occupants: unknown[] }).occupants.length : 0;
+  console.info('[analyzeMailWithClaude] post-filter', {
+    occupants_kept: occupants.length,
+    occupants_dropped: rawOccupantsCount - occupants.length,
+    final_occupants: occupants.map((o) => ({
+      apt: o.appartement, nom: o.nom, type: o.type,
+      has_email: Boolean(o.email), has_tel: Boolean(o.telephone),
+    })),
+  });
   return { ok: true, analysis };
 }
 
