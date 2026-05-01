@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import { FOXO_SLOTS, FOXO_DAYS, dayNameToIdx } from '@/lib/foxo-slots';
+import { createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -174,7 +176,7 @@ export async function POST(request: Request) {
   const { data: inserted, error: insErr } = await supabase
     .from('creneaux_disponibles')
     .insert(filtered)
-    .select('id');
+    .select('id, date, heure_debut, heure_fin');
   if (insErr) {
     console.error('[dispos/bulk] insert error', {
       code: (insErr as { code?: string }).code ?? null,
@@ -186,11 +188,126 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: insErr.message }, { status: 500 });
   }
 
+  // Sync Google Calendar — best effort, non bloquant. Crée un event
+  // "Disponible FoxO" pour chaque créneau et stocke google_event_id pour
+  // pouvoir le supprimer ensuite. Si Google n'est pas connecté ou si un
+  // appel échoue, on continue silencieusement (l'admin peut resync via
+  // POST /api/admin/planning/dispos/resync).
+  type InsertedRow = { id: string; date: string; heure_debut: string; heure_fin: string };
+  const insertedRows = (inserted ?? []) as InsertedRow[];
+  let calendarSynced = 0;
+  let calendarFailed = 0;
+  if (insertedRows.length > 0) {
+    const { data: tech } = await supabase
+      .from('utilisateurs')
+      .select('prenom, nom')
+      .eq('id', techId)
+      .maybeSingle();
+    const techName = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ') : undefined;
+    const admin = createAdminClient();
+    for (const slot of insertedRows) {
+      try {
+        const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
+        const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
+        const r = await createSlotEvent({ startIso, endIso, technicienName: techName });
+        if (r.ok) {
+          await admin
+            .from('creneaux_disponibles')
+            .update({ google_event_id: r.event_id })
+            .eq('id', slot.id);
+          calendarSynced++;
+        } else {
+          calendarFailed++;
+          console.warn('[dispos/bulk] calendar create failed:', { slot_id: slot.id, error: r.error });
+        }
+      } catch (e) {
+        calendarFailed++;
+        console.warn('[dispos/bulk] calendar threw:', e);
+      }
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     created: filtered.length,
     skipped: skippedPast,
     skipped_existing: skippedExisting,
-    ids: (inserted ?? []).map((r: { id: string }) => r.id),
+    ids: insertedRows.map((r) => r.id),
+    calendar_synced: calendarSynced,
+    calendar_failed: calendarFailed,
+  });
+}
+
+// DELETE — suppression de créneaux par IDs (utilisé par WeeklyDispoGrid
+// quand on décoche une case). Ne supprime QUE les créneaux libres pour
+// préserver les réservations. Supprime aussi l'event Google Calendar
+// associé si google_event_id présent.
+export async function DELETE(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
+  }
+
+  let body: { slot_ids?: unknown };
+  try {
+    body = await request.json() as { slot_ids?: unknown };
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Body JSON invalide.' }, { status: 400 });
+  }
+  const ids = Array.isArray(body.slot_ids)
+    ? body.slot_ids.filter((s): s is string => typeof s === 'string')
+    : [];
+  if (ids.length === 0) {
+    return NextResponse.json({ ok: false, error: 'slot_ids vide.' }, { status: 400 });
+  }
+
+  // Récupère les google_event_id avant suppression, et filtre sur libre
+  // pour ne pas exposer une intervention réservée à une suppression
+  // accidentelle.
+  const { data: rows, error: lookupErr } = await supabase
+    .from('creneaux_disponibles')
+    .select('id, google_event_id, statut')
+    .in('id', ids);
+  if (lookupErr) {
+    return NextResponse.json({ ok: false, error: lookupErr.message }, { status: 500 });
+  }
+  type Row = { id: string; google_event_id: string | null; statut: string };
+  const allRows = (rows ?? []) as Row[];
+  const deletable = allRows.filter((r) => r.statut === 'libre');
+  const skippedReserved = allRows.length - deletable.length;
+  if (deletable.length === 0) {
+    return NextResponse.json({ ok: true, deleted: 0, skipped_reserved: skippedReserved, calendar_deleted: 0 });
+  }
+
+  const { error: delErr } = await supabase
+    .from('creneaux_disponibles')
+    .delete()
+    .in('id', deletable.map((r) => r.id))
+    .eq('statut', 'libre');
+  if (delErr) {
+    return NextResponse.json({ ok: false, error: delErr.message }, { status: 500 });
+  }
+
+  let calendarDeleted = 0;
+  let calendarFailed = 0;
+  for (const r of deletable) {
+    if (!r.google_event_id) continue;
+    try {
+      const res = await deleteCalendarEvent(r.google_event_id);
+      if (res.ok) calendarDeleted++;
+      else { calendarFailed++; console.warn('[dispos/bulk DELETE] calendar delete failed:', res.error); }
+    } catch (e) {
+      calendarFailed++;
+      console.warn('[dispos/bulk DELETE] calendar threw:', e);
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    deleted: deletable.length,
+    skipped_reserved: skippedReserved,
+    calendar_deleted: calendarDeleted,
+    calendar_failed: calendarFailed,
   });
 }

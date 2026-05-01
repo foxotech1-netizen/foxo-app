@@ -1,9 +1,18 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Utilisateur } from '@/lib/types/database';
 import { FOXO_SLOTS, FOXO_DAYS, FOXO_DAYS_SHORT, type FoxoDay } from '@/lib/foxo-slots';
+
+// État interne d'une cellule : {existing: id | null, statut: ...}
+// existing=null → cellule vide en DB. existing=string → créneau en DB
+// avec cet id. Le set 'selected' contient les cells cochées (à exister
+// après save). On compare selected vs existingByKey pour déterminer
+// les inserts (selected mais pas existing) et les deletes (existing
+// mais plus dans selected).
+type SlotStatut = 'libre' | 'reserve' | 'bloque';
+interface ExistingSlot { id: string; statut: SlotStatut; google_event_id: string | null }
 
 const ALLOWED_WEEKS = [1, 2, 4, 8] as const;
 type WeekCount = typeof ALLOWED_WEEKS[number];
@@ -31,6 +40,8 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
   const router = useRouter();
   const [techId, setTechId] = useState<string>(techs[0]?.id ?? '');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [existingByKey, setExistingByKey] = useState<Map<string, ExistingSlot>>(new Map());
+  const [loadingExisting, setLoadingExisting] = useState(false);
   const [weeks, setWeeks] = useState<WeekCount>(1);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
@@ -124,53 +135,147 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 
   function clearAll() { setSelected(new Set()); }
 
+  // Charge les créneaux existants en DB pour le tech + la semaine
+  // affichée (weekStart → +6 jours). Pré-coche les cases correspondantes
+  // et alimente existingByKey pour le calcul de diff au save.
+  // Recharge à chaque changement de tech ou de semaine. Un refreshTick
+  // permet de re-trigger après une sauvegarde réussie.
+  const [refreshTick, setRefreshTick] = useState(0);
+  useEffect(() => {
+    if (!techId) {
+      setExistingByKey(new Map());
+      setSelected(new Set());
+      return;
+    }
+    const ac = new AbortController();
+    setLoadingExisting(true);
+    const endDate = new Date(weekStart);
+    endDate.setDate(weekStart.getDate() + 6);
+    const url = `/api/admin/planning/dispos?technicien_id=${encodeURIComponent(techId)}&start_date=${isoDate(weekStart)}&end_date=${isoDate(endDate)}`;
+    fetch(url, { signal: ac.signal, cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return;
+        type LoadedSlot = { id: string; date: string; heure_debut: string; heure_fin: string; statut: SlotStatut; google_event_id: string | null };
+        const map = new Map<string, ExistingSlot>();
+        const sel = new Set<string>();
+        for (const s of (data.slots ?? []) as LoadedSlot[]) {
+          // Calcule dayIdx (0=lun) depuis la date du slot relative au lundi
+          const slotDate = new Date(s.date + 'T00:00:00');
+          const dow = slotDate.getDay();
+          const dayIdx = dow === 0 ? 6 : dow - 1;
+          const hd = s.heure_debut.slice(0, 5);
+          const slotIdx = FOXO_SLOTS.findIndex((fs) => fs.heure_debut === hd);
+          if (slotIdx < 0) continue; // slot non-FoxO (legacy 1h, etc.)
+          const k = cellKey(dayIdx, slotIdx);
+          map.set(k, { id: s.id, statut: s.statut, google_event_id: s.google_event_id });
+          sel.add(k);
+        }
+        setExistingByKey(map);
+        setSelected(sel);
+      })
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === 'AbortError') return;
+        console.warn('[WeeklyDispoGrid] load existing failed:', e);
+      })
+      .finally(() => setLoadingExisting(false));
+    return () => ac.abort();
+  }, [techId, weekStart, refreshTick]);
+
   async function save() {
     if (!techId) {
       setMsg({ kind: 'err', msg: 'Choisis un technicien.' });
       return;
     }
-    if (selected.size === 0) {
-      setMsg({ kind: 'err', msg: 'Aucune case sélectionnée.' });
+    // Diff : ajouts (selected mais pas existing) + suppressions
+    // (existing libre mais plus dans selected). Les non-libre (réservés,
+    // bloqués) ne peuvent pas être supprimés depuis cette grille.
+    const toAddKeys: string[] = [];
+    const toDeleteIds: string[] = [];
+    const skippedReserved: string[] = [];
+    for (const k of selected) {
+      if (!existingByKey.has(k)) toAddKeys.push(k);
+    }
+    for (const [k, slot] of existingByKey.entries()) {
+      if (!selected.has(k)) {
+        if (slot.statut === 'libre') toDeleteIds.push(slot.id);
+        else skippedReserved.push(k);
+      }
+    }
+    if (toAddKeys.length === 0 && toDeleteIds.length === 0) {
+      setMsg({ kind: 'err', msg: 'Aucun changement à enregistrer.' });
       return;
     }
     setSaving(true);
     setMsg(null);
     try {
-      const slotsPayload: { day: FoxoDay; heure_debut: string; heure_fin: string }[] = [];
-      for (const k of selected) {
-        const [d, s] = k.split('-').map(Number);
-        const slot = FOXO_SLOTS[s];
-        if (!slot) continue;
-        slotsPayload.push({
-          day: FOXO_DAYS[d],
-          heure_debut: slot.heure_debut,
-          heure_fin: slot.heure_fin,
+      let createdCount = 0;
+      let calendarSynced = 0;
+      let calendarFailed = 0;
+      let deletedCount = 0;
+      let calendarDeleted = 0;
+
+      // Étape 1 : POST insertions (avec récurrence sur N semaines)
+      if (toAddKeys.length > 0) {
+        const slotsPayload: { day: FoxoDay; heure_debut: string; heure_fin: string }[] = [];
+        for (const k of toAddKeys) {
+          const [d, s] = k.split('-').map(Number);
+          const slot = FOXO_SLOTS[s];
+          if (!slot) continue;
+          slotsPayload.push({
+            day: FOXO_DAYS[d],
+            heure_debut: slot.heure_debut,
+            heure_fin: slot.heure_fin,
+          });
+        }
+        const r = await fetch('/api/admin/planning/dispos/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            technicien_id: techId,
+            slots: slotsPayload,
+            weeks,
+            start_date: isoDate(weekStart),
+          }),
         });
+        const data = await r.json();
+        if (!data.ok) {
+          setMsg({ kind: 'err', msg: data.error ?? 'Échec sauvegarde.' });
+          return;
+        }
+        createdCount = data.created ?? 0;
+        calendarSynced = data.calendar_synced ?? 0;
+        calendarFailed = data.calendar_failed ?? 0;
       }
-      const r = await fetch('/api/admin/planning/dispos/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          technicien_id: techId,
-          slots: slotsPayload,
-          weeks,
-          start_date: isoDate(weekStart),
-        }),
-      });
-      const data = await r.json();
-      if (!data.ok) {
-        setMsg({ kind: 'err', msg: data.error ?? 'Échec sauvegarde.' });
-        return;
+
+      // Étape 2 : DELETE des cases décochées (uniquement la semaine en cours)
+      if (toDeleteIds.length > 0) {
+        const r = await fetch('/api/admin/planning/dispos/bulk', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slot_ids: toDeleteIds }),
+        });
+        const data = await r.json();
+        if (!data.ok) {
+          setMsg({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
+          return;
+        }
+        deletedCount = data.deleted ?? 0;
+        calendarDeleted = data.calendar_deleted ?? 0;
       }
-      const parts: string[] = [];
-      parts.push(`${data.created} créé(s)`);
-      if (data.skipped_existing) parts.push(`${data.skipped_existing} déjà existant(s)`);
-      if (data.skipped) parts.push(`${data.skipped} dans le passé`);
-      // Toast inclut le nom du technicien (visible dans la barre statut)
+
+      // Toast récapitulatif
       const tech = techs.find((t) => t.id === techId);
       const techLabel = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email || 'tech' : 'technicien';
-      setMsg({ kind: 'ok', msg: `✅ ${data.created} créneau${data.created > 1 ? 'x' : ''} créé${data.created > 1 ? 's' : ''} pour ${techLabel} · ${parts.slice(1).join(' · ')}`.trim() });
-      setSelected(new Set());
+      const parts: string[] = [];
+      if (createdCount > 0) parts.push(`+${createdCount} créé(s)`);
+      if (deletedCount > 0) parts.push(`-${deletedCount} supprimé(s)`);
+      if (calendarSynced > 0) parts.push(`📅 ${calendarSynced} sync`);
+      if (calendarDeleted > 0) parts.push(`🗑 ${calendarDeleted} retiré(s) du Calendar`);
+      if (calendarFailed > 0) parts.push(`⚠️ ${calendarFailed} sync calendar échouée(s)`);
+      if (skippedReserved.length > 0) parts.push(`${skippedReserved.length} non supprimé(s) (réservés)`);
+      setMsg({ kind: 'ok', msg: `✅ ${techLabel} · ${parts.join(' · ')}` });
+      setRefreshTick((t) => t + 1);
       router.refresh();
     } catch (e) {
       setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
@@ -181,6 +286,14 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 
   const cellCount = selected.size;
   const totalForWeeks = useMemo(() => cellCount * weeks, [cellCount, weeks]);
+  const diffCount = useMemo(() => {
+    let adds = 0, removes = 0;
+    for (const k of selected) if (!existingByKey.has(k)) adds++;
+    for (const [k, slot] of existingByKey.entries()) {
+      if (!selected.has(k) && slot.statut === 'libre') removes++;
+    }
+    return { adds, removes };
+  }, [selected, existingByKey]);
 
   return (
     <div onMouseUp={endDrag} onMouseLeave={endDrag} className="select-none">
@@ -281,6 +394,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
               slot={slot}
               slotIdx={slotIdx}
               selected={selected}
+              existingByKey={existingByKey}
               onMouseDownCell={onMouseDown}
               onMouseEnterCell={onMouseEnter}
             />
@@ -291,8 +405,16 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       {/* Footer actions */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <span className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">
-          {cellCount} créneau{cellCount !== 1 ? 'x' : ''} sélectionné{cellCount !== 1 ? 's' : ''}
-          {weeks > 1 && <> · <strong>{totalForWeeks}</strong> sur {weeks} semaines</>}
+          {loadingExisting ? (
+            <span className="italic">Chargement des créneaux existants…</span>
+          ) : (
+            <>
+              {cellCount} coché{cellCount !== 1 ? 's' : ''}
+              {weeks > 1 && diffCount.adds > 0 && <> · <strong>{diffCount.adds * weeks}</strong> à créer sur {weeks} semaines</>}
+              {weeks === 1 && diffCount.adds > 0 && <> · <strong>+{diffCount.adds}</strong> à créer</>}
+              {diffCount.removes > 0 && <> · <strong className="text-[#8A5A1A]">−{diffCount.removes}</strong> à supprimer</>}
+            </>
+          )}
         </span>
         <div className="flex items-center gap-2 ml-auto">
           <label className="text-[11px] text-ink-mid font-semibold dark:text-[#C8C2B8]">
@@ -310,7 +432,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           <button
             type="button"
             onClick={save}
-            disabled={saving || !techId || cellCount === 0}
+            disabled={saving || !techId || (diffCount.adds === 0 && diffCount.removes === 0)}
             className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
           >
             {saving ? 'Enregistrement…' : '💾 Enregistrer les dispos'}
@@ -330,19 +452,24 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       )}
 
       <p className="text-[10px] text-ink-muted italic mt-2 dark:text-[#C8C2B8]">
-        Astuce : maintiens le clic et glisse pour sélectionner plusieurs cases.
-        Les créneaux dans le passé ou déjà existants sont automatiquement ignorés.
+        Astuce : les cases déjà cochées en navy sont les créneaux enregistrés en DB.
+        Décocher une case = suppression au prochain enregistrement (badge ambre ✕).
+        Les créneaux 🔒 réservés ou 🚫 bloqués ne peuvent pas être supprimés ici.
+      </p>
+      <p className="text-[10px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+        <span className="text-[9px] uppercase font-bold tracking-wider">{totalForWeeks ? `${totalForWeeks} créneaux total après save` : ''}</span>
       </p>
     </div>
   );
 }
 
 function Row({
-  slot, slotIdx, selected, onMouseDownCell, onMouseEnterCell,
+  slot, slotIdx, selected, existingByKey, onMouseDownCell, onMouseEnterCell,
 }: {
   slot: typeof FOXO_SLOTS[number];
   slotIdx: number;
   selected: Set<string>;
+  existingByKey: Map<string, ExistingSlot>;
   onMouseDownCell: (day: number, slotIdx: number) => void;
   onMouseEnterCell: (day: number, slotIdx: number) => void;
 }) {
@@ -359,19 +486,52 @@ function Row({
       {[0, 1, 2, 3, 4, 5, 6].map((day) => {
         const k = cellKey(day, slotIdx);
         const on = selected.has(k);
+        const existing = existingByKey.get(k);
+        const locked = Boolean(existing && existing.statut !== 'libre');
+        // Visual states :
+        // - locked (réservé/bloqué) : navy strié, non-cliquable
+        // - on + existing libre : navy plein (créneau enregistré)
+        // - on + nouveau : navy clair avec bordure (sera créé)
+        // - off + existing : ambré (sera supprimé après save)
+        // - off + nouveau : blanc
+        const willDelete = !on && existing && existing.statut === 'libre';
+        const willCreate = on && !existing;
+        let cellClass = 'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors dark:border-[#2C2A24] flex items-center justify-center text-[10px] font-bold ';
+        if (locked) {
+          cellClass += 'bg-navy/40 cursor-not-allowed text-white/70 ';
+        } else if (on && existing) {
+          cellClass += 'bg-navy hover:brightness-110 cursor-pointer text-white/90 ';
+        } else if (willCreate) {
+          cellClass += 'bg-navy-light/60 hover:brightness-110 cursor-pointer text-navy border-2 border-navy-mid ';
+        } else if (willDelete) {
+          cellClass += 'bg-amber-light hover:brightness-95 cursor-pointer text-[#8A5A1A] border-2 border-[#E8C896] ';
+        } else {
+          cellClass += 'bg-white hover:bg-sand-hover cursor-pointer dark:bg-[#221E1A] dark:hover:bg-[#2A2520] ';
+        }
         return (
           <button
             key={k}
             type="button"
-            onMouseDown={(e) => { e.preventDefault(); onMouseDownCell(day, slotIdx); }}
-            onMouseEnter={() => onMouseEnterCell(day, slotIdx)}
-            className={
-              'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors cursor-pointer dark:border-[#2C2A24] ' +
-              (on
-                ? 'bg-navy hover:brightness-110'
-                : 'bg-white hover:bg-sand-hover dark:bg-[#221E1A] dark:hover:bg-[#2A2520]')
+            disabled={locked}
+            onMouseDown={(e) => {
+              if (locked) return;
+              e.preventDefault();
+              onMouseDownCell(day, slotIdx);
+            }}
+            onMouseEnter={() => { if (!locked) onMouseEnterCell(day, slotIdx); }}
+            className={cellClass}
+            title={
+              locked
+                ? (existing?.statut === 'reserve' ? 'Réservé — ne peut pas être supprimé d\'ici' : 'Bloqué')
+                : willDelete
+                  ? 'Sera supprimé au prochain enregistrement'
+                  : willCreate
+                    ? 'Sera créé au prochain enregistrement'
+                    : on ? 'Enregistré' : 'Vide'
             }
-          />
+          >
+            {locked ? (existing?.statut === 'reserve' ? '🔒' : '🚫') : willDelete ? '✕' : ''}
+          </button>
         );
       })}
     </>

@@ -410,17 +410,20 @@ export function PlanningCalendar({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {googleConnected ? (
-            <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer dark:text-[#C8C2B8]">
-              <input
-                type="checkbox"
-                checked={showGoogle}
-                onChange={(e) => setShowGoogle(e.target.checked)}
-                className="accent-[#4F46E5]"
-              />
-              <span>📅 Afficher Google Calendar{gcalLoading ? ' …' : gcalEvents.length > 0 ? ` (${gcalEvents.length})` : ''}</span>
-            </label>
+            <>
+              <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer dark:text-[#C8C2B8]">
+                <input
+                  type="checkbox"
+                  checked={showGoogle}
+                  onChange={(e) => setShowGoogle(e.target.checked)}
+                  className="accent-[#4F46E5]"
+                />
+                <span>📅 Afficher Google Calendar{gcalLoading ? ' …' : gcalEvents.length > 0 ? ` (${gcalEvents.length})` : ''}</span>
+              </label>
+              <ResyncButton />
+            </>
           ) : (
             <span className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
               📅 Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
@@ -798,6 +801,61 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
     <div className="flex items-center gap-1.5 text-[11px] text-ink-mid">
       <span className={`w-3 h-3 rounded-sm ${swatch} border`} />
       {label}
+    </div>
+  );
+}
+
+// Bouton "Resynchroniser" — appelle POST /api/admin/planning/dispos/resync
+// qui crée les events Calendar manquants pour les créneaux libres futurs
+// sans google_event_id. Utile après reconnexion Google ou après un import
+// massif sans sync.
+function ResyncButton() {
+  const [pending, setPending] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  async function run() {
+    if (pending) return;
+    setMsg(null);
+    setPending(true);
+    try {
+      const r = await fetch('/api/admin/planning/dispos/resync', { method: 'POST' });
+      const data = await r.json();
+      if (!data.ok) {
+        setMsg({ kind: 'err', msg: data.error ?? 'Échec resync.' });
+        return;
+      }
+      const parts: string[] = [];
+      if (data.synced > 0) parts.push(`${data.synced} synchronisé(s)`);
+      if (data.failed > 0) parts.push(`${data.failed} échec(s)`);
+      if (data.total === 0) parts.push('rien à resync');
+      if (data.truncated) parts.push('100 max — relance pour continuer');
+      setMsg({ kind: 'ok', msg: `✅ ${parts.join(' · ')}` });
+    } catch (e) {
+      setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={run}
+        disabled={pending}
+        className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+        title="Crée les events Google Calendar manquants pour les créneaux libres futurs"
+      >
+        {pending ? '🔄 Resync en cours…' : '🔄 Resync Google Calendar'}
+      </button>
+      {msg && (
+        <span className={
+          'text-[10px] font-bold ' +
+          (msg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+        }>
+          {msg.msg}
+        </span>
+      )}
     </div>
   );
 }
