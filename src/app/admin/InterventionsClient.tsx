@@ -687,24 +687,58 @@ export function InterventionsClient({
     });
   }
 
-  function reanalyzeMail() {
+  // Log de gating : dès que selectedId change, on log les conditions
+  // qui décident de l'affichage du bouton Réanalyser.
+  useEffect(() => {
     if (!selected) return;
+    if (selected.source !== 'mail') return;
+    console.info('[reanalyze-ui] gating', {
+      id: selected.id,
+      ref: selected.ref,
+      source: selected.source,
+      statut: selected.statut,
+      source_mail_id: selected.source_mail_id,
+      button_visible: Boolean(selected.source_mail_id),
+    });
+  }, [selected]);
+
+  function reanalyzeMail() {
+    if (!selected) {
+      console.warn('[reanalyze-ui] aborted: no selected intervention');
+      return;
+    }
+    console.info('[reanalyze-ui] clicked', {
+      id: selected.id,
+      ref: selected.ref,
+      source: selected.source,
+      source_mail_id: selected.source_mail_id,
+      statut: selected.statut,
+    });
     setReanalysis(null);
     setReanalyzeMsg(null);
     startReanalyzeTransition(async () => {
       try {
-        const r = await fetch(`/api/admin/interventions/${selected.id}/reanalyze`, { method: 'POST' });
-        const data = await r.json();
+        const url = `/api/admin/interventions/${selected.id}/reanalyze`;
+        console.info('[reanalyze-ui] POST', url);
+        const r = await fetch(url, { method: 'POST' });
+        let data: { ok?: boolean; error?: string; code?: string; analysis?: unknown };
+        try {
+          data = await r.json();
+        } catch {
+          data = { ok: false, error: `HTTP ${r.status} (réponse non-JSON)` };
+        }
+        console.info('[reanalyze-ui] response', { status: r.status, ok: data.ok, error: data.error, code: data.code });
         if (!data.ok) {
           if (data.code === 'google_not_connected') {
             setReanalyzeMsg({ kind: 'err', msg: 'Google non connecté — connecte le compte dans /admin/parametres.' });
           } else {
-            setReanalyzeMsg({ kind: 'err', msg: data.error ?? 'Échec analyse.' });
+            setReanalyzeMsg({ kind: 'err', msg: data.error ?? `Échec analyse (HTTP ${r.status}).` });
           }
           return;
         }
-        setReanalysis({ analysis: data.analysis });
+        setReanalysis({ analysis: data.analysis as ReanalysisData['analysis'] });
       } catch (e) {
+        console.error('[reanalyze-ui] network error', e);
         setReanalyzeMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
       }
     });
@@ -1080,21 +1114,10 @@ export function InterventionsClient({
                         { key: 'occup',    label: 'Occupants',     done: drawerOccupants.some((o) => o.token_sent_at), active: Boolean(selected.creneau_debut) },
                         { key: 'confirm',  label: 'Confirmation',  done: selected.statut === 'confirmee' || selected.statut === 'realisee' || selected.statut === 'rapport' || selected.statut === 'cloturee', active: selected.statut === 'attente' },
                       ]} />
+                      {/* Bandeau bleu : seulement statut='nouvelle' (intervention non encore traitée) */}
                       {selected.statut === 'nouvelle' && (
                         <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="font-bold">📧 Demande reçue par mail — à traiter</div>
-                            {selected.source_mail_id && (
-                              <button
-                                type="button"
-                                onClick={reanalyzeMail}
-                                disabled={reanalyzePending}
-                                className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 flex-shrink-0"
-                              >
-                                {reanalyzePending ? '🔄 …' : '🔄 Réanalyser le mail'}
-                              </button>
-                            )}
-                          </div>
+                          <div className="font-bold mb-1">📧 Demande reçue par mail — à traiter</div>
                           <DemandeurBadge
                             organisationId={selected.organisation_id}
                             clientId={selected.client_id}
@@ -1108,6 +1131,36 @@ export function InterventionsClient({
                               {reanalyzeMsg.msg}
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {/* Bouton Réanalyser — visible pour toute intervention
+                          source='mail' avec un source_mail_id, peu importe
+                          le statut (nouvelle / attente / confirmee / etc.).
+                          Si statut=nouvelle, le bouton se trouve hors du
+                          bandeau bleu pour être atteignable même quand le
+                          statut a évolué. */}
+                      {selected.source_mail_id && (
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <button
+                            type="button"
+                            onClick={reanalyzeMail}
+                            disabled={reanalyzePending}
+                            className="text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50"
+                          >
+                            {reanalyzePending ? '🔄 Analyse…' : '🔄 Réanalyser le mail'}
+                          </button>
+                          {selected.statut !== 'nouvelle' && reanalyzeMsg && (
+                            <span className={
+                              'text-[11px] font-semibold ' +
+                              (reanalyzeMsg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+                            }>
+                              {reanalyzeMsg.msg}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-ink-muted font-mono dark:text-[#C8C2B8]">
+                            mail id : {selected.source_mail_id.slice(0, 16)}…
+                          </span>
                         </div>
                       )}
 
