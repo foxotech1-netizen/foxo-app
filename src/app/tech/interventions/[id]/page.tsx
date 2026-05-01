@@ -6,6 +6,7 @@ import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/t
 import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
 import { RapportPanel } from './RapportPanel';
+import { NotesPanel } from './NotesPanel';
 import { getPhotoSignedUrls } from '../../actions';
 
 export const dynamic = 'force-dynamic';
@@ -173,6 +174,12 @@ export default async function TechInterventionPage({
         }
         canPublish={Boolean(iv.ended_at)}
         alreadyPublished={iv.statut === 'rapport' || iv.statut === 'cloturee'}
+      />
+
+      {/* Notes internes du technicien */}
+      <NotesPanel
+        interventionId={iv.id}
+        initial={iv.notes_tech ?? null}
       />
     </div>
   );

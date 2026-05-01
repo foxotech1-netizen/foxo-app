@@ -6,6 +6,7 @@ import { roleForEmail } from '@/lib/auth/roles';
 import { Logo } from '@/components/Logo';
 import { PWARegister } from '@/components/PWARegister';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { TechBottomNav } from './TechBottomNav';
 
 export const metadata: Metadata = {
   title: 'FoxO Tech',
@@ -70,6 +71,7 @@ export default async function TechLayout({
       >
         {children}
       </main>
+      <TechBottomNav />
       <PWARegister />
     </div>
   );

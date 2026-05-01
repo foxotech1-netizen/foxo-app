@@ -172,6 +172,7 @@ export interface Intervention {
   organisation_id: string | null;
   client_id: string | null;
   delegue_id: string | null;
+  notes_tech: string | null;
 }
 
 export interface Rapport {
