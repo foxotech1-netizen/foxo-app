@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveClient, type ClientInput } from '../facturation/actions';
 import { TYPE_CLIENT_LABEL, type Client, type Organisation, type TypeClient } from '@/lib/types/database';
+import { AddressAutocomplete, type AddressValue } from '@/components/AddressAutocomplete';
 
 const TYPES: TypeClient[] = ['acp', 'particulier', 'entreprise'];
 
@@ -138,7 +139,28 @@ export function ClientForm({
       </Section>
 
       <Section title="Adresse">
-        <Field label="Rue et numéro" value={adresse} onChange={setAdresse} />
+        <AddressAutocomplete
+          label="Rue et numéro"
+          value={{
+            adresse,
+            rue: adresse,
+            numero: '',
+            code_postal: codePostal,
+            ville,
+            pays: pays || 'Belgique',
+            lat: null,
+            lng: null,
+            verified: false,
+          } as AddressValue}
+          onChange={(addr) => {
+            const composed = addr.numero ? `${addr.rue} ${addr.numero}`.trim() : (addr.rue || addr.adresse);
+            setAdresse(composed);
+            setCodePostal(addr.code_postal);
+            setVille(addr.ville);
+            if (addr.pays) setPays(addr.pays);
+          }}
+          placeholder="Commence à taper la rue…"
+        />
         <div className="grid grid-cols-3 gap-2 mt-2">
           <Field label="Code postal" value={codePostal} onChange={setCodePostal} />
           <div className="col-span-2">

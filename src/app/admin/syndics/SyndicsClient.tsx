@@ -5,6 +5,7 @@ import type { Organisation } from '@/lib/types/database';
 import { TypeBadge } from '@/components/TypeBadge';
 import { createOrganisation } from '../actions';
 import { OrganisationDrawer } from './OrganisationDrawer';
+import { AddressAutocomplete, emptyAddress, type AddressValue } from '@/components/AddressAutocomplete';
 
 export function SyndicsClient({
   initial,
@@ -20,6 +21,10 @@ export function SyndicsClient({
   const [pending, startTransition] = useTransition();
   const [type, setType] = useState<'syndic' | 'courtier'>('syndic');
   const [drawerOrg, setDrawerOrg] = useState<Organisation | null>(null);
+  // État contrôlé pour le champ Adresse (AddressAutocomplete) — on
+  // injecte ensuite adresse + lat + lng dans le formData via des hidden
+  // inputs pour rester compatible avec l'action server existante.
+  const [addr, setAddr] = useState<AddressValue>(emptyAddress());
 
   function onSubmit(formData: FormData) {
     setError(null);
@@ -30,7 +35,7 @@ export function SyndicsClient({
       const created = res.data as Organisation;
       setOrgs((arr) => [created, ...arr]);
       setSuccess(`${created.nom} ajouté en tant que ${created.type}.`);
-      setTimeout(() => { setOpen(false); setSuccess(null); }, 1500);
+      setTimeout(() => { setOpen(false); setAddr(emptyAddress()); setSuccess(null); }, 1500);
     });
   }
 
@@ -98,7 +103,7 @@ export function SyndicsClient({
       {/* Modal */}
       {open && (
         <div
-          onClick={(e) => { if (e.target === e.currentTarget && !pending) setOpen(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget && !pending) { setOpen(false); setAddr(emptyAddress()); } }}
           className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
         >
           <div className="bg-cream rounded-2xl w-full max-w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -108,7 +113,7 @@ export function SyndicsClient({
                 <div className="text-[11px] text-ink-muted mt-0.5">Syndic ou courtier d&apos;assurance</div>
               </div>
               <button
-                onClick={() => !pending && setOpen(false)}
+                onClick={() => { if (!pending) { setOpen(false); setAddr(emptyAddress()); } }}
                 disabled={pending}
                 className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50"
               >
@@ -148,7 +153,18 @@ export function SyndicsClient({
                   <Field name="bce" label="BCE" placeholder="BE0123.456.789" />
                   <Field name="telephone" label="Téléphone" placeholder="+32 2 123 45 67" />
                 </div>
-                <Field name="adresse" label="Adresse" placeholder="Rue de la Loi 42, 1000 Bruxelles" />
+                <AddressAutocomplete
+                  label="Adresse"
+                  value={addr}
+                  onChange={setAddr}
+                  placeholder="Rue de la Loi 42, 1000 Bruxelles"
+                />
+                {/* Hidden inputs : participent au formData pour le server action */}
+                <input type="hidden" name="adresse" value={addr.code_postal || addr.ville
+                  ? `${addr.adresse}${addr.code_postal || addr.ville ? `, ${addr.code_postal} ${addr.ville}`.trimEnd() : ''}`.trim()
+                  : addr.adresse} />
+                <input type="hidden" name="lat" value={addr.lat ?? ''} />
+                <input type="hidden" name="lng" value={addr.lng ?? ''} />
               </div>
 
               <div className="bg-sand rounded-xl p-3.5 border border-sand-border space-y-3">
@@ -173,7 +189,7 @@ export function SyndicsClient({
               <div className="flex justify-end gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={() => { setOpen(false); setAddr(emptyAddress()); }}
                   disabled={pending}
                   className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
                 >

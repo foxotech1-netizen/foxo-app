@@ -202,17 +202,36 @@ export async function createOrganisation(formData: FormData): Promise<ActionStat
   const telephone = String(formData.get('telephone') ?? '').trim() || null;
   const bce = String(formData.get('bce') ?? '').trim() || null;
   const adresse = String(formData.get('adresse') ?? '').trim() || null;
+  // lat/lng optionnels — posés par AddressAutocomplete quand l'adresse
+  // est sélectionnée depuis Nominatim. Si la migration 2026-05-18 n'est
+  // pas appliquée, l'insert retombe sans ces colonnes (cf. retry plus bas).
+  const latRaw = String(formData.get('lat') ?? '').trim();
+  const lngRaw = String(formData.get('lng') ?? '').trim();
+  const lat = latRaw && Number.isFinite(parseFloat(latRaw)) ? parseFloat(latRaw) : null;
+  const lng = lngRaw && Number.isFinite(parseFloat(lngRaw)) ? parseFloat(lngRaw) : null;
 
   if (!nom) return { error: 'Le nom de la société est obligatoire.' };
   if (!email || !email.includes('@')) return { error: 'Email invalide.' };
   if (type !== 'syndic' && type !== 'courtier') return { error: 'Type invalide.' };
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const fullPayload: Record<string, unknown> = { nom, email, type, contact, telephone, bce, adresse, lat, lng };
+  let { data, error } = await supabase
     .from('organisations')
-    .insert({ nom, email, type, contact, telephone, bce, adresse })
+    .insert(fullPayload)
     .select()
     .single();
+  if (error && (error as { code?: string }).code === '42703') {
+    // Migration 2026-05-18 pas encore appliquée — retry sans lat/lng
+    const safePayload: Record<string, unknown> = { nom, email, type, contact, telephone, bce, adresse };
+    const retry = await supabase
+      .from('organisations')
+      .insert(safePayload)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     if (error.code === '23505') return { error: 'Cet email est déjà enregistré.' };
