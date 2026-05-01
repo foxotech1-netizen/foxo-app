@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
@@ -14,6 +14,13 @@ const MONTHS = [
   'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+// Heures affichées dans la vue Semaine. Chaque ligne représente un créneau
+// d'1h commençant à cette heure (ex. "08h" = créneau 08:00→09:00).
+const WEEK_HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17] as const;
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const TECH_COLORS = [
   { bg: '#1B3A6B', soft: '#D6E4F7' },  // navy
@@ -45,6 +52,19 @@ export function PlanningCalendar({
   const router = useRouter();
   const [techFilter, setTechFilter] = useState<string>('all');
   const [openModal, setOpenModal] = useState<{ kind: 'free' | 'reserved' | 'blocked'; slot: Creneau } | null>(null);
+
+  // Mode d'affichage — Semaine (par défaut) ou Mois (legacy)
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
+  // Lundi de la semaine affichée. Initialisé sur la semaine du jour.
+  const [weekMonday, setWeekMonday] = useState<Date>(() => {
+    const now = new Date();
+    const dow = now.getDay();
+    const offset = dow === 0 ? -6 : 1 - dow;
+    const m = new Date(now);
+    m.setDate(now.getDate() + offset);
+    m.setHours(0, 0, 0, 0);
+    return m;
+  });
 
   // Google Calendar events
   const [showGoogle, setShowGoogle] = useState<boolean>(googleConnected);
@@ -98,9 +118,17 @@ export function PlanningCalendar({
     }
     let mounted = true;
     setGcalLoading(true);
-    const lastDay = new Date(year, month + 1, 0).getDate();
-    const from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-    const to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    let from: string, to: string;
+    if (viewMode === 'week') {
+      const last = new Date(weekMonday);
+      last.setDate(last.getDate() + 6);
+      from = isoDate(weekMonday);
+      to = isoDate(last);
+    } else {
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      from = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      to = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }
     const url = `/api/google/calendar-events?from=${from}&to=${to}&t=${Date.now()}`;
     fetch(url, { cache: 'no-store' })
       .then((r) => r.json())
@@ -111,7 +139,7 @@ export function PlanningCalendar({
       .catch(() => { /* noop */ })
       .finally(() => { if (mounted) setGcalLoading(false); });
     return () => { mounted = false; };
-  }, [googleConnected, showGoogle, year, month]);
+  }, [googleConnected, showGoogle, viewMode, weekMonday, year, month]);
 
   // Bucket des events Google par date YYYY-MM-DD (date locale, pas UTC).
   const gcalByDate = useMemo(() => {
@@ -132,6 +160,17 @@ export function PlanningCalendar({
   // Calendar grid
   const cells = useMemo(() => buildGrid(year, month, byDate), [year, month, byDate]);
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  // 7 dates de la semaine affichée (lundi → dimanche)
+  const weekDates = useMemo(() => {
+    const arr: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekMonday);
+      d.setDate(weekMonday.getDate() + i);
+      arr.push(d);
+    }
+    return arr;
+  }, [weekMonday]);
 
   return (
     <div>
@@ -173,20 +212,91 @@ export function PlanningCalendar({
           })}
         </div>
 
-        <div className="flex gap-2">
-          <Link
-            href={prevHref}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
-          >‹</Link>
-          <Link
-            href={nextHref}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
-          >›</Link>
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Toggle Semaine / Mois */}
+          <div className="flex bg-sand-mid rounded-md p-0.5 dark:bg-[rgba(255,255,255,.06)]">
+            <button
+              type="button"
+              onClick={() => setViewMode('week')}
+              className={
+                'px-3 py-1 rounded text-[11px] font-bold ' +
+                (viewMode === 'week' ? 'bg-navy text-white' : 'text-ink-mid dark:text-[#C8C2B8]')
+              }
+            >
+              Semaine
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('month')}
+              className={
+                'px-3 py-1 rounded text-[11px] font-bold ' +
+                (viewMode === 'month' ? 'bg-navy text-white' : 'text-ink-mid dark:text-[#C8C2B8]')
+              }
+            >
+              Mois
+            </button>
+          </div>
+
+          {/* Navigation week — boutons internes (state weekMonday) */}
+          {viewMode === 'week' && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  const d = new Date(weekMonday);
+                  d.setDate(d.getDate() - 7);
+                  setWeekMonday(d);
+                }}
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+              >‹</button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const dow = now.getDay();
+                  const offset = dow === 0 ? -6 : 1 - dow;
+                  const m = new Date(now);
+                  m.setDate(now.getDate() + offset);
+                  m.setHours(0, 0, 0, 0);
+                  setWeekMonday(m);
+                }}
+                className="bg-sand-mid px-2 h-8 rounded-md text-ink-mid text-[11px] font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+              >
+                Aujourd&apos;hui
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const d = new Date(weekMonday);
+                  d.setDate(d.getDate() + 7);
+                  setWeekMonday(d);
+                }}
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+              >›</button>
+            </>
+          )}
+
+          {/* Navigation mois — Links existants (URL state) */}
+          {viewMode === 'month' && (
+            <>
+              <Link
+                href={prevHref}
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
+              >‹</Link>
+              <Link
+                href={nextHref}
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
+              >›</Link>
+            </>
+          )}
         </div>
       </div>
 
       <div className="text-[11px] text-ink-muted mb-3 capitalize">
-        {MONTHS[month]} {year} · {counts.libre} libre · {counts.reserve} réservé · {counts.bloque} bloqué
+        {viewMode === 'week'
+          ? <>Semaine du {weekMonday.toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' })}</>
+          : <>{MONTHS[month]} {year} · {counts.libre} libre · {counts.reserve} réservé · {counts.bloque} bloqué</>
+        }
       </div>
 
       {/* Toggle Google Calendar */}
@@ -292,7 +402,151 @@ export function PlanningCalendar({
         />
       )}
 
-      {/* Calendar */}
+      {/* Calendar — vue Semaine */}
+      {viewMode === 'week' && (
+        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+          <div
+            className="grid"
+            style={{ gridTemplateColumns: '60px repeat(7, 1fr)' }}
+          >
+            {/* Header — coin vide + 7 jours avec date */}
+            <div className="bg-sand border-b border-r border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]" />
+            {weekDates.map((d) => {
+              const iso = isoDate(d);
+              const isToday = iso === todayStr;
+              return (
+                <div
+                  key={iso}
+                  className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 dark:bg-[#141210] dark:border-[#2C2A24]"
+                >
+                  <div className={
+                    'text-[10px] font-bold uppercase tracking-wider ' +
+                    (isToday ? 'text-navy' : 'text-ink-muted dark:text-[#C8C2B8]')
+                  }>
+                    {DAYS[(d.getDay() + 6) % 7]}
+                  </div>
+                  <div className={
+                    'mt-0.5 text-[13px] font-extrabold inline-flex items-center justify-center w-7 h-7 ' +
+                    (isToday
+                      ? 'rounded-full bg-navy text-white'
+                      : 'text-ink-mid dark:text-[#F0ECE4]')
+                  }>
+                    {d.getDate()}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Lignes : heure + 7 cases */}
+            {WEEK_HOURS.map((h) => (
+              <Fragment key={h}>
+                <div className="bg-sand border-b border-r border-sand-border text-[10px] font-mono font-bold text-ink-muted text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
+                  {String(h).padStart(2, '0')}h
+                </div>
+                {weekDates.map((d) => {
+                  const iso = isoDate(d);
+                  const hh = `${String(h).padStart(2, '0')}:`;
+                  const cellCreneaux = (byDate.get(iso) ?? []).filter((c) => c.heure_debut.startsWith(hh));
+                  const cellGcal = (gcalByDate.get(iso) ?? []).filter((ev) => {
+                    if (ev.all_day) return h === WEEK_HOURS[0];
+                    const dt = new Date(ev.start);
+                    return dt.getHours() === h;
+                  });
+                  const isTodayCell = iso === todayStr;
+                  return (
+                    <div
+                      key={`${iso}-${h}`}
+                      className={
+                        'border-b border-r border-sand-border last:border-r-0 min-h-[56px] p-1 space-y-0.5 dark:border-[#2C2A24] ' +
+                        (isTodayCell
+                          ? 'bg-navy-pale dark:bg-[rgba(122,168,232,.08)]'
+                          : 'bg-cream dark:bg-[#1C1A16]')
+                      }
+                    >
+                      {showGoogle && cellGcal.map((ev) => {
+                        const time = ev.all_day
+                          ? 'Journée'
+                          : new Date(ev.start).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+                        const tooltip = [ev.title, time, ev.location].filter(Boolean).join(' · ');
+                        return (
+                          <button
+                            key={`g-${ev.id}`}
+                            type="button"
+                            onClick={() => setImportEvent(ev)}
+                            className="w-full text-left text-[10px] font-semibold rounded px-1 py-0.5 truncate flex items-center gap-1 hover:brightness-95 cursor-pointer"
+                            title={tooltip}
+                            style={ev.is_foxo_event
+                              ? { background: '#F5F3FF', color: '#7C3AED', borderLeft: '3px solid #A78BFA' }
+                              : { background: '#EEF2FF', color: '#4338CA', borderLeft: '3px solid #6366F1' }
+                            }
+                          >
+                            <span className="text-[8px] flex-shrink-0">{ev.is_foxo_event ? '✅' : '📅'}</span>
+                            <span className="truncate flex-1">{ev.title}</span>
+                          </button>
+                        );
+                      })}
+                      {cellCreneaux.map((cr) => {
+                        const techColor = cr.technicien_id ? techColorMap.get(cr.technicien_id) : null;
+                        if (cr.statut === 'libre') {
+                          return (
+                            <button
+                              key={cr.id}
+                              type="button"
+                              onClick={() => setOpenModal({ kind: 'free', slot: cr })}
+                              className="w-full text-left text-[10px] font-bold rounded px-1 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                              title="Cliquer pour planifier une intervention"
+                              style={techColor
+                                ? { background: '#1F6B45', color: '#FFFFFF', borderLeft: `3px solid ${techColor.bg}` }
+                                : { background: '#1F6B45', color: '#FFFFFF' }
+                              }
+                            >
+                              Libre
+                            </button>
+                          );
+                        }
+                        if (cr.statut === 'reserve') {
+                          const customColor = cr.intervention_color ?? null;
+                          const reserveStyle = customColor
+                            ? { background: customColor, color: '#FFFFFF', borderLeft: `3px solid ${customColor}` }
+                            : techColor
+                              ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
+                              : { background: '#D6E4F7', color: '#1B3A6B' };
+                          return (
+                            <button
+                              key={cr.id}
+                              type="button"
+                              onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
+                              className="w-full text-left text-[10px] font-bold rounded px-1 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                              title="Cliquer pour modifier l'intervention"
+                              style={reserveStyle}
+                            >
+                              Réservé ✓
+                            </button>
+                          );
+                        }
+                        return (
+                          <button
+                            key={cr.id}
+                            type="button"
+                            onClick={() => setOpenModal({ kind: 'blocked', slot: cr })}
+                            className="w-full text-left text-[10px] font-bold rounded px-1 py-0.5 truncate bg-sand-mid text-ink-muted hover:bg-sand-border cursor-pointer dark:bg-[#3D3A32] dark:text-[#C8C2B8]"
+                            title="Cliquer pour modifier le motif ou débloquer"
+                          >
+                            Bloqué
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Calendar — vue Mois (legacy) */}
+      {viewMode === 'month' && (
       <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <div className="grid grid-cols-7 gap-px bg-sand-border">
           {DAYS.map((d) => (
@@ -407,6 +661,7 @@ export function PlanningCalendar({
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

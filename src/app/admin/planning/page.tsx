@@ -4,7 +4,7 @@ import { TECH_EMAILS } from '@/lib/auth/roles';
 import { loadTokens } from '@/lib/google-auth';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
 import { PlanningCalendar } from './PlanningCalendar';
-import { CreneauxClient } from './CreneauxClient';
+import { WeeklyDispoGrid } from './WeeklyDispoGrid';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,9 +32,16 @@ export default async function PlanningPage({
   const tab: Tab = sp.tab === 'manage' ? 'manage' : 'calendar';
   const { year, month } = parseMonthParam(sp.m);
 
-  const startStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const endStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  // On élargit la fenêtre fetch ±10 jours autour du mois pour que la
+  // vue Semaine ait toujours des données quand la semaine déborde
+  // sur le mois précédent / suivant (ex. lun 30 mars → dim 5 avril).
+  const fetchStart = new Date(year, month, 1);
+  fetchStart.setDate(fetchStart.getDate() - 10);
+  const fetchEnd = new Date(year, month + 1, 0);
+  fetchEnd.setDate(fetchEnd.getDate() + 10);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const startStr = `${fetchStart.getFullYear()}-${pad(fetchStart.getMonth() + 1)}-${pad(fetchStart.getDate())}`;
+  const endStr = `${fetchEnd.getFullYear()}-${pad(fetchEnd.getMonth() + 1)}-${pad(fetchEnd.getDate())}`;
 
   const supabase = await createClient();
 
@@ -82,27 +89,8 @@ export default async function PlanningPage({
   const prev = new Date(year, month - 1, 1);
   const next = new Date(year, month + 1, 1);
 
-  // Pour l'onglet "Manage" on charge sur 3 mois autour pour la liste
-  const manageStart = new Date(year, month - 1, 1);
-  const manageEnd = new Date(year, month + 2, 0);
-  const manageStartStr = `${manageStart.getFullYear()}-${String(manageStart.getMonth() + 1).padStart(2, '0')}-${String(manageStart.getDate()).padStart(2, '0')}`;
-  const manageEndStr = `${manageEnd.getFullYear()}-${String(manageEnd.getMonth() + 1).padStart(2, '0')}-${String(manageEnd.getDate()).padStart(2, '0')}`;
-
-  // Manage view : pas besoin de la couleur d'intervention (la liste sert
-  // à gérer les disponibilités, pas à afficher les couleurs). On garde
-  // le shape minimal pour rester compatible avec CreneauxClient.
-  type ManageCreneau = Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'intervention_id'>;
-  let manageCreneaux: ManageCreneau[] = [];
-  if (tab === 'manage') {
-    const { data } = await supabase
-      .from('creneaux_disponibles')
-      .select('id, technicien_id, date, heure_debut, heure_fin, statut, intervention_id')
-      .gte('date', manageStartStr)
-      .lte('date', manageEndStr)
-      .order('date', { ascending: true })
-      .order('heure_debut', { ascending: true });
-    manageCreneaux = (data ?? []) as ManageCreneau[];
-  }
+  // L'onglet "Gérer" utilise WeeklyDispoGrid qui charge ses dispos en
+  // interne via l'API — pas de pré-fetch nécessaire ici.
 
   const tabHref = (t: Tab) => `/admin/planning?tab=${t}&m=${fmtMonth(year, month)}`;
 
@@ -157,11 +145,7 @@ export default async function PlanningPage({
             nextHref={`/admin/planning?tab=calendar&m=${fmtMonth(next.getFullYear(), next.getMonth())}`}
           />
         ) : (
-          <CreneauxClient
-            techs={techs}
-            initialCreneaux={manageCreneaux}
-            initialTechId={sp.tech ?? null}
-          />
+          <WeeklyDispoGrid techs={techs} />
         )}
       </div>
     </>
