@@ -18,7 +18,7 @@ export default async function AdminLayout({
   }
 
   const [ivsRes, techsRes] = await Promise.all([
-    supabase.from('interventions').select('statut, technicien_id'),
+    supabase.from('interventions').select('statut, technicien_id').is('deleted_at', null),
     supabase
       .from('utilisateurs')
       .select('id, prenom, nom, email')

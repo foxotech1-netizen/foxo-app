@@ -224,6 +224,11 @@ export function InterventionsClient({
   // Suppression intervention
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePending, startDeleteTransition] = useTransition();
+  // Soft-delete depuis l'icône poubelle de la ligne (indépendant du
+  // drawer + indépendant du hard-delete cascade existant).
+  const [deletingRow, setDeletingRow] = useState<{ id: string; ref: string | null } | null>(null);
+  const [rowDeletePending, startRowDeleteTransition] = useTransition();
+  const [rowDeleteErr, setRowDeleteErr] = useState<string | null>(null);
   const [deleteMsg, setDeleteMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
   // Réanalyse mail
@@ -722,6 +727,32 @@ export function InterventionsClient({
     });
   }
 
+  // Soft delete depuis l'icône poubelle de la ligne. Différent du hard-
+  // delete cascade ci-dessus : ici on pose deleted_at, on retire la ligne
+  // localement, et on garde toutes les données enfants (timeline, mails,
+  // photos, occupants) pour pouvoir restaurer plus tard si besoin.
+  function softDeleteRow() {
+    if (!deletingRow) return;
+    setRowDeleteErr(null);
+    startRowDeleteTransition(async () => {
+      try {
+        const r = await fetch(`/api/admin/interventions/${deletingRow.id}/delete`, { method: 'DELETE' });
+        const data = await r.json();
+        if (!data.ok) {
+          setRowDeleteErr(data.error ?? 'Échec suppression.');
+          return;
+        }
+        // Update optimiste : retire de la liste sans recharger
+        setRows((rs) => rs.filter((r2) => r2.id !== deletingRow.id));
+        // Ferme aussi le drawer si on supprimait l'intervention sélectionnée
+        if (selectedId === deletingRow.id) setSelectedId(null);
+        setDeletingRow(null);
+      } catch (e) {
+        setRowDeleteErr(e instanceof Error ? e.message : 'Erreur réseau.');
+      }
+    });
+  }
+
   // Log de gating : dès que selectedId change, on log les conditions
   // qui décident de l'affichage du bouton Réanalyser.
   useEffect(() => {
@@ -870,6 +901,17 @@ export function InterventionsClient({
         />
       )}
 
+      {/* Soft-delete depuis l'icône poubelle de la ligne */}
+      {deletingRow && (
+        <SoftDeleteRowModal
+          ref={deletingRow.ref}
+          pending={rowDeletePending}
+          error={rowDeleteErr}
+          onCancel={() => { setDeletingRow(null); setRowDeleteErr(null); }}
+          onConfirm={softDeleteRow}
+        />
+      )}
+
       {/* Topbar + liste — masqués en mode page complète */}
       {!fullPage && (
       <>
@@ -992,8 +1034,8 @@ export function InterventionsClient({
           <table className="w-full border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-sand">
-                {['Réf.', 'ACP', 'Type', 'Syndic', 'Technicien', 'Créneau', 'Statut', 'Màj'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                {['Réf.', 'ACP', 'Type', 'Syndic', 'Technicien', 'Créneau', 'Statut', 'Màj', ''].map((h, i) => (
+                  <th key={h || `col-${i}`} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -1002,7 +1044,7 @@ export function InterventionsClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={9} className="text-center py-12 text-ink-muted text-[13px]">
                     Aucune intervention
                   </td>
                 </tr>
@@ -1094,6 +1136,21 @@ export function InterventionsClient({
                       </td>
                       <td className="px-3.5 py-2.5 text-[10px] text-ink-muted font-mono whitespace-nowrap">
                         {relTime(iv.updated_at, nowMs)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRowDeleteErr(null);
+                            setDeletingRow({ id: iv.id, ref: iv.ref });
+                          }}
+                          className="text-[14px] text-ink-muted/40 hover:text-terra transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-terra-light"
+                          title="Supprimer cette intervention"
+                          aria-label="Supprimer cette intervention"
+                        >
+                          🗑️
+                        </button>
                       </td>
                     </tr>
                   );
@@ -2185,6 +2242,64 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Modal de confirmation pour le soft-delete depuis l'icône poubelle de
+// la ligne. Plus léger que DeleteInterventionModal (hard-delete cascade) :
+// l'opération est récupérable, donc on ne fait pas peur à l'admin avec
+// 'irréversible'. L'erreur API (ex: 503 si migration pending) s'affiche
+// inline sans fermer la modal.
+function SoftDeleteRowModal({
+  ref, pending, error, onCancel, onConfirm,
+}: {
+  ref: string | null;
+  pending: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
+      className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
+    >
+      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+        <h2 className="text-[14px] font-extrabold text-ink mb-2 dark:text-[#F0ECE4]">
+          🗑️ Supprimer cette intervention ?
+        </h2>
+        <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
+          L&apos;intervention <strong className="font-mono text-ink dark:text-[#F0ECE4]">{ref ?? '?'}</strong> sera retirée de la liste.
+          Les données liées (timeline, photos, occupants) sont conservées et restaurables.
+        </p>
+
+        {error && (
+          <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 text-[12px] font-semibold">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={pending}
+            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
+            style={{ background: '#C4622D' }}
+          >
+            {pending ? 'Suppression…' : 'Confirmer'}
+          </button>
+        </div>
       </div>
     </div>
   );

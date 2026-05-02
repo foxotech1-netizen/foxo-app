@@ -183,6 +183,7 @@ export interface Intervention {
     reference_police: string | null;
   } | null;
   appartements_concernes: string[] | null;
+  deleted_at: string | null;
 }
 
 export interface Rapport {

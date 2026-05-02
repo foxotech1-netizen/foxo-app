@@ -29,6 +29,7 @@ export default async function InterventionFullPage({
     supabase
       .from('interventions')
       .select('*')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false }),
     supabase.from('acps').select('id,nom,adresse,ville'),
     supabase.from('organisations').select('id,nom,type,email'),
