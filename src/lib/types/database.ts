@@ -134,7 +134,11 @@ export interface Acp {
   syndic_id_ref: string | null;
 }
 
-export type RoleUtilisateur = 'admin' | 'tech' | 'partner';
+// Enum PostgreSQL côté DB. Ne pas confondre avec le type `Role` applicatif
+// de src/lib/auth/roles.ts ('admin' | 'tech' | 'partner') qui pilote le
+// routage par sous-domaine via la whitelist d'emails — ce sont deux
+// systèmes indépendants.
+export type RoleUtilisateur = 'admin' | 'syndic' | 'courtier' | 'technicien';
 
 export interface Utilisateur {
   id: string;

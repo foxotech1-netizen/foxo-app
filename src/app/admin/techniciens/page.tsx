@@ -18,7 +18,7 @@ export default async function TechniciensPage() {
   const { data, error } = await supabase
     .from('utilisateurs')
     .select('*')
-    .eq('role', 'tech')
+    .eq('role', 'technicien')
     .order('actif', { ascending: false })
     .order('prenom', { ascending: true });
 

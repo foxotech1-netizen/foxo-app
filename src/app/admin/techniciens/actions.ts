@@ -41,7 +41,7 @@ export async function createTech(form: FormData): Promise<ActionState> {
       email,
       telephone,
       couleur,
-      role: 'tech',
+      role: 'technicien',
       actif: true,
     })
     .select()
