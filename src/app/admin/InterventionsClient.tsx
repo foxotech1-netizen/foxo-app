@@ -143,7 +143,7 @@ export function InterventionsClient({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS_FILTRE[number]>('tous');
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
-  const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia'>('dossier');
+  const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia' | 'historique'>('dossier');
   const [iaSaveMessage, setIaSaveMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [iaSavePending, startIaSaveTransition] = useTransition();
 
@@ -1180,16 +1180,16 @@ export function InterventionsClient({
               </div>
             </header>
 
-            <nav className="flex bg-cream px-5 border-b border-sand-border">
-              {(['dossier','suivi','documents','ia'] as const).map((t) => (
+            <nav className="flex bg-cream px-5 border-b border-sand-border overflow-x-auto">
+              {(['dossier','suivi','documents','ia','historique'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`py-2.5 px-4 text-xs font-medium capitalize border-b-2 transition-colors ${
+                  className={`py-2.5 px-4 text-xs font-medium capitalize border-b-2 transition-colors whitespace-nowrap ${
                     tab === t ? 'text-navy border-navy font-bold' : 'text-ink-muted border-transparent hover:text-ink-mid'
                   }`}
                 >
-                  {t === 'ia' ? '✨ Assistant IA' : t}
+                  {t === 'ia' ? '✨ Assistant IA' : t === 'historique' ? '📋 Historique' : t}
                 </button>
               ))}
             </nav>
@@ -2066,6 +2066,10 @@ export function InterventionsClient({
                   />
                 </div>
               )}
+
+              {tab === 'historique' && (
+                <HistoriquePanel interventionId={selected.id} />
+              )}
             </div>
           </div>
         </div>
@@ -2838,6 +2842,179 @@ function AcpPicker({
         </div>
       )}
     </div>
+  );
+}
+
+// HistoriquePanel — fetch + affiche l'historique d'interventions
+// associées au dossier courant : par appartement (avec récidive si même
+// type < 12 mois), par ACP, et compteur global de récidives.
+function HistoriquePanel({ interventionId }: { interventionId: string }) {
+  type HistEntry = {
+    id: string;
+    ref: string | null;
+    statut: string;
+    type: string | null;
+    date: string;
+    description: string | null;
+    appartements: string[];
+    is_recidive: boolean;
+  };
+  type ParAppartement = {
+    appartement: string;
+    occupant: { nom: string | null; prenom: string | null; email: string | null } | null;
+    interventions: HistEntry[];
+  };
+  type HistResponse = {
+    par_appartement: ParAppartement[];
+    par_acp: HistEntry[];
+    recidives_detectees: number;
+  };
+
+  const [data, setData] = useState<HistResponse | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [acpFilter, setAcpFilter] = useState<string>('');
+
+  useEffect(() => {
+    let mounted = true;
+    setLoaded(false);
+    fetch(`/api/admin/interventions/${interventionId}/historique`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!mounted) return;
+        if (d.ok) setData({ par_appartement: d.par_appartement, par_acp: d.par_acp, recidives_detectees: d.recidives_detectees });
+        else setError(d.error ?? 'Erreur chargement.');
+        setLoaded(true);
+      })
+      .catch((e) => {
+        if (!mounted) return;
+        setError(e instanceof Error ? e.message : 'Erreur réseau.');
+        setLoaded(true);
+      });
+    return () => { mounted = false; };
+  }, [interventionId]);
+
+  if (!loaded) {
+    return <div className="text-[12px] text-ink-mid italic dark:text-[#C8C2B8]">Chargement…</div>;
+  }
+  if (error) {
+    return (
+      <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-md px-3 py-2 font-semibold">
+        {error}
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  const filteredAcp = acpFilter
+    ? data.par_acp.filter((iv) => iv.appartements.some((a) => a.toLowerCase().includes(acpFilter.toLowerCase())))
+    : data.par_acp;
+
+  const allApts = Array.from(new Set(data.par_acp.flatMap((iv) => iv.appartements))).sort();
+
+  return (
+    <div className="space-y-4">
+      {data.recidives_detectees > 0 && (
+        <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
+          <div className="font-bold text-[#8A5A1A] dark:text-[#F0D896]">
+            🔄 {data.recidives_detectees} récidive{data.recidives_detectees > 1 ? 's' : ''} détectée{data.recidives_detectees > 1 ? 's' : ''}
+          </div>
+          <div className="text-[11px] text-[#5A3F15] dark:text-[#F0D896]">
+            Même type de problème dans les 12 derniers mois sur les mêmes apparts.
+          </div>
+        </div>
+      )}
+
+      {/* Par appartement */}
+      <Block title={`🏠 Historique par appartement (${data.par_appartement.length})`}>
+        {data.par_appartement.length === 0 ? (
+          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+            Aucun historique pour les apparts de ce dossier.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {data.par_appartement.map((group) => (
+              <div key={group.appartement} className="bg-white border border-sand-border rounded-md overflow-hidden dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                <div className="bg-sand px-2.5 py-1.5 border-b border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]">
+                  <div className="font-bold text-[12px] text-ink dark:text-[#F0ECE4]">
+                    Apt {group.appartement}
+                    {(group.occupant?.prenom || group.occupant?.nom) && (
+                      <span className="font-normal ml-1 text-ink-mid dark:text-[#C8C2B8]">
+                        — {[group.occupant?.prenom, group.occupant?.nom].filter(Boolean).join(' ')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                    📋 {group.interventions.length} intervention{group.interventions.length !== 1 ? 's' : ''} précédente{group.interventions.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <div className="divide-y divide-sand-mid dark:divide-[#3D3A32]">
+                  {group.interventions.map((iv) => <HistEntryRow key={iv.id} iv={iv} />)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Block>
+
+      {/* Par ACP */}
+      <Block title={`🏢 Historique ACP (${data.par_acp.length})`}>
+        {data.par_acp.length === 0 ? (
+          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+            Aucun historique sur cette ACP.
+          </div>
+        ) : (
+          <>
+            {allApts.length > 1 && (
+              <select
+                value={acpFilter}
+                onChange={(e) => setAcpFilter(e.target.value)}
+                className="w-full mb-2 px-2 py-1.5 border border-sand-border rounded text-[11px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              >
+                <option value="">Tous les appartements</option>
+                {allApts.map((apt) => <option key={apt} value={apt}>Apt {apt}</option>)}
+              </select>
+            )}
+            <div className="bg-white border border-sand-border rounded-md overflow-hidden divide-y divide-sand-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
+              {filteredAcp.map((iv) => <HistEntryRow key={iv.id} iv={iv} />)}
+            </div>
+          </>
+        )}
+      </Block>
+    </div>
+  );
+}
+
+function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: string; type: string | null; date: string; description: string | null; appartements: string[]; is_recidive: boolean } }) {
+  const date = new Date(iv.date).toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric' });
+  return (
+    <Link
+      href={`/admin/interventions/${iv.id}`}
+      target="_blank"
+      className="block px-2.5 py-2 hover:bg-sand-hover dark:hover:bg-[#2A2520]"
+    >
+      <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-[11px] font-bold text-navy dark:text-[#A8C4F2]">{iv.ref ?? '?'}</span>
+          <span className="text-[10px] font-mono text-ink-muted dark:text-[#C8C2B8]">{date}</span>
+          {iv.is_recidive && (
+            <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]">
+              🔄 Récidive
+            </span>
+          )}
+        </div>
+        <Badge statut={iv.statut as never} />
+      </div>
+      <div className="text-[11px] text-ink dark:text-[#F0ECE4]">{iv.type ?? '—'}</div>
+      {iv.description && (
+        <div className="text-[10px] text-ink-mid mt-0.5 line-clamp-2 dark:text-[#C8C2B8]">{iv.description}</div>
+      )}
+      {iv.appartements.length > 0 && (
+        <div className="text-[10px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+          📍 Apt {iv.appartements.join(', ')}
+        </div>
+      )}
+    </Link>
   );
 }
 
