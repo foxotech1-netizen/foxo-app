@@ -134,12 +134,19 @@ export interface Acp {
   syndic_id_ref: string | null;
 }
 
+export type RoleUtilisateur = 'admin' | 'tech' | 'partner';
+
 export interface Utilisateur {
   id: string;
   prenom: string | null;
   nom: string | null;
   email: string | null;
   couleur: string | null;     // hex personnalisée pour le planning
+  role: RoleUtilisateur | null;
+  actif: boolean;
+  telephone: string | null;
+  last_seen_at: string | null;
+  created_at: string | null;
 }
 
 export interface Intervention {
@@ -214,6 +221,21 @@ export interface Occupant {
   type_occupant: TypeOccupant | null;
   confirmation_token: string | null;
   token_sent_at: string | null;
+  confirmed_at: string | null;
+  proposed_creneau_debut: string | null;
+  proposed_creneau_fin: string | null;
+  response_note: string | null;
+}
+
+export interface OccupantResponseLog {
+  id: string;
+  occupant_id: string;
+  intervention_id: string;
+  reponse: 'confirme' | 'decline' | 'counter';
+  proposed_creneau_debut: string | null;
+  proposed_creneau_fin: string | null;
+  note: string | null;
+  created_at: string;
 }
 
 export type StatutCreneau = 'libre' | 'reserve' | 'bloque';

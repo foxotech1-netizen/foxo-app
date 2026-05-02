@@ -38,6 +38,15 @@ export default async function TechLayout({
     redirect('/auth/login?error=forbidden');
   }
 
+  // Ping de présence — non-bloquant. Met à jour last_seen_at à chaque
+  // page-load /tech pour calculer l'indicateur "en ligne" côté admin.
+  if (user.email) {
+    void supabase
+      .from('utilisateurs')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('email', user.email);
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-sand text-ink">
       {/* Bannière logo cohérente avec portal/rdv/admin */}
