@@ -85,7 +85,7 @@ type Context = {
   } | null;
   syndicNom: string | null;
   syndicEmail: string | null;
-  occupants: { id: string; nom: string | null; email: string | null; appartement: string | null }[];
+  occupants: { id: string; nom: string | null; email: string | null; appartement: string | null; confirmation_token: string | null }[];
 };
 
 async function loadContext(interventionId: string): Promise<Context | null> {
@@ -108,7 +108,7 @@ async function loadContext(interventionId: string): Promise<Context | null> {
     iv.syndic_id
       ? admin.from('organisations').select('nom, email, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    admin.from('occupants').select('id, nom, email, appartement').eq('intervention_id', iv.id),
+    admin.from('occupants').select('id, nom, email, appartement, confirmation_token').eq('intervention_id', iv.id),
   ]);
 
   type AcpEmails = {
@@ -201,7 +201,11 @@ async function notifyConfirmee(ctx: Context): Promise<void> {
   // Emails occupants avec leur lien personnel
   for (const occ of ctx.occupants) {
     if (!occ.email) continue;
-    const link = `https://portal.foxo.be/o/${occ.id}`;
+    if (!occ.confirmation_token) {
+      console.warn('[notifications] occupant sans confirmation_token, lien non envoyé:', occ.id);
+      continue;
+    }
+    const link = `https://portal.foxo.be/o/${occ.confirmation_token}`;
     const html = buildShell(
       buildHeader('Confirmation de présence') +
       `<p style="font-size:14px;line-height:1.6;margin:0 0 12px">Bonjour${occ.nom ? ' ' + escapeHtml(occ.nom) : ''},</p>

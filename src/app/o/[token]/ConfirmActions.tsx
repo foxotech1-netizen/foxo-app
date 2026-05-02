@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { respondAsOccupant, type Reponse } from '../actions';
 
 export function ConfirmActions({
-  occupantId,
+  token,
   currentConf,
 }: {
-  occupantId: string;
+  token: string;
   currentConf: 'confirme' | 'en_attente' | 'decline';
 }) {
   const router = useRouter();
@@ -18,7 +18,7 @@ export function ConfirmActions({
   function send(reponse: Reponse) {
     setError(null);
     startTransition(async () => {
-      const res = await respondAsOccupant(occupantId, reponse);
+      const res = await respondAsOccupant(token, reponse);
       if (!res.ok) setError(res.error);
       else router.refresh();
     });

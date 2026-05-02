@@ -212,6 +212,8 @@ export interface Occupant {
   conf: 'confirme' | 'en_attente' | 'decline' | null;
   contact_preference: ContactPreference | null;
   type_occupant: TypeOccupant | null;
+  confirmation_token: string | null;
+  token_sent_at: string | null;
 }
 
 export type StatutCreneau = 'libre' | 'reserve' | 'bloque';

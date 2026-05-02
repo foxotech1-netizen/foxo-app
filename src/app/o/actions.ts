@@ -13,11 +13,13 @@ const STATUTS_ACCEPTANT_REPONSE = [
 ];
 
 // Met à jour la réponse d'un occupant. Public — pas d'auth applicative.
-// L'identification se fait par l'UUID v4 dans l'URL (122 bits d'entropie,
-// non énumérable). Service-role obligatoire car RLS bloque les anonymes
-// sur la table occupants.
+// L'identification se fait par le confirmation_token dans l'URL
+// (16 bytes hex = 128 bits d'entropie, non énumérable). Service-role
+// obligatoire car RLS bloque les anonymes sur la table occupants.
+const TOKEN_TTL_DAYS = 30;
+
 export async function respondAsOccupant(
-  occupantId: string,
+  token: string,
   reponse: Reponse,
 ): Promise<ActionResult> {
   if (reponse !== 'confirme' && reponse !== 'decline') {
@@ -33,11 +35,16 @@ export async function respondAsOccupant(
 
   const { data: occ } = await admin
     .from('occupants')
-    .select('id, intervention_id')
-    .eq('id', occupantId)
+    .select('id, intervention_id, token_sent_at')
+    .eq('confirmation_token', token)
     .maybeSingle();
 
   if (!occ) return { ok: false, error: 'Lien invalide ou expiré.' };
+
+  const sentAt = occ.token_sent_at ? new Date(occ.token_sent_at).getTime() : null;
+  if (!sentAt || Date.now() - sentAt > TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000) {
+    return { ok: false, error: 'Lien invalide ou expiré.' };
+  }
 
   const { data: iv } = await admin
     .from('interventions')
@@ -53,10 +60,10 @@ export async function respondAsOccupant(
   const { error } = await admin
     .from('occupants')
     .update({ conf: reponse })
-    .eq('id', occupantId);
+    .eq('id', occ.id);
 
   if (error) return { ok: false, error: error.message };
 
-  revalidatePath(`/o/${occupantId}`);
+  revalidatePath(`/o/${token}`);
   return { ok: true };
 }

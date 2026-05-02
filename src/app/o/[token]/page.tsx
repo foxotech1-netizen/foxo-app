@@ -11,26 +11,33 @@ const STATUTS_ACCEPTANT_REPONSE = [
   'nouvelle', 'attente', 'confirmee',
 ];
 
+const TOKEN_TTL_DAYS = 30;
+
 export default async function OccupantPortal({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ token: string }>;
 }) {
-  const { id } = await params;
+  const { token } = await params;
   // Public — pas de session. Service-role car RLS bloque les anonymes.
-  // L'UUID dans l'URL est l'authentification (impossible à énumérer).
+  // Le token (16 bytes hex = 128 bits) dans l'URL est l'authentification.
   const supabase = createAdminClient();
 
   const { data: occData } = await supabase
     .from('occupants')
     .select('*')
-    .eq('id', id)
+    .eq('confirmation_token', token)
     .maybeSingle();
 
   if (!occData) {
     return <NotFoundCard />;
   }
   const occupant = occData as Occupant;
+
+  const sentAt = occupant.token_sent_at ? new Date(occupant.token_sent_at).getTime() : null;
+  if (!sentAt || Date.now() - sentAt > TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000) {
+    return <NotFoundCard />;
+  }
 
   const { data: ivData } = await supabase
     .from('interventions')
@@ -112,7 +119,7 @@ export default async function OccupantPortal({
           )}
 
           {acceptsResponse ? (
-            <ConfirmActions occupantId={occupant.id} currentConf={currentConf} />
+            <ConfirmActions token={token} currentConf={currentConf} />
           ) : (
             <div className="bg-sand-mid border border-sand-border rounded-lg px-3.5 py-2.5 text-xs text-ink-mid">
               Cette intervention n&apos;accepte plus de modifications de présence.
