@@ -1,10 +1,23 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { VENDOR } from '@/lib/constants/vendor';
+import type { RemiseType } from '@/lib/types/database';
+import { applyRemise } from '@/lib/facturation/remises';
 
 export type FactureItem = {
   description: string;
   quantity: number;
   unitPrice: number; // HT, en EUR
+  // Remise au niveau ligne (optionnels — rétro-compat avec les PDF émis
+  // avant la migration 2026-05-24_remises.sql).
+  remiseValeur?: number;
+  remiseType?: RemiseType;
+  remiseDescription?: string;
+};
+
+export type RemiseGlobale = {
+  valeur: number;
+  type: RemiseType;
+  description: string;
 };
 
 export type FacturePdfData = {
@@ -26,6 +39,8 @@ export type FacturePdfData = {
   items: FactureItem[];
   vatRate: number;            // ex: 21
   notes: string;
+  // Remise globale (optionnelle).
+  remiseGlobale?: RemiseGlobale | null;
 };
 
 const COLORS = {
@@ -67,9 +82,10 @@ const styles = StyleSheet.create({
   itemsHeaderCell: { fontSize: 8, fontWeight: 700, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
   itemsRow: { flexDirection: 'row', paddingVertical: 7, paddingHorizontal: 8, borderBottomWidth: 0.5, borderBottomColor: COLORS.border },
   cellDesc: { flex: 1, paddingRight: 8 },
-  cellQty:  { width: 50, textAlign: 'right' },
-  cellPrice:{ width: 80, textAlign: 'right' },
-  cellTotal:{ width: 80, textAlign: 'right' },
+  cellQty:  { width: 40, textAlign: 'right' },
+  cellPrice:{ width: 70, textAlign: 'right' },
+  cellRemise:{ width: 70, textAlign: 'right' },
+  cellTotal:{ width: 75, textAlign: 'right' },
   itemText: { fontSize: 10, color: COLORS.ink },
   itemTextMuted: { fontSize: 9, color: COLORS.inkMuted },
 
@@ -100,19 +116,74 @@ function fmtMoney(n: number): string {
   return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
-export function computeTotals(items: FactureItem[], vatRate: number) {
-  const ht = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-  const tva = ht * (vatRate / 100);
-  const ttc = ht + tva;
-  return { ht: round2(ht), tva: round2(tva), ttc: round2(ttc) };
+export interface ComputedTotals {
+  /** Sous-total HTVA AVANT toute remise (somme brute des lignes). */
+  sousTotalBrut: number;
+  /** Somme des remises appliquées au niveau ligne. */
+  remisesLignes: number;
+  /** Sous-total HTVA APRÈS remises lignes, AVANT remise globale. */
+  sousTotal: number;
+  /** Montant € de la remise globale appliquée. */
+  remiseGlobale: number;
+  /** Total HTVA final (= ht). */
+  totalHt: number;
+  /** TVA calculée sur totalHt. */
+  tva: number;
+  /** Total TTC. */
+  totalTtc: number;
+  /** @deprecated alias de totalHt pour rétro-compat. */
+  ht: number;
+  /** @deprecated alias de totalTtc pour rétro-compat. */
+  ttc: number;
+}
+
+export function computeTotals(
+  items: FactureItem[],
+  vatRate: number,
+  remiseGlobale?: RemiseGlobale | null,
+): ComputedTotals {
+  const lignes = items.map((it) => {
+    const brut = round2(it.quantity * it.unitPrice);
+    const remise = applyRemise(brut, { valeur: it.remiseValeur, type: it.remiseType });
+    return { brut, remise, net: round2(brut - remise) };
+  });
+
+  const sousTotalBrut = round2(lignes.reduce((s, l) => s + l.brut, 0));
+  const remisesLignes = round2(lignes.reduce((s, l) => s + l.remise, 0));
+  const sousTotal = round2(sousTotalBrut - remisesLignes);
+  const remiseGlobaleAmount = remiseGlobale
+    ? applyRemise(sousTotal, { valeur: remiseGlobale.valeur, type: remiseGlobale.type })
+    : 0;
+  const totalHt = round2(sousTotal - remiseGlobaleAmount);
+  const tva = round2(totalHt * (vatRate / 100));
+  const totalTtc = round2(totalHt + tva);
+
+  return {
+    sousTotalBrut,
+    remisesLignes,
+    sousTotal,
+    remiseGlobale: remiseGlobaleAmount,
+    totalHt,
+    tva,
+    totalTtc,
+    ht: totalHt,
+    ttc: totalTtc,
+  };
 }
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function fmtRemiseLabel(valeur: number, type: RemiseType): string {
+  if (type === 'pct') return `−${valeur.toLocaleString('fr-BE', { maximumFractionDigits: 2 })}%`;
+  return `−${fmtMoney(valeur)}`;
+}
+
 export function FacturePdf({ data }: { data: FacturePdfData }) {
-  const totals = computeTotals(data.items, data.vatRate);
+  const totals = computeTotals(data.items, data.vatRate, data.remiseGlobale);
+  const hasLineRemises = data.items.some((i) => Number(i.remiseValeur ?? 0) > 0);
+  const hasGlobalRemise = data.remiseGlobale && Number(data.remiseGlobale.valeur) > 0;
 
   return (
     <Document
@@ -199,24 +270,65 @@ export function FacturePdf({ data }: { data: FacturePdfData }) {
           <Text style={[styles.itemsHeaderCell, styles.cellDesc]}>Description</Text>
           <Text style={[styles.itemsHeaderCell, styles.cellQty]}>Qté</Text>
           <Text style={[styles.itemsHeaderCell, styles.cellPrice]}>P.U. HT</Text>
+          {hasLineRemises && (
+            <Text style={[styles.itemsHeaderCell, styles.cellRemise]}>Remise</Text>
+          )}
           <Text style={[styles.itemsHeaderCell, styles.cellTotal]}>Total HT</Text>
         </View>
-        {data.items.map((item, i) => (
-          <View key={i} style={styles.itemsRow} wrap={false}>
-            <View style={styles.cellDesc}>
-              <Text style={styles.itemText}>{item.description}</Text>
+        {data.items.map((item, i) => {
+          const brut = round2(item.quantity * item.unitPrice);
+          const remise = applyRemise(brut, { valeur: item.remiseValeur, type: item.remiseType });
+          const net = round2(brut - remise);
+          return (
+            <View key={i} style={styles.itemsRow} wrap={false}>
+              <View style={styles.cellDesc}>
+                <Text style={styles.itemText}>{item.description}</Text>
+                {remise > 0 && item.remiseDescription && (
+                  <Text style={styles.itemTextMuted}>Remise : {item.remiseDescription}</Text>
+                )}
+              </View>
+              <Text style={[styles.itemText, styles.cellQty]}>{item.quantity}</Text>
+              <Text style={[styles.itemText, styles.cellPrice]}>{fmtMoney(item.unitPrice)}</Text>
+              {hasLineRemises && (
+                <Text style={[styles.itemText, styles.cellRemise]}>
+                  {remise > 0 && item.remiseType
+                    ? fmtRemiseLabel(item.remiseValeur ?? 0, item.remiseType)
+                    : '—'}
+                </Text>
+              )}
+              <Text style={[styles.itemText, styles.cellTotal]}>{fmtMoney(net)}</Text>
             </View>
-            <Text style={[styles.itemText, styles.cellQty]}>{item.quantity}</Text>
-            <Text style={[styles.itemText, styles.cellPrice]}>{fmtMoney(item.unitPrice)}</Text>
-            <Text style={[styles.itemText, styles.cellTotal]}>{fmtMoney(item.quantity * item.unitPrice)}</Text>
-          </View>
-        ))}
+          );
+        })}
 
         {/* Totaux */}
         <View style={styles.totalsBlock}>
+          {(hasLineRemises || hasGlobalRemise) && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Sous-total brut</Text>
+              <Text style={styles.totalValue}>{fmtMoney(totals.sousTotalBrut)}</Text>
+            </View>
+          )}
+          {hasLineRemises && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Remises lignes</Text>
+              <Text style={styles.totalValue}>−{fmtMoney(totals.remisesLignes)}</Text>
+            </View>
+          )}
+          {hasGlobalRemise && data.remiseGlobale && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>
+                Remise globale ({data.remiseGlobale.description})
+                {data.remiseGlobale.type === 'pct'
+                  ? ` ${data.remiseGlobale.valeur.toLocaleString('fr-BE', { maximumFractionDigits: 2 })}%`
+                  : ''}
+              </Text>
+              <Text style={styles.totalValue}>−{fmtMoney(totals.remiseGlobale)}</Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total HT</Text>
-            <Text style={styles.totalValue}>{fmtMoney(totals.ht)}</Text>
+            <Text style={styles.totalValue}>{fmtMoney(totals.totalHt)}</Text>
           </View>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>TVA {data.vatRate}%</Text>
@@ -224,7 +336,7 @@ export function FacturePdf({ data }: { data: FacturePdfData }) {
           </View>
           <View style={styles.totalTtcRow}>
             <Text style={styles.totalTtcLabel}>Total TTC</Text>
-            <Text style={styles.totalTtcValue}>{fmtMoney(totals.ttc)}</Text>
+            <Text style={styles.totalTtcValue}>{fmtMoney(totals.totalTtc)}</Text>
           </View>
         </View>
 

@@ -21,7 +21,9 @@ import type {
   Facture,
   FactureLigne,
   FactureDetailsIntervention,
+  RemiseType,
 } from '@/lib/types/database';
+import { applyRemise, computeInvoiceTotals } from '@/lib/facturation/remises';
 
 const COLORS = {
   navy: '#1B3A6B',
@@ -124,6 +126,7 @@ const styles = StyleSheet.create({
   cellPrice: { width: 70, textAlign: 'right' },
   cellTax:   { width: 50, textAlign: 'right' },
   cellTotal: { width: 75, textAlign: 'right' },
+  cellRemise: { width: 60, textAlign: 'right' },
   itemTitle: { fontSize: 9.5, color: COLORS.ink },
   itemNote: { fontSize: 8, color: COLORS.inkMid, fontStyle: 'italic', marginTop: 2 },
   itemNum:  { fontSize: 9.5, color: COLORS.ink, fontFamily: 'Courier' },
@@ -267,9 +270,23 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
   const lignes: FactureLigne[] = Array.isArray(facture.lignes) ? facture.lignes : [];
   const details: FactureDetailsIntervention = facture.details_intervention ?? {};
 
-  const ht = lignes.reduce((s, l) => s + l.quantite * l.prix_unitaire, 0);
-  const tva = ht * (facture.tva_pct / 100);
-  const ttc = ht + tva;
+  // Remise globale : préfère les nouveaux champs typés, fallback sur le
+  // legacy remise_pct (factures émises avant 2026-05-24_remises.sql).
+  const newRemiseValeur = Number(facture.remise_globale_valeur ?? 0);
+  const remiseGlobale = newRemiseValeur > 0
+    ? {
+        valeur: newRemiseValeur,
+        type: facture.remise_globale_type ?? null,
+      }
+    : Number(facture.remise_pct ?? 0) > 0
+      ? { valeur: Number(facture.remise_pct), type: 'pct' as const }
+      : { valeur: 0, type: null };
+  const totals = computeInvoiceTotals(lignes, facture.tva_pct, remiseGlobale);
+  const hasLineRemises = lignes.some((l) => Number(l.remise_valeur ?? 0) > 0);
+  const hasGlobalRemise = remiseGlobale.valeur > 0
+    && (remiseGlobale.type === 'pct' || remiseGlobale.type === 'fixe');
+  const remiseGlobaleLabel = facture.remise_globale_description
+    ?? (newRemiseValeur === 0 && Number(facture.remise_pct ?? 0) > 0 ? 'Remise' : null);
 
   const days = termsDays(facture.date_emission, facture.date_echeance);
   const logoPath = logoSrc ?? path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
@@ -337,21 +354,37 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
           <Text style={[styles.th, styles.cellDesc]}>Description</Text>
           <Text style={[styles.th, styles.cellQty]}>Qté</Text>
           <Text style={[styles.th, styles.cellPrice]}>P.U. HT</Text>
+          {hasLineRemises && (
+            <Text style={[styles.th, styles.cellRemise]}>Remise</Text>
+          )}
           <Text style={[styles.th, styles.cellTax]}>TVA</Text>
           <Text style={[styles.th, styles.cellTotal]}>Montant</Text>
         </View>
-        {lignes.map((l, i) => (
-          <View key={i} style={styles.tableRow} wrap={false}>
-            <View style={styles.cellDesc}>
-              <Text style={styles.itemTitle}>{l.description}</Text>
-              {l.notes && <Text style={styles.itemNote}>{l.notes}</Text>}
+        {lignes.map((l, i) => {
+          const ligneCalc = totals.lignes[i] ?? { brut: l.quantite * l.prix_unitaire, remise: 0, net: l.quantite * l.prix_unitaire };
+          return (
+            <View key={i} style={styles.tableRow} wrap={false}>
+              <View style={styles.cellDesc}>
+                <Text style={styles.itemTitle}>{l.description}</Text>
+                {l.notes && <Text style={styles.itemNote}>{l.notes}</Text>}
+                {ligneCalc.remise > 0 && l.remise_description && (
+                  <Text style={styles.itemNote}>Remise : {l.remise_description}</Text>
+                )}
+              </View>
+              <Text style={[styles.itemNum, styles.cellQty]}>{l.quantite}</Text>
+              <Text style={[styles.itemNum, styles.cellPrice]}>{fmtMoney(l.prix_unitaire)}</Text>
+              {hasLineRemises && (
+                <Text style={[styles.itemNum, styles.cellRemise]}>
+                  {ligneCalc.remise > 0 && l.remise_type
+                    ? fmtRemiseLabel(l.remise_valeur ?? 0, l.remise_type)
+                    : '—'}
+                </Text>
+              )}
+              <Text style={[styles.itemNum, styles.cellTax]}>{l.tva_pct}%</Text>
+              <Text style={[styles.itemNum, styles.cellTotal]}>{fmtMoney(ligneCalc.net)}</Text>
             </View>
-            <Text style={[styles.itemNum, styles.cellQty]}>{l.quantite}</Text>
-            <Text style={[styles.itemNum, styles.cellPrice]}>{fmtMoney(l.prix_unitaire)}</Text>
-            <Text style={[styles.itemNum, styles.cellTax]}>{l.tva_pct}%</Text>
-            <Text style={[styles.itemNum, styles.cellTotal]}>{fmtMoney(l.quantite * l.prix_unitaire)}</Text>
-          </View>
-        ))}
+          );
+        })}
 
         {/* DÉTAILS INTERVENTION (optionnel) */}
         {(details.ref_dossier || details.appartements || details.adresse_intervention || details.reference_assurance) && (
@@ -410,17 +443,41 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
           </View>
           <View style={styles.bottomRight}>
             <View style={styles.totalsBlock}>
+              {(hasLineRemises || hasGlobalRemise) && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Sous-total brut</Text>
+                  <Text style={styles.totalValue}>{fmtMoney(totals.sousTotalBrut)}</Text>
+                </View>
+              )}
+              {hasLineRemises && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Remises lignes</Text>
+                  <Text style={styles.totalValue}>−{fmtMoney(totals.totalRemisesLignes)}</Text>
+                </View>
+              )}
+              {hasGlobalRemise && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>
+                    Remise globale
+                    {remiseGlobaleLabel ? ` (${remiseGlobaleLabel})` : ''}
+                    {remiseGlobale.type === 'pct'
+                      ? ` ${Number(remiseGlobale.valeur).toLocaleString('fr-BE', { maximumFractionDigits: 2 })}%`
+                      : ''}
+                  </Text>
+                  <Text style={styles.totalValue}>−{fmtMoney(totals.remiseGlobale)}</Text>
+                </View>
+              )}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Montant hors taxes</Text>
-                <Text style={styles.totalValue}>{fmtMoney(ht)}</Text>
+                <Text style={styles.totalValue}>{fmtMoney(totals.totalHt)}</Text>
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>TVA {facture.tva_pct}%</Text>
-                <Text style={styles.totalValue}>{fmtMoney(tva)}</Text>
+                <Text style={styles.totalValue}>{fmtMoney(totals.tva)}</Text>
               </View>
               <View style={styles.totalTtcRow}>
                 <Text style={styles.totalTtcLabel}>Total</Text>
-                <Text style={styles.totalTtcValue}>{fmtMoney(ttc)}</Text>
+                <Text style={styles.totalTtcValue}>{fmtMoney(totals.totalTtc)}</Text>
               </View>
             </View>
           </View>
@@ -442,20 +499,20 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
 }
 
 // Petit helper pour la liste/UI : recalcule les totaux à partir des lignes.
+// Les remises ligne et globale (champs JSONB et colonnes facture) sont
+// prises en compte via computeInvoiceTotals.
 export function computeFactureTotals(
   lignes: FactureLigne[],
   tvaPct: number,
-  remisePct = 0,
+  remiseGlobale?: { valeur: number | null; type: RemiseType | null },
 ): { ht: number; tva: number; ttc: number } {
-  const brut = lignes.reduce((s, l) => s + l.quantite * l.prix_unitaire, 0);
-  const ht = brut * (1 - remisePct / 100);
-  const tva = ht * (tvaPct / 100);
-  const ttc = ht + tva;
-  return { ht: round2(ht), tva: round2(tva), ttc: round2(ttc) };
+  const t = computeInvoiceTotals(lignes, tvaPct, remiseGlobale ?? { valeur: 0, type: null });
+  return { ht: t.totalHt, tva: t.tva, ttc: t.totalTtc };
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
+function fmtRemiseLabel(valeur: number, type: RemiseType): string {
+  if (type === 'pct') return `−${valeur.toLocaleString('fr-BE', { maximumFractionDigits: 2 })}%`;
+  return `−${fmtMoney(valeur)}`;
 }
 
 // Lien Beobank/banque : URI EPC simple, fallback en cas d'absence d'app QR.

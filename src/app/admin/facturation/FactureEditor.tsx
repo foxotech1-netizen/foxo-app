@@ -12,13 +12,14 @@ import {
   type FactureInput,
 } from './actions';
 import { generateBBA } from '@/lib/facturation/bba';
-import { computeFactureTotals } from '@/lib/facturation/FactureFoxoPdf';
+import { computeInvoiceTotals } from '@/lib/facturation/remises';
 import type {
   Article,
   Client,
   Facture,
   FactureLigne,
   FactureDetailsIntervention,
+  RemiseType,
   StatutFacture,
   TypeClient,
 } from '@/lib/types/database';
@@ -116,9 +117,20 @@ export function FactureEditor({
   const [remarques, setRemarques] = useState<string>(initial?.remarques ?? '');
   const [notes, setNotes] = useState<string>(initial?.notes ?? '');
 
-  // TVA / remise
+  // TVA
   const [tvaPct, setTvaPct] = useState<number>(initial?.tva_pct ?? 21);
-  const [remisePct, setRemisePct] = useState<number>(initial?.remise_pct ?? 0);
+
+  // Remise globale (3 champs typés). Migration douce : si l'ancien
+  // remise_pct legacy est posé mais pas la nouvelle remise globale,
+  // on l'utilise comme valeur initiale.
+  const initRemiseValeur = initial?.remise_globale_valeur && initial.remise_globale_valeur > 0
+    ? initial.remise_globale_valeur
+    : (initial?.remise_pct ?? 0);
+  const initRemiseType: RemiseType = (initial?.remise_globale_type ?? 'pct') as RemiseType;
+  const initRemiseDesc = initial?.remise_globale_description ?? '';
+  const [remiseGlobaleValeur, setRemiseGlobaleValeur] = useState<number>(initRemiseValeur);
+  const [remiseGlobaleType, setRemiseGlobaleType] = useState<RemiseType>(initRemiseType);
+  const [remiseGlobaleDescription, setRemiseGlobaleDescription] = useState<string>(initRemiseDesc);
 
   // Recherche intervention
   const [searchQuery, setSearchQuery] = useState('');
@@ -159,6 +171,17 @@ export function FactureEditor({
       c.type === 'particulier' ? 'Particulier' :
       'Entreprise',
     );
+
+    // Auto-remplit la remise globale depuis la remise auto du client.
+    // On ne réécrase PAS une remise déjà saisie manuellement (valeur > 0).
+    const autoVal = Number(c.remise_auto_valeur ?? 0);
+    const autoType = c.remise_auto_type;
+    if (autoVal > 0 && (autoType === 'pct' || autoType === 'fixe') && Number(remiseGlobaleValeur) === 0) {
+      setRemiseGlobaleValeur(autoVal);
+      setRemiseGlobaleType(autoType);
+      setRemiseGlobaleDescription(c.remise_auto_description ?? `Remise client ${c.nom}`);
+    }
+
     setClientQuery('');
     setClientResults([]);
     setShowQuickClientForm(false);
@@ -248,7 +271,13 @@ export function FactureEditor({
     setLignes((arr) => arr.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
 
-  const totals = useMemo(() => computeFactureTotals(lignes, tvaPct, remisePct), [lignes, tvaPct, remisePct]);
+  const totals = useMemo(
+    () => computeInvoiceTotals(lignes, tvaPct, {
+      valeur: remiseGlobaleValeur,
+      type: remiseGlobaleType,
+    }),
+    [lignes, tvaPct, remiseGlobaleValeur, remiseGlobaleType],
+  );
   const bbaPreview = useMemo(() => generateBBA(numero || 'FV0000-000'), [numero]);
 
   function buildInput(statut?: StatutFacture): FactureInput {
@@ -265,7 +294,9 @@ export function FactureEditor({
       client_syndic: clientSyndic || null,
       lignes,
       details_intervention: showDetails ? details : {},
-      remise_pct: remisePct,
+      remise_globale_valeur: Number(remiseGlobaleValeur ?? 0),
+      remise_globale_type: Number(remiseGlobaleValeur ?? 0) > 0 ? remiseGlobaleType : null,
+      remise_globale_description: Number(remiseGlobaleValeur ?? 0) > 0 ? (remiseGlobaleDescription || null) : null,
       tva_pct: tvaPct,
       notes: notes || null,
       remarques: remarques || null,
@@ -633,6 +664,10 @@ export function FactureEditor({
                   </div>
                 </div>
               </div>
+              <RemiseLigneRow
+                ligne={l}
+                onChange={(patch) => updateLigne(i, patch)}
+              />
               <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8] flex flex-wrap gap-3 pt-1 border-t border-sand-border dark:border-[#3D3A32]">
                 <span>HTVA unitaire : <span className="font-mono">{fmtMoney(l.prix_unitaire)} €</span></span>
                 <span>HTVA total : <span className="font-mono">{fmtMoney(l.quantite * l.prix_unitaire)} €</span></span>
@@ -698,16 +733,73 @@ export function FactureEditor({
         />
       </div>
 
-      {/* TVA + totaux */}
+      {/* TVA + Remise globale + totaux */}
       <div className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <NumField label="Taux TVA %" value={tvaPct} step="1" onChange={setTvaPct} />
-          <NumField label="Remise %" value={remisePct} step="1" onChange={setRemisePct} />
         </div>
+
+        <div className="border-t border-sand-border pt-3 mb-3 dark:border-[#3D3A32]">
+          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 dark:text-[#C8C2B8]">
+            Remise globale (sur le total après remises lignes)
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[120px_120px_1fr] gap-2 items-end">
+            <NumField
+              label={remiseGlobaleType === 'pct' ? 'Remise (%)' : 'Remise (€)'}
+              value={remiseGlobaleValeur}
+              step={remiseGlobaleType === 'pct' ? '1' : '0.01'}
+              onChange={setRemiseGlobaleValeur}
+            />
+            <div>
+              <Label>Type</Label>
+              <select
+                value={remiseGlobaleType}
+                onChange={(e) => setRemiseGlobaleType(e.target.value as RemiseType)}
+                className="w-full px-2.5 py-1.5 border border-sand-border rounded-md text-[13px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              >
+                <option value="pct">% pourcentage</option>
+                <option value="fixe">€ fixe</option>
+              </select>
+            </div>
+            <div>
+              <Label>Description {Number(remiseGlobaleValeur) > 0 && <span className="text-terra">*</span>}</Label>
+              <input
+                value={remiseGlobaleDescription}
+                onChange={(e) => setRemiseGlobaleDescription(e.target.value)}
+                placeholder={Number(remiseGlobaleValeur) > 0 ? 'Obligatoire (apparaît sur le PDF)' : 'Ex. Geste commercial'}
+                className="w-full px-2.5 py-1.5 border border-sand-border rounded-md text-[13px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="border-t border-sand-border pt-3 dark:border-[#3D3A32]">
+          {(totals.totalHt !== totals.sousTotalBrut || totals.totalRemisesLignes > 0 || totals.remiseGlobale > 0) && (
+            <>
+              <div className="flex justify-between text-[12px] py-1 text-ink-mid dark:text-[#C8C2B8]">
+                <span>Sous-total brut</span>
+                <span className="font-mono">{fmtMoney(totals.sousTotalBrut)} €</span>
+              </div>
+              {totals.totalRemisesLignes > 0 && (
+                <div className="flex justify-between text-[12px] py-1 text-terra">
+                  <span>Remises lignes</span>
+                  <span className="font-mono">−{fmtMoney(totals.totalRemisesLignes)} €</span>
+                </div>
+              )}
+              {totals.remiseGlobale > 0 && (
+                <div className="flex justify-between text-[12px] py-1 text-terra">
+                  <span>
+                    Remise globale
+                    {remiseGlobaleType === 'pct' ? ` (${Number(remiseGlobaleValeur)}%)` : ''}
+                  </span>
+                  <span className="font-mono">−{fmtMoney(totals.remiseGlobale)} €</span>
+                </div>
+              )}
+            </>
+          )}
           <div className="flex justify-between text-[13px] py-1 dark:text-[#F0ECE4]">
             <span>Montant HT</span>
-            <span className="font-mono">{fmtMoney(totals.ht)} €</span>
+            <span className="font-mono">{fmtMoney(totals.totalHt)} €</span>
           </div>
           <div className="flex justify-between text-[13px] py-1 text-ink-mid dark:text-[#C8C2B8]">
             <span>TVA {tvaPct}%</span>
@@ -715,7 +807,7 @@ export function FactureEditor({
           </div>
           <div className="flex justify-between text-[15px] font-extrabold text-navy py-2 border-t border-sand-border dark:border-[#3D3A32] dark:text-white">
             <span>Total TTC</span>
-            <span className="font-mono">{fmtMoney(totals.ttc)} €</span>
+            <span className="font-mono">{fmtMoney(totals.totalTtc)} €</span>
           </div>
         </div>
       </div>
@@ -804,5 +896,82 @@ function Label({ children }: { children: React.ReactNode }) {
     <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
       {children}
     </label>
+  );
+}
+
+// Affiche / édite la remise d'une ligne. Repliée par défaut tant qu'aucune
+// remise n'est posée ; dépliée si l'utilisateur a cliqué "+ Remise" ou si
+// la ligne porte déjà une remise (édition de facture existante).
+function RemiseLigneRow({
+  ligne,
+  onChange,
+}: {
+  ligne: FactureLigne;
+  onChange: (patch: Partial<FactureLigne>) => void;
+}) {
+  const hasRemise = Number(ligne.remise_valeur ?? 0) > 0;
+  const [open, setOpen] = useState<boolean>(hasRemise);
+
+  if (!open && !hasRemise) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          if (!ligne.remise_type) onChange({ remise_type: 'pct' });
+        }}
+        className="text-[11px] font-semibold text-navy hover:underline"
+      >
+        + Ajouter une remise sur cette ligne
+      </button>
+    );
+  }
+
+  return (
+    <div className="bg-sand border border-sand-border rounded-md p-2 space-y-2 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+          Remise sur ligne
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            onChange({ remise_valeur: 0, remise_type: undefined, remise_description: undefined });
+          }}
+          className="text-[10px] text-terra hover:underline"
+        >
+          Retirer
+        </button>
+      </div>
+      <div className="grid grid-cols-[1fr_90px_1fr] gap-2 items-end">
+        <NumField
+          label={ligne.remise_type === 'fixe' ? 'Valeur (€)' : 'Valeur (%)'}
+          value={Number(ligne.remise_valeur ?? 0)}
+          step={ligne.remise_type === 'fixe' ? '0.01' : '1'}
+          onChange={(v) => onChange({ remise_valeur: v })}
+        />
+        <div>
+          <Label>Type</Label>
+          <select
+            value={ligne.remise_type ?? 'pct'}
+            onChange={(e) => onChange({ remise_type: e.target.value as RemiseType })}
+            className="w-full px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          >
+            <option value="pct">%</option>
+            <option value="fixe">€</option>
+          </select>
+        </div>
+        <div>
+          <Label>Description {Number(ligne.remise_valeur ?? 0) > 0 && <span className="text-terra">*</span>}</Label>
+          <input
+            value={ligne.remise_description ?? ''}
+            onChange={(e) => onChange({ remise_description: e.target.value })}
+            placeholder={Number(ligne.remise_valeur ?? 0) > 0 ? 'Obligatoire' : 'Ex. Fidélité'}
+            className="w-full px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          />
+        </div>
+      </div>
+    </div>
   );
 }

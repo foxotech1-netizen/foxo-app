@@ -293,6 +293,10 @@ export interface Client {
   email_factures: string | null;
   email_rapports: string | null;
   email_communications: string | null;
+  // Remise automatique pré-remplie sur les factures de ce client
+  remise_auto_valeur: number;
+  remise_auto_type: RemiseType | null;
+  remise_auto_description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -307,6 +311,12 @@ export const TYPE_CLIENT_LABEL: Record<TypeClient, string> = {
 
 export type StatutFacture = 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee';
 
+// Remise sur ligne ou globale facture ou auto client.
+//   pct  : pourcentage 0..100 appliqué sur le montant concerné
+//   fixe : montant € absolu, ne peut pas dépasser le montant concerné
+//          (vérifié applicativement, la DB ne connaît pas ce montant)
+export type RemiseType = 'pct' | 'fixe';
+
 export interface FactureLigne {
   description: string;
   quantite: number;
@@ -314,6 +324,12 @@ export interface FactureLigne {
   tva_pct: number;
   notes?: string;            // ligne de détail en italic sous la description
   article_code?: string;
+  // Remise au niveau ligne. Appliquée HTVA, avant le calcul de la TVA.
+  // Tous les champs sont optionnels (rétro-compat avec les lignes
+  // existantes en JSONB qui n'ont pas ces clés).
+  remise_valeur?: number;
+  remise_type?: RemiseType;
+  remise_description?: string;
 }
 
 export interface FactureDetailsIntervention {
@@ -336,7 +352,15 @@ export interface Facture {
   client_syndic: string | null;
   lignes: FactureLigne[];
   details_intervention: FactureDetailsIntervention;
+  // Legacy : ancienne remise % unique. Conservée en lecture pour rétro-compat
+  // avec les factures émises avant la migration 2026-05-24_remises.sql.
+  // À la création d'une facture, ne plus écrire dessus — utiliser
+  // remise_globale_* à la place.
   remise_pct: number;
+  // Remise globale sur le total HT de la facture (après remises lignes).
+  remise_globale_valeur: number;
+  remise_globale_type: RemiseType | null;
+  remise_globale_description: string | null;
   tva_pct: number;
   montant_ht: number | null;
   montant_tva: number | null;

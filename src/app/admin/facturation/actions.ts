@@ -17,9 +17,11 @@ import type {
   Facture,
   FactureLigne,
   FactureDetailsIntervention,
+  RemiseType,
   StatutFacture,
   TypeClient,
 } from '@/lib/types/database';
+import { validateRemise } from '@/lib/facturation/remises';
 
 export type ActionResult<T = void> =
   | { ok: true; data?: T }
@@ -88,7 +90,14 @@ export interface FactureInput {
   client_syndic: string | null;
   lignes: FactureLigne[];
   details_intervention: FactureDetailsIntervention;
-  remise_pct: number;
+  /** @deprecated — utilise remise_globale_* à la place. Conservé pour
+   * la rétro-compat des appelants existants. Ignoré au save : on
+   * écrit toujours 0 dans la DB et on stocke la remise dans
+   * remise_globale_*. */
+  remise_pct?: number;
+  remise_globale_valeur: number;
+  remise_globale_type: RemiseType | null;
+  remise_globale_description: string | null;
   tva_pct: number;
   notes: string | null;
   remarques: string | null;
@@ -107,13 +116,50 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
   if (!Array.isArray(input.lignes) || input.lignes.length === 0) {
     return { ok: false, error: 'Ajoute au moins une ligne de prestation.' };
   }
-  for (const l of input.lignes) {
+  for (let i = 0; i < input.lignes.length; i++) {
+    const l = input.lignes[i];
     if (!l.description?.trim()) return { ok: false, error: 'Chaque ligne doit avoir une description.' };
     if (!Number.isFinite(l.quantite) || l.quantite <= 0) return { ok: false, error: 'Quantité invalide.' };
     if (!Number.isFinite(l.prix_unitaire) || l.prix_unitaire < 0) return { ok: false, error: 'Prix invalide.' };
+
+    // Validation de la remise ligne (description obligatoire si > 0,
+    // pct dans [0,100], fixe ≤ montant brut de la ligne).
+    const brutLigne = l.quantite * l.prix_unitaire;
+    const errs = validateRemise(
+      { valeur: l.remise_valeur, type: l.remise_type, description: l.remise_description },
+      brutLigne,
+      `lignes[${i}].remise`,
+    );
+    if (errs.length > 0) {
+      return { ok: false, error: `Ligne ${i + 1} : ${errs[0].message}` };
+    }
   }
 
-  const totals = computeFactureTotals(input.lignes, input.tva_pct, input.remise_pct);
+  // Validation de la remise globale (plafond = sous-total après remises lignes).
+  const sousTotalApresRemisesLignes = input.lignes.reduce((s, l) => {
+    const brut = l.quantite * l.prix_unitaire;
+    const r = l.remise_type === 'pct'
+      ? brut * Math.min(Math.max(Number(l.remise_valeur ?? 0), 0), 100) / 100
+      : Math.min(Number(l.remise_valeur ?? 0), brut);
+    return s + (brut - r);
+  }, 0);
+  const errsGlobale = validateRemise(
+    {
+      valeur: input.remise_globale_valeur,
+      type: input.remise_globale_type,
+      description: input.remise_globale_description,
+    },
+    sousTotalApresRemisesLignes,
+    'remise_globale',
+  );
+  if (errsGlobale.length > 0) {
+    return { ok: false, error: `Remise globale : ${errsGlobale[0].message}` };
+  }
+
+  const totals = computeFactureTotals(input.lignes, input.tva_pct, {
+    valeur: input.remise_globale_valeur,
+    type: input.remise_globale_type,
+  });
   const referenceStructuree = generateBBA(input.numero);
 
   const payload = {
@@ -128,7 +174,10 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     client_syndic: input.client_syndic,
     lignes: input.lignes,
     details_intervention: input.details_intervention ?? {},
-    remise_pct: input.remise_pct,
+    remise_pct: 0, // legacy : on n'écrit plus dedans
+    remise_globale_valeur: Number(input.remise_globale_valeur ?? 0),
+    remise_globale_type: input.remise_globale_type,
+    remise_globale_description: input.remise_globale_description,
     tva_pct: input.tva_pct,
     montant_ht: totals.ht,
     montant_tva: totals.tva,
@@ -707,6 +756,10 @@ export interface ClientInput {
   email_factures?: string | null;
   email_rapports?: string | null;
   email_communications?: string | null;
+  // Remise automatique pré-remplie sur les factures de ce client
+  remise_auto_valeur?: number;
+  remise_auto_type?: RemiseType | null;
+  remise_auto_description?: string | null;
 }
 
 export async function saveClient(input: ClientInput): Promise<ActionResult<{ id: string }>> {
@@ -717,6 +770,23 @@ export async function saveClient(input: ClientInput): Promise<ActionResult<{ id:
     return { ok: false, error: 'Type invalide.' };
   }
 
+  // Validation de la remise auto (description obligatoire si > 0,
+  // pct ∈ [0, 100]). Pas de plafond fixe : la DB ne connaît pas le
+  // montant des futures factures.
+  const remiseErrs = validateRemise(
+    {
+      valeur: input.remise_auto_valeur,
+      type: input.remise_auto_type,
+      description: input.remise_auto_description,
+    },
+    undefined,
+    'remise_auto',
+  );
+  if (remiseErrs.length > 0) {
+    return { ok: false, error: `Remise client : ${remiseErrs[0].message}` };
+  }
+
+  const remiseAutoVal = Number(input.remise_auto_valeur ?? 0);
   const payload = {
     type: input.type,
     nom: input.nom.trim(),
@@ -738,6 +808,9 @@ export async function saveClient(input: ClientInput): Promise<ActionResult<{ id:
     email_factures: input.email_factures?.trim().toLowerCase() || null,
     email_rapports: input.email_rapports?.trim().toLowerCase() || null,
     email_communications: input.email_communications?.trim().toLowerCase() || null,
+    remise_auto_valeur: remiseAutoVal,
+    remise_auto_type: remiseAutoVal > 0 ? (input.remise_auto_type ?? null) : null,
+    remise_auto_description: remiseAutoVal > 0 ? (input.remise_auto_description?.trim() || null) : null,
     updated_at: new Date().toISOString(),
   };
 

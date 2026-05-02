@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { saveClient, type ClientInput } from '../facturation/actions';
-import { TYPE_CLIENT_LABEL, type Client, type Organisation, type TypeClient } from '@/lib/types/database';
+import { TYPE_CLIENT_LABEL, type Client, type Organisation, type RemiseType, type TypeClient } from '@/lib/types/database';
 import { AddressAutocomplete, type AddressValue } from '@/components/AddressAutocomplete';
 
 const TYPES: TypeClient[] = ['acp', 'particulier', 'entreprise'];
@@ -40,6 +40,11 @@ export function ClientForm({
   const [emailFactures, setEmailFactures] = useState(initial?.email_factures ?? '');
   const [emailRapports, setEmailRapports] = useState(initial?.email_rapports ?? '');
   const [emailComm, setEmailComm] = useState(initial?.email_communications ?? '');
+
+  // Remise automatique : pré-remplit la remise globale des factures de ce client
+  const [remiseAutoValeur, setRemiseAutoValeur] = useState<number>(initial?.remise_auto_valeur ?? 0);
+  const [remiseAutoType, setRemiseAutoType] = useState<RemiseType>((initial?.remise_auto_type ?? 'pct') as RemiseType);
+  const [remiseAutoDescription, setRemiseAutoDescription] = useState(initial?.remise_auto_description ?? '');
 
   // Liste des syndics chargée à la demande quand type='acp'
   const [syndics, setSyndics] = useState<Organisation[]>([]);
@@ -96,6 +101,9 @@ export function ClientForm({
       email_factures: type === 'acp' ? emailFactures : null,
       email_rapports: type === 'acp' ? emailRapports : null,
       email_communications: type === 'acp' ? emailComm : null,
+      remise_auto_valeur: Number(remiseAutoValeur ?? 0),
+      remise_auto_type: Number(remiseAutoValeur ?? 0) > 0 ? remiseAutoType : null,
+      remise_auto_description: Number(remiseAutoValeur ?? 0) > 0 ? (remiseAutoDescription || null) : null,
     };
     startTransition(async () => {
       const res = await saveClient(input);
@@ -294,6 +302,50 @@ export function ClientForm({
           </div>
         </Section>
       )}
+
+      <Section title="Remise automatique sur factures">
+        <p className="text-[11px] text-ink-muted mb-2">
+          Pré-remplit la remise globale lors de la création d&apos;une facture pour ce client.
+          Modifiable au cas par cas dans l&apos;éditeur.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_2fr] gap-2 items-end">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+              {remiseAutoType === 'pct' ? 'Valeur (%)' : 'Valeur (€)'}
+            </label>
+            <input
+              type="number"
+              step={remiseAutoType === 'pct' ? '1' : '0.01'}
+              value={remiseAutoValeur}
+              onChange={(e) => setRemiseAutoValeur(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">Type</label>
+            <select
+              value={remiseAutoType}
+              onChange={(e) => setRemiseAutoType(e.target.value as RemiseType)}
+              className="w-full px-2 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+            >
+              <option value="pct">% pourcentage</option>
+              <option value="fixe">€ fixe</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+              Description {Number(remiseAutoValeur) > 0 && <span className="text-terra">*</span>}
+            </label>
+            <input
+              type="text"
+              value={remiseAutoDescription}
+              onChange={(e) => setRemiseAutoDescription(e.target.value)}
+              placeholder={Number(remiseAutoValeur) > 0 ? 'Obligatoire (apparaît sur le PDF)' : 'Ex. Tarif préférentiel partenaire'}
+              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            />
+          </div>
+        </div>
+      </Section>
 
       <Section title="Notes">
         <textarea
