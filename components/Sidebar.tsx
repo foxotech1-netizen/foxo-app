@@ -7,29 +7,19 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ThemeSelector } from '@/components/ThemeSelector'
-import type { Utilisateur } from '@/lib/types/database'
-
-interface TechSummary {
-  ok: boolean
-  tech: { prenom: string | null; nom: string | null; email: string | null } | null
-  today: { id: string; ref: string | null; type: string | null; creneau_debut: string | null; statut: string; acp_nom: string | null }[]
-  month_realisees: number
-  month_rapports: number
-  next_slots: { id: string; date: string; heure_debut: string; heure_fin: string }[]
-  error?: string
-}
 
 const NAV_MAIN = [
-  { href: '/admin/home',      icon: '⊞', label: 'Accueil'         },
-  { href: '/admin',           icon: '📊', label: 'Tableau de bord' },
-  { href: '/admin/alertes',   icon: '🔔', label: 'Alertes', badge: true },
-  { href: '/admin/planning',  icon: '📅', label: 'Planning'    },
-  { href: '/admin/assistant', icon: '✨', label: 'Assistant'   },
+  { href: '/admin/home',        icon: '⊞', label: 'Accueil'         },
+  { href: '/admin',             icon: '📊', label: 'Tableau de bord' },
+  { href: '/admin/alertes',     icon: '🔔', label: 'Alertes', badge: true },
+  { href: '/admin/planning',    icon: '📅', label: 'Planning'    },
+  { href: '/admin/techniciens', icon: '🔧', label: 'Techniciens' },
+  { href: '/admin/assistant',   icon: '✨', label: 'Assistant'   },
 ]
 
 const NAV_GESTION = [
@@ -39,19 +29,6 @@ const NAV_GESTION = [
   { href: '/admin/mails',       icon: '✉',  label: 'Mails'      },
   { href: '/admin/parametres',  icon: '⊙',  label: 'Paramètres' },
 ]
-
-function initiales(prenom: string | null, nom: string | null): string {
-  const p = (prenom ?? '').trim()
-  const n = (nom ?? '').trim()
-  return ((p[0] ?? '') + (n[0] ?? '')).toUpperCase() || '??'
-}
-
-function shortName(prenom: string | null, nom: string | null): string {
-  const p = (prenom ?? '').trim()
-  const n = (nom ?? '').trim()
-  if (p && n) return `${p[0]}. ${n}`
-  return n || p || '—'
-}
 
 // ─── Styles inline (pas de Tailwind JIT requis) ────────────────────────────────
 const S = {
@@ -89,14 +66,6 @@ const S = {
   },
   // Nav
   nav: { padding: '10px 8px', flex: 1 },
-  sectionLabel: {
-    fontSize: 9,
-    color: '#8A8278',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '.1em',
-    fontWeight: 700,
-    margin: '4px 10px 6px',
-  },
   divider: {
     height: 1,
     background: 'rgba(255,255,255,.06)',
@@ -127,33 +96,15 @@ const S = {
     padding: '1px 7px',
     marginLeft: 'auto',
   },
-  // Techniciens
-  techSection: {
+  // Footer (sticky bottom : ThemeSelector + Déconnexion)
+  footer: {
     padding: '10px 14px 14px',
     borderTop: '1px solid rgba(255,255,255,.05)',
     flexShrink: 0,
-  },
-  techRow: {
     display: 'flex' as const,
-    alignItems: 'center' as const,
-    gap: 9,
-    padding: '4px 0',
+    flexDirection: 'column' as const,
+    gap: 6,
   },
-  techAvatar: {
-    width: 26,
-    height: 26,
-    borderRadius: '50%',
-    background: '#3D3A32',
-    color: '#C0BAB0',
-    display: 'flex' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    fontSize: 10,
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  techName: { fontSize: 11, fontWeight: 600, color: '#C0BAB0' },
-  techSub:  { fontSize: 10, color: '#8A8278', marginTop: 1 },
 
   // ── MOBILE bottom nav ──────────────────────────────────────────────────────
   // Visibilité gérée via la classe `.foxo-sidebar-mobile` :
@@ -199,17 +150,12 @@ const S = {
 // ─── Composant ─────────────────────────────────────────────────────────────────
 export default function Sidebar({
   alertCount = 0,
-  techs = [],
 }: {
   alertCount?: number
-  techs?: Utilisateur[]
 }) {
-  const pathname     = usePathname()
-  const router       = useRouter()
-  const searchParams = useSearchParams()
-  const supabase     = createClient()
-
-  const activeTech = searchParams.get('tech')
+  const pathname = usePathname()
+  const router   = useRouter()
+  const supabase = createClient()
 
   // Badge unread mails (Gmail) — fetch lazy une fois monté côté client
   const [unreadMails, setUnreadMails] = useState<number>(0)
@@ -223,14 +169,6 @@ export default function Sidebar({
       .catch(() => { /* ignoré (Google non connecté = silent) */ })
     return () => { cancelled = true }
   }, [])
-
-  function handleTechClick(id: string) {
-    if (activeTech === id) {
-      router.push('/admin')
-    } else {
-      router.push(`/admin?tech=${id}`)
-    }
-  }
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -295,39 +233,25 @@ export default function Sidebar({
           ))}
         </nav>
 
-        {/* Techniciens */}
-        <div style={S.techSection}>
-          <div style={S.sectionLabel}>Techniciens</div>
-          {techs.length === 0 && (
-            <div style={{ ...S.techSub, padding: '4px 0' }}>Aucun technicien encodé.</div>
-          )}
-          {techs.map(t => (
-            <TechSidebarRow
-              key={t.id}
-              tech={t}
-              active={activeTech === t.id}
-              onFilter={() => handleTechClick(t.id)}
-            />
-          ))}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
-            <ThemeSelector className="foxo-theme-selector" />
-            <button
-              onClick={handleLogout}
-              style={{
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.08)',
-                borderRadius: 7,
-                padding: '8px 10px',
-                color: '#8A8278',
-                fontSize: 11,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                width: '100%',
-              }}
-            >
-              Déconnexion
-            </button>
-          </div>
+        {/* Footer : thème + déconnexion */}
+        <div style={S.footer}>
+          <ThemeSelector className="foxo-theme-selector" />
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'rgba(255,255,255,.05)',
+              border: '1px solid rgba(255,255,255,.08)',
+              borderRadius: 7,
+              padding: '8px 10px',
+              color: '#8A8278',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              width: '100%',
+            }}
+          >
+            Déconnexion
+          </button>
         </div>
       </aside>
 
@@ -462,291 +386,5 @@ export default function Sidebar({
         }
       `}</style>
     </>
-  )
-}
-
-// ─── Ligne technicien avec mini-fiche ─────────────────────────────────────
-function TechSidebarRow({
-  tech,
-  active,
-  onFilter,
-}: {
-  tech: Utilisateur
-  active: boolean
-  onFilter: () => void
-}) {
-  const [popoverOpen, setPopoverOpen] = useState(false)
-  const [summary, setSummary] = useState<TechSummary | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-
-  // Fermer le popover sur clic extérieur ou Escape
-  useEffect(() => {
-    if (!popoverOpen) return
-    function onDocMouseDown(e: MouseEvent) {
-      if (
-        popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
-        buttonRef.current && !buttonRef.current.contains(e.target as Node)
-      ) {
-        setPopoverOpen(false)
-      }
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setPopoverOpen(false)
-    }
-    document.addEventListener('mousedown', onDocMouseDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocMouseDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [popoverOpen])
-
-  async function togglePopover() {
-    if (popoverOpen) {
-      setPopoverOpen(false)
-      return
-    }
-    setPopoverOpen(true)
-    if (summary) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/admin/tech-summary/${tech.id}`)
-      const data = (await res.json()) as TechSummary
-      if (!data.ok) {
-        setError(data.error ?? 'Erreur de chargement.')
-      } else {
-        setSummary(data)
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erreur réseau.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          background: active ? 'rgba(161, 114, 68, .18)' : 'transparent',
-          border: active ? '1px solid #A17244' : '1px solid transparent',
-          borderRadius: 8,
-          padding: '6px 8px',
-          margin: '2px -2px',
-          transition: 'all .15s',
-        }}
-      >
-        <button
-          type="button"
-          onClick={onFilter}
-          title={active ? 'Cliquer pour désactiver le filtre' : 'Filtrer le tableau de bord sur ce technicien'}
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 9,
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-            color: 'inherit',
-            minWidth: 0,
-          }}
-        >
-          <div
-            style={{
-              width: 26,
-              height: 26,
-              borderRadius: '50%',
-              background: active ? '#A17244' : '#4A4640',
-              color: active ? '#FFFFFF' : '#F0ECE4',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 10,
-              fontWeight: 700,
-              flexShrink: 0,
-            }}
-          >
-            {initiales(tech.prenom, tech.nom)}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: active ? '#F0ECE4' : '#C8C2B8' }}>
-              {shortName(tech.prenom, tech.nom)}
-            </div>
-            <div style={{ fontSize: 10, color: '#8A8278', marginTop: 1 }}>
-              {active ? '● Tableau filtré' : 'En ligne'}
-            </div>
-          </div>
-        </button>
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={togglePopover}
-          title="Voir la fiche technicien"
-          aria-label="Mini-fiche"
-          style={{
-            background: popoverOpen ? 'rgba(255,255,255,.1)' : 'transparent',
-            border: 'none',
-            color: '#8A8278',
-            fontSize: 14,
-            lineHeight: 1,
-            cursor: 'pointer',
-            padding: '4px 6px',
-            borderRadius: 6,
-            fontFamily: 'inherit',
-          }}
-        >
-          ⋯
-        </button>
-      </div>
-
-      {popoverOpen && (
-        <div
-          ref={popoverRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 'calc(100% + 8px)',
-            background: 'var(--color-cream)',
-            color: 'var(--color-ink)',
-            border: '1px solid var(--color-sand-border)',
-            borderRadius: 12,
-            padding: 12,
-            width: 280,
-            boxShadow: '0 16px 40px rgba(0,0,0,.35)',
-            zIndex: 200,
-          }}
-          className="foxo-tech-popover"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: '#A17244', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 700,
-            }}>
-              {initiales(tech.prenom, tech.nom)}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--color-ink)' }}>
-                {shortName(tech.prenom, tech.nom)}
-              </div>
-              <div style={{ fontSize: 10, color: 'var(--color-ok)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--color-ok)' }} />
-                En ligne
-              </div>
-            </div>
-          </div>
-
-          {loading && (
-            <div style={{ fontSize: 12, color: 'var(--color-ink-mid)', textAlign: 'center', padding: 12 }}>
-              Chargement…
-            </div>
-          )}
-
-          {error && (
-            <div style={{ fontSize: 11, color: 'var(--color-terra)', background: 'var(--color-terra-light)', padding: 8, borderRadius: 6, border: '1px solid var(--color-terra-mid)' }}>
-              {error}
-            </div>
-          )}
-
-          {summary && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-                <div style={{ background: 'var(--color-sand)', border: '1px solid var(--color-sand-border)', borderRadius: 8, padding: '6px 8px' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--color-ink)' }}>{summary.month_realisees}</div>
-                  <div style={{ fontSize: 9, color: 'var(--color-ink-mid)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
-                    Réalisées (mois)
-                  </div>
-                </div>
-                <div style={{ background: 'var(--color-ok-light)', border: '1px solid var(--color-ok-mid)', borderRadius: 8, padding: '6px 8px' }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, color: 'var(--color-ok)' }}>{summary.month_rapports}</div>
-                  <div style={{ fontSize: 9, color: 'var(--color-ok)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>
-                    Rapports publiés
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-ink-mid)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
-                  Aujourd&apos;hui
-                </div>
-                {summary.today.length === 0 ? (
-                  <div style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic' }}>Aucune intervention.</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {summary.today.map(iv => (
-                      <div key={iv.id} style={{ background: 'var(--color-sand)', border: '1px solid var(--color-sand-border)', borderRadius: 6, padding: '5px 7px', fontSize: 11, color: 'var(--color-ink)' }}>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--color-navy)' }}>
-                          {iv.creneau_debut ? new Date(iv.creneau_debut).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                        </span>
-                        {' · '}
-                        <span style={{ fontWeight: 600 }}>{iv.acp_nom ?? iv.ref ?? '?'}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--color-ink-mid)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>
-                  Prochains créneaux libres
-                </div>
-                {summary.next_slots.length === 0 ? (
-                  <div style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontStyle: 'italic' }}>Aucun créneau libre.</div>
-                ) : (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {summary.next_slots.map(s => (
-                      <span key={s.id} className="foxo-slot-chip" style={{
-                        borderRadius: 6, padding: '3px 6px', fontSize: 10, fontWeight: 700,
-                      }}>
-                        {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
-                        {' · '}{s.heure_debut}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      <style>{`
-        .foxo-slot-chip {
-          background: var(--color-ok-light);
-          color: var(--color-ok);
-          border: 1px solid var(--color-ok-mid);
-        }
-        :where(.dark) .foxo-slot-chip {
-          background: #1F6B45;
-          color: #FFFFFF;
-          border-color: #2A8A5A;
-        }
-
-        @media (max-width: 768px) {
-          .foxo-tech-popover {
-            position: fixed !important;
-            top: auto !important;
-            bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
-            left: 12px !important;
-            right: 12px !important;
-            width: auto !important;
-            max-height: 60vh;
-            overflow-y: auto;
-          }
-        }
-      `}</style>
-    </div>
   )
 }

@@ -27,6 +27,7 @@ export default async function HomePage() {
     { href: '/admin',             icon: '📊', title: 'Tableau de bord', subtitle: 'Vue opérationnelle',  bg: '#1B3A6B' },
     { href: '/admin/alertes',     icon: '🔔', title: 'Alertes',          subtitle: alertCount > 0 ? `${alertCount} en attente` : 'Tout est OK', bg: '#C4622D', badgeCount: alertCount },
     { href: '/admin/planning',    icon: '📅', title: 'Planning',         subtitle: 'Créneaux & RDV',     bg: '#1F6B45' },
+    { href: '/admin/techniciens', icon: '🔧', title: 'Techniciens',      subtitle: 'Équipe terrain',     bg: '#3D3A32' },
     { href: '/admin/assistant',   icon: '✨', title: 'Assistant IA',     subtitle: 'Claude FoxO',        bg: '#A17244' },
     { href: '/admin/syndics',     icon: '👥', title: 'Syndics',          subtitle: 'Partenaires',        bg: '#1B3A6B' },
     { href: '/admin/clients',     icon: '👤', title: 'Clients',          subtitle: 'Base contacts',      bg: '#1F6B45' },
