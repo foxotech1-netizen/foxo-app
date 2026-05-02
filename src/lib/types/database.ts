@@ -139,6 +139,7 @@ export interface Utilisateur {
   prenom: string | null;
   nom: string | null;
   email: string | null;
+  couleur: string | null;     // hex personnalisée pour le planning
 }
 
 export interface Intervention {

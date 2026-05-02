@@ -23,6 +23,42 @@ interface GcalEvent {
   htmlLink?: string;
 }
 
+// Mappe un hex #RRGGBB vers le colorId Google Calendar (1-11) le plus
+// proche par distance euclidienne en RGB. Les 11 couleurs Google :
+//   1 Lavender, 2 Sage, 3 Grape, 4 Flamingo, 5 Banana,
+//   6 Tangerine, 7 Peacock, 8 Graphite, 9 Blueberry, 10 Basil, 11 Tomato
+// Source : developers.google.com/calendar/api/v3/reference/colors
+const GCAL_PALETTE: { id: string; rgb: [number, number, number] }[] = [
+  { id: '1',  rgb: [0xa4, 0xbd, 0xfc] }, // Lavender
+  { id: '2',  rgb: [0x7a, 0xe7, 0xbf] }, // Sage
+  { id: '3',  rgb: [0xdb, 0xad, 0xff] }, // Grape
+  { id: '4',  rgb: [0xff, 0x88, 0x7c] }, // Flamingo
+  { id: '5',  rgb: [0xfb, 0xd7, 0x5b] }, // Banana
+  { id: '6',  rgb: [0xff, 0xb8, 0x78] }, // Tangerine
+  { id: '7',  rgb: [0x46, 0xd6, 0xdb] }, // Peacock
+  { id: '8',  rgb: [0xe1, 0xe1, 0xe1] }, // Graphite
+  { id: '9',  rgb: [0x53, 0x84, 0xed] }, // Blueberry
+  { id: '10', rgb: [0x51, 0xb7, 0x49] }, // Basil
+  { id: '11', rgb: [0xdc, 0x20, 0x27] }, // Tomato
+];
+
+export function hexToGcalColorId(hex: string | null | undefined): string | null {
+  if (!hex) return null;
+  const m = hex.match(/^#([0-9A-Fa-f]{6})$/);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  let bestId: string | null = null;
+  let bestDist = Infinity;
+  for (const c of GCAL_PALETTE) {
+    const d = (c.rgb[0] - r) ** 2 + (c.rgb[1] - g) ** 2 + (c.rgb[2] - b) ** 2;
+    if (d < bestDist) { bestDist = d; bestId = c.id; }
+  }
+  return bestId;
+}
+
 export async function createCalendarEvent(args: {
   startIso: string;
   endIso: string;
@@ -30,6 +66,7 @@ export async function createCalendarEvent(args: {
   description?: string;
   location?: string;
   technicienEmail?: string;
+  colorId?: string;            // Google Calendar colorId 1-11
 }): Promise<CalendarEventResult> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
@@ -41,6 +78,7 @@ export async function createCalendarEvent(args: {
     start: { dateTime: args.startIso, timeZone: 'Europe/Brussels' },
     end:   { dateTime: args.endIso,   timeZone: 'Europe/Brussels' },
   };
+  if (args.colorId) body.colorId = args.colorId;
   if (args.technicienEmail) {
     body.attendees = [{ email: args.technicienEmail }];
   }
@@ -276,18 +314,23 @@ export async function unsubscribeCalendarWatch(args: {
 }
 
 // Helper : crée un event "Disponible FOXO" pour un créneau libre.
+// `technicienHex` (optionnel) sert à colorer l'event Google Calendar
+// avec le colorId le plus proche de la couleur perso du tech (settings).
 export async function createSlotEvent(args: {
   startIso: string;
   endIso: string;
   technicienName?: string;
+  technicienHex?: string | null;
 }): Promise<CalendarEventResult> {
   const summary = args.technicienName
     ? `Disponible FoxO — ${args.technicienName}`
     : 'Disponible FoxO';
+  const colorId = hexToGcalColorId(args.technicienHex) ?? undefined;
   return createCalendarEvent({
     startIso: args.startIso,
     endIso: args.endIso,
     summary,
     description: 'Créneau de disponibilité FoxO (synchronisation auto). Sera basculé en intervention si réservé.',
+    colorId,
   });
 }

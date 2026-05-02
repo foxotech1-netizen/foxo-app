@@ -48,13 +48,15 @@ export async function POST() {
   // Charge tous les techs concernés en une fois pour les noms d'events
   const techIds = Array.from(new Set(rows.map((r) => r.technicien_id).filter((x): x is string => Boolean(x))));
   const techNameById = new Map<string, string>();
+  const techHexById = new Map<string, string | null>();
   if (techIds.length > 0) {
     const { data: techs } = await supabase
       .from('utilisateurs')
-      .select('id, prenom, nom')
+      .select('id, prenom, nom, couleur')
       .in('id', techIds);
-    for (const t of (techs ?? []) as { id: string; prenom: string | null; nom: string | null }[]) {
+    for (const t of (techs ?? []) as { id: string; prenom: string | null; nom: string | null; couleur: string | null }[]) {
       techNameById.set(t.id, [t.prenom, t.nom].filter(Boolean).join(' '));
+      techHexById.set(t.id, t.couleur ?? null);
     }
   }
 
@@ -67,7 +69,8 @@ export async function POST() {
       const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
       const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
       const techName = slot.technicien_id ? techNameById.get(slot.technicien_id) : undefined;
-      const r = await createSlotEvent({ startIso, endIso, technicienName: techName });
+      const techHex = slot.technicien_id ? techHexById.get(slot.technicien_id) ?? null : null;
+      const r = await createSlotEvent({ startIso, endIso, technicienName: techName, technicienHex: techHex });
       if (r.ok) {
         await admin
           .from('creneaux_disponibles')

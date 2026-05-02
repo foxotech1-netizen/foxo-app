@@ -23,12 +23,40 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-const TECH_COLORS = [
+// Palette de fallback si un technicien n'a pas de couleur personnalisée
+// (utilisateurs.couleur IS NULL). Couleurs distinguables alignées avec
+// la palette FoxO.
+const TECH_COLORS_FALLBACK = [
   { bg: '#1B3A6B', soft: '#D6E4F7' },  // navy
   { bg: '#A17244', soft: '#F0DCC4' },  // ambre
   { bg: '#1F6B45', soft: '#D4EDE2' },  // ok
   { bg: '#C4622D', soft: '#F7EDE5' },  // terra
 ];
+
+// Convertit un hex #RRGGBB en version "soft" (mix avec blanc 80%).
+// Utilisée pour les fonds de cellules réservées en vue mois (lecture
+// confortable du texte navy/foncé sur fond clair).
+function hexToSoft(hex: string): string {
+  const m = hex.match(/^#([0-9A-Fa-f]{6})$/);
+  if (!m) return '#D6E4F7';
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  // Mix 20% couleur, 80% blanc (#FFFFFF) → version pastel
+  const sr = Math.round(r * 0.2 + 255 * 0.8);
+  const sg = Math.round(g * 0.2 + 255 * 0.8);
+  const sb = Math.round(b * 0.2 + 255 * 0.8);
+  return `#${[sr, sg, sb].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export interface PlanningColors {
+  libre: string;
+  reserve: string;
+  bloque: string;
+  google: string;
+  foxo_importe: string;
+}
 
 type Creneau = Pick<CreneauDisponible, 'id' | 'date' | 'heure_debut' | 'heure_fin' | 'statut' | 'technicien_id' | 'intervention_id'>
   & {
@@ -43,6 +71,7 @@ export function PlanningCalendar({
   techs,
   creneaux,
   googleConnected,
+  planningColors,
   prevHref,
   nextHref,
 }: {
@@ -51,6 +80,7 @@ export function PlanningCalendar({
   techs: Utilisateur[];
   creneaux: Creneau[];
   googleConnected: boolean;
+  planningColors: PlanningColors;
   prevHref: string;
   nextHref: string;
 }) {
@@ -153,9 +183,18 @@ export function PlanningCalendar({
     }
   }
 
+  // Map techId → { bg, soft } : utilise utilisateurs.couleur si défini,
+  // sinon fallback sur la palette historique (navy/ambre/ok/terra).
+  // soft = version pastel pour les fonds de cellules.
   const techColorMap = useMemo(() => {
-    const m = new Map<string, typeof TECH_COLORS[number]>();
-    techs.forEach((t, i) => m.set(t.id, TECH_COLORS[i % TECH_COLORS.length]));
+    const m = new Map<string, { bg: string; soft: string }>();
+    techs.forEach((t, i) => {
+      if (t.couleur) {
+        m.set(t.id, { bg: t.couleur, soft: hexToSoft(t.couleur) });
+      } else {
+        m.set(t.id, TECH_COLORS_FALLBACK[i % TECH_COLORS_FALLBACK.length]);
+      }
+    });
     return m;
   }, [techs]);
 
@@ -390,22 +429,30 @@ export function PlanningCalendar({
         }
       </div>
 
-      {/* Toggle Google Calendar */}
+      {/* Toggle Google Calendar + légende dynamique avec les couleurs settings */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <div className="flex flex-wrap gap-3">
-          <Legend swatch="bg-ok-light border-ok-mid" label="Libre" />
-          <Legend swatch="bg-navy-light border-navy-mid" label="Réservé" />
-          <Legend swatch="bg-sand-mid border-sand-border" label="Bloqué" />
+        <div className="flex flex-wrap gap-3 items-center">
+          <LegendSwatch color={planningColors.libre} label="Libre" />
+          <LegendSwatch color={planningColors.reserve} label="Réservé" />
+          <LegendSwatch color={planningColors.bloque} label="Bloqué" />
+          {techs.map((t, i) => {
+            const c = techColorMap.get(t.id);
+            if (!c) return null;
+            const display = [t.prenom, t.nom].filter(Boolean).join(' ') || t.email || `T.${i + 1}`;
+            return (
+              <LegendSwatch key={t.id} color={c.bg} label={`T.${i + 1} — ${display}`} />
+            );
+          })}
           {filtered.some((c) => c.intervention_color) && (
             <span className="flex items-center gap-1.5 text-[11px] text-ink-mid">
               <span className="w-3 h-3 rounded-sm border" style={{ background: 'linear-gradient(135deg, #1B3A6B, #7C3AED, #C4622D)' }} />
-              Couleur personnalisée
+              Couleur custom
             </span>
           )}
           {googleConnected && showGoogle && (
             <>
-              <Legend swatch="bg-[#EEF2FF] border-[#C7D2FE]" label="📅 Google" />
-              <Legend swatch="bg-[#F5F3FF] border-[#DDD6FE]" label="✅ FoxO (importé)" />
+              <LegendSwatch color={planningColors.google} label="📅 Google" />
+              <LegendSwatch color={planningColors.foxo_importe} label="✅ FoxO (importé)" />
             </>
           )}
         </div>
@@ -582,8 +629,8 @@ export function PlanningCalendar({
                             className="w-full text-left text-[10px] font-semibold rounded px-1 py-0.5 truncate flex items-center gap-1 hover:brightness-95 cursor-pointer"
                             title={tooltip}
                             style={ev.is_foxo_event
-                              ? { background: '#F5F3FF', color: '#7C3AED', borderLeft: '3px solid #A78BFA' }
-                              : { background: '#EEF2FF', color: '#4338CA', borderLeft: '3px solid #6366F1' }
+                              ? { background: hexToSoft(planningColors.foxo_importe), color: planningColors.foxo_importe, borderLeft: `3px solid ${planningColors.foxo_importe}` }
+                              : { background: hexToSoft(planningColors.google), color: planningColors.google, borderLeft: `3px solid ${planningColors.google}` }
                             }
                           >
                             <span className="text-[8px] flex-shrink-0">{ev.is_foxo_event ? '✅' : '📅'}</span>
@@ -605,14 +652,14 @@ export function PlanningCalendar({
                               className="w-full text-left rounded px-1.5 py-1 hover:brightness-95 cursor-pointer flex items-center gap-1 border"
                               title="Cliquer pour planifier une intervention"
                               style={{
-                                background: '#E8F5EE',
-                                borderColor: '#1F6B45',
-                                color: '#1F6B45',
+                                background: hexToSoft(planningColors.libre),
+                                borderColor: planningColors.libre,
+                                color: planningColors.libre,
                               }}
                             >
                               <span className="text-[10px] font-bold flex-1 truncate">Libre</span>
-                              {techBadge && (
-                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: '#A17244', color: '#FFFFFF' }}>
+                              {techBadge && techColor && (
+                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF' }}>
                                   {techBadge}
                                 </span>
                               )}
@@ -621,7 +668,8 @@ export function PlanningCalendar({
                         }
                         if (cr.statut === 'reserve') {
                           const customColor = cr.intervention_color ?? null;
-                          const bg = customColor ?? '#1B3A6B';
+                          // Priorité : couleur custom intervention > couleur tech > couleur réservé par défaut
+                          const bg = customColor ?? techColor?.bg ?? planningColors.reserve;
                           const clientLabel = cr.client_name || cr.intervention_ref || 'Réservé';
                           return (
                             <button
@@ -634,8 +682,8 @@ export function PlanningCalendar({
                             >
                               <span className="text-[8px]">✓</span>
                               <span className="text-[11px] font-bold flex-1 truncate">{clientLabel}</span>
-                              {techBadge && (
-                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: '#A17244', color: '#FFFFFF' }}>
+                              {techBadge && techColor && (
+                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF', filter: 'brightness(1.1)' }}>
                                   {techBadge}
                                 </span>
                               )}
@@ -718,8 +766,8 @@ export function PlanningCalendar({
                       className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer flex items-center gap-1"
                       title={tooltip}
                       style={ev.is_foxo_event
-                        ? { background: '#F5F3FF', color: '#7C3AED', borderLeft: '3px solid #A78BFA' }
-                        : { background: '#EEF2FF', color: '#4338CA', borderLeft: '3px solid #6366F1' }
+                        ? { background: hexToSoft(planningColors.foxo_importe), color: planningColors.foxo_importe, borderLeft: `3px solid ${planningColors.foxo_importe}` }
+                        : { background: hexToSoft(planningColors.google), color: planningColors.google, borderLeft: `3px solid ${planningColors.google}` }
                       }
                     >
                       <span className="text-[8px] flex-shrink-0">{ev.is_foxo_event ? '✅' : '📅'}</span>
@@ -743,8 +791,8 @@ export function PlanningCalendar({
                         title="Cliquer pour planifier une intervention"
                         style={
                           techColor
-                            ? { background: '#1F6B45', color: '#FFFFFF', borderLeft: `3px solid ${techColor.bg}` }
-                            : { background: '#1F6B45', color: '#FFFFFF' }
+                            ? { background: planningColors.libre, color: '#FFFFFF', borderLeft: `3px solid ${techColor.bg}` }
+                            : { background: planningColors.libre, color: '#FFFFFF' }
                         }
                       >
                         {time}
@@ -752,15 +800,13 @@ export function PlanningCalendar({
                     );
                   }
                   if (cr.statut === 'reserve') {
-                    // Couleur personnalisée de l'intervention (si définie)
-                    // a priorité sur la couleur tech. Texte blanc pour
-                    // contraste max sur la couleur custom (toutes vives).
+                    // Priorité : couleur intervention > couleur tech > couleur réservé par défaut
                     const customColor = cr.intervention_color ?? null;
                     const reserveStyle = customColor
                       ? { background: customColor, color: '#FFFFFF', borderLeft: `3px solid ${customColor}` }
                       : techColor
                         ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
-                        : { background: '#D6E4F7', color: '#1B3A6B' };
+                        : { background: hexToSoft(planningColors.reserve), color: planningColors.reserve, borderLeft: `3px solid ${planningColors.reserve}` };
                     return (
                       <button
                         key={cr.id}
@@ -802,6 +848,17 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
       <span className={`w-3 h-3 rounded-sm ${swatch} border`} />
       {label}
     </div>
+  );
+}
+
+// Swatch coloré inline (vs Legend qui utilise des classes Tailwind).
+// Utilisé pour les couleurs dynamiques des paramètres planning.
+function LegendSwatch({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] text-ink-mid">
+      <span className="w-3 h-3 rounded-sm border" style={{ background: color, borderColor: color }} />
+      {label}
+    </span>
   );
 }
 

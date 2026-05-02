@@ -34,7 +34,7 @@ export default async function InterventionFullPage({
     supabase.from('organisations').select('id,nom,type,email'),
     supabase
       .from('utilisateurs')
-      .select('id,prenom,nom,email')
+      .select('id,prenom,nom,email,couleur')
       .in('email', TECH_EMAILS as unknown as string[])
       .order('prenom', { ascending: true }),
     supabase

@@ -200,16 +200,17 @@ export async function POST(request: Request) {
   if (insertedRows.length > 0) {
     const { data: tech } = await supabase
       .from('utilisateurs')
-      .select('prenom, nom')
+      .select('prenom, nom, couleur')
       .eq('id', techId)
       .maybeSingle();
     const techName = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ') : undefined;
+    const techHex = (tech as { couleur?: string | null } | null)?.couleur ?? null;
     const admin = createAdminClient();
     for (const slot of insertedRows) {
       try {
         const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
         const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
-        const r = await createSlotEvent({ startIso, endIso, technicienName: techName });
+        const r = await createSlotEvent({ startIso, endIso, technicienName: techName, technicienHex: techHex });
         if (r.ok) {
           await admin
             .from('creneaux_disponibles')

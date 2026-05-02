@@ -150,6 +150,11 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         </div>
       )}
 
+      {/* Planning — couleurs */}
+      <Section title="🗓️ Couleurs du planning" desc="Couleurs des créneaux par type et par technicien. S'appliquent dans /admin/planning et sur les events Google Calendar (mappés sur le colorId le plus proche).">
+        <PlanningCouleursPanel />
+      </Section>
+
       {/* Comptabilité */}
       <Section title="Comptabilité" desc="Destinataire des exports comptables et délais de paiement par défaut.">
         <Row
@@ -794,6 +799,220 @@ function CalendarWatchPanel({
         </div>
       )}
     </>
+  );
+}
+
+// Panel autonome des couleurs planning — fetch + édition + save groupé.
+// Utilise le composant <input type="color"> natif (touch-friendly mobile,
+// roue de couleurs sur desktop). Pas de dépendance externe.
+const PLANNING_DEFAULTS = {
+  libre: '#1F6B45',
+  reserve: '#1B3A6B',
+  bloque: '#6B7280',
+  google: '#4338CA',
+  foxo_importe: '#7C3AED',
+} as const;
+type PlanningColorKey = keyof typeof PLANNING_DEFAULTS;
+
+interface TechWithCouleur {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  email: string | null;
+  couleur: string | null;
+}
+
+function PlanningCouleursPanel() {
+  const [loaded, setLoaded] = useState(false);
+  const [types, setTypesState] = useState<Record<PlanningColorKey, string>>({ ...PLANNING_DEFAULTS });
+  const [techs, setTechs] = useState<TechWithCouleur[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/admin/parametres/planning-couleurs', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted || !data.ok) { setLoaded(true); return; }
+        setTypesState(data.types as Record<PlanningColorKey, string>);
+        setTechs((data.techniciens ?? []) as TechWithCouleur[]);
+        setLoaded(true);
+      })
+      .catch(() => { if (mounted) setLoaded(true); });
+    return () => { mounted = false; };
+  }, []);
+
+  function setType(k: PlanningColorKey, v: string) {
+    setTypesState((s) => ({ ...s, [k]: v }));
+  }
+  function setTechCouleur(id: string, couleur: string) {
+    setTechs((arr) => arr.map((t) => t.id === id ? { ...t, couleur } : t));
+  }
+  function resetDefaults() {
+    setTypesState({ ...PLANNING_DEFAULTS });
+    // Pas de reset des couleurs tech — l'admin doit explicitement les
+    // changer/enlever via le picker (et un bouton "Retirer" par tech).
+    setMsg({ kind: 'ok', msg: 'Défauts restaurés (non encore enregistrés).' });
+  }
+  async function saveAll() {
+    setSaving(true);
+    setMsg(null);
+    try {
+      const r = await fetch('/api/admin/parametres/planning-couleurs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          types,
+          techniciens: techs.map((t) => ({ id: t.id, couleur: t.couleur })),
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setMsg({ kind: 'err', msg: data.error ?? 'Échec sauvegarde.' });
+        return;
+      }
+      setMsg({ kind: 'ok', msg: '✓ Couleurs enregistrées.' });
+    } catch (e) {
+      setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!loaded) {
+    return <div className="text-[12px] text-ink-mid italic dark:text-[#C8C2B8]">Chargement…</div>;
+  }
+
+  const TYPES_LABELS: { key: PlanningColorKey; label: string; hint: string }[] = [
+    { key: 'libre',         label: 'Libre',         hint: 'Créneau disponible (vue calendrier + grille dispos)' },
+    { key: 'reserve',       label: 'Réservé',       hint: 'Créneau lié à une intervention (override par couleur tech ci-dessous)' },
+    { key: 'bloque',        label: 'Bloqué',        hint: 'Créneau bloqué (vacances, congés, indisponibilité)' },
+    { key: 'google',        label: 'Google Calendar', hint: 'Events externes Google Calendar (overlay)' },
+    { key: 'foxo_importe',  label: 'FoxO importé',  hint: 'Events Google déjà rattachés à une intervention FoxO' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Types de créneaux */}
+      <div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+          Types de créneaux
+        </div>
+        <div className="space-y-1.5">
+          {TYPES_LABELS.map(({ key, label, hint }) => (
+            <div key={key} className="flex items-center gap-2.5 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <input
+                type="color"
+                value={types[key]}
+                onChange={(e) => setType(key, e.target.value)}
+                className="w-9 h-9 rounded cursor-pointer flex-shrink-0 border-0 p-0 bg-transparent"
+                style={{ background: types[key] }}
+                aria-label={`Couleur ${label}`}
+              />
+              <input
+                type="text"
+                value={types[key]}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setType(key, v);
+                }}
+                className="w-[90px] px-2 py-1 border border-sand-border rounded text-[11px] bg-white font-mono dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">{label}</div>
+                <div className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">{hint}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Techniciens */}
+      <div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+          Couleur par technicien
+        </div>
+        {techs.length === 0 ? (
+          <div className="text-[12px] text-ink-muted italic dark:text-[#C8C2B8]">
+            Aucun technicien — ajoute des comptes via le code (TECH_EMAILS dans roles.ts).
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {techs.map((t, idx) => {
+              const initiales = ((t.prenom?.[0] ?? '') + (t.nom?.[0] ?? '')).toUpperCase() || '?';
+              const display = [t.prenom, t.nom].filter(Boolean).join(' ') || t.email || '—';
+              const couleur = t.couleur ?? '#888888';
+              return (
+                <div key={t.id} className="flex items-center gap-2.5 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-extrabold flex-shrink-0"
+                    style={{ background: couleur }}
+                  >
+                    {initiales}
+                  </div>
+                  <input
+                    type="color"
+                    value={couleur}
+                    onChange={(e) => setTechCouleur(t.id, e.target.value)}
+                    className="w-9 h-9 rounded cursor-pointer flex-shrink-0 border-0 p-0 bg-transparent"
+                    aria-label={`Couleur ${display}`}
+                  />
+                  <input
+                    type="text"
+                    value={t.couleur ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value.trim();
+                      if (v === '' || /^#[0-9A-Fa-f]{0,6}$/.test(v)) {
+                        setTechCouleur(t.id, v || '#888888');
+                      }
+                    }}
+                    placeholder="(défaut)"
+                    className="w-[90px] px-2 py-1 border border-sand-border rounded text-[11px] bg-white font-mono dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">
+                      T.{idx + 1} {display}
+                    </div>
+                    <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                      {t.email}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <button
+          type="button"
+          onClick={saveAll}
+          disabled={saving}
+          className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? 'Enregistrement…' : '💾 Sauvegarder tout'}
+        </button>
+        <button
+          type="button"
+          onClick={resetDefaults}
+          disabled={saving}
+          className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+        >
+          Réinitialiser les défauts
+        </button>
+        {msg && (
+          <span className={
+            'text-[11px] font-semibold ' +
+            (msg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+          }>
+            {msg.msg}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

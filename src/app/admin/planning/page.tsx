@@ -45,10 +45,10 @@ export default async function PlanningPage({
 
   const supabase = await createClient();
 
-  const [techRes, creneauxRes] = await Promise.all([
+  const [techRes, creneauxRes, paramRes] = await Promise.all([
     supabase
       .from('utilisateurs')
-      .select('id, prenom, nom, email')
+      .select('id, prenom, nom, email, couleur')
       .in('email', TECH_EMAILS as unknown as string[])
       .order('prenom', { ascending: true }),
     supabase
@@ -58,9 +58,34 @@ export default async function PlanningPage({
       .lte('date', endStr)
       .order('date', { ascending: true })
       .order('heure_debut', { ascending: true }),
+    // Paramètres couleurs planning — fallback aux défauts si absent
+    supabase
+      .from('parametres')
+      .select('cle, valeur')
+      .in('cle', [
+        'planning_couleur_libre',
+        'planning_couleur_reserve',
+        'planning_couleur_bloque',
+        'planning_couleur_google',
+        'planning_couleur_foxo_importe',
+      ]),
   ]);
 
   const techs = (techRes.data ?? []) as Utilisateur[];
+
+  // Couleurs planning — fallback aux défauts si la migration 2026-05-21
+  // n'est pas appliquée OU si un paramètre est absent.
+  const paramMap = new Map<string, string>();
+  for (const p of (paramRes.data ?? []) as { cle: string; valeur: string | null }[]) {
+    if (p.valeur) paramMap.set(p.cle, p.valeur);
+  }
+  const planningColors = {
+    libre: paramMap.get('planning_couleur_libre') ?? '#1F6B45',
+    reserve: paramMap.get('planning_couleur_reserve') ?? '#1B3A6B',
+    bloque: paramMap.get('planning_couleur_bloque') ?? '#6B7280',
+    google: paramMap.get('planning_couleur_google') ?? '#4338CA',
+    foxo_importe: paramMap.get('planning_couleur_foxo_importe') ?? '#7C3AED',
+  };
   // Le join `intervention:interventions(color)` renvoie un tableau
   // (pattern Supabase pour les relations) — on prend le premier élément
   // ou null. On l'aplatit en `intervention_color` pour éviter d'exposer
@@ -148,6 +173,7 @@ export default async function PlanningPage({
             techs={techs}
             creneaux={creneaux}
             googleConnected={googleConnected}
+            planningColors={planningColors}
             prevHref={`/admin/planning?tab=calendar&m=${fmtMonth(prev.getFullYear(), prev.getMonth())}`}
             nextHref={`/admin/planning?tab=calendar&m=${fmtMonth(next.getFullYear(), next.getMonth())}`}
           />
