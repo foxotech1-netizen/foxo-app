@@ -75,7 +75,11 @@ export default async function OccupantPortal({
 
         <div className="bg-cream rounded-2xl border border-sand-border p-5 sm:p-6 space-y-4">
           {/* Statut courant */}
-          <StatusBanner conf={currentConf} acceptsResponse={acceptsResponse} />
+          <StatusBanner
+            conf={currentConf}
+            acceptsResponse={acceptsResponse}
+            proposedDebut={occupant.proposed_creneau_debut}
+          />
 
           <header className="border-b border-sand-border pb-4">
             <div className="text-[11px] text-ink-muted font-mono">
@@ -162,9 +166,11 @@ export default async function OccupantPortal({
 function StatusBanner({
   conf,
   acceptsResponse,
+  proposedDebut,
 }: {
   conf: 'confirme' | 'en_attente' | 'decline';
   acceptsResponse: boolean;
+  proposedDebut: string | null;
 }) {
   if (conf === 'confirme') {
     return (
@@ -185,6 +191,20 @@ function StatusBanner({
         {acceptsResponse && (
           <p className="text-[11px] font-normal mt-1 opacity-80">
             Vous pouvez encore changer d&apos;avis ci-dessous.
+          </p>
+        )}
+      </div>
+    );
+  }
+  // conf === 'en_attente' : peut être un vrai pending OU une contre-proposition
+  // (counter est stocké en attente côté DB, le syndic doit valider).
+  if (proposedDebut) {
+    return (
+      <div className="bg-[#D6E4F7] border border-[#A8C4F2] text-navy rounded-lg px-3.5 py-2.5 text-sm font-semibold">
+        🔄 Vous avez proposé un autre créneau ({fmtDateTime(proposedDebut, true)}). Le syndic vous reviendra.
+        {acceptsResponse && (
+          <p className="text-[11px] font-normal mt-1 opacity-80">
+            Vous pouvez encore changer votre réponse ci-dessous.
           </p>
         )}
       </div>

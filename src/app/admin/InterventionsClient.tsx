@@ -160,6 +160,7 @@ export function InterventionsClient({
     contact_preference?: 'email' | 'sms' | 'whatsapp' | 'both' | null;
     token_sent_at?: string | null;
     type_occupant?: 'occupant' | 'proprietaire' | 'parties_communes' | null;
+    proposed_creneau_debut?: string | null;
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
@@ -1735,6 +1736,14 @@ export function InterventionsClient({
                                 <span className="font-bold text-ink dark:text-[#F0ECE4] flex items-center gap-1.5 flex-wrap">
                                   {o.appartement ?? '—'}
                                   {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">· {o.etage}</span> : null}
+                                  {o.proposed_creneau_debut && (
+                                    <span
+                                      className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[#D6E4F7] text-[#1B3A6B] border border-[#A8C4F2] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
+                                      title="L'occupant a proposé un autre créneau"
+                                    >
+                                      🔄 Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
                                   {o.type_occupant && o.type_occupant !== 'occupant' && (
                                     <span
                                       className={

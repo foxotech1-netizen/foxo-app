@@ -2,8 +2,17 @@
 
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { notifySyndicOccupantResponse } from '@/lib/email/notify-syndic-response';
 
-export type Reponse = 'confirme' | 'decline';
+export type Reponse = 'confirme' | 'decline' | 'counter';
+
+export type RespondPayload = {
+  reponse: Reponse;
+  proposed_debut?: string;   // ISO 8601, requis si reponse === 'counter'
+  proposed_fin?: string;     // ISO 8601, requis si reponse === 'counter'
+  note?: string;             // commentaire libre, optionnel pour les 3 cas
+};
+
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 const STATUTS_ACCEPTANT_REPONSE = [
@@ -17,15 +26,62 @@ const STATUTS_ACCEPTANT_REPONSE = [
 // (16 bytes hex = 128 bits d'entropie, non énumérable). Service-role
 // obligatoire car RLS bloque les anonymes sur la table occupants.
 const TOKEN_TTL_DAYS = 30;
+const NOTE_MAX_LENGTH = 500;
+const COUNTER_WINDOW_DAYS_MAX = 60;
+
+function isValidIso(value: string): boolean {
+  const d = new Date(value);
+  return !Number.isNaN(d.getTime());
+}
 
 export async function respondAsOccupant(
   token: string,
-  reponse: Reponse,
+  payload: RespondPayload,
 ): Promise<ActionResult> {
-  if (reponse !== 'confirme' && reponse !== 'decline') {
+  // ── 1. Validation du payload ────────────────────────────────────────
+  if (!payload || typeof payload !== 'object') {
+    return { ok: false, error: 'Réponse invalide.' };
+  }
+  const { reponse } = payload;
+  if (reponse !== 'confirme' && reponse !== 'decline' && reponse !== 'counter') {
     return { ok: false, error: 'Réponse invalide.' };
   }
 
+  let proposedDebut: string | null = null;
+  let proposedFin: string | null = null;
+
+  if (reponse === 'counter') {
+    if (!payload.proposed_debut || !payload.proposed_fin) {
+      return { ok: false, error: 'Veuillez indiquer un créneau de début et de fin.' };
+    }
+    if (!isValidIso(payload.proposed_debut) || !isValidIso(payload.proposed_fin)) {
+      return { ok: false, error: 'Les dates proposées sont invalides.' };
+    }
+    const tDebut = new Date(payload.proposed_debut).getTime();
+    const tFin = new Date(payload.proposed_fin).getTime();
+    if (tDebut <= Date.now()) {
+      return { ok: false, error: 'Le début proposé doit être dans le futur.' };
+    }
+    if (tFin <= tDebut) {
+      return { ok: false, error: 'La fin doit être postérieure au début.' };
+    }
+    if (tDebut - Date.now() > COUNTER_WINDOW_DAYS_MAX * 24 * 60 * 60 * 1000) {
+      return { ok: false, error: `Le créneau proposé doit rester dans les ${COUNTER_WINDOW_DAYS_MAX} prochains jours.` };
+    }
+    proposedDebut = new Date(payload.proposed_debut).toISOString();
+    proposedFin = new Date(payload.proposed_fin).toISOString();
+  }
+
+  let note: string | null = null;
+  if (typeof payload.note === 'string') {
+    const trimmed = payload.note.trim();
+    if (trimmed.length > NOTE_MAX_LENGTH) {
+      return { ok: false, error: `Le commentaire est trop long (max ${NOTE_MAX_LENGTH} caractères).` };
+    }
+    note = trimmed.length > 0 ? trimmed : null;
+  }
+
+  // ── 2. Lookup occupant + TTL ────────────────────────────────────────
   let admin;
   try {
     admin = createAdminClient();
@@ -46,6 +102,7 @@ export async function respondAsOccupant(
     return { ok: false, error: 'Lien invalide ou expiré.' };
   }
 
+  // ── 3. Lookup intervention ──────────────────────────────────────────
   const { data: iv } = await admin
     .from('interventions')
     .select('statut')
@@ -57,13 +114,74 @@ export async function respondAsOccupant(
     return { ok: false, error: 'L\'intervention n\'accepte plus de modification de présence.' };
   }
 
-  const { error } = await admin
+  // ── 4. UPDATE occupants selon le type de réponse ────────────────────
+  const nowIso = new Date().toISOString();
+  let updatePatch: Record<string, unknown>;
+  if (reponse === 'confirme') {
+    updatePatch = {
+      conf: 'confirme',
+      confirmed_at: nowIso,
+      proposed_creneau_debut: null,
+      proposed_creneau_fin: null,
+      response_note: note,
+    };
+  } else if (reponse === 'decline') {
+    updatePatch = {
+      conf: 'decline',
+      confirmed_at: nowIso,
+      proposed_creneau_debut: null,
+      proposed_creneau_fin: null,
+      response_note: note,
+    };
+  } else {
+    // counter — la contre-proposition doit être validée par le syndic.
+    // On garde donc conf='en_attente' et on stocke le créneau proposé.
+    updatePatch = {
+      conf: 'en_attente',
+      confirmed_at: nowIso,
+      proposed_creneau_debut: proposedDebut,
+      proposed_creneau_fin: proposedFin,
+      response_note: note,
+    };
+  }
+
+  const { error: updateError } = await admin
     .from('occupants')
-    .update({ conf: reponse })
+    .update(updatePatch)
     .eq('id', occ.id);
 
-  if (error) return { ok: false, error: error.message };
+  if (updateError) return { ok: false, error: updateError.message };
 
+  // ── 5. Log dans occupant_responses_log (best-effort) ────────────────
+  const { error: logError } = await admin
+    .from('occupant_responses_log')
+    .insert({
+      occupant_id: occ.id,
+      intervention_id: occ.intervention_id,
+      reponse,
+      proposed_creneau_debut: proposedDebut,
+      proposed_creneau_fin: proposedFin,
+      note,
+    });
+  if (logError) {
+    console.warn('[respondAsOccupant] log insert failed:', logError.message);
+  }
+
+  // ── 6. Notif syndic (best-effort, ne fait jamais échouer l'action) ──
+  try {
+    await notifySyndicOccupantResponse({
+      interventionId: occ.intervention_id,
+      occupantId: occ.id,
+      reponse,
+      proposedDebut,
+      proposedFin,
+      note,
+    });
+  } catch (e) {
+    console.warn('[respondAsOccupant] notifySyndicOccupantResponse threw:', e);
+  }
+
+  // ── 7. Revalidate + retour ──────────────────────────────────────────
   revalidatePath(`/o/${token}`);
   return { ok: true };
 }
