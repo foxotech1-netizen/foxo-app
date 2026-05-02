@@ -341,6 +341,36 @@ export async function analyzeMailWithClaude(
     `  est_demande_intervention=false ET type_email approprié.`,
     `- Si spam/newsletter/automatique → est_demande_intervention=false, type_email="autre".`,
     ``,
+    `## CROISEMENT CC ↔ OCCUPANTS (CRITIQUE)`,
+    `Pour chaque occupant mentionné dans le corps du mail, CHERCHE son email`,
+    `dans la liste des CC en faisant correspondre le NOM DE FAMILLE`,
+    `(insensible à la casse, tolérant aux variations).`,
+    ``,
+    `Exemples :`,
+    `  Corps : "appartement K09 (Mme Vlasselaer)"`,
+    `  CC    : - "Cristina Vlasselaer" <crisvelarde@gmail.com>`,
+    `  → occupant Vlasselaer reçoit email = crisvelarde@gmail.com`,
+    ``,
+    `  Corps : "magasin M09 (Mr Leman)"`,
+    `  CC    : - "Pierre-Henri Leman" <pierrehenrileman@gmail.com>`,
+    `  → occupant Leman reçoit email = pierrehenrileman@gmail.com`,
+    ``,
+    `  Corps : "apt 3B (Marie Dupont)"`,
+    `  CC    : - "Dupont, Marie" <marie.dupont@example.com>`,
+    `  → occupant Dupont reçoit email = marie.dupont@example.com`,
+    ``,
+    `Règles :`,
+    `- Si le nom dans le CC contient le nom de famille de l'occupant (substring`,
+    `  case-insensitive) → c'est un match. Préfère le match le plus long si`,
+    `  plusieurs CC matchent.`,
+    `- Si l'email du CC contient le nom de famille (ex: vlasselaer@…) → match`,
+    `  même sans nom d'affichage.`,
+    `- N'invente JAMAIS un email — soit tu trouves un match dans les CC, soit`,
+    `  tu laisses email="" pour cet occupant.`,
+    `- Les CC qui ne matchent aucun occupant du corps deviennent eux-mêmes des`,
+    `  occupants (un occupant par CC orphelin avec son nom et son email).`,
+    `- IGNORE les CC internes : foxo.be, le sender lui-même, le syndic.`,
+    ``,
     `## type_email`,
     `- "nouvelle_demande" : nouvelle intervention à planifier`,
     `- "suivi_dossier" : relance/échange sur un dossier existant`,
@@ -748,12 +778,54 @@ export async function analyzeMailWithClaude(
     action_requise: strOrNull((parsed as { action_requise?: unknown }).action_requise),
     contacts,
   };
+
+  // ── Filet de sécurité : croisement CC ↔ occupants côté code ────────
+  // Même si on demande à Claude de faire le matching, il peut le rater.
+  // Pour chaque occupant sans email, cherche un CC dont le nom d'affichage
+  // ou l'email contient le nom de famille de l'occupant (case-insensitive).
+  // Ne touche jamais à un occupant qui a déjà un email.
+  const ccEnriched: { occupantIdx: number; from: string; matchedBy: 'name' | 'email' }[] = [];
+  for (let i = 0; i < analysis.occupants.length; i++) {
+    const occ = analysis.occupants[i];
+    if (occ.email || !occ.nom) continue;
+    const nomLc = occ.nom.toLowerCase().trim();
+    if (nomLc.length < 3) continue; // évite les matches trop fragiles ("Mr", "K9")
+    // Préfère un match par nom d'affichage, puis par email-local-part
+    let pickedEmail: string | null = null;
+    let matchedBy: 'name' | 'email' | null = null;
+    for (const cc of ccPairs) {
+      if (cc.name && cc.name.toLowerCase().includes(nomLc)) {
+        pickedEmail = cc.email;
+        matchedBy = 'name';
+        break;
+      }
+    }
+    if (!pickedEmail) {
+      for (const cc of ccPairs) {
+        const local = cc.email.split('@')[0]?.toLowerCase() ?? '';
+        if (local.includes(nomLc)) {
+          pickedEmail = cc.email;
+          matchedBy = 'email';
+          break;
+        }
+      }
+    }
+    if (pickedEmail && matchedBy) {
+      analysis.occupants[i] = { ...occ, email: pickedEmail };
+      ccEnriched.push({ occupantIdx: i, from: pickedEmail, matchedBy });
+    }
+  }
+  if (ccEnriched.length > 0) {
+    console.info('[analyzeMailWithClaude] CC ↔ occupants cross-ref', { enriched: ccEnriched });
+  }
+
   const rawOccupantsCount = Array.isArray((parsed as { occupants?: unknown }).occupants)
     ? (parsed as { occupants: unknown[] }).occupants.length : 0;
   console.info('[analyzeMailWithClaude] post-filter', {
-    occupants_kept: occupants.length,
-    occupants_dropped: rawOccupantsCount - occupants.length,
-    final_occupants: occupants.map((o) => ({
+    occupants_kept: analysis.occupants.length,
+    occupants_dropped: rawOccupantsCount - analysis.occupants.length,
+    cc_enriched_count: ccEnriched.length,
+    final_occupants: analysis.occupants.map((o) => ({
       apt: o.appartement, nom: o.nom, type: o.type,
       has_email: Boolean(o.email), has_tel: Boolean(o.telephone),
     })),
@@ -1410,11 +1482,13 @@ async function createInterventionFromMail(
       break;
     }
     insertErr = error ? { code: (error as { code?: string }).code, message: error.message } : null;
-    const colMissing = insertErr?.code === '42703' || /column .* does not exist/i.test(insertErr?.message ?? '');
+    const colMissing = insertErr?.code === '42703'
+      || insertErr?.code === 'PGRST204'
+      || /column .* does not exist/i.test(insertErr?.message ?? '')
+      || /Could not find the .* column/i.test(insertErr?.message ?? '');
     if (!colMissing) break;
-    // Parse le nom de la colonne manquante
-    const m = (insertErr?.message ?? '').match(/column\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+(?:of\s+relation|does not exist)/i);
-    const missingCol = m?.[1];
+    // Parse le nom de la colonne manquante (Postgres natif OU PostgREST cache)
+    const missingCol = parseMissingColumn(insertErr?.message ?? '');
     if (!missingCol || !(missingCol in workingPayload)) {
       console.warn('[check-mails] colonne 42703 non parsable, abandon insert');
       break;
@@ -1521,16 +1595,31 @@ export type SafeInsertOccupantsResult =
   | { ok: true; inserted: number; stripped_columns: string[] }
   | { ok: false; error: string; code: string | null; details: string | null; hint: string | null; stripped_columns: string[] };
 
-// Extrait le nom de la colonne mentionnée dans une erreur PostgREST
-// "column 'foo' of relation 'occupants' does not exist" ou variantes.
+// Extrait le nom de la colonne mentionnée dans une erreur DB. Gère :
+//
+//  Postgres (code 42703) :
+//    "column \"foo\" of relation \"occupants\" does not exist"
+//    "column foo does not exist"
+//
+//  PostgREST schema cache (code PGRST204) — l'API n'envoie même pas le
+//  SQL au DB parce que sa cache du schéma ignore la colonne :
+//    "Could not find the 'foo' column of 'occupants' in the schema cache"
+//    "Could not find the foo column..."
+//
+// Sans gérer PGRST204, l'auto-strip cascade ne s'enclenche jamais
+// quand une colonne manque côté API (comme c'est arrivé pour
+// `instructions` après une migration partielle).
 function parseMissingColumn(message: string): string | null {
+  // Postgres natif
   const m1 = message.match(/column\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+of\s+relation/i);
   if (m1) return m1[1];
   const m2 = message.match(/column\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+does not exist/i);
   if (m2) return m2[1];
-  // PostgREST renvoie parfois juste "foo does not exist" sans "column"
   const m3 = message.match(/(?:^|\s)([a-z_][a-z0-9_]*)\s+does not exist/i);
   if (m3) return m3[1];
+  // PostgREST schema cache (PGRST204)
+  const m4 = message.match(/Could not find the\s+(?:"|')?([a-z_][a-z0-9_]*)(?:"|')?\s+column/i);
+  if (m4) return m4[1];
   return null;
 }
 
@@ -1568,7 +1657,13 @@ export async function safeInsertOccupants(rows: OccupantInsertRow[]): Promise<Sa
       }
 
       const code = (error as { code?: string }).code ?? null;
-      const colMissing = code === '42703' || /column .* does not exist/i.test(error.message);
+      // 42703 = Postgres "column does not exist"
+      // PGRST204 = PostgREST "schema cache" (colonne pas re-scannée
+      //   après ALTER TABLE — frequent en prod après une migration)
+      const colMissing = code === '42703'
+        || code === 'PGRST204'
+        || /column .* does not exist/i.test(error.message)
+        || /Could not find the .* column/i.test(error.message);
       if (!colMissing) {
         return {
           ok: false,
