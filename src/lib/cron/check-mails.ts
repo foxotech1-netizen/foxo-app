@@ -22,7 +22,11 @@ import {
 import { nextRefForYear } from '@/lib/intervention-ref';
 
 const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 1024;
+// Le JSON nested du nouveau prompt FoxO (demandeur.contacts[],
+// acp, intervention, occupants[], assurance, action_requise, …)
+// dépasse facilement 1024 tokens — surtout avec plusieurs contacts +
+// plusieurs occupants. 1024 → réponse tronquée → unparsable.
+const MAX_TOKENS = 4096;
 
 // Limites runtime — calibrées pour rester sous maxDuration=60s côté
 // Vercel. 5 mails × (10s Gmail + 30s Claude + 5s écriture) ≈ 45s pire cas.
@@ -157,19 +161,68 @@ export interface CronMailResult {
 
 const STRIP_FENCE_RE = /^\s*```(?:json)?\s*([\s\S]*?)\s*```\s*$/;
 
+// Tente de réparer un JSON tronqué (ex: réponse Claude coupée par
+// max_tokens). Stratégie : depuis la fin, ferme les strings ouverts,
+// puis ferme les objets/arrays ouverts dans le bon ordre.
+// Best-effort — si la troncature tombe au milieu d'un nombre ou d'un
+// littéral (true/false/null), ça échoue toujours.
+function repairTruncatedJson(input: string): string {
+  let s = input.trimEnd();
+  // Retire trailing comma inutile
+  s = s.replace(/,\s*$/, '');
+  // Compte les guillemets non-escapés pour détecter une string ouverte
+  let inString = false;
+  const stack: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\') { i++; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '{' || c === '[') stack.push(c);
+    else if (c === '}' && stack[stack.length - 1] === '{') stack.pop();
+    else if (c === ']' && stack[stack.length - 1] === '[') stack.pop();
+  }
+  // Ferme une éventuelle string ouverte
+  if (inString) s += '"';
+  // Retire un dernier ":" ou "," orphelin avant fermeture
+  s = s.replace(/[,:]\s*$/, '');
+  // Ferme les conteneurs dans l'ordre LIFO
+  while (stack.length > 0) {
+    const open = stack.pop();
+    s += open === '{' ? '}' : ']';
+  }
+  return s;
+}
+
 function tryParseJson(raw: string): Partial<CronMailAnalysis> | null {
+  // 1. Direct (avec strip de fences markdown s'il y en a)
   const fenced = raw.match(STRIP_FENCE_RE);
   const candidate = fenced ? fenced[1] : raw;
   try {
     const parsed = JSON.parse(candidate);
     if (parsed && typeof parsed === 'object') return parsed as Partial<CronMailAnalysis>;
   } catch { /* try next */ }
+
+  // 2. Slice entre 1er { et dernier } — utile si Claude ajoute un
+  //    préambule ('Here is the JSON:') ou un postambule.
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');
   if (start >= 0 && end > start) {
-    try { return JSON.parse(candidate.slice(start, end + 1)) as Partial<CronMailAnalysis>; }
-    catch { /* noop */ }
+    try {
+      return JSON.parse(candidate.slice(start, end + 1)) as Partial<CronMailAnalysis>;
+    } catch { /* try next */ }
   }
+
+  // 3. Réparation : Claude tronqué par max_tokens. On prend tout ce
+  //    qui suit le 1er { et on tente de fermer ce qui est ouvert.
+  if (start >= 0) {
+    const tail = candidate.slice(start);
+    const repaired = repairTruncatedJson(tail);
+    try {
+      return JSON.parse(repaired) as Partial<CronMailAnalysis>;
+    } catch { /* abandon */ }
+  }
+
   return null;
 }
 
@@ -412,6 +465,7 @@ export async function analyzeMailWithClaude(
   // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
   const client = new Anthropic({ apiKey, timeout: CLAUDE_TIMEOUT_MS });
   let raw: string;
+  let stopReason: string | null = null;
   try {
     const msg = await client.messages.create({
       model: MODEL,
@@ -420,20 +474,36 @@ export async function analyzeMailWithClaude(
     });
     const block = msg.content[0];
     raw = block && block.type === 'text' ? block.text : '';
+    stopReason = msg.stop_reason ?? null;
   } catch (e) {
     console.error('[analyzeMailWithClaude] anthropic threw', e);
     return { ok: false, error: e instanceof Error ? e.message : 'Erreur Anthropic.' };
   }
 
-  console.info('[analyzeMailWithClaude] claude raw response', {
+  console.error('[analyzeMailWithClaude] claude raw response', {
     raw_chars: raw.length,
+    stop_reason: stopReason,
     raw_preview: raw.slice(0, 1500),
+    truncated: stopReason === 'max_tokens',
   });
 
   const parsed = tryParseJson(raw);
   if (!parsed) {
-    console.error('[analyzeMailWithClaude] JSON parse failed', { raw_full: raw });
-    return { ok: false, error: 'Réponse Claude non parsable.' };
+    console.error('[analyzeMailWithClaude] JSON parse failed', {
+      stop_reason: stopReason,
+      raw_chars: raw.length,
+      raw_full: raw,
+    });
+    // Surface des info parlantes dans l'erreur (visible côté API caller)
+    const tail = raw.slice(-200).replace(/\s+/g, ' ').trim();
+    const head = raw.slice(0, 200).replace(/\s+/g, ' ').trim();
+    const reason = stopReason === 'max_tokens'
+      ? 'tronquée (max_tokens atteint)'
+      : 'non valide';
+    return {
+      ok: false,
+      error: `Réponse Claude ${reason}. Début: "${head}…" Fin: "…${tail}"`,
+    };
   }
   console.info('[analyzeMailWithClaude] parsed JSON', {
     est_demande: (parsed as { est_demande_intervention?: unknown }).est_demande_intervention,
