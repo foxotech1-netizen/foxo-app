@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import type { Utilisateur } from '@/lib/types/database';
+import { useEffect, useState, useTransition } from 'react';
+import type { StatutIntervention, Utilisateur } from '@/lib/types/database';
+import { StatutBadge } from '@/components/StatutBadge';
+import { fmtDateTime } from '@/lib/format';
 import { setTechActive, updateTech } from './actions';
+import type { TechInterventionsResponse } from '@/app/api/admin/techniciens/[id]/interventions/route';
 
 type Tab = 'profil' | 'historique';
 
@@ -222,18 +225,187 @@ export function TechnicienDrawer({
             </div>
           )}
 
-          {tab === 'historique' && (
-            <div className="bg-cream border border-sand-border rounded-xl p-6 text-center dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-              <div className="text-3xl mb-2">🕘</div>
-              <div className="text-sm font-bold text-ink mb-1 dark:text-[#F0ECE4]">
-                Historique des interventions
-              </div>
-              <p className="text-[12px] text-ink-muted italic dark:text-[#C8C2B8]">
-                L&apos;historique des interventions arrivera dans une prochaine itération.
-              </p>
+          {tab === 'historique' && <HistoriqueTab techId={tech.id} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Onglet Historique ──────────────────────────────────────────────
+type FiltreStatut = 'all' | 'en_cours' | 'realisees' | 'cloturees';
+
+const FILTRES: { key: FiltreStatut; label: string; statuts: StatutIntervention[] | null }[] = [
+  { key: 'all',       label: 'Toutes',     statuts: null },
+  { key: 'en_cours',  label: 'En cours',   statuts: ['nouvelle', 'attente', 'confirmee', 'en_suspens'] },
+  { key: 'realisees', label: 'Réalisées',  statuts: ['realisee', 'rapport'] },
+  { key: 'cloturees', label: 'Clôturées',  statuts: ['cloturee'] },
+];
+
+function HistoriqueTab({ techId }: { techId: string }) {
+  const [data, setData] = useState<TechInterventionsResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [filtre, setFiltre] = useState<FiltreStatut>('all');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/admin/techniciens/${techId}/interventions`, { cache: 'no-store' })
+      .then(async (r) => {
+        const json = await r.json();
+        if (cancelled) return;
+        if (!r.ok || !json.ok) {
+          setError(json.error ?? `HTTP ${r.status}`);
+        } else {
+          setData(json as TechInterventionsResponse);
+        }
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur réseau.');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [techId]);
+
+  if (loading && !data) {
+    return (
+      <div className="bg-cream border border-sand-border rounded-xl p-6 text-center dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-terra-light border border-terra-mid text-terra rounded-xl p-4 text-[12px]">
+        Erreur de chargement : {error}
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const activeStatuts = FILTRES.find((f) => f.key === filtre)?.statuts;
+  const filtered = activeStatuts
+    ? data.interventions.filter((i) => activeStatuts.includes(i.statut))
+    : data.interventions;
+
+  return (
+    <div className="space-y-3">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatCard label="Total" value={data.stats.total} />
+        <StatCard label="Ce mois" value={data.stats.ce_mois} />
+        <StatCard label="Cette année" value={data.stats.cette_annee} />
+      </div>
+
+      {/* Filtres */}
+      <div className="flex flex-wrap gap-1.5">
+        {FILTRES.map((f) => {
+          const active = filtre === f.key;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFiltre(f.key)}
+              className={
+                'px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ' +
+                (active
+                  ? 'bg-navy text-white border-navy'
+                  : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-mid dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]')
+              }
+            >
+              {f.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Liste */}
+      {filtered.length === 0 ? (
+        <div className="bg-cream border border-sand-border rounded-xl p-6 text-center text-[12px] text-ink-muted italic dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
+          {data.interventions.length === 0
+            ? 'Aucune intervention assignée à ce technicien.'
+            : 'Aucune intervention ne correspond à ce filtre.'}
+        </div>
+      ) : (
+        <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-sand dark:bg-[#221E1A]">
+                {['Date', 'Réf', 'ACP', 'Statut'].map((h) => (
+                  <th
+                    key={h}
+                    className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border dark:text-[#C8C2B8] dark:border-[#2C2A24]"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((iv) => (
+                <tr
+                  key={iv.id}
+                  className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#2C2A24] dark:hover:bg-[#221E1A]"
+                >
+                  <td className="px-3 py-2 text-[11px] text-ink whitespace-nowrap dark:text-[#F0ECE4]">
+                    <a
+                      href={`/admin/interventions/${iv.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block hover:text-navy"
+                      title={iv.adresse ?? ''}
+                    >
+                      {iv.creneau_debut ? fmtDateTime(iv.creneau_debut) : '—'}
+                    </a>
+                  </td>
+                  <td className="px-3 py-2 text-[11px] font-mono text-navy dark:text-[#A8C4F2]">
+                    <a
+                      href={`/admin/interventions/${iv.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      {iv.ref ?? iv.id.slice(0, 8)}
+                    </a>
+                  </td>
+                  <td className="px-3 py-2 text-[11px] text-ink-mid dark:text-[#C8C2B8]">
+                    <div className="font-semibold text-ink dark:text-[#F0ECE4] truncate max-w-[140px]" title={iv.acp_nom ?? ''}>
+                      {iv.acp_nom ?? '—'}
+                    </div>
+                    {iv.adresse && (
+                      <div className="text-[10px] text-ink-muted truncate max-w-[140px]" title={iv.adresse}>
+                        {iv.adresse}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <StatutBadge statut={iv.statut} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data.interventions.length >= 200 && (
+            <div className="px-3 py-2 text-[10px] text-ink-muted italic border-t border-sand-border bg-sand dark:border-[#2C2A24] dark:bg-[#221E1A] dark:text-[#C8C2B8]">
+              200 dernières interventions affichées.
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-cream border border-sand-border rounded-lg px-3 py-2.5 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="text-lg font-extrabold text-ink leading-tight dark:text-[#F0ECE4]">{value}</div>
+      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider mt-0.5 dark:text-[#C8C2B8]">
+        {label}
       </div>
     </div>
   );
