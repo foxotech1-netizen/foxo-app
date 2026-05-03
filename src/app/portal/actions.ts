@@ -91,6 +91,10 @@ export type CourtierStep1 = {
   sinistre_code_postal: string;
   sinistre_ville: string;
   ref_compagnie: string;
+  // Optionnels — alimentent le JSONB interventions.assureur (nouvelle
+  // structure, exposée dans le bloc "Informations assurance" de la fiche).
+  reference_sinistre?: string;
+  compagnie_assurance?: string;
 };
 
 export type RequestInput = {
@@ -131,6 +135,13 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
   let acpId: string | null = null;
   let adresseLigne: string | null = null;
   let dossierFields: { assure: string; ref_courtier: string } | null = null;
+  let assureurJson: {
+    nom: string | null;
+    email: string | null;
+    telephone: string | null;
+    reference_sinistre: string | null;
+    reference_police: string | null;
+  } | null = null;
 
   if (isCourtier) {
     if (!input.courtier) return { ok: false, error: 'Données dossier sinistre manquantes.' };
@@ -142,6 +153,21 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
     if (!c.ref_compagnie.trim()) return { ok: false, error: 'Référence compagnie requise.' };
     adresseLigne = `${c.sinistre_rue.trim()}, ${c.sinistre_code_postal.trim()} ${c.sinistre_ville.trim()}`;
     dossierFields = { assure: c.assure_nom.trim(), ref_courtier: c.ref_compagnie.trim() };
+
+    // Si l'un des deux champs assurance est rempli, on alimente le JSONB
+    // interventions.assureur (sinon on laisse à null pour ne pas créer de
+    // ligne vide).
+    const refSinistre = c.reference_sinistre?.trim() || null;
+    const compagnieNom = c.compagnie_assurance?.trim() || null;
+    if (refSinistre || compagnieNom) {
+      assureurJson = {
+        nom: compagnieNom,
+        email: null,
+        telephone: null,
+        reference_sinistre: refSinistre,
+        reference_police: null,
+      };
+    }
   } else {
     if (!input.acp_id) return { ok: false, error: 'Immeuble non sélectionné.' };
     acpId = input.acp_id;
@@ -170,6 +196,8 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       ref_bon_commande: input.facturation.ref_bon_commande.trim() || null,
       date_demande: new Date().toISOString().slice(0, 10),
       demandeur_type: isCourtier ? 'courtier' : 'syndic',
+      ...(assureurJson ? { assureur: assureurJson } : {}),
+      ...(assureurJson?.reference_sinistre ? { reference_externe: assureurJson.reference_sinistre } : {}),
     })
     .select('id')
     .single();

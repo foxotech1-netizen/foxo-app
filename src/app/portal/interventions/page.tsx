@@ -11,8 +11,12 @@ export type InterventionListItem = Pick<
 > & {
   // acp_nom : nom de l'ACP (syndic) OU nom de l'assuré (courtier)
   acp_nom: string | null;
-  // ref_courtier : référence interne du courtier (vide pour syndic)
+  // ref_courtier : référence interne du courtier (vide pour syndic).
+  // Source prioritaire : interventions.assureur.reference_sinistre (JSONB).
+  // Fallback : dossiers_sinistres.ref_courtier (legacy).
   ref_courtier: string | null;
+  // Nom de la compagnie d'assurance (depuis assureur.nom). Vide pour syndic.
+  assureur_nom: string | null;
 };
 
 type DossierLite = { intervention_id: string; assure: string | null; ref_courtier: string | null };
@@ -46,7 +50,7 @@ export default async function InterventionsPage({
   // (nouvelles interventions créées via cron mail / matching auto).
   const { data, error } = await supabase
     .from('interventions')
-    .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse')
+    .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, assureur')
     .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
     .order('created_at', { ascending: false });
 
@@ -80,6 +84,12 @@ export default async function InterventionsPage({
 
   const items: InterventionListItem[] = interventions.map((iv) => {
     const dossier = isCourtier ? dossierMap.get(iv.id) ?? null : null;
+    // Préfère interventions.assureur.reference_sinistre (JSONB, nouvelle
+    // structure) sur dossiers_sinistres.ref_courtier (legacy).
+    const refSinistreNew = iv.assureur?.reference_sinistre ?? null;
+    const refCourtier = (refSinistreNew && refSinistreNew.trim())
+      || dossier?.ref_courtier
+      || null;
     return {
       id: iv.id,
       ref: iv.ref,
@@ -95,7 +105,8 @@ export default async function InterventionsPage({
       acp_nom: isCourtier
         ? (dossier?.assure ?? null)
         : (iv.acp_id ? (acpMap.get(iv.acp_id) ?? null) : null),
-      ref_courtier: dossier?.ref_courtier ?? null,
+      ref_courtier: refCourtier,
+      assureur_nom: iv.assureur?.nom ?? null,
     };
   });
 

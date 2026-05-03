@@ -24,6 +24,7 @@ export default async function InterventionDetail({
   const session = await getCurrentSyndic();
   if (!session?.org) notFound();
   const { org } = session;
+  const isCourtier = org.type === 'courtier';
 
   const supabase = await createClient();
 
@@ -121,6 +122,65 @@ export default async function InterventionDetail({
           </div>
           <p className="text-[13px] text-terra">{intervention.suspens_motif}</p>
         </div>
+      )}
+
+      {/* Bloc dédié courtier : infos assurance + action requise */}
+      {isCourtier && (
+        intervention.assureur?.nom
+        || intervention.assureur?.reference_sinistre
+        || intervention.assureur?.reference_police
+        || intervention.action_requise
+      ) && (
+        <section
+          className="rounded-2xl p-4"
+          style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}
+        >
+          <h2 className="text-sm font-bold mb-3" style={{ color: '#1D6FA4' }}>
+            🏛️ Informations assurance
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+            {intervention.assureur?.nom && (
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#1D6FA4' }}>
+                  Compagnie d&apos;assurance
+                </div>
+                <div className="font-semibold">{intervention.assureur.nom}</div>
+              </div>
+            )}
+            {intervention.assureur?.reference_sinistre && (
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#1D6FA4' }}>
+                  Référence sinistre
+                </div>
+                <div className="font-mono font-semibold">{intervention.assureur.reference_sinistre}</div>
+              </div>
+            )}
+            {intervention.assureur?.reference_police && (
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#1D6FA4' }}>
+                  Référence police
+                </div>
+                <div className="font-mono">{intervention.assureur.reference_police}</div>
+              </div>
+            )}
+            {intervention.assureur?.email && (
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#1D6FA4' }}>
+                  Contact assureur
+                </div>
+                <div className="font-mono text-xs">{intervention.assureur.email}</div>
+              </div>
+            )}
+            {intervention.action_requise && (
+              <div className="sm:col-span-2 pt-1 border-t" style={{ borderColor: '#A8C8E0' }}>
+                <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#1D6FA4' }}>
+                  Action requise
+                </div>
+                <p className="text-ink whitespace-pre-wrap">{intervention.action_requise}</p>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Occupants */}

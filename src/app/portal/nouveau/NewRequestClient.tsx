@@ -69,11 +69,14 @@ export function NewRequestClient({
   const [adressePrecise, setAdressePrecise] = useState('');
 
   // Step 1 — Mode COURTIER : assuré + adresse sinistre + ref compagnie
+  // + référence sinistre (n° dossier assureur) + compagnie d'assurance
   const [assureNom, setAssureNom] = useState('');
   const [sinistreRue, setSinistreRue] = useState('');
   const [sinistreCP, setSinistreCP] = useState('');
   const [sinistreVille, setSinistreVille] = useState('');
   const [refCompagnie, setRefCompagnie] = useState('');
+  const [referenceSinistre, setReferenceSinistre] = useState('');
+  const [compagnieAssurance, setCompagnieAssurance] = useState('');
 
   // Step 2 : Problème
   const [type, setType] = useState<TypeIntervention | ''>('');
@@ -188,6 +191,8 @@ export function NewRequestClient({
             sinistre_code_postal: sinistreCP,
             sinistre_ville: sinistreVille,
             ref_compagnie: refCompagnie,
+            reference_sinistre: referenceSinistre,
+            compagnie_assurance: compagnieAssurance,
           }
         : undefined,
       type,
@@ -227,6 +232,8 @@ export function NewRequestClient({
               codePostal={sinistreCP} setCodePostal={setSinistreCP}
               ville={sinistreVille} setVille={setSinistreVille}
               refCompagnie={refCompagnie} setRefCompagnie={setRefCompagnie}
+              referenceSinistre={referenceSinistre} setReferenceSinistre={setReferenceSinistre}
+              compagnieAssurance={compagnieAssurance} setCompagnieAssurance={setCompagnieAssurance}
             />
           ) : (
             <Step1
@@ -683,12 +690,16 @@ function Step1Courtier({
   codePostal, setCodePostal,
   ville, setVille,
   refCompagnie, setRefCompagnie,
+  referenceSinistre, setReferenceSinistre,
+  compagnieAssurance, setCompagnieAssurance,
 }: {
   assureNom: string; setAssureNom: (v: string) => void;
   rue: string; setRue: (v: string) => void;
   codePostal: string; setCodePostal: (v: string) => void;
   ville: string; setVille: (v: string) => void;
   refCompagnie: string; setRefCompagnie: (v: string) => void;
+  referenceSinistre: string; setReferenceSinistre: (v: string) => void;
+  compagnieAssurance: string; setCompagnieAssurance: (v: string) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -729,8 +740,33 @@ function Step1Courtier({
         placeholder="Numéro de dossier interne (ex : SIN-2026-1234)"
       />
 
+      <div className="rounded-lg p-3" style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}>
+        <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: '#1D6FA4' }}>
+          🏛️ Informations assurance
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field
+            label="Référence sinistre"
+            value={referenceSinistre}
+            onChange={setReferenceSinistre}
+            placeholder="ex : 2026/87234"
+          />
+          <Field
+            label="Compagnie d'assurance"
+            value={compagnieAssurance}
+            onChange={setCompagnieAssurance}
+            placeholder="ex : Ethias, AXA, Allianz…"
+          />
+        </div>
+        <p className="text-[10px] mt-2" style={{ color: '#1D6FA4' }}>
+          Optionnels. Apparaissent sur la fiche du dossier et permettent au technicien
+          de référencer le sinistre auprès de la compagnie.
+        </p>
+      </div>
+
       <p className="text-[11px] text-ink-muted">
-        Cette référence vous permettra de retrouver le dossier dans votre liste et apparaîtra sur les rapports/factures.
+        La référence compagnie vous permettra de retrouver le dossier dans votre liste
+        et apparaîtra sur les rapports/factures.
       </p>
     </div>
   );

@@ -44,7 +44,7 @@ export function InterventionsListClient({
     return items.filter((iv) => {
       const matchQuery =
         !q ||
-        [iv.ref, iv.acp_nom, iv.type, iv.description, iv.ref_courtier, iv.adresse]
+        [iv.ref, iv.acp_nom, iv.type, iv.description, iv.ref_courtier, iv.adresse, iv.assureur_nom]
           .filter(Boolean)
           .some((s) => String(s).toLowerCase().includes(q));
       const matchFilter = filter === 'tous' || iv.statut === filter;
@@ -80,7 +80,7 @@ export function InterventionsListClient({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={isCourtier
-            ? 'Rechercher — référence, assuré, type, ref courtier…'
+            ? 'Rechercher — référence FoxO, sinistre, assuré, compagnie, type…'
             : 'Rechercher — référence, ACP, type…'}
           className="flex-1 px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
         />
@@ -123,7 +123,10 @@ export function InterventionsListClient({
                   )}
                 </div>
                 <div className="font-bold text-[13px] mt-0.5 truncate">{iv.acp_nom ?? '—'}</div>
-                <div className="text-[11px] text-ink-muted mt-0.5">{iv.type ?? '—'}</div>
+                <div className="text-[11px] text-ink-muted mt-0.5">
+                  {iv.type ?? '—'}
+                  {iv.assureur_nom && <> · <span className="italic">{iv.assureur_nom}</span></>}
+                </div>
               </div>
               <StatutBadge statut={iv.statut} />
             </div>
@@ -175,12 +178,19 @@ export function InterventionsListClient({
                 {isCourtier && (
                   <td className="px-3.5 py-3">
                     {iv.ref_courtier ? (
-                      <span
-                        className="font-mono text-[11px] font-semibold text-white rounded px-2 py-0.5"
-                        style={{ background: '#1D6FA4' }}
-                      >
-                        {iv.ref_courtier}
-                      </span>
+                      <>
+                        <span
+                          className="font-mono text-[11px] font-semibold text-white rounded px-2 py-0.5"
+                          style={{ background: '#1D6FA4' }}
+                        >
+                          {iv.ref_courtier}
+                        </span>
+                        {iv.assureur_nom && (
+                          <div className="text-[10px] text-ink-muted mt-0.5 truncate max-w-[160px]">
+                            {iv.assureur_nom}
+                          </div>
+                        )}
+                      </>
                     ) : <span className="text-ink-muted">—</span>}
                   </td>
                 )}
