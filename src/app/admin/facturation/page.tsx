@@ -18,6 +18,33 @@ export default async function FacturationPage() {
 
   const factures = (data ?? []) as Facture[];
 
+  // Pré-fetch des avoirs ACTIFS (statut ≠ annulee) pour calculer le
+  // statut "couverture par avoir" de chaque facture en une seule passe.
+  // Pas de jointure côté SQL — on le fait en mémoire sur le résultat.
+  const factureIds = factures.map((f) => f.id);
+  type AvoirAggLite = { facture_origine_id: string; montant_ttc: number; statut: string };
+  let avoirsAgg: AvoirAggLite[] = [];
+  if (factureIds.length > 0) {
+    const { data: avoirsRaw } = await supabase
+      .from('factures')
+      .select('facture_origine_id, montant_ttc, statut')
+      .eq('type', 'avoir')
+      .in('facture_origine_id', factureIds)
+      .neq('statut', 'annulee');
+    avoirsAgg = ((avoirsRaw ?? []) as Array<{ facture_origine_id: string | null; montant_ttc: number | null; statut: string }>)
+      .filter((a) => a.facture_origine_id !== null)
+      .map((a) => ({ facture_origine_id: a.facture_origine_id as string, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
+  }
+  // Map id → { totalEmis, totalAll }
+  type AvoirsState = { totalEmis: number; totalAll: number };
+  const avoirsByFacture: Record<string, AvoirsState> = {};
+  for (const a of avoirsAgg) {
+    if (!avoirsByFacture[a.facture_origine_id]) avoirsByFacture[a.facture_origine_id] = { totalEmis: 0, totalAll: 0 };
+    const abs = Math.abs(a.montant_ttc);
+    avoirsByFacture[a.facture_origine_id].totalAll += abs;
+    if (a.statut !== 'brouillon') avoirsByFacture[a.facture_origine_id].totalEmis += abs;
+  }
+
   return (
     <>
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
@@ -44,7 +71,7 @@ export default async function FacturationPage() {
       )}
 
       <div className="flex-1 overflow-auto px-6 py-5">
-        <FacturationListClient initialFactures={factures} />
+        <FacturationListClient initialFactures={factures} avoirsByFacture={avoirsByFacture} />
       </div>
     </>
   );

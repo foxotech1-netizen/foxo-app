@@ -31,6 +31,23 @@ export default async function EditFacturePage({
   if (facture.type === 'avoir') {
     redirect(`/admin/facturation/notes-credit/${id}`);
   }
+
+  // Avoirs ACTIFS liés à la facture (statut ≠ annulee) — pour le bandeau
+  // solde réel.
+  const { data: avoirsRaw } = await supabase
+    .from('factures')
+    .select('id, numero, montant_ttc, statut')
+    .eq('type', 'avoir')
+    .eq('facture_origine_id', facture.id)
+    .neq('statut', 'annulee')
+    .order('numero', { ascending: true });
+  const avoirs = ((avoirsRaw ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: string }>);
+  const totalCredite = avoirs.reduce((s, a) => s + Math.abs(Number(a.montant_ttc ?? 0)), 0);
+  const totalCrediteEmis = avoirs
+    .filter((a) => a.statut !== 'brouillon')
+    .reduce((s, a) => s + Math.abs(Number(a.montant_ttc ?? 0)), 0);
+  const factureTtc = Number(facture.montant_ttc ?? 0);
+  const soldeReel = Math.max(0, factureTtc - totalCrediteEmis);
   const articles = (articlesRes.data ?? []) as Article[];
 
   return (
@@ -57,6 +74,45 @@ export default async function EditFacturePage({
       </header>
 
       <div className="flex-1 overflow-auto px-6 py-5">
+        {avoirs.length > 0 && (
+          <div className="mb-4 bg-amber-light border border-[#E8C896] rounded-2xl px-4 py-3 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold text-[#8A5A1A] uppercase tracking-wider mb-1 dark:text-[#F0D896]">
+                  📝 {avoirs.length} avoir(s) lié(s) — solde réel
+                </div>
+                <div className="flex flex-wrap items-baseline gap-3 text-[13px]">
+                  <span className="text-ink-mid">
+                    Facture : <strong className="font-mono">{factureTtc.toFixed(2)} €</strong>
+                  </span>
+                  <span className="text-terra">
+                    − Avoirs émis : <strong className="font-mono">{totalCrediteEmis.toFixed(2)} €</strong>
+                  </span>
+                  <span className="text-navy font-bold dark:text-[#A8C4F2]">
+                    = Solde réel : <span className="font-mono">{soldeReel.toFixed(2)} €</span>
+                  </span>
+                </div>
+                {totalCredite > totalCrediteEmis && (
+                  <div className="text-[11px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+                    + {(totalCredite - totalCrediteEmis).toFixed(2)} € en brouillon (non encore émis).
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {avoirs.map((a) => (
+                  <Link
+                    key={a.id}
+                    href={`/admin/facturation/notes-credit/${a.id}`}
+                    className="text-[10px] font-mono font-bold bg-white text-terra border border-terra-mid rounded px-2 py-1 hover:bg-terra-light"
+                    title={`${a.statut} · ${Math.abs(Number(a.montant_ttc ?? 0)).toFixed(2)} €`}
+                  >
+                    {a.numero}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         <FactureEditor initial={facture} initialNumero={facture.numero} articles={articles} />
       </div>
     </>

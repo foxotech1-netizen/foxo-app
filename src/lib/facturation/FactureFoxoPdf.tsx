@@ -264,9 +264,13 @@ export interface FactureFoxoPdfProps {
   facture: Facture;
   qrDataUrl?: string;        // data: PNG du QR EPC (généré côté serveur)
   logoSrc?: string;          // chemin absolu vers public/foxo-logo-transparent.png
+  // Avoirs ACTIFS liés à cette facture (statut ≠ annulee). Affichés dans
+  // un bloc en bas de page avec le solde net. Utile pour les factures
+  // qui ont déjà été partiellement créditées au moment de l'envoi.
+  avoirs?: Array<{ numero: string; montant_ttc: number; statut: string }>;
 }
 
-export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfProps) {
+export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs }: FactureFoxoPdfProps) {
   const lignes: FactureLigne[] = Array.isArray(facture.lignes) ? facture.lignes : [];
   const details: FactureDetailsIntervention = facture.details_intervention ?? {};
 
@@ -525,6 +529,35 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
                 <Text style={styles.totalTtcLabel}>Total</Text>
                 <Text style={styles.totalTtcValue}>{fmtMoney(totals.totalTtc)}</Text>
               </View>
+
+              {/* Avoirs liés à cette facture (statut ≠ annulee).
+                  Affiché uniquement pour les factures (pas pour les
+                  devis ni les avoirs eux-mêmes). */}
+              {docType === 'facture' && avoirs && avoirs.length > 0 && (() => {
+                const totalCredite = avoirs.reduce((s, a) => s + Math.abs(a.montant_ttc), 0);
+                const soldeReel = Math.max(0, totals.totalTtc - totalCredite);
+                return (
+                  <>
+                    <Text style={[styles.totalLabel, { marginTop: 10, fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5 }]}>
+                      Avoir(s) déduit(s)
+                    </Text>
+                    {avoirs.map((a) => (
+                      <View key={a.numero} style={styles.totalRow}>
+                        <Text style={[styles.totalLabel, { fontSize: 9 }]}>
+                          {a.numero}{a.statut === 'brouillon' ? ' (brouillon)' : ''}
+                        </Text>
+                        <Text style={[styles.totalValue, { fontSize: 9, color: '#C4622D' }]}>
+                          −{fmtMoney(Math.abs(a.montant_ttc))}
+                        </Text>
+                      </View>
+                    ))}
+                    <View style={[styles.totalRow, { borderTopWidth: 0.5, borderTopColor: '#DDD8CC', paddingTop: 4, marginTop: 2 }]}>
+                      <Text style={[styles.totalLabel, { fontWeight: 700 }]}>Solde net dû</Text>
+                      <Text style={[styles.totalValue, { fontWeight: 700, color: COLORS.navy }]}>{fmtMoney(soldeReel)}</Text>
+                    </View>
+                  </>
+                );
+              })()}
             </View>
           </View>
         </View>

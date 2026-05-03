@@ -30,7 +30,15 @@ function thisMonthRange(): { from: string; to: string } {
   return { from, to };
 }
 
-export function FacturationListClient({ initialFactures }: { initialFactures: Facture[] }) {
+export type AvoirsAggByFacture = Record<string, { totalEmis: number; totalAll: number }>;
+
+export function FacturationListClient({
+  initialFactures,
+  avoirsByFacture = {},
+}: {
+  initialFactures: Facture[];
+  avoirsByFacture?: AvoirsAggByFacture;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
@@ -199,7 +207,29 @@ export function FacturationListClient({ initialFactures }: { initialFactures: Fa
                       {fmtMoney(f.montant_ttc)}
                     </td>
                     <td className="px-3.5 py-2.5">
-                      <StatutBadge statut={f.statut} />
+                      <div className="flex flex-col gap-1">
+                        <StatutBadge statut={f.statut} />
+                        {(() => {
+                          const a = avoirsByFacture[f.id];
+                          if (!a || a.totalEmis === 0) return null;
+                          const ttc = Number(f.montant_ttc ?? 0);
+                          // Si la facture est annulée + couverte 100% → "Annulée par avoir"
+                          // Sinon partiel.
+                          const fullyCovered = ttc > 0 && a.totalEmis + 0.005 >= ttc;
+                          if (f.statut === 'annulee' && fullyCovered) {
+                            return (
+                              <span className="inline-block self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white" title={`Annulée par avoir (${a.totalEmis.toFixed(2)} €)`}>
+                                ❌ Annulée par avoir
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="inline-block self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
+                              📝 Avoir partiel
+                            </span>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
                       <RowMenu

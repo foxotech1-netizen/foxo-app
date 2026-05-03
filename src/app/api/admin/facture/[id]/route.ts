@@ -44,10 +44,25 @@ export async function GET(
 
   const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
 
+  // Pour les factures : charge les avoirs ACTIFS liés (statut ≠ annulee)
+  // pour que le PDF affiche le solde net dû. Pour les devis et avoirs,
+  // pas de fetch — leur PDF n'utilise pas cette donnée.
+  let avoirs: Array<{ numero: string; montant_ttc: number; statut: string }> | undefined;
+  if (facture.type === 'facture') {
+    const { data: avoirsRaw } = await supabase
+      .from('factures')
+      .select('numero, montant_ttc, statut')
+      .eq('type', 'avoir')
+      .eq('facture_origine_id', facture.id)
+      .neq('statut', 'annulee');
+    avoirs = ((avoirsRaw ?? []) as Array<{ numero: string; montant_ttc: number | null; statut: string }>)
+      .map((a) => ({ numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
+  }
+
   let pdf: Buffer;
   try {
     pdf = await renderToBuffer(
-      FactureFoxoPdf({ facture, qrDataUrl, logoSrc }),
+      FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs }),
     );
   } catch (e) {
     console.warn('[api/admin/facture] PDF render error:', e);

@@ -186,6 +186,25 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     type: input.remise_globale_type,
   });
   const docType: TypeFacture = input.type ?? 'facture';
+
+  // Règle métier : la somme des avoirs liés à une facture ne peut pas
+  // dépasser le montant de la facture d'origine. On exclut l'avoir en
+  // cours d'édition s'il existe déjà (pour ne pas le compter deux fois).
+  if (docType === 'avoir' && input.facture_origine_id) {
+    const summary = await getFactureAvoirsSummary(input.facture_origine_id, {
+      excludeAvoirId: input.id,
+    });
+    if (!summary.ok) return { ok: false, error: summary.error };
+    const newAvoirAbs = Math.abs(totals.ttc);
+    const totalAfter = summary.data!.totalCredite + newAvoirAbs;
+    if (totalAfter > summary.data!.factureTtc + EPSILON_EUR) {
+      const restant = Math.max(0, summary.data!.factureTtc - summary.data!.totalCredite);
+      return {
+        ok: false,
+        error: `Le total des avoirs (${totalAfter.toFixed(2)} €) dépasse le montant de la facture (${summary.data!.factureTtc.toFixed(2)} €). Reste à crédit disponible : ${restant.toFixed(2)} €.`,
+      };
+    }
+  }
   // BBA (communication structurée) : pertinent pour les factures et
   // les avoirs (paiement à recevoir/restituer). Pour les devis, pas
   // de paiement → pas de BBA.
@@ -253,6 +272,81 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
   }
 }
 
+// ─── Helpers avoirs (règles métier) ──────────────────────────────────────
+
+export interface AvoirLight {
+  id: string;
+  numero: string;
+  montant_ttc: number;
+  statut: StatutFacture;
+}
+
+export interface AvoirsSummary {
+  factureTtc: number;
+  // Total déjà crédité par les avoirs ACTIFS (non annulés) en valeur absolue.
+  // Inclut les brouillons par défaut — passe excludeBrouillons:true pour
+  // n'inclure que les avoirs émis (utilisé pour l'auto-cancel facture).
+  totalCredite: number;
+  totalCrediteEmis: number;
+  soldeReel: number;
+  isFullyCovered: boolean;          // basé sur totalCrediteEmis (statut envoyee)
+  isOverCovered: boolean;           // basé sur totalCredite (avoirs actifs)
+  avoirs: AvoirLight[];
+}
+
+const EPSILON_EUR = 0.005;
+
+// Calcule le résumé des avoirs liés à une facture. Optionnellement exclut
+// un avoir précis (utile pour la validation lors d'un update : on simule
+// le nouveau montant).
+export async function getFactureAvoirsSummary(
+  factureId: string,
+  options?: { excludeAvoirId?: string },
+): Promise<ActionResult<AvoirsSummary>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { data: f } = await supabase
+    .from('factures')
+    .select('id, type, montant_ttc')
+    .eq('id', factureId)
+    .maybeSingle();
+  if (!f) return { ok: false, error: 'Facture introuvable.' };
+  if (f.type !== 'facture') return { ok: false, error: 'Seules les factures ont des avoirs.' };
+  const factureTtc = Number(f.montant_ttc ?? 0);
+
+  let q = supabase
+    .from('factures')
+    .select('id, numero, montant_ttc, statut')
+    .eq('type', 'avoir')
+    .eq('facture_origine_id', factureId)
+    .neq('statut', 'annulee');
+  if (options?.excludeAvoirId) q = q.neq('id', options.excludeAvoirId);
+
+  const { data: avoirsRaw, error } = await q;
+  if (error) return { ok: false, error: error.message };
+  const avoirs = ((avoirsRaw ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: StatutFacture }>).map((a) => ({
+    id: a.id,
+    numero: a.numero,
+    montant_ttc: Number(a.montant_ttc ?? 0),
+    statut: a.statut,
+  }));
+
+  const totalCredite = avoirs.reduce((s, a) => s + Math.abs(a.montant_ttc), 0);
+  const totalCrediteEmis = avoirs
+    .filter((a) => a.statut !== 'brouillon')
+    .reduce((s, a) => s + Math.abs(a.montant_ttc), 0);
+  const soldeReel = Math.max(0, factureTtc - totalCrediteEmis);
+  const isFullyCovered = totalCrediteEmis + EPSILON_EUR >= factureTtc && factureTtc > 0;
+  const isOverCovered = totalCredite > factureTtc + EPSILON_EUR;
+
+  return {
+    ok: true,
+    data: { factureTtc, totalCredite, totalCrediteEmis, soldeReel, isFullyCovered, isOverCovered, avoirs },
+  };
+}
+
 // ─── Avoirs (notes de crédit) ────────────────────────────────────────────
 
 // Crée un avoir (brouillon) à partir d'une facture existante. Pré-remplit
@@ -273,12 +367,27 @@ export async function createAvoirFromFacture(
     return { ok: false, error: 'Seules les factures peuvent générer un avoir.' };
   }
 
+  // Règle métier : refuser si la facture est déjà couverte à 100% par des
+  // avoirs actifs (brouillons inclus pour éviter d'en créer un de plus
+  // par-dessus le brouillon en cours).
+  const summary = await getFactureAvoirsSummary(factureId);
+  if (!summary.ok) return { ok: false, error: summary.error };
+  const restant = Math.max(0, summary.data!.factureTtc - summary.data!.totalCredite);
+  if (restant <= EPSILON_EUR) {
+    return {
+      ok: false,
+      error: `Cette facture est déjà entièrement couverte par des avoirs (${summary.data!.totalCredite.toFixed(2)} € sur ${summary.data!.factureTtc.toFixed(2)} €). Annule un avoir existant avant d'en créer un nouveau.`,
+    };
+  }
+
   // Lignes : on garde les mêmes lignes mais en quantité négative pour
-  // signaler un retour comptable. Si partial, l'admin retirera des lignes
-  // ou ajustera les quantités dans l'éditeur.
+  // signaler un retour comptable. Si partial OU si la facture a déjà des
+  // avoirs (le clone full-amount dépasserait le restant), on initialise
+  // les quantités à 0 — l'admin saisira le détail à porter en avoir.
+  const cloneFull = !options?.partial && summary.data!.totalCredite < EPSILON_EUR;
   const lignesAvoir: FactureLigne[] = (facture.lignes ?? []).map((l) => ({
     ...l,
-    quantite: options?.partial ? 0 : -Math.abs(Number(l.quantite ?? 0)),
+    quantite: cloneFull ? -Math.abs(Number(l.quantite ?? 0)) : 0,
   }));
 
   const numeroRes = await generateNextNumero('avoir');
@@ -449,14 +558,65 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
 
+  const supabase = await createClient();
+
+  // Pré-charge pour vérifier le type (utile pour la règle métier
+  // "auto-cancel facture si avoirs émis ≥ TTC facture") et pour valider
+  // l'émission d'un avoir contre le plafond.
+  const { data: docBefore } = await supabase
+    .from('factures')
+    .select('id, type, facture_origine_id, montant_ttc')
+    .eq('id', id)
+    .maybeSingle();
+  if (!docBefore) return { ok: false, error: 'Document introuvable.' };
+
+  // Règle métier : à l'émission d'un avoir, vérifier que l'émission ne
+  // ferait pas dépasser le total des avoirs émis sur la facture origine.
+  if (statut === 'envoyee'
+      && docBefore.type === 'avoir'
+      && docBefore.facture_origine_id) {
+    const summary = await getFactureAvoirsSummary(docBefore.facture_origine_id, {
+      excludeAvoirId: id,
+    });
+    if (!summary.ok) return { ok: false, error: summary.error };
+    const newTotal = summary.data!.totalCrediteEmis + Math.abs(Number(docBefore.montant_ttc ?? 0));
+    if (newTotal > summary.data!.factureTtc + EPSILON_EUR) {
+      return {
+        ok: false,
+        error: `Émission impossible : le total des avoirs émis dépasserait le montant de la facture (${newTotal.toFixed(2)} € > ${summary.data!.factureTtc.toFixed(2)} €).`,
+      };
+    }
+  }
+
   const patch: Record<string, unknown> = { statut, updated_at: new Date().toISOString() };
   if (statut === 'envoyee') patch.sent_at = new Date().toISOString();
   if (statut === 'payee') patch.date_paiement = datePaiement ?? fmtIsoDate(new Date());
   if (statut !== 'payee') patch.date_paiement = null;
 
-  const supabase = await createClient();
   const { error } = await supabase.from('factures').update(patch).eq('id', id);
   if (error) return { ok: false, error: error.message };
+
+  // Auto-cancel facture origine si elle est désormais 100% couverte par
+  // les avoirs émis (règle métier). N'écrase pas un statut 'annulee' ou
+  // 'payee' déjà posé.
+  if (statut === 'envoyee'
+      && docBefore.type === 'avoir'
+      && docBefore.facture_origine_id) {
+    const summary2 = await getFactureAvoirsSummary(docBefore.facture_origine_id);
+    if (summary2.ok && summary2.data!.isFullyCovered) {
+      const { data: orig } = await supabase
+        .from('factures')
+        .select('statut')
+        .eq('id', docBefore.facture_origine_id)
+        .maybeSingle();
+      if (orig && orig.statut !== 'annulee' && orig.statut !== 'payee') {
+        await supabase
+          .from('factures')
+          .update({ statut: 'annulee', updated_at: new Date().toISOString() })
+          .eq('id', docBefore.facture_origine_id);
+      }
+    }
+  }
 
   // Upload Drive sur émission (best-effort, non bloquant)
   if (statut === 'envoyee') {
@@ -474,8 +634,21 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
             bba: facture.reference_structuree ?? undefined,
           });
         } catch { /* noop */ }
+        // Si on émet une facture, charge ses avoirs pour les afficher
+        // dans le PDF (note "déduit par avoir(s)" en bas de page).
+        let avoirsForPdf: AvoirLight[] | undefined;
+        if (facture.type === 'facture') {
+          const { data: linkedAvoirs } = await supabase
+            .from('factures')
+            .select('id, numero, montant_ttc, statut')
+            .eq('type', 'avoir')
+            .eq('facture_origine_id', facture.id)
+            .neq('statut', 'annulee');
+          avoirsForPdf = ((linkedAvoirs ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: StatutFacture }>)
+            .map((a) => ({ id: a.id, numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
+        }
         const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
-        const pdf = await renderToBuffer(FactureFoxoPdf({ facture, qrDataUrl, logoSrc }));
+        const pdf = await renderToBuffer(FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs: avoirsForPdf }));
         const date = facture.date_emission ? new Date(facture.date_emission) : new Date();
         await uploadFacture({ numero: facture.numero, date, bytes: new Uint8Array(pdf) });
       }
@@ -485,6 +658,7 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   }
 
   revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
   return { ok: true };
 }
 
