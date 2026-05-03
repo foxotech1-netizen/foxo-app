@@ -83,8 +83,11 @@ export function OrganisationDrawer({
   }
 
   useEffect(() => {
-    if (tab === 'delegues') loadDelegues();
-    if (tab === 'acps') loadAcps();
+    // loadDelegues / loadAcps font setLoading(true) en synchrone — wrap
+    // dans queueMicrotask pour rester hors du body sync de l'effect
+    // (react-hooks/set-state-in-effect).
+    if (tab === 'delegues') queueMicrotask(() => { loadDelegues(); });
+    if (tab === 'acps') queueMicrotask(() => { loadAcps(); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, org.id]);
 

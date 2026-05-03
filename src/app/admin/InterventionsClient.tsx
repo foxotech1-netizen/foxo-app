@@ -148,7 +148,10 @@ export function InterventionsClient({
   // les "il y a Xh" relatifs.
   const [nowMs, setNowMs] = useState<number>(() => Date.parse(serverNowIso));
   useEffect(() => {
-    setNowMs(Date.now());
+    // queueMicrotask : sort le 1er setState du body sync de l'effect
+    // (respecte react-hooks/set-state-in-effect). Le setInterval suivant
+    // appelle déjà setNowMs depuis un callback asynchrone, donc OK.
+    queueMicrotask(() => setNowMs(Date.now()));
     const t = setInterval(() => setNowMs(Date.now()), 60_000);
     return () => clearInterval(t);
   }, []);
@@ -432,10 +435,12 @@ export function InterventionsClient({
 
   // Mode page complète : ouvre automatiquement le drawer pour
   // l'intervention demandée au mount. openDrawer initialise tous les
-  // brouillons de formulaire et déclenche le fetch des occupants.
+  // brouillons de formulaire et déclenche le fetch des occupants
+  // (cascade de setState) — wrappé en queueMicrotask pour rester hors
+  // du body sync de l'effect (react-hooks/set-state-in-effect).
   useEffect(() => {
     if (fullPage && initialSelectedId && rows.some((r) => r.id === initialSelectedId)) {
-      openDrawer(initialSelectedId);
+      queueMicrotask(() => openDrawer(initialSelectedId));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
