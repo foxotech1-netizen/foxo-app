@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Acp, PrioriteIntervention, TypeIntervention } from '@/lib/types/database';
 import { useOrgType, useVocab } from '../PortalContext';
+import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
 import {
   searchAcp,
   createAcp,
@@ -460,13 +461,18 @@ function Step1({
                 Nouvelle ACP
               </div>
               <Field label="Nom *" value={newAcp.nom} onChange={(v) => setNewAcp({ ...newAcp, nom: v })} placeholder="Résidence Bellevue" />
-              <Field label="Adresse" value={newAcp.adresse} onChange={(v) => setNewAcp({ ...newAcp, adresse: v })} placeholder="Avenue Louise 42" />
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="Code postal" value={newAcp.code_postal} onChange={(v) => setNewAcp({ ...newAcp, code_postal: v })} placeholder="1050" />
-                <div className="col-span-2">
-                  <Field label="Ville" value={newAcp.ville} onChange={(v) => setNewAcp({ ...newAcp, ville: v })} placeholder="Bruxelles" />
-                </div>
-              </div>
+              <AddressAutocomplete
+                label="Adresse de l'immeuble"
+                value={addressFromString(newAcp.adresse)}
+                onChange={(v) => setNewAcp({
+                  ...newAcp,
+                  adresse: v.adresse,
+                  code_postal: v.code_postal,
+                  ville: v.ville,
+                })}
+                placeholder="Avenue Louise 42, 1050 Bruxelles"
+                required
+              />
               <Field label="Numéro BCE" value={newAcp.bce} onChange={(v) => setNewAcp({ ...newAcp, bce: v })} placeholder="BE0123.456.789" />
               <Field label="Email rapport" value={newAcp.email_rapport} onChange={(v) => setNewAcp({ ...newAcp, email_rapport: v })} placeholder="rapport@..." type="email" />
               <Field label="Email facturation" value={newAcp.email_facturation} onChange={(v) => setNewAcp({ ...newAcp, email_facturation: v })} placeholder="facturation@..." type="email" />
@@ -707,31 +713,27 @@ function Step1Courtier({
 
       <Field label="Nom de l'assuré *" value={assureNom} onChange={setAssureNom} placeholder="ex : SPRL Dupont — Cabinet d'expertise" />
 
-      <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
-          Adresse du sinistre <span className="text-terra">*</span>
-        </label>
-        <input
-          value={rue}
-          onChange={(e) => setRue(e.target.value)}
-          placeholder="Rue et numéro"
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
-        />
-        <div className="grid grid-cols-3 gap-2">
-          <input
-            value={codePostal}
-            onChange={(e) => setCodePostal(e.target.value)}
-            placeholder="Code postal"
-            className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-          />
-          <input
-            value={ville}
-            onChange={(e) => setVille(e.target.value)}
-            placeholder="Ville"
-            className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-          />
-        </div>
-      </div>
+      <AddressAutocomplete
+        label="Adresse du sinistre"
+        value={{
+          adresse: rue,
+          rue: '',
+          numero: '',
+          code_postal: codePostal,
+          ville,
+          pays: 'BE',
+          lat: null,
+          lng: null,
+          verified: false,
+        }}
+        onChange={(v) => {
+          setRue(v.adresse);
+          setCodePostal(v.code_postal);
+          setVille(v.ville);
+        }}
+        placeholder="Rue du Marché 10, 1000 Bruxelles"
+        required
+      />
 
       <Field
         label="Référence compagnie *"
