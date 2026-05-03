@@ -1,21 +1,35 @@
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
-import { InterventionsListClient } from './InterventionsListClient';
-import type { Acp, Intervention } from '@/lib/types/database';
+import { InterventionsPortalClient } from './InterventionsPortalClient';
+import type { Acp, Intervention, PrioriteIntervention, StatutIntervention } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
-export type InterventionListItem = Pick<
-  Intervention,
-  'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'description' | 'creneau_debut' | 'updated_at' | 'created_at' | 'acp_id' | 'adresse'
-> & {
-  // acp_nom : nom de l'ACP (syndic) OU nom de l'assuré (courtier)
+export type InterventionPortalItem = {
+  id: string;
+  ref: string | null;
+  statut: StatutIntervention;
+  priorite: PrioriteIntervention;
+  type: string | null;
+  description: string | null;
+  creneau_debut: string | null;
+  created_at: string;
+  updated_at: string;
+  // Localisation : nom + adresse + BCE de l'ACP. acp_nom porte aussi
+  // le nom de l'assuré pour les courtiers (cf. dossiers_sinistres ci-dessous).
+  acp_id: string | null;
   acp_nom: string | null;
-  // ref_courtier : référence interne du courtier (vide pour syndic).
-  // Source prioritaire : interventions.assureur.reference_sinistre (JSONB).
-  // Fallback : dossiers_sinistres.ref_courtier (legacy).
+  acp_adresse: string | null;
+  acp_bce: string | null;
+  // Adresse de l'intervention (fallback si l'ACP n'a pas d'adresse).
+  adresse: string | null;
+  // Technicien assigné — null si pas encore attribué.
+  technicien_id: string | null;
+  technicien_nom: string | null;
+  // Vrai si rapport disponible (statut rapport ou cloturee).
+  has_rapport: boolean;
+  // Champs courtier — vide pour syndic.
   ref_courtier: string | null;
-  // Nom de la compagnie d'assurance (depuis assureur.nom). Vide pour syndic.
   assureur_nom: string | null;
 };
 
@@ -46,46 +60,50 @@ export default async function InterventionsPage({
   const isCourtier = org.type === 'courtier';
   const supabase = await createClient();
 
-  // Accepte les deux liens : syndic_id (legacy) OU organisation_id
-  // (nouvelles interventions créées via cron mail / matching auto).
+  // Accepte les 2 liens : syndic_id (legacy) OU organisation_id (nouveau).
+  // Filtre soft delete (deleted_at IS NULL) pour rester aligné avec l'admin.
   const { data, error } = await supabase
     .from('interventions')
-    .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, assureur')
+    .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, technicien_id, assureur')
     .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
   const interventions: Intervention[] = (data as Intervention[] | null) ?? [];
 
-  // Charge ACPs (mode syndic) ou dossiers_sinistres (mode courtier)
-  let acpMap = new Map<string, string>();
-  let dossierMap = new Map<string, DossierLite>();
+  // ── Batch fetches en parallèle (ACPs, techniciens, dossiers courtier) ──
+  const acpIds = Array.from(new Set(interventions.map((i) => i.acp_id).filter(Boolean) as string[]));
+  const techIds = Array.from(new Set(interventions.map((i) => i.technicien_id).filter(Boolean) as string[]));
+  const ivIds = interventions.map((i) => i.id);
 
-  if (isCourtier) {
-    const ivIds = interventions.map((i) => i.id);
-    if (ivIds.length > 0) {
-      const { data: dossiers } = await supabase
-        .from('dossiers_sinistres')
-        .select('intervention_id, assure, ref_courtier')
-        .in('intervention_id', ivIds);
-      dossierMap = new Map(
-        ((dossiers ?? []) as DossierLite[]).map((d) => [d.intervention_id, d]),
-      );
-    }
-  } else {
-    const acpIds = Array.from(new Set(interventions.map((i) => i.acp_id).filter(Boolean) as string[]));
-    if (acpIds.length > 0) {
-      const { data: acps } = await supabase
-        .from('acps')
-        .select('id, nom')
-        .in('id', acpIds);
-      acpMap = new Map(((acps ?? []) as Pick<Acp, 'id' | 'nom'>[]).map((a) => [a.id, a.nom]));
-    }
-  }
+  const [acpsRes, techRes, dossiersRes] = await Promise.all([
+    acpIds.length > 0
+      ? supabase.from('acps').select('id, nom, adresse, bce').in('id', acpIds)
+      : Promise.resolve({ data: [] as Pick<Acp, 'id' | 'nom' | 'adresse' | 'bce'>[] }),
+    techIds.length > 0
+      ? supabase.from('utilisateurs').select('id, prenom, nom').in('id', techIds)
+      : Promise.resolve({ data: [] as { id: string; prenom: string | null; nom: string | null }[] }),
+    isCourtier && ivIds.length > 0
+      ? supabase.from('dossiers_sinistres').select('intervention_id, assure, ref_courtier').in('intervention_id', ivIds)
+      : Promise.resolve({ data: [] as DossierLite[] }),
+  ]);
 
-  const items: InterventionListItem[] = interventions.map((iv) => {
+  const acpMap = new Map(
+    ((acpsRes.data ?? []) as Pick<Acp, 'id' | 'nom' | 'adresse' | 'bce'>[]).map((a) => [a.id, a]),
+  );
+  const techMap = new Map(
+    ((techRes.data ?? []) as { id: string; prenom: string | null; nom: string | null }[])
+      .map((u) => [u.id, [u.prenom, u.nom].filter(Boolean).join(' ').trim() || null]),
+  );
+  const dossierMap = new Map(
+    ((dossiersRes.data ?? []) as DossierLite[]).map((d) => [d.intervention_id, d]),
+  );
+
+  const items: InterventionPortalItem[] = interventions.map((iv) => {
+    const acp = iv.acp_id ? acpMap.get(iv.acp_id) ?? null : null;
     const dossier = isCourtier ? dossierMap.get(iv.id) ?? null : null;
-    // Préfère interventions.assureur.reference_sinistre (JSONB, nouvelle
-    // structure) sur dossiers_sinistres.ref_courtier (legacy).
+    // Préfère interventions.assureur.reference_sinistre (JSONB) sur
+    // dossiers_sinistres.ref_courtier (legacy).
     const refSinistreNew = iv.assureur?.reference_sinistre ?? null;
     const refCourtier = (refSinistreNew && refSinistreNew.trim())
       || dossier?.ref_courtier
@@ -98,23 +116,26 @@ export default async function InterventionsPage({
       type: iv.type,
       description: iv.description,
       creneau_debut: iv.creneau_debut,
-      updated_at: iv.updated_at,
       created_at: iv.created_at,
+      updated_at: iv.updated_at,
       acp_id: iv.acp_id,
+      acp_nom: isCourtier ? (dossier?.assure ?? null) : (acp?.nom ?? null),
+      acp_adresse: acp?.adresse ?? null,
+      acp_bce: acp?.bce ?? null,
       adresse: iv.adresse,
-      acp_nom: isCourtier
-        ? (dossier?.assure ?? null)
-        : (iv.acp_id ? (acpMap.get(iv.acp_id) ?? null) : null),
+      technicien_id: iv.technicien_id,
+      technicien_nom: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
+      has_rapport: iv.statut === 'rapport' || iv.statut === 'cloturee',
       ref_courtier: refCourtier,
       assureur_nom: iv.assureur?.nom ?? null,
     };
   });
 
   return (
-    <InterventionsListClient
+    <InterventionsPortalClient
       items={items}
-      initialStatut={sp.statut ?? 'tous'}
       initialQuery={sp.q ?? ''}
+      initialStatut={sp.statut ?? null}
       loadError={error?.message ?? null}
     />
   );
