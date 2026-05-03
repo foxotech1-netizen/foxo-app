@@ -166,6 +166,7 @@ export function InterventionsClient({
     token_sent_at?: string | null;
     type_occupant?: 'occupant' | 'proprietaire' | 'parties_communes' | null;
     proposed_creneau_debut?: string | null;
+    proposed_creneau_fin?: string | null;
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
@@ -643,6 +644,62 @@ export function InterventionsClient({
       const data = await r.json();
       if (data.ok) setDrawerOccupants(data.occupants ?? []);
     } catch { /* noop */ }
+  }
+
+  async function acceptCounterProposal(occ: DrawerOccupant) {
+    if (!selected) return;
+    if (!occ.proposed_creneau_debut) return;
+
+    const fullName = [occ.prenom, occ.nom].filter(Boolean).join(' ') || 'l\'occupant';
+    const debutFr = new Date(occ.proposed_creneau_debut).toLocaleString('fr-BE', {
+      weekday: 'long', day: 'numeric', month: 'long',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const finFr = occ.proposed_creneau_fin
+      ? new Date(occ.proposed_creneau_fin).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+      : null;
+    const rangeStr = finFr ? `${debutFr} – ${finFr}` : debutFr;
+    const ok = window.confirm(
+      `Accepter le créneau proposé par ${fullName} : ${rangeStr} ?\n\n` +
+      `L'intervention sera reprogrammée, le statut passera à "Confirmée" et l'occupant sera notifié.`,
+    );
+    if (!ok) return;
+
+    // Optimistic update
+    const newCreneau = occ.proposed_creneau_debut;
+    const occId = occ.id;
+    setDrawerOccupants((arr) => arr.map((x) => x.id === occId
+      ? { ...x, conf: 'confirme', proposed_creneau_debut: null, proposed_creneau_fin: null }
+      : x,
+    ));
+    setRows((arr) => arr.map((rw) => rw.id === selected.id
+      ? { ...rw, creneau_debut: newCreneau, statut: 'confirmee' as const }
+      : rw,
+    ));
+    setStatusMessage('⏳ Acceptation en cours…');
+
+    try {
+      const res = await fetch(`/api/admin/interventions/${selected.id}/accept-counter-proposal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ occupant_id: occId }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        // Rollback : on recharge les données serveur autoritatives
+        await refreshOccupants();
+        setStatusMessage(`Erreur : ${data.error ?? 'inconnue'}`);
+        return;
+      }
+      const calOk = data.calendarSync?.ok;
+      const notifsOk = Array.isArray(data.notifs) ? data.notifs.filter((n: { ok: boolean }) => n.ok).length : 0;
+      setStatusMessage(
+        `✓ Proposition acceptée${calOk ? ' (Google Calendar synchronisé)' : ''}${notifsOk > 0 ? ` · ${notifsOk} notif(s) envoyée(s)` : ''}.`,
+      );
+    } catch (e) {
+      await refreshOccupants();
+      setStatusMessage(`Erreur : ${e instanceof Error ? e.message : 'inconnue'}`);
+    }
   }
 
   function startEditOccupant(o: DrawerOccupant) {
@@ -1807,6 +1864,16 @@ export function InterventionsClient({
                                 </div>
                               )}
                               <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {o.proposed_creneau_debut && (
+                                  <button
+                                    type="button"
+                                    onClick={() => acceptCounterProposal(o)}
+                                    className="text-[10px] bg-ok text-white px-2 py-1 rounded font-bold hover:opacity-90"
+                                    title="Reprogrammer l'intervention sur le créneau proposé par l'occupant"
+                                  >
+                                    ✅ Accepter la proposition
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => startEditOccupant(o)}
