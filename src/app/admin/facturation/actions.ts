@@ -907,6 +907,14 @@ export async function sendDocumentEmail(
   if (willTransition) patch.statut = 'envoyee';
   await supabase.from('factures').update(patch).eq('id', facture.id);
 
+  // ── Upload Drive (best-effort, non bloquant) ──────────────────────
+  try {
+    const date = facture.date_emission ? new Date(facture.date_emission) : new Date();
+    await uploadFacture({ numero: facture.numero, date, bytes: new Uint8Array(pdfBuffer) });
+  } catch (e) {
+    console.warn('[sendDocumentEmail] uploadFacture skipped:', e);
+  }
+
   // ── Auto-cancel facture origine si avoir 100% (réplique setFactureStatut) ─
   if (willTransition && facture.type === 'avoir' && facture.facture_origine_id) {
     const summary2 = await getFactureAvoirsSummary(facture.facture_origine_id);
