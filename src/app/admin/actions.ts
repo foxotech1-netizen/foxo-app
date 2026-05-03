@@ -440,3 +440,54 @@ export async function searchAcpsForIntervention(args: {
   return { ok: true, data: (data ?? []) as Row[] };
 }
 
+// ── Suggestion ACP automatique (cf. migration 2026-05-26) ─────────────
+
+// Confirme la suggestion : pose acp_id = acp_id_suggere et clear la
+// suggestion. Refuse si une ACP est déjà associée (acp_id non null) ou
+// si aucune suggestion n'est en attente — empêche les race conditions
+// entre plusieurs admins ou un re-clic après refresh.
+export async function confirmAcpSuggestion(interventionId: string): Promise<ActionState> {
+  if (!interventionId) return { error: 'ID manquant.' };
+
+  const supabase = await createClient();
+  const { data: iv, error: getErr } = await supabase
+    .from('interventions')
+    .select('id, acp_id, acp_suggestion')
+    .eq('id', interventionId)
+    .maybeSingle();
+  if (getErr) return { error: getErr.message };
+  if (!iv) return { error: 'Intervention introuvable.' };
+  if (iv.acp_id) return { error: 'Une ACP est déjà associée.' };
+  const sug = iv.acp_suggestion as { acp_id_suggere?: string } | null;
+  if (!sug?.acp_id_suggere) return { error: 'Aucune suggestion à confirmer.' };
+
+  const { error } = await supabase
+    .from('interventions')
+    .update({
+      acp_id: sug.acp_id_suggere,
+      acp_suggestion: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', interventionId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+// Ignore la suggestion : clear acp_suggestion, laisse acp_id null.
+// Idempotent (no-op si déjà null).
+export async function ignoreAcpSuggestion(interventionId: string): Promise<ActionState> {
+  if (!interventionId) return { error: 'ID manquant.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('interventions')
+    .update({ acp_suggestion: null, updated_at: new Date().toISOString() })
+    .eq('id', interventionId);
+  if (error) return { error: error.message };
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+

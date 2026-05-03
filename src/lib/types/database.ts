@@ -194,6 +194,14 @@ export interface Intervention {
     reference_police: string | null;
   } | null;
   appartements_concernes: string[] | null;
+  // Suggestion d'ACP automatique du pipeline mail (cf. migration
+  // 2026-05-26_acp_suggestion.sql). Posée quand le score est compris
+  // entre 60 % et 84 %, l'admin doit confirmer/ignorer depuis le drawer.
+  acp_suggestion: {
+    nom_extrait: string;
+    acp_id_suggere: string;
+    score: number;       // ∈ [0, 1]
+  } | null;
   deleted_at: string | null;
 }
 

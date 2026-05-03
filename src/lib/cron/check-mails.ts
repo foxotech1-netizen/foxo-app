@@ -20,6 +20,7 @@ import {
   addLabelToMail,
 } from '@/lib/gmail';
 import { nextRefForYear } from '@/lib/intervention-ref';
+import { bestMatch } from '@/lib/text/similarity';
 
 const MODEL = 'claude-sonnet-4-6';
 // Le JSON nested du nouveau prompt FoxO (demandeur.contacts[],
@@ -908,38 +909,74 @@ export async function matchOrCreateDelegue(args: {
   return { id: created.id as string, created: true };
 }
 
-// Match-or-create d'une ACP/immeuble pour un syndic donné. Cherche par
-// nom partiel (ILIKE) avec filtre syndic_id|syndic_id_ref. Ne crée pas
-// automatiquement si non trouvé : on préfère laisser l'admin associer
-// manuellement depuis le drawer pour éviter les doublons (les noms
-// d'immeubles sont souvent ambigus : "Résidence du Parc" peut exister
-// dans plusieurs villes).
-interface MatchedAcpResult { id: string; created: boolean }
-export async function matchAcpForOrganisation(args: {
+// Seuils de la règle métier d'auto-association ACP. Doivent rester en
+// phase avec le bandeau « ACP suggérée » du drawer (cf. InterventionsClient).
+//   ≥ ACP_AUTO_THRESHOLD          → on lie automatiquement (acp_id)
+//   ≥ ACP_SUGGESTION_THRESHOLD    → suggestion à confirmer (acp_suggestion)
+//   <  ACP_SUGGESTION_THRESHOLD   → ni l'un ni l'autre
+export const ACP_AUTO_THRESHOLD = 0.85;
+export const ACP_SUGGESTION_THRESHOLD = 0.60;
+
+export interface MatchAcpScored {
+  acp_id: string;
+  nom_acp: string;
+  score: number;        // ∈ [0, 1]
+}
+
+// Calcule le meilleur match (Dice coefficient) entre `nom_immeuble`
+// extrait par Claude et la liste des ACPs liées au syndic donné.
+// Retourne le meilleur candidat avec son score, peu importe ce dernier
+// — c'est au caller d'appliquer les seuils ACP_AUTO_THRESHOLD /
+// ACP_SUGGESTION_THRESHOLD selon le contexte (auto-link vs suggestion).
+export async function matchAcpWithScore(args: {
   organisation_id: string;
   nom_immeuble: string;
-}): Promise<MatchedAcpResult | null> {
-  if (!args.nom_immeuble || !args.organisation_id) return null;
+}): Promise<MatchAcpScored | null> {
+  if (!args.nom_immeuble.trim() || !args.organisation_id) return null;
   const admin = createAdminClient();
-  const safe = args.nom_immeuble.replace(/[%_,()]/g, ' ').trim();
-  if (!safe) return null;
-  // Recherche par nom partiel filtrée par syndic (deux colonnes legacy)
+  // Récupère toutes les ACPs du syndic (volume usuel < 200 par syndic)
   const { data, error } = await admin
     .from('acps')
-    .select('id, syndic_id, syndic_id_ref')
-    .or(`syndic_id.eq.${args.organisation_id},syndic_id_ref.eq.${args.organisation_id}`)
-    .ilike('nom', `%${safe}%`)
-    .limit(1)
-    .maybeSingle();
+    .select('id, nom')
+    .or(`syndic_id.eq.${args.organisation_id},syndic_id_ref.eq.${args.organisation_id}`);
   if (error) {
     console.warn('[check-mails] acp lookup failed:', error.message);
     return null;
   }
-  if (data?.id) {
-    console.log('[check-mails] ACP matchée :', { nom: args.nom_immeuble, id: data.id });
-    return { id: data.id as string, created: false };
-  }
-  return null;
+  const candidates = ((data ?? []) as { id: string; nom: string | null }[])
+    .filter((a) => a.nom && a.nom.trim().length > 0);
+  if (candidates.length === 0) return null;
+
+  const best = bestMatch(args.nom_immeuble, candidates, (c) => c.nom ?? '');
+  if (!best) return null;
+  return {
+    acp_id: best.candidate.id,
+    nom_acp: best.candidate.nom ?? '',
+    score: best.score,
+  };
+}
+
+// Match-or-create d'une ACP pour un syndic donné. Wrapper "auto-link only"
+// autour de matchAcpWithScore : ne renvoie un id QUE si le score ≥
+// ACP_AUTO_THRESHOLD (85 %). Pour les scores intermédiaires, c'est le
+// caller (check-mails sur création d'intervention) qui stocke une
+// acp_suggestion ; les autres callers (apply-reanalysis) restent en
+// auto-link strict pour éviter d'écrire dans acp_id sans contrôle humain.
+interface MatchedAcpResult { id: string; created: boolean; score: number }
+export async function matchAcpForOrganisation(args: {
+  organisation_id: string;
+  nom_immeuble: string;
+}): Promise<MatchedAcpResult | null> {
+  const scored = await matchAcpWithScore(args);
+  if (!scored) return null;
+  if (scored.score < ACP_AUTO_THRESHOLD) return null;
+  console.log('[check-mails] ACP matchée :', {
+    nom_extrait: args.nom_immeuble,
+    nom_acp: scored.nom_acp,
+    id: scored.acp_id,
+    score: scored.score.toFixed(2),
+  });
+  return { id: scored.acp_id, created: false, score: scored.score };
 }
 
 // ─── Détection de doublons / dossiers liés ──────────────────────────────
@@ -1278,6 +1315,9 @@ async function createInterventionFromMail(
   let clientId: string | null = null;
   let delegueId: string | null = null;
   let acpId: string | null = null;
+  // Suggestion intermédiaire (60-84 %) à présenter dans le drawer si on
+  // n'a pas atteint le seuil d'auto-link.
+  let acpSuggestion: { nom_extrait: string; acp_id_suggere: string; score: number } | null = null;
   if (analysis.type_demandeur === 'syndic' || analysis.type_demandeur === 'courtier') {
     const matched = await matchOrCreateOrganisation({
       type: analysis.type_demandeur,
@@ -1329,13 +1369,34 @@ async function createInterventionFromMail(
       }
       delegueId = principalDelegueId;
 
-      // ACP : match par nom partiel sur le syndic (best effort).
+      // ACP : matching par score Dice sur les ACPs du syndic.
+      //   ≥ 85 % → auto-link (acp_id)
+      //   60-84 % → suggestion à confirmer (acp_suggestion, acp_id reste null)
+      //   < 60 % → rien
       if (analysis.nom_immeuble) {
-        const matchedAcp = await matchAcpForOrganisation({
+        const acpMatch = await matchAcpWithScore({
           organisation_id: organisationId,
           nom_immeuble: analysis.nom_immeuble,
         });
-        acpId = matchedAcp?.id ?? null;
+        if (acpMatch && acpMatch.score >= ACP_AUTO_THRESHOLD) {
+          acpId = acpMatch.acp_id;
+          console.log('[check-mails] ACP auto-liée :', {
+            nom_extrait: analysis.nom_immeuble,
+            nom_acp: acpMatch.nom_acp,
+            score: acpMatch.score.toFixed(2),
+          });
+        } else if (acpMatch && acpMatch.score >= ACP_SUGGESTION_THRESHOLD) {
+          acpSuggestion = {
+            nom_extrait: analysis.nom_immeuble,
+            acp_id_suggere: acpMatch.acp_id,
+            score: Math.round(acpMatch.score * 100) / 100,
+          };
+          console.log('[check-mails] ACP suggérée :', {
+            nom_extrait: analysis.nom_immeuble,
+            nom_acp: acpMatch.nom_acp,
+            score: acpMatch.score.toFixed(2),
+          });
+        }
       }
     }
   } else if (analysis.type_demandeur === 'particulier') {
@@ -1453,6 +1514,10 @@ async function createInterventionFromMail(
     organisation_id: organisationId,
     client_id: clientId,
     acp_id: acpId,
+    // Suggestion ACP (migration 2026-05-26). Posée uniquement quand le
+    // score est intermédiaire (60-84 %) et qu'acp_id est resté null —
+    // l'admin valide depuis le drawer Dossier.
+    acp_suggestion: acpSuggestion,
     // Nouvelles colonnes (migration 2026-05-20). Si absentes, l'auto-strip
     // cascade les retire à l'insert.
     action_requise: analysis.action_requise ?? null,

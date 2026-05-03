@@ -13,7 +13,15 @@ import {
 } from '@/lib/types/database';
 import type { Acp, Utilisateur } from '@/lib/types/database';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
-import { updateInterventionStatus, resendRapportToSyndic, assignTechnician, saveRapportDraftFromAdmin, searchAcpsForIntervention } from './actions';
+import {
+  updateInterventionStatus,
+  resendRapportToSyndic,
+  assignTechnician,
+  saveRapportDraftFromAdmin,
+  searchAcpsForIntervention,
+  confirmAcpSuggestion,
+  ignoreAcpSuggestion,
+} from './actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
@@ -1594,6 +1602,48 @@ export function InterventionsClient({
 
                   {/* 🏢 ACP / Immeuble — éditable */}
                   <Block title="🏢 ACP / Immeuble">
+                    {/* Suggestion automatique du pipeline mail (cf. migration
+                        2026-05-26_acp_suggestion). Ne s'affiche que tant qu'aucune
+                        ACP n'est associée ET qu'une suggestion est en attente. */}
+                    {!selected.acp && selected.acp_suggestion && (
+                      <AcpSuggestionBanner
+                        suggestion={selected.acp_suggestion}
+                        onConfirm={async () => {
+                          const sug = selected.acp_suggestion;
+                          if (!sug) return;
+                          // Optimistic : pose acp_id, clear suggestion. L'objet
+                          // selected.acp complet sera rafraîchi par router.refresh().
+                          setRows((rs) => rs.map((r) =>
+                            r.id === selected.id
+                              ? { ...r, acp_id: sug.acp_id_suggere, acp_suggestion: null }
+                              : r,
+                          ));
+                          const res = await confirmAcpSuggestion(selected.id);
+                          if (res.error) {
+                            setRows((rs) => rs.map((r) =>
+                              r.id === selected.id
+                                ? { ...r, acp_id: null, acp_suggestion: sug }
+                                : r,
+                            ));
+                            return;
+                          }
+                          router.refresh();
+                        }}
+                        onIgnore={async () => {
+                          const sug = selected.acp_suggestion;
+                          if (!sug) return;
+                          setRows((rs) => rs.map((r) =>
+                            r.id === selected.id ? { ...r, acp_suggestion: null } : r,
+                          ));
+                          const res = await ignoreAcpSuggestion(selected.id);
+                          if (res.error) {
+                            setRows((rs) => rs.map((r) =>
+                              r.id === selected.id ? { ...r, acp_suggestion: sug } : r,
+                            ));
+                          }
+                        }}
+                      />
+                    )}
                     <AcpPicker
                       interventionId={selected.id}
                       organisationId={selected.organisation_id ?? selected.syndic?.id ?? null}
@@ -2872,6 +2922,81 @@ function ColorPicker({
           Réinitialiser
         </button>
       )}
+    </div>
+  );
+}
+
+// Bandeau "💡 ACP suggérée" affiché dans le drawer Dossier quand le
+// pipeline mail a posé une suggestion (score 60-84 %) sans atteindre le
+// seuil d'auto-link. Deux actions : confirmer (pose acp_id) ou ignorer
+// (clear la suggestion). Le caller fournit les handlers async — le
+// composant gère uniquement l'état pending local pour désactiver les
+// boutons pendant la requête.
+function AcpSuggestionBanner({
+  suggestion,
+  onConfirm,
+  onIgnore,
+}: {
+  suggestion: { nom_extrait: string; acp_id_suggere: string; score: number };
+  onConfirm: () => Promise<void>;
+  onIgnore: () => Promise<void>;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [acpName, setAcpName] = useState<string | null>(null);
+
+  // Charge le nom de l'ACP suggérée (la suggestion ne stocke que l'id).
+  // Best-effort : si la query échoue, on retombe sur "ACP suggérée" sans
+  // nom, le score reste affiché.
+  useEffect(() => {
+    let mounted = true;
+    fetch(`/api/admin/acps/${suggestion.acp_id_suggere}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!mounted) return;
+        const nom = d?.acp?.nom ?? null;
+        if (typeof nom === 'string' && nom.trim()) setAcpName(nom.trim());
+      })
+      .catch(() => { /* noop */ });
+    return () => { mounted = false; };
+  }, [suggestion.acp_id_suggere]);
+
+  const scorePct = Math.round(suggestion.score * 100);
+  const labelAcp = acpName ?? suggestion.nom_extrait;
+
+  return (
+    <div className="mb-2 bg-amber-light border border-[#E8C896] rounded-md px-3 py-2 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[12px] text-[#8A5A1A] dark:text-[#F0D896] flex-1 min-w-[200px]">
+          <span className="font-bold">💡 ACP suggérée :</span>{' '}
+          <span className="font-semibold">{labelAcp}</span>
+          <span className="text-[11px] opacity-80"> (score {scorePct} %)</span>
+          {acpName && acpName.trim().toLowerCase() !== suggestion.nom_extrait.trim().toLowerCase() && (
+            <div className="text-[10px] opacity-70 mt-0.5">
+              Nom extrait du mail : <em>{suggestion.nom_extrait}</em>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => startTransition(async () => { await onConfirm(); })}
+            className="text-[11px] font-bold bg-ok text-white px-2.5 py-1 rounded hover:opacity-90 disabled:opacity-50"
+            title="Associer cette ACP à l'intervention"
+          >
+            ✅ Confirmer
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => startTransition(async () => { await onIgnore(); })}
+            className="text-[11px] font-bold bg-white text-terra border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 dark:bg-[#221E1A] dark:hover:bg-[#3A2A14]"
+            title="Effacer la suggestion (l'ACP restera non associée)"
+          >
+            ❌ Ignorer
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
