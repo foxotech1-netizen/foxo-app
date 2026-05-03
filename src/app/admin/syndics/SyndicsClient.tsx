@@ -209,7 +209,17 @@ export function SyndicsClient({
       )}
 
       {drawerOrg && (
-        <OrganisationDrawer org={drawerOrg} onClose={() => setDrawerOrg(null)} />
+        <OrganisationDrawer
+          org={drawerOrg}
+          onClose={() => setDrawerOrg(null)}
+          onUpdate={(updated) => {
+            // Mise à jour optimiste : patch l'item dans la liste ET le
+            // drawer (sinon le drawer continuerait d'afficher l'ancienne
+            // version puisque org est passé en prop).
+            setDrawerOrg((prev) => (prev ? { ...prev, ...updated } : prev));
+            setOrgs((arr) => arr.map((o) => (o.id === drawerOrg.id ? { ...o, ...updated } : o)));
+          }}
+        />
       )}
     </>
   );

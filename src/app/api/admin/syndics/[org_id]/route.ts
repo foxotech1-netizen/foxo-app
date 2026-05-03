@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 interface PatchBody {
   nom?: unknown;
+  type?: unknown;
   email?: unknown;
   contact?: unknown;
   telephone?: unknown;
@@ -16,13 +17,21 @@ interface PatchBody {
   email_communications?: unknown;
 }
 
-function sanitize(b: PatchBody): Record<string, string | null> {
+const VALID_TYPES = new Set(['syndic', 'courtier']);
+
+// Sanitize : trim + map empty → null pour les champs string.
+// `type` est traité à part (enum strict, pas de null possible).
+// Renvoie `{ fields, error }` — error si une valeur invalide est passée.
+function sanitize(b: PatchBody): {
+  fields: Record<string, string | null>;
+  error: string | null;
+} {
   const out: Record<string, string | null> = {};
-  const fields: (keyof PatchBody)[] = [
+  const stringFields: (keyof PatchBody)[] = [
     'nom', 'email', 'contact', 'telephone', 'bce', 'adresse',
     'email_factures', 'email_rapports', 'email_communications',
   ];
-  for (const k of fields) {
+  for (const k of stringFields) {
     if (typeof b[k] === 'string') {
       const v = (b[k] as string).trim();
       out[k] = v || null;
@@ -30,7 +39,14 @@ function sanitize(b: PatchBody): Record<string, string | null> {
       out[k] = null;
     }
   }
-  return out;
+  if (typeof b.type === 'string') {
+    const t = (b.type as string).trim();
+    if (!VALID_TYPES.has(t)) {
+      return { fields: out, error: `Type invalide : "${t}" (attendu : syndic ou courtier).` };
+    }
+    out.type = t;
+  }
+  return { fields: out, error: null };
 }
 
 export async function PATCH(
@@ -50,7 +66,8 @@ export async function PATCH(
   } catch {
     return NextResponse.json({ ok: false, error: 'Body JSON invalide.' }, { status: 400 });
   }
-  const fields = sanitize(body);
+  const { fields, error: validationErr } = sanitize(body);
+  if (validationErr) return NextResponse.json({ ok: false, error: validationErr }, { status: 400 });
   if (Object.keys(fields).length === 0) return NextResponse.json({ ok: true, no_changes: true });
 
   const { error } = await supabase.from('organisations').update(fields).eq('id', org_id);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TypeBadge } from '@/components/TypeBadge';
-import type { Organisation, Delegue, DelegueRole } from '@/lib/types/database';
+import type { Organisation, Delegue, DelegueRole, TypeOrganisation } from '@/lib/types/database';
 
 type Tab = 'infos' | 'delegues';
 
@@ -19,10 +19,13 @@ const EMPTY_DRAFT: DelegueFormDraft = {
 };
 
 export function OrganisationDrawer({
-  org, onClose,
+  org, onClose, onUpdate,
 }: {
   org: Organisation;
   onClose: () => void;
+  /** Propage les changements de la fiche vers la liste (mise à jour
+   *  optimiste). Le drawer ne mute jamais le prop `org` directement. */
+  onUpdate?: (updated: Partial<Organisation>) => void;
 }) {
   const [tab, setTab] = useState<Tab>('infos');
   const [delegues, setDelegues] = useState<Delegue[]>([]);
@@ -216,20 +219,20 @@ export function OrganisationDrawer({
 
           {tab === 'infos' && (
             <>
-              <div className="bg-cream border border-sand-border rounded-xl p-4 text-[13px] dark:bg-[#1C1A16] dark:border-[#2C2A24] space-y-2 mb-3">
-                <KV label="Nom" value={org.nom} />
-                <KV label="Type" value={org.type === 'syndic' ? 'Syndic' : 'Courtier'} />
-                <KV label="Email principal" value={org.email} mono />
-                <KV label="Contact" value={org.contact} />
-                <KV label="Téléphone" value={org.telephone} mono />
-                <KV label="BCE" value={org.bce} mono />
-                <KV label="Adresse" value={org.adresse} />
-              </div>
-              <SyndicEmailsBlock org={org} onSaved={(updated) => {
-                // Update local org reference (parent ne sait pas — on refresh côté server)
-                Object.assign(org, updated);
-                setFeedback({ kind: 'ok', msg: 'Emails dédiés sauvegardés ✓' });
-              }} />
+              <SyndicInfosBlock
+                org={org}
+                onSaved={(updated) => {
+                  onUpdate?.(updated);
+                  setFeedback({ kind: 'ok', msg: 'Infos sauvegardées ✓' });
+                }}
+              />
+              <SyndicEmailsBlock
+                org={org}
+                onSaved={(updated) => {
+                  onUpdate?.(updated);
+                  setFeedback({ kind: 'ok', msg: 'Emails dédiés sauvegardés ✓' });
+                }}
+              />
             </>
           )}
 
@@ -354,6 +357,218 @@ export function OrganisationDrawer({
             </>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Bloc "Infos" éditable inline. Affiche les 7 champs en lecture par
+// défaut, bascule en mode édition au clic sur "✏️ Modifier" — bouton
+// Sauvegarder applique un PATCH /api/admin/syndics/[id] avec les
+// champs modifiés, et propage la mise à jour optimiste au parent via
+// onSaved. Annuler restaure les valeurs initiales.
+type InfosDraft = {
+  nom: string;
+  type: TypeOrganisation;
+  email: string;
+  contact: string;
+  telephone: string;
+  bce: string;
+  adresse: string;
+};
+
+function draftFromOrg(o: Organisation): InfosDraft {
+  return {
+    nom:       o.nom ?? '',
+    type:      o.type,
+    email:     o.email ?? '',
+    contact:   o.contact ?? '',
+    telephone: o.telephone ?? '',
+    bce:       o.bce ?? '',
+    adresse:   o.adresse ?? '',
+  };
+}
+
+function SyndicInfosBlock({
+  org, onSaved,
+}: {
+  org: Organisation;
+  onSaved: (updated: Partial<Organisation>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<InfosDraft>(draftFromOrg(org));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Resync draft si le prop change pendant qu'on n'édite pas (ex : autre
+  // bloc — emails dédiés — a propagé une mise à jour au parent qui
+  // re-rend l'org). Pendant l'édition, on garde le draft local pour ne
+  // pas écraser la saisie en cours. Pattern React 19 : storing prev props.
+  const [lastOrg, setLastOrg] = useState(org);
+  if (lastOrg !== org) {
+    setLastOrg(org);
+    if (!editing) setDraft(draftFromOrg(org));
+  }
+
+  function startEdit() {
+    setDraft(draftFromOrg(org));
+    setError(null);
+    setEditing(true);
+  }
+  function cancel() {
+    setError(null);
+    setEditing(false);
+  }
+  async function save() {
+    // Validation client : nom et email principaux obligatoires
+    const nomTrim = draft.nom.trim();
+    const emailTrim = draft.email.trim();
+    if (!nomTrim) { setError('Le nom est requis.'); return; }
+    if (!emailTrim || !emailTrim.includes('@')) { setError('Email principal valide requis.'); return; }
+
+    // Construit un payload diff (uniquement les champs modifiés)
+    const payload: Record<string, string | null> = {};
+    const stringKeys: (keyof InfosDraft)[] = ['nom', 'email', 'contact', 'telephone', 'bce', 'adresse'];
+    for (const k of stringKeys) {
+      const v = (draft[k] as string).trim();
+      const orig = ((org[k] as string | null | undefined) ?? '');
+      if (v !== orig) payload[k] = v || null;
+    }
+    if (draft.type !== org.type) payload.type = draft.type;
+
+    if (Object.keys(payload).length === 0) {
+      setEditing(false);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/admin/syndics/${org.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setError(data.error ?? 'Échec sauvegarde.');
+        return;
+      }
+      // Propage uniquement les champs réellement modifiés au parent.
+      onSaved(payload as Partial<Organisation>);
+      setEditing(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputCls = 'w-full px-2 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]';
+  const monoInputCls = inputCls + ' font-mono text-[12px]';
+
+  return (
+    <div className="bg-cream border border-sand-border rounded-xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24] mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+          Infos
+        </div>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+          >
+            ✏️ Modifier
+          </button>
+        ) : (
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={cancel}
+              disabled={saving}
+              className="text-[11px] bg-sand-mid text-ink-mid px-2.5 py-1 rounded font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="text-[11px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50"
+            >
+              {saving ? '…' : '💾 Sauvegarder'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mb-3 px-2.5 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
+          {error}
+        </div>
+      )}
+
+      {editing ? (
+        <div className="space-y-2.5">
+          <InfoEditField label="Nom" required>
+            <input value={draft.nom} onChange={(e) => setDraft({ ...draft, nom: e.target.value })} className={inputCls} />
+          </InfoEditField>
+          <InfoEditField label="Type">
+            <select
+              value={draft.type}
+              onChange={(e) => setDraft({ ...draft, type: e.target.value as TypeOrganisation })}
+              className={inputCls}
+            >
+              <option value="syndic">Syndic</option>
+              <option value="courtier">Courtier</option>
+            </select>
+          </InfoEditField>
+          <InfoEditField label="Email principal" required>
+            <input type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} className={monoInputCls} />
+          </InfoEditField>
+          <InfoEditField label="Contact">
+            <input value={draft.contact} onChange={(e) => setDraft({ ...draft, contact: e.target.value })} className={inputCls} />
+          </InfoEditField>
+          <InfoEditField label="Téléphone">
+            <input value={draft.telephone} onChange={(e) => setDraft({ ...draft, telephone: e.target.value })} className={monoInputCls} />
+          </InfoEditField>
+          <InfoEditField label="BCE">
+            <input value={draft.bce} onChange={(e) => setDraft({ ...draft, bce: e.target.value })} className={monoInputCls} />
+          </InfoEditField>
+          <InfoEditField label="Adresse">
+            <input value={draft.adresse} onChange={(e) => setDraft({ ...draft, adresse: e.target.value })} className={inputCls} />
+          </InfoEditField>
+        </div>
+      ) : (
+        <div className="space-y-2 text-[13px]">
+          <KV label="Nom" value={org.nom} />
+          <KV label="Type" value={org.type === 'syndic' ? 'Syndic' : 'Courtier'} />
+          <KV label="Email principal" value={org.email} mono />
+          <KV label="Contact" value={org.contact} />
+          <KV label="Téléphone" value={org.telephone} mono />
+          <KV label="BCE" value={org.bce} mono />
+          <KV label="Adresse" value={org.adresse} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoEditField({
+  label, required, children,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2 items-center">
+      <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+        {label}{required && <span className="text-terra ml-0.5">*</span>}
+      </label>
+      <div className="col-span-2">
+        {children}
       </div>
     </div>
   );
