@@ -14,16 +14,82 @@ function ttc(htva: number, tvaPct: number): number {
   return Math.round(htva * (1 + tvaPct / 100) * 100) / 100;
 }
 
+// Clés triables. La valeur de chaque clé est dérivée à la volée pour
+// éviter d'enrichir le shape Article avec un prix_ttc précalculé.
+type SortKey = 'code' | 'description' | 'prix_htva' | 'tva_pct' | 'prix_ttc' | 'actif';
+type SortDir = 'asc' | 'desc';
+type StatusFilter = 'tous' | 'actifs' | 'inactifs';
+
+function compareValues(a: string | number | boolean, b: string | number | boolean): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  if (typeof a === 'boolean' && typeof b === 'boolean') return Number(a) - Number(b);
+  return String(a).localeCompare(String(b), 'fr-BE', { numeric: true, sensitivity: 'base' });
+}
+
 export function ArticlesClient({ initial }: { initial: Article[] }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [editing, setEditing] = useState<Article | 'new' | null>(null);
 
-  const sorted = useMemo(
-    () => [...initial].sort((a, b) => (a.code ?? '').localeCompare(b.code ?? '')),
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('tous');
+  const [sortKey, setSortKey] = useState<SortKey>('code');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // Précalcule prix_ttc pour permettre filtrage texte + tri en une passe.
+  const enriched = useMemo(
+    () => initial.map((a) => ({ ...a, prix_ttc: ttc(Number(a.prix_htva), Number(a.tva_pct ?? 21)) })),
     [initial],
   );
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return enriched.filter((a) => {
+      // Filtre statut
+      if (statusFilter === 'actifs' && !a.actif) return false;
+      if (statusFilter === 'inactifs' && a.actif) return false;
+      // Filtre texte (code, description, prix HT/TTC affichés en €)
+      if (!q) return true;
+      const haystack = [
+        a.code ?? '',
+        a.description,
+        String(a.prix_htva),
+        String(a.prix_ttc),
+        fmtMoney(Number(a.prix_htva)),
+        fmtMoney(a.prix_ttc),
+      ].join(' ').toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [enriched, query, statusFilter]);
+
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      let av: string | number | boolean;
+      let bv: string | number | boolean;
+      switch (sortKey) {
+        case 'code':         av = a.code ?? '';         bv = b.code ?? '';         break;
+        case 'description':  av = a.description;        bv = b.description;        break;
+        case 'prix_htva':    av = Number(a.prix_htva);  bv = Number(b.prix_htva);  break;
+        case 'tva_pct':      av = Number(a.tva_pct);    bv = Number(b.tva_pct);    break;
+        case 'prix_ttc':     av = a.prix_ttc;           bv = b.prix_ttc;           break;
+        case 'actif':        av = a.actif;              bv = b.actif;              break;
+      }
+      const c = compareValues(av, bv);
+      return sortDir === 'asc' ? c : -c;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
 
   function handleDelete(id: string) {
     if (!confirm('Supprimer cet article du catalogue ?')) return;
@@ -36,13 +102,32 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
 
   return (
     <div className="space-y-4 max-w-[860px]">
-      <button
-        type="button"
-        onClick={() => setEditing('new')}
-        className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90"
-      >
-        + Nouvel article
-      </button>
+      {/* Actions globales */}
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher — code, description, prix…"
+          className="flex-1 min-w-[200px] px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
+          title="Filtrer par statut"
+        >
+          <option value="tous">Tous statuts</option>
+          <option value="actifs">Actifs</option>
+          <option value="inactifs">Inactifs</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setEditing('new')}
+          className="bg-navy text-white px-3.5 py-2.5 rounded-lg text-xs font-bold hover:opacity-90"
+        >
+          + Nouvel article
+        </button>
+      </div>
 
       {feedback && (
         <div
@@ -62,64 +147,68 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
           <table className="w-full border-collapse min-w-[680px]">
             <thead>
               <tr className="bg-sand dark:bg-[#221E1A]">
-                {['Code', 'Description', 'Prix TTC', 'TVA', 'HTVA', 'Statut', 'Actions'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
-                    {h}
-                  </th>
-                ))}
+                <SortableTh label="Code"        sortKey="code"        currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Description" sortKey="description" currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Prix TTC"    sortKey="prix_ttc"    currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <SortableTh label="TVA"         sortKey="tva_pct"     currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Prix HT"     sortKey="prix_htva"   currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <SortableTh label="Statut"      sortKey="actif"       currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
+                <th className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
-                    Aucun article. Crée-en un pour démarrer.
+                    {query.trim() || statusFilter !== 'tous'
+                      ? 'Aucun article ne correspond au filtre.'
+                      : 'Aucun article. Crée-en un pour démarrer.'}
                   </td>
                 </tr>
-              ) : sorted.map((a) => {
-                const prixTtc = ttc(Number(a.prix_htva), Number(a.tva_pct ?? 21));
-                return (
-                  <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
-                    <td className="px-3.5 py-2.5 font-mono text-xs font-bold text-navy dark:text-[#A8C4F2]">
-                      {a.code ?? '—'}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-[13px] dark:text-[#F0ECE4]">{a.description}</td>
-                    <td className="px-3.5 py-2.5 text-[13px] font-mono font-bold whitespace-nowrap dark:text-white">
-                      {fmtMoney(prixTtc)}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
-                      {a.tva_pct}%
-                    </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
-                      {fmtMoney(Number(a.prix_htva))}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <span className={
-                        'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ' +
-                        (a.actif
-                          ? 'bg-ok-light text-ok dark:bg-[#1F6B45] dark:text-white'
-                          : 'bg-sand-mid text-ink-mid dark:bg-[#3D3A32] dark:text-[#C8C2B8]')
-                      }>
-                        {a.actif ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <RowMenu
-                        items={[
-                          { icon: '✏️', label: 'Modifier', onClick: () => setEditing(a) },
-                          {
-                            icon: '🗑️',
-                            label: 'Supprimer',
-                            destructive: true,
-                            disabled: pending,
-                            onClick: () => handleDelete(a.id),
-                          },
-                        ]}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
+              ) : sorted.map((a) => (
+                <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
+                  <td className="px-3.5 py-2.5 font-mono text-xs font-bold text-navy dark:text-[#A8C4F2]">
+                    {a.code ?? '—'}
+                  </td>
+                  <td className="px-3.5 py-2.5 text-[13px] dark:text-[#F0ECE4]">{a.description}</td>
+                  <td className="px-3.5 py-2.5 text-[13px] font-mono font-bold whitespace-nowrap dark:text-white">
+                    {fmtMoney(a.prix_ttc)}
+                  </td>
+                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                    {a.tva_pct}%
+                  </td>
+                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                    {fmtMoney(Number(a.prix_htva))}
+                  </td>
+                  <td className="px-3.5 py-2.5">
+                    <span className={
+                      'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ' +
+                      (a.actif
+                        ? 'bg-ok-light text-ok dark:bg-[#1F6B45] dark:text-white'
+                        : 'bg-sand-mid text-ink-mid dark:bg-[#3D3A32] dark:text-[#C8C2B8]')
+                    }>
+                      {a.actif ? 'Actif' : 'Inactif'}
+                    </span>
+                  </td>
+                  <td className="px-3.5 py-2.5 whitespace-nowrap">
+                    <RowMenu
+                      direction="up"
+                      items={[
+                        { icon: '✏️', label: 'Modifier', onClick: () => setEditing(a) },
+                        {
+                          icon: '🗑️',
+                          label: 'Supprimer',
+                          destructive: true,
+                          disabled: pending,
+                          onClick: () => handleDelete(a.id),
+                        },
+                      ]}
+                    />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -133,6 +222,38 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
         />
       )}
     </div>
+  );
+}
+
+// Header de colonne triable. Affiche un indicateur ↑ ou ↓ quand la
+// colonne est active, "↕" en dimmed sinon pour signaler la cliquabilité.
+function SortableTh({
+  label, sortKey, currentKey, dir, onClick,
+}: {
+  label: string;
+  sortKey: SortKey;
+  currentKey: SortKey;
+  dir: SortDir;
+  onClick: (k: SortKey) => void;
+}) {
+  const active = sortKey === currentKey;
+  const indicator = active ? (dir === 'asc' ? '↑' : '↓') : '↕';
+  return (
+    <th
+      onClick={() => onClick(sortKey)}
+      className={
+        'px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b border-sand-border whitespace-nowrap cursor-pointer select-none transition-colors ' +
+        (active
+          ? 'text-navy dark:text-[#A8C4F2]'
+          : 'text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]') +
+        ' dark:border-[#3D3A32]'
+      }
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <span className={active ? 'opacity-100' : 'opacity-40'}>{indicator}</span>
+      </span>
+    </th>
   );
 }
 
