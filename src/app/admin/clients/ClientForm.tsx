@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { saveClient, type ClientInput } from '../facturation/actions';
 import { TYPE_CLIENT_LABEL, type Client, type Organisation, type RemiseType, type TypeClient } from '@/lib/types/database';
@@ -103,6 +103,29 @@ export function ClientForm({
     // Adresse facturation = adresse du syndic si vide
     if (!adresse && s.adresse) setAdresse(s.adresse);
   }
+
+  // Auto-pick du syndic quand on arrive avec ?syndic_id=<uuid> en mode
+  // création (clic « + Ajouter une ACP » depuis le drawer syndic). Attend
+  // que la liste des syndics soit chargée et que le syndic cible y figure
+  // (l'effet ci-dessus peut tirer plusieurs fois si type bascule, et la
+  // liste arrive de façon asynchrone après le 1er render).
+  //
+  // Garanties :
+  //   - Ne se déclenche qu'une seule fois (didAutoPickRef)
+  //   - Désactivé en édition (initial != null)
+  //   - Les setState sont déportés dans queueMicrotask pour rester hors
+  //     du body sync de l'effect (respecte react-hooks/set-state-in-effect).
+  const didAutoPickRef = useRef(false);
+  useEffect(() => {
+    if (initial) return;
+    if (!querySyndicId) return;
+    if (didAutoPickRef.current) return;
+    const target = syndics.find((s) => s.id === querySyndicId);
+    if (!target) return;
+    didAutoPickRef.current = true;
+    queueMicrotask(() => pickSyndic(target));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syndics, querySyndicId, initial]);
 
   function submit() {
     setError(null);
