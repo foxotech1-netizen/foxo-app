@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../../FactureEditor';
+import { SendByEmailButton } from '../../SendByEmailButton';
+import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +24,17 @@ export default async function EditDevisPage({
   if (devis.type !== 'devis') notFound();
   const articles = (articlesRes.data ?? []) as Article[];
 
+  let clientEmailFactures: string | null = null;
+  if (devis.client_id) {
+    const { data: c } = await supabase
+      .from('clients')
+      .select('email_factures')
+      .eq('id', devis.client_id)
+      .maybeSingle();
+    clientEmailFactures = (c?.email_factures as string | null | undefined) ?? null;
+  }
+  const emailDefaults = buildDocumentEmailDefaults({ facture: devis, clientEmailFactures });
+
   return (
     <>
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
@@ -36,9 +49,12 @@ export default async function EditDevisPage({
             )}
           </p>
         </div>
-        <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8] min-h-[44px] inline-flex items-center">
-          ← Retour
-        </Link>
+        <div className="flex flex-wrap gap-2 items-center">
+          <SendByEmailButton facture={devis} defaults={emailDefaults} />
+          <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8] min-h-[44px] inline-flex items-center">
+            ← Retour
+          </Link>
+        </div>
       </header>
       <div className="flex-1 overflow-auto px-6 py-5">
         <FactureEditor initial={devis} initialNumero={devis.numero} articles={articles} mode="devis" />

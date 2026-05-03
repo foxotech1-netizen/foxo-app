@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
 import { FactureActions } from './FactureActions';
+import { SendByEmailButton } from '../SendByEmailButton';
+import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +53,19 @@ export default async function EditFacturePage({
   const soldeReel = Math.max(0, factureTtc - totalCrediteEmis);
   const articles = (articlesRes.data ?? []) as Article[];
 
+  // Pré-calcule défauts pour la modale d'envoi email. Cascade destinataire :
+  // clients.email_factures (override dédié) → facture.client_email.
+  let clientEmailFactures: string | null = null;
+  if (facture.client_id) {
+    const { data: c } = await supabase
+      .from('clients')
+      .select('email_factures')
+      .eq('id', facture.client_id)
+      .maybeSingle();
+    clientEmailFactures = (c?.email_factures as string | null | undefined) ?? null;
+  }
+  const emailDefaults = buildDocumentEmailDefaults({ facture, clientEmailFactures });
+
   return (
     <>
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
@@ -64,6 +79,7 @@ export default async function EditFacturePage({
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
+          <SendByEmailButton facture={facture} defaults={emailDefaults} />
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"

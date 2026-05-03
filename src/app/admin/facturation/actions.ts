@@ -23,6 +23,13 @@ import type {
   TypeFacture,
 } from '@/lib/types/database';
 import { validateRemise } from '@/lib/facturation/remises';
+import { sendEmail } from '@/lib/gmail';
+import {
+  buildDocumentEmailDefaults,
+  buildDocumentEmailHtml,
+  docLabelForType,
+  filenameForDocument,
+} from '@/lib/facturation/email-defaults';
 
 export type ActionResult<T = void> =
   | { ok: true; data?: T }
@@ -737,6 +744,206 @@ export async function revertToBrouillon(id: string): Promise<ActionResult> {
   revalidatePath('/admin/facturation/notes-credit');
   revalidatePath('/admin/facturation/devis');
   return { ok: true };
+}
+
+// ─── Envoi par email d'un document facturation ──────────────────────────
+
+export interface SendDocumentEmailInput {
+  id: string;
+  to: string;
+  subject: string;
+  /** Message libre additionnel (optionnel), inséré sous l'intro */
+  message?: string;
+}
+
+// Envoie le PDF du document (facture/devis/avoir) en pièce jointe via
+// Gmail API. Si le statut est 'brouillon', le bascule à 'envoyee' et
+// pose sent_at = now. Pour les avoirs, vérifie d'abord la règle métier
+// "total avoirs émis ≤ TTC facture origine" pour éviter d'envoyer puis
+// de bloquer la transition de statut. Trace dans sms_logs.
+export async function sendDocumentEmail(
+  input: SendDocumentEmailInput,
+): Promise<ActionResult<{ messageId: string; statutChanged: boolean }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const to = input.to.trim();
+  const subject = input.subject.trim();
+  if (!to) return { ok: false, error: 'Destinataire vide.' };
+  // Validation email basique (Gmail rejettera de toute façon, mais message clair)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return { ok: false, error: 'Adresse email invalide.' };
+  }
+  if (!subject) return { ok: false, error: 'Sujet vide.' };
+
+  const supabase = await createClient();
+  const { data: docRow } = await supabase
+    .from('factures')
+    .select('*')
+    .eq('id', input.id)
+    .maybeSingle();
+  if (!docRow) return { ok: false, error: 'Document introuvable.' };
+  const facture = docRow as Facture;
+  if (facture.statut === 'annulee') {
+    return { ok: false, error: 'Document annulé — envoi refusé.' };
+  }
+  if (facture.deleted_at) {
+    return { ok: false, error: 'Document supprimé.' };
+  }
+
+  // Pour un avoir en brouillon : vérifier la règle métier "total avoirs
+  // émis ≤ TTC facture d'origine" AVANT d'envoyer (sinon mail envoyé et
+  // statut bloqué).
+  const willTransition = facture.statut === 'brouillon';
+  if (willTransition && facture.type === 'avoir' && facture.facture_origine_id) {
+    const summary = await getFactureAvoirsSummary(facture.facture_origine_id, {
+      excludeAvoirId: facture.id,
+    });
+    if (!summary.ok) return { ok: false, error: summary.error };
+    const newTotal = summary.data!.totalCrediteEmis + Math.abs(Number(facture.montant_ttc ?? 0));
+    if (newTotal > summary.data!.factureTtc + EPSILON_EUR) {
+      return {
+        ok: false,
+        error: `Émission impossible : le total des avoirs émis dépasserait le montant de la facture (${newTotal.toFixed(2)} € > ${summary.data!.factureTtc.toFixed(2)} €).`,
+      };
+    }
+  }
+
+  // ── Génération du PDF ────────────────────────────────────────────────
+  const ttc = facture.montant_ttc ?? 0;
+  let qrDataUrl: string | undefined;
+  try {
+    qrDataUrl = await generateEpcQrDataUrl({
+      beneficiaryName: VENDOR.name,
+      iban: VENDOR.iban,
+      amountEur: ttc > 0 ? ttc : 0.01,
+      bba: facture.reference_structuree ?? undefined,
+    });
+  } catch { /* QR non bloquant */ }
+
+  // Pour une facture, pré-charge les avoirs liés à inscrire dans le PDF
+  // (bloc « déduit par avoir(s) » + solde net dû).
+  let avoirsForPdf: AvoirLight[] | undefined;
+  if (facture.type === 'facture') {
+    const { data: linkedAvoirs } = await supabase
+      .from('factures')
+      .select('id, numero, montant_ttc, statut')
+      .eq('type', 'avoir')
+      .eq('facture_origine_id', facture.id)
+      .neq('statut', 'annulee')
+      .is('deleted_at', null);
+    avoirsForPdf = ((linkedAvoirs ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: StatutFacture }>)
+      .map((a) => ({ id: a.id, numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
+  }
+
+  const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
+  let pdfBuffer: Buffer;
+  try {
+    pdfBuffer = await renderToBuffer(
+      FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs: avoirsForPdf }),
+    );
+  } catch (e) {
+    return {
+      ok: false,
+      error: `Erreur génération PDF : ${e instanceof Error ? e.message : 'inconnue'}`,
+    };
+  }
+
+  // ── Pour avoir : récupère le numéro de la facture d'origine pour intro ─
+  let factureOrigineNumero: string | null = null;
+  if (facture.type === 'avoir' && facture.facture_origine_id) {
+    const { data: orig } = await supabase
+      .from('factures')
+      .select('numero')
+      .eq('id', facture.facture_origine_id)
+      .maybeSingle();
+    factureOrigineNumero = (orig?.numero as string | undefined) ?? null;
+  }
+
+  // ── Build HTML body ──────────────────────────────────────────────────
+  // L'intro pré-remplie sert de fallback si l'admin n'a rien tapé dans
+  // « message ». Sinon on envoie l'intro + le message libre concaténés.
+  const defaults = buildDocumentEmailDefaults({
+    facture,
+    factureOrigineNumero,
+  });
+  const html = buildDocumentEmailHtml({
+    facture,
+    intro: defaults.intro,
+    message: input.message,
+  });
+  const filename = filenameForDocument(facture);
+
+  // ── Send via Gmail API ───────────────────────────────────────────────
+  const sendRes = await sendEmail({
+    to,
+    subject,
+    html,
+    attachments: [{ filename, content: pdfBuffer, contentType: 'application/pdf' }],
+  });
+  if (!sendRes.ok) {
+    // Log l'échec
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      await supabase.from('sms_logs').insert({
+        to_phone: to,
+        channel: 'email',
+        type: 'envoi_document_facturation',
+        message: `${docLabelForType(facture.type)} ${facture.numero} → ${to} (échec)`,
+        status: 'failed',
+        error: sendRes.error,
+        cost_estimate_eur: 0,
+        sent_by: user?.email ?? 'admin',
+      });
+    } catch { /* noop log */ }
+    return { ok: false, error: sendRes.error };
+  }
+
+  // ── Update statut + sent_at ──────────────────────────────────────────
+  const patch: Record<string, unknown> = {
+    sent_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (willTransition) patch.statut = 'envoyee';
+  await supabase.from('factures').update(patch).eq('id', facture.id);
+
+  // ── Auto-cancel facture origine si avoir 100% (réplique setFactureStatut) ─
+  if (willTransition && facture.type === 'avoir' && facture.facture_origine_id) {
+    const summary2 = await getFactureAvoirsSummary(facture.facture_origine_id);
+    if (summary2.ok && summary2.data!.isFullyCovered) {
+      const { data: orig } = await supabase
+        .from('factures')
+        .select('statut')
+        .eq('id', facture.facture_origine_id)
+        .maybeSingle();
+      if (orig && orig.statut !== 'annulee' && orig.statut !== 'payee') {
+        await supabase
+          .from('factures')
+          .update({ statut: 'annulee', updated_at: new Date().toISOString() })
+          .eq('id', facture.facture_origine_id);
+      }
+    }
+  }
+
+  // ── Log succès ───────────────────────────────────────────────────────
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('sms_logs').insert({
+      to_phone: to,
+      channel: 'email',
+      type: 'envoi_document_facturation',
+      message: `${docLabelForType(facture.type)} ${facture.numero} → ${to}`,
+      status: 'sent',
+      error: null,
+      cost_estimate_eur: 0,
+      sent_by: user?.email ?? 'admin',
+    });
+  } catch { /* noop log */ }
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/devis');
+  revalidatePath('/admin/facturation/notes-credit');
+  return { ok: true, data: { messageId: sendRes.id, statutChanged: willTransition } };
 }
 
 // Marque un devis 'envoyee' comme accepté ou refusé (avant éventuelle

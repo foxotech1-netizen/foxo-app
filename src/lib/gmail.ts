@@ -650,18 +650,31 @@ export async function sendMailReply(args: {
   return { ok: true, id: sent.id };
 }
 
+export interface GmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;          // défaut application/octet-stream
+}
+
 // Envoie un email arbitraire via le compte Gmail connecté.
 // Le `from` doit être une adresse autorisée (l'adresse principale OU
 // un alias "Send mail as" configuré dans Gmail Settings → Comptes).
 // Pour envoyer en HTML, passe le contenu dans `html`. `text` est
 // optionnel (fallback plain text). Utilisé notamment pour les OTP
 // Supabase (Send Email Hook → /api/auth/send-email).
+//
+// `attachments` : pièces jointes binaires (PDF facture, etc.).
+// Quand présent, la structure MIME devient multipart/mixed wrappant
+// un multipart/alternative (text + html) suivi d'un part par fichier
+// en base64. Les attachements sont volontairement encodés en base64
+// avec wrapping à 76 colonnes (RFC 2045).
 export async function sendEmail(args: {
   to: string;
   subject: string;
   html: string;
   text?: string;
   from?: string;
+  attachments?: GmailAttachment[];
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
@@ -674,39 +687,82 @@ export async function sendEmail(args: {
       ? v
       : `=?UTF-8?B?${Buffer.from(v, 'utf-8').toString('base64')}?=`;
 
-  // Multipart/alternative pour servir text + html quand les deux sont fournis,
-  // sinon text/html simple. Les CRLF sont obligatoires (RFC 5322).
-  const boundary = `=_FoxO_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-  let mime: string;
-  if (args.text) {
-    mime = [
-      `From: ${encodeHeader(from)}`,
-      `To: ${args.to}`,
-      `Subject: ${encodeHeader(args.subject)}`,
-      `MIME-Version: 1.0`,
-      `Content-Type: multipart/alternative; boundary="${boundary}"`,
-      ``,
-      `--${boundary}`,
-      `Content-Type: text/plain; charset="UTF-8"`,
-      `Content-Transfer-Encoding: 8bit`,
-      ``,
-      args.text,
-      ``,
-      `--${boundary}`,
+  function altPart(boundary: string): string {
+    if (args.text) {
+      return [
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/plain; charset="UTF-8"`,
+        `Content-Transfer-Encoding: 8bit`,
+        ``,
+        args.text,
+        ``,
+        `--${boundary}`,
+        `Content-Type: text/html; charset="UTF-8"`,
+        `Content-Transfer-Encoding: 8bit`,
+        ``,
+        args.html,
+        ``,
+        `--${boundary}--`,
+      ].join('\r\n');
+    }
+    return [
       `Content-Type: text/html; charset="UTF-8"`,
       `Content-Transfer-Encoding: 8bit`,
       ``,
       args.html,
-      ``,
-      `--${boundary}--`,
-      ``,
     ].join('\r\n');
+  }
+
+  // Wrap base64 à 76 chars/ligne (RFC 2045). Les clients mail strictes
+  // (Outlook desktop) refusent les lignes plus longues sans pliage.
+  function chunkBase64(b64: string): string {
+    return b64.match(/.{1,76}/g)?.join('\r\n') ?? b64;
+  }
+
+  function attachmentPart(att: GmailAttachment): string {
+    const ctype = att.contentType ?? 'application/octet-stream';
+    const fnameEncoded = encodeHeader(att.filename);
+    return [
+      `Content-Type: ${ctype}; name="${fnameEncoded}"`,
+      `Content-Disposition: attachment; filename="${fnameEncoded}"`,
+      `Content-Transfer-Encoding: base64`,
+      ``,
+      chunkBase64(att.content.toString('base64')),
+    ].join('\r\n');
+  }
+
+  const headers = [
+    `From: ${encodeHeader(from)}`,
+    `To: ${args.to}`,
+    `Subject: ${encodeHeader(args.subject)}`,
+    `MIME-Version: 1.0`,
+  ];
+
+  let mime: string;
+  const hasAttachments = args.attachments && args.attachments.length > 0;
+  if (hasAttachments) {
+    const outerBoundary = `=_FoxO_outer_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const innerBoundary = `=_FoxO_inner_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const parts: string[] = [
+      ...headers,
+      `Content-Type: multipart/mixed; boundary="${outerBoundary}"`,
+      ``,
+      `--${outerBoundary}`,
+      altPart(innerBoundary),
+    ];
+    for (const a of args.attachments!) {
+      parts.push(`--${outerBoundary}`, attachmentPart(a));
+    }
+    parts.push(`--${outerBoundary}--`, ``);
+    mime = parts.join('\r\n');
+  } else if (args.text) {
+    const boundary = `=_FoxO_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    mime = [...headers, altPart(boundary), ``].join('\r\n');
   } else {
     mime = [
-      `From: ${encodeHeader(from)}`,
-      `To: ${args.to}`,
-      `Subject: ${encodeHeader(args.subject)}`,
-      `MIME-Version: 1.0`,
+      ...headers,
       `Content-Type: text/html; charset="UTF-8"`,
       `Content-Transfer-Encoding: 8bit`,
       ``,
