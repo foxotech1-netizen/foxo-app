@@ -2,7 +2,8 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail, pathForRole } from '@/lib/auth/roles';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { ADMIN_EMAILS, TECH_EMAILS, roleForEmail, pathForRole } from '@/lib/auth/roles';
 
 export type AuthState = { error?: string; sentTo?: string };
 
@@ -38,6 +39,29 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
   if (!EMAIL_RE.test(email)) {
     return { error: 'Adresse email invalide.' };
   }
+
+  // Whitelist applicative — bloque les signups sauvages, indépendamment du
+  // toggle Supabase « Allow new users to sign up » (qu'on peut donc laisser
+  // activé). Deux sources d'autorité :
+  //   1. Whitelists hardcodées de roles.ts (admins + techniciens)
+  //   2. Table public.utilisateurs (utilisateurs créés via le flow admin
+  //      d'invitation — partenaires, techniciens additionnels…)
+  // shouldCreateUser reste à true : la whitelist DB est le seul gate.
+  const isHardcoded =
+    (ADMIN_EMAILS as readonly string[]).includes(email)
+    || (TECH_EMAILS as readonly string[]).includes(email);
+  if (!isHardcoded) {
+    const admin = createAdminClient();
+    const { data: u } = await admin
+      .from('utilisateurs')
+      .select('email')
+      .eq('email', email)
+      .maybeSingle();
+    if (!u) {
+      return { error: 'Accès non autorisé. Contactez info@foxo.be.' };
+    }
+  }
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
