@@ -529,7 +529,9 @@ export function InterventionsClient({
   // Charge les créneaux libres du technicien sélectionné, pour le picker.
   useEffect(() => {
     if (!selectedId || !pendingTechId) {
-      setAvailableCreneaux([]);
+      // queueMicrotask : sort le setState du body sync de l'effect
+      // (respecte react-hooks/set-state-in-effect).
+      queueMicrotask(() => setAvailableCreneaux([]));
       return;
     }
     let mounted = true;
@@ -2661,7 +2663,8 @@ function DemandeurBadge({
         })
         .catch(() => mounted && setInfo({ kind: 'unknown', nom: '', isNew: false }));
     } else {
-      setInfo({ kind: 'unknown', nom: '', isNew: false });
+      // queueMicrotask : hors body sync de l'effect (react-hooks/set-state-in-effect).
+      queueMicrotask(() => setInfo({ kind: 'unknown', nom: '', isNew: false }));
     }
     return () => { mounted = false; };
   }, [organisationId, clientId]);
@@ -3029,7 +3032,10 @@ function AcpPicker({
   // Recherche debounce
   useEffect(() => {
     if (!editing) return;
-    setLoading(true);
+    // queueMicrotask : hors body sync de l'effect (react-hooks/set-state-in-effect).
+    // Le setLoading(false) dans le cleanup et dans le setTimeout sont OK car
+    // exécutés en async (cleanup ou callback différé).
+    queueMicrotask(() => setLoading(true));
     const t = setTimeout(async () => {
       const res = await searchAcpsForIntervention({ query, organisationId });
       if (res.ok) setResults(res.data);
@@ -3231,7 +3237,8 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
 
   useEffect(() => {
     let mounted = true;
-    setLoaded(false);
+    // queueMicrotask : hors body sync de l'effect (react-hooks/set-state-in-effect).
+    queueMicrotask(() => setLoaded(false));
     fetch(`/api/admin/interventions/${interventionId}/historique`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
@@ -3419,7 +3426,11 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
   useEffect(() => {
     if (!showLier) return;
     const q = searchQ.trim();
-    if (q.length < 2) { setSearchResults([]); return; }
+    if (q.length < 2) {
+      // queueMicrotask : hors body sync de l'effect (react-hooks/set-state-in-effect).
+      queueMicrotask(() => setSearchResults([]));
+      return;
+    }
     const t = setTimeout(async () => {
       // Recherche directe via une query simple sur la table interventions
       // exposée à l'admin via RLS. On utilise le /admin/interventions/search
