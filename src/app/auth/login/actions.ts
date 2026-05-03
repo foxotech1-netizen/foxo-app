@@ -44,8 +44,9 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
   // toggle Supabase « Allow new users to sign up » (qu'on peut donc laisser
   // activé). Deux sources d'autorité :
   //   1. Whitelists hardcodées de roles.ts (admins + techniciens)
-  //   2. Table public.utilisateurs (utilisateurs créés via le flow admin
-  //      d'invitation — partenaires, techniciens additionnels…)
+  //   2. Table public.utilisateurs filtrée sur actif=true — partenaire
+  //      désactivé = bloqué au login (toggle « Désactiver » d'/admin/techniciens
+  //      ou /admin/utilisateurs ferme l'accès immédiatement, sans hard delete).
   // shouldCreateUser reste à true : la whitelist DB est le seul gate.
   const isHardcoded =
     (ADMIN_EMAILS as readonly string[]).includes(email)
@@ -56,6 +57,7 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
       .from('utilisateurs')
       .select('email')
       .eq('email', email)
+      .eq('actif', true)
       .maybeSingle();
     if (!u) {
       return { error: 'Accès non autorisé. Contactez info@foxo.be.' };
