@@ -66,6 +66,15 @@ export function NewRequestClient({
     bce: '',
     email_rapport: '',
     email_facturation: '',
+    lat: null,
+    lng: null,
+  });
+  // Coordonnées Nominatim du sinistre (mode courtier). State au niveau
+  // du composant principal pour pouvoir les transmettre à submitRequest.
+  // Step1Courtier les met à jour via setSinisterCoords (passé en prop).
+  const [sinisterCoords, setSinisterCoords] = useState<{ lat: string | null; lng: string | null }>({
+    lat: null,
+    lng: null,
   });
   const [adressePrecise, setAdressePrecise] = useState('');
 
@@ -202,6 +211,10 @@ export function NewRequestClient({
       creneau_iso: creneauIso,
       facturation: { nom: factNom, email: factEmail, bce: factBce, ref_bon_commande: factRefBC },
       occupants,
+      // Coords du sinistre (mode courtier). En mode syndic les coords
+      // sont déjà sur l'ACP — on n'écrase pas l'intervention avec.
+      lat: isCourtier ? sinisterCoords.lat : null,
+      lng: isCourtier ? sinisterCoords.lng : null,
     });
     setSubmitting(false);
     if (res.ok && res.data) {
@@ -232,6 +245,7 @@ export function NewRequestClient({
               rue={sinistreRue} setRue={setSinistreRue}
               codePostal={sinistreCP} setCodePostal={setSinistreCP}
               ville={sinistreVille} setVille={setSinistreVille}
+              setSinisterCoords={setSinisterCoords}
               refCompagnie={refCompagnie} setRefCompagnie={setRefCompagnie}
               referenceSinistre={referenceSinistre} setReferenceSinistre={setReferenceSinistre}
               compagnieAssurance={compagnieAssurance} setCompagnieAssurance={setCompagnieAssurance}
@@ -469,6 +483,8 @@ function Step1({
                   adresse: v.adresse,
                   code_postal: v.code_postal,
                   ville: v.ville,
+                  lat: v.lat,
+                  lng: v.lng,
                 })}
                 placeholder="Avenue Louise 42, 1050 Bruxelles"
                 required
@@ -695,6 +711,7 @@ function Step1Courtier({
   rue, setRue,
   codePostal, setCodePostal,
   ville, setVille,
+  setSinisterCoords,
   refCompagnie, setRefCompagnie,
   referenceSinistre, setReferenceSinistre,
   compagnieAssurance, setCompagnieAssurance,
@@ -703,6 +720,7 @@ function Step1Courtier({
   rue: string; setRue: (v: string) => void;
   codePostal: string; setCodePostal: (v: string) => void;
   ville: string; setVille: (v: string) => void;
+  setSinisterCoords: (c: { lat: string | null; lng: string | null }) => void;
   refCompagnie: string; setRefCompagnie: (v: string) => void;
   referenceSinistre: string; setReferenceSinistre: (v: string) => void;
   compagnieAssurance: string; setCompagnieAssurance: (v: string) => void;
@@ -730,6 +748,7 @@ function Step1Courtier({
           setRue(v.adresse);
           setCodePostal(v.code_postal);
           setVille(v.ville);
+          setSinisterCoords({ lat: v.lat, lng: v.lng });
         }}
         placeholder="Rue du Marché 10, 1000 Bruxelles"
         required

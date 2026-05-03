@@ -45,6 +45,11 @@ export type AcpInput = {
   bce: string;
   email_rapport: string;
   email_facturation: string;
+  // Coordonnées Nominatim (optionnelles). Strings côté UI car
+  // l'AddressAutocomplete les expose en string ; converties en number
+  // dans createAcp via parseFloat avant insert (acps.lat/lng = numeric).
+  lat?: string | null;
+  lng?: string | null;
 };
 
 export async function createAcp(input: AcpInput): Promise<ActionResult<Acp>> {
@@ -67,6 +72,8 @@ export async function createAcp(input: AcpInput): Promise<ActionResult<Acp>> {
       bce: input.bce.trim() || null,
       email_rapport: input.email_rapport.trim().toLowerCase() || null,
       email_facturation: input.email_facturation.trim().toLowerCase() || null,
+      lat: input.lat ? parseFloat(input.lat) : null,
+      lng: input.lng ? parseFloat(input.lng) : null,
     })
     .select()
     .single();
@@ -95,6 +102,12 @@ export type CourtierStep1 = {
   // structure, exposée dans le bloc "Informations assurance" de la fiche).
   reference_sinistre?: string;
   compagnie_assurance?: string;
+  // Coordonnées Nominatim du sinistre (optionnelles). Le client les
+  // remonte aussi au top-level RequestInput.lat/lng pour l'insert ;
+  // conservées ici pour rester self-contained si on consume CourtierStep1
+  // ailleurs plus tard.
+  lat?: string | null;
+  lng?: string | null;
 };
 
 export type RequestInput = {
@@ -115,6 +128,12 @@ export type RequestInput = {
     ref_bon_commande: string;
   };
   occupants: OccupantInput[];
+  // Coordonnées Nominatim (optionnelles) — persistées sur l'intervention
+  // (interventions.lat/lng numeric, cf. migration 2026-05-18). En mode
+  // syndic, l'ACP a déjà ses coords ; en mode courtier, c'est la seule
+  // source pour la géolocalisation du sinistre.
+  lat?: string | null;
+  lng?: string | null;
 };
 
 function generateRef(): string {
@@ -196,6 +215,8 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       ref_bon_commande: input.facturation.ref_bon_commande.trim() || null,
       date_demande: new Date().toISOString().slice(0, 10),
       demandeur_type: isCourtier ? 'courtier' : 'syndic',
+      lat: input.lat ? parseFloat(input.lat) : null,
+      lng: input.lng ? parseFloat(input.lng) : null,
       ...(assureurJson ? { assureur: assureurJson } : {}),
       ...(assureurJson?.reference_sinistre ? { reference_externe: assureurJson.reference_sinistre } : {}),
     })
