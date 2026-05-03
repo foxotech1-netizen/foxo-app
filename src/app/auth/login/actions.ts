@@ -42,17 +42,20 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
 
   // Whitelist applicative — bloque les signups sauvages, indépendamment du
   // toggle Supabase « Allow new users to sign up » (qu'on peut donc laisser
-  // activé). Deux sources d'autorité :
-  //   1. Whitelists hardcodées de roles.ts (admins + techniciens)
-  //   2. Table public.utilisateurs filtrée sur actif=true — partenaire
-  //      désactivé = bloqué au login (toggle « Désactiver » d'/admin/techniciens
-  //      ou /admin/utilisateurs ferme l'accès immédiatement, sans hard delete).
+  // activé). Trois sources d'autorité, dans l'ordre :
+  //   1. Whitelists hardcodées de roles.ts (admins + techniciens) — court-
+  //      circuit, jamais bloqués (bouclier de récupération).
+  //   2. Table public.utilisateurs filtrée sur actif=true. Soft delete via
+  //      le toggle « Désactiver » d'/admin/techniciens → bloqué au login.
+  //   3. Table public.delegues filtrée sur actif=true. Soft delete via le
+  //      drawer syndic → bouton « 🚫 Désactiver » → bloqué au login.
   // shouldCreateUser reste à true : la whitelist DB est le seul gate.
   const isHardcoded =
     (ADMIN_EMAILS as readonly string[]).includes(email)
     || (TECH_EMAILS as readonly string[]).includes(email);
   if (!isHardcoded) {
     const admin = createAdminClient();
+    // 2. utilisateurs (techniciens et autres comptes internes)
     const { data: u } = await admin
       .from('utilisateurs')
       .select('email')
@@ -60,7 +63,16 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
       .eq('actif', true)
       .maybeSingle();
     if (!u) {
-      return { error: 'Accès non autorisé. Contactez info@foxo.be.' };
+      // 3. delegues (partenaires syndic/courtier)
+      const { data: d } = await admin
+        .from('delegues')
+        .select('email')
+        .eq('email', email)
+        .eq('actif', true)
+        .maybeSingle();
+      if (!d) {
+        return { error: 'Accès non autorisé. Contactez info@foxo.be.' };
+      }
     }
   }
 
