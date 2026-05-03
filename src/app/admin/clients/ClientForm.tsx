@@ -1,12 +1,16 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { saveClient, type ClientInput } from '../facturation/actions';
 import { TYPE_CLIENT_LABEL, type Client, type Organisation, type RemiseType, type TypeClient } from '@/lib/types/database';
 import { AddressAutocomplete, type AddressValue } from '@/components/AddressAutocomplete';
 
 const TYPES: TypeClient[] = ['acp', 'particulier', 'entreprise'];
+
+function isValidType(v: string | null): v is TypeClient {
+  return v === 'acp' || v === 'particulier' || v === 'entreprise';
+}
 
 export function ClientForm({
   initial,
@@ -16,10 +20,20 @@ export function ClientForm({
   redirectAfter?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [type, setType] = useState<TypeClient>(initial?.type ?? 'acp');
+  // Pré-remplissage depuis query params (cas du clic « ➕ Ajouter une ACP »
+  // dans le drawer syndic — navigation vers /admin/clients/new?type=acp&syndic_id=<uuid>).
+  // Lazy init = pas de useEffect, donc pas d'erreur react-hooks/set-state-in-effect.
+  // En édition (initial != null), on garde toujours les valeurs de la DB.
+  const queryType = searchParams.get('type');
+  const querySyndicId = searchParams.get('syndic_id');
+  const initialType: TypeClient =
+    initial?.type ?? (isValidType(queryType) ? queryType : 'acp');
+
+  const [type, setType] = useState<TypeClient>(initialType);
   const [nom, setNom] = useState(initial?.nom ?? '');
   const [prenom, setPrenom] = useState(initial?.prenom ?? '');
   const [email, setEmail] = useState(initial?.email ?? '');
@@ -35,8 +49,11 @@ export function ClientForm({
   const [contactTel, setContactTel] = useState(initial?.contact_telephone ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
 
-  // Liens ACP → Syndic + emails dédiés
-  const [syndicIdRef, setSyndicIdRef] = useState<string | null>(initial?.syndic_id_ref ?? null);
+  // Liens ACP → Syndic + emails dédiés. Pré-rempli depuis ?syndic_id=<uuid>
+  // si on vient du drawer syndic (création) ; en édition on garde la valeur DB.
+  const [syndicIdRef, setSyndicIdRef] = useState<string | null>(
+    initial?.syndic_id_ref ?? querySyndicId ?? null,
+  );
   const [emailFactures, setEmailFactures] = useState(initial?.email_factures ?? '');
   const [emailRapports, setEmailRapports] = useState(initial?.email_rapports ?? '');
   const [emailComm, setEmailComm] = useState(initial?.email_communications ?? '');
@@ -108,7 +125,14 @@ export function ClientForm({
     startTransition(async () => {
       const res = await saveClient(input);
       if (!res.ok) { setError(res.error); return; }
-      router.push(`${redirectAfter}?id=${res.data!.id}`);
+      // Création d'une nouvelle ACP → redirige vers la liste filtrée sur
+      // les ACPs (le filter param est lu par ClientsListClient). Sinon
+      // comportement existant : retour vers la fiche créée/éditée.
+      const isCreatingAcp = !initial && type === 'acp';
+      const target = isCreatingAcp
+        ? '/admin/clients?filter=acp'
+        : `${redirectAfter}?id=${res.data!.id}`;
+      router.push(target);
       router.refresh();
     });
   }

@@ -2,12 +2,16 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TYPE_CLIENT_LABEL, type Client, type TypeClient } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { deleteClient } from '../facturation/actions';
 
 const TYPE_FILTERS: ('tous' | TypeClient)[] = ['tous', 'acp', 'particulier', 'entreprise'];
+
+function isFilterValue(v: string | null): v is typeof TYPE_FILTERS[number] {
+  return v !== null && (TYPE_FILTERS as readonly string[]).includes(v);
+}
 const TYPE_COLORS: Record<TypeClient, string> = {
   acp: '#1B3A6B',
   particulier: '#1F6B45',
@@ -16,6 +20,7 @@ const TYPE_COLORS: Record<TypeClient, string> = {
 
 export function ClientsListClient({ initial }: { initial: Client[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState('');
 
@@ -27,7 +32,13 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
       else router.refresh();
     });
   }
-  const [filter, setFilter] = useState<typeof TYPE_FILTERS[number]>('tous');
+
+  // Lecture du filtre initial depuis ?filter=<type> (ex: redirect post-
+  // création ACP depuis le drawer syndic → /admin/clients?filter=acp).
+  // Lazy init pour respecter React 19 strict (pas de setState dans useEffect).
+  const queryFilter = searchParams.get('filter');
+  const initialFilter: typeof TYPE_FILTERS[number] = isFilterValue(queryFilter) ? queryFilter : 'tous';
+  const [filter, setFilter] = useState<typeof TYPE_FILTERS[number]>(initialFilter);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

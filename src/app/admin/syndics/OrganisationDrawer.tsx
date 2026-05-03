@@ -439,10 +439,10 @@ export function OrganisationDrawer({
                 <button
                   type="button"
                   onClick={() => {
-                    // Pas d'écran "Nouvelle ACP" dédié — la liste clients
-                    // permet la création (filtrer par type=ACP). On ferme
-                    // le drawer pour laisser l'admin créer puis revenir.
-                    router.push('/admin/clients');
+                    // Pré-remplit ClientForm via query params : type=acp +
+                    // syndic_id=<org.id> (cf. lecture useSearchParams dans
+                    // src/app/admin/clients/ClientForm.tsx).
+                    router.push(`/admin/clients/new?type=acp&syndic_id=${org.id}`);
                     onClose();
                   }}
                   className="w-full text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
