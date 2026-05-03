@@ -946,10 +946,14 @@ export async function matchAcpForOrganisation(args: {
 //
 // Avant de créer une nouvelle intervention depuis un mail, on cherche
 // un dossier existant qui correspond. Trois signaux à confiance haute :
-//   1. reference_sinistre (assurance) identique → même_dossier
-//   2. ACP identique + email occupant déjà connu + < 30j → suivi
-//   3. ACP identique + un appartement_concerné en commun + < 30j → même_dossier
+//   1. reference_sinistre (assurance) identique → même_dossier (pas de fenêtre)
+//   2. ACP identique + email occupant déjà connu + < 12 mois → suivi
+//   3. ACP identique + un appartement_concerné en commun + < 12 mois → même_dossier
 // Renvoie le 1er match trouvé (ou null), avec son type_lien.
+//
+// Fenêtre 12 mois alignée sur la détection de récidive du drawer Historique
+// (cf. /api/admin/interventions/[id]/historique) : un dossier non résolu
+// rouvert dans l'année doit être rattaché plutôt que dupliqué.
 
 export type CronDoublonType = 'meme_dossier' | 'suivi' | 'doublon' | 'related';
 
@@ -986,13 +990,14 @@ export async function detectDoublon(args: {
     }
   }
 
-  // Window 30j pour les heuristiques ACP-based
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const sinceIso = thirtyDaysAgo.toISOString();
+  // Fenêtre 12 mois (365j) pour les heuristiques ACP-based.
+  const ACP_DEDUP_WINDOW_DAYS = 365;
+  const since = new Date();
+  since.setDate(since.getDate() - ACP_DEDUP_WINDOW_DAYS);
+  const sinceIso = since.toISOString();
 
   if (args.acp_id) {
-    // 2. ACP identique + email occupant connu + < 30j → suivi
+    // 2. ACP identique + email occupant connu + < 12 mois → suivi
     if (args.occupant_emails.length > 0) {
       const { data: ivs } = await admin
         .from('interventions')
@@ -1016,14 +1021,14 @@ export async function detectDoublon(args: {
               intervention_id: matched.id,
               ref: matched.ref,
               type_lien: 'suivi',
-              reason: 'Même ACP + occupant déjà connu (< 30j)',
+              reason: 'Même ACP + occupant déjà connu (< 12 mois)',
             };
           }
         }
       }
     }
 
-    // 3. ACP identique + appartement commun + < 30j → meme_dossier
+    // 3. ACP identique + appartement commun + < 12 mois → meme_dossier
     if (args.appartements_concernes.length > 0) {
       // Postgres array overlap : column && '{val1,val2}'::text[]
       // PostgREST : .overlaps('appartements_concernes', [...])
@@ -1042,7 +1047,7 @@ export async function detectDoublon(args: {
           intervention_id: ivs.id as string,
           ref: (ivs.ref as string) ?? null,
           type_lien: 'meme_dossier',
-          reason: `Même ACP + appartement(s) commun(s) (< 30j) : ${apts.join(', ')}`,
+          reason: `Même ACP + appartement(s) commun(s) (< 12 mois) : ${apts.join(', ')}`,
         };
       }
     }

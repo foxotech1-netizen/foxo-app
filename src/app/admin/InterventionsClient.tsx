@@ -3268,6 +3268,14 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
   // Bandeau "doublon possible" si un lien type_lien='doublon' existe
   const doublonLink = liens.find((l) => l.type_lien === 'doublon');
 
+  // Bandeau "dossier antérieur non résolu" : tout lien (sauf le doublon
+  // déjà signalé ci-dessus) pointant vers une intervention dont le statut
+  // n'est pas 'cloturee'. Cohérent avec la fenêtre de détection 12 mois
+  // côté cron (lib/cron/check-mails.ts) et historique du drawer.
+  const unresolvedLinks = liens.filter(
+    (l) => l.type_lien !== 'doublon' && l.liee_statut !== 'cloturee',
+  );
+
   return (
     <>
       {doublonLink && (
@@ -3276,6 +3284,47 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
           <div className="text-[#5A3F15] dark:text-[#F0D896]">
             Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="font-mono font-bold underline">{doublonLink.liee_ref ?? '?'}</Link>
             {doublonLink.note && <> · <span className="italic">{doublonLink.note}</span></>}
+          </div>
+        </div>
+      )}
+
+      {unresolvedLinks.length > 0 && (
+        <div className="bg-terra-light border border-terra-mid rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A1F14] dark:border-[#7A3F2A] dark:text-[#F0AE96]">
+          <div className="font-bold mb-1 text-terra dark:text-[#F0AE96]">
+            ⚠️ Dossier antérieur non résolu possible — voir historique
+          </div>
+          <div className="text-[#7A2F15] dark:text-[#F0AE96] flex flex-wrap items-center gap-x-2 gap-y-1">
+            {unresolvedLinks.length === 1 ? (
+              <>
+                Lié à{' '}
+                <Link
+                  href={`/admin/interventions/${unresolvedLinks[0].liee_id}`}
+                  target="_blank"
+                  className="font-mono font-bold underline"
+                >
+                  {unresolvedLinks[0].liee_ref ?? '?'}
+                </Link>{' '}
+                ({unresolvedLinks[0].liee_statut})
+                {unresolvedLinks[0].note && (
+                  <> · <span className="italic">{unresolvedLinks[0].note}</span></>
+                )}
+              </>
+            ) : (
+              <>
+                <span>{unresolvedLinks.length} dossiers liés non clôturés :</span>
+                {unresolvedLinks.map((l) => (
+                  <Link
+                    key={l.liee_id}
+                    href={`/admin/interventions/${l.liee_id}`}
+                    target="_blank"
+                    className="font-mono font-bold underline"
+                    title={`${l.liee_statut}${l.note ? ' · ' + l.note : ''}`}
+                  >
+                    {l.liee_ref ?? '?'}
+                  </Link>
+                ))}
+              </>
+            )}
           </div>
         </div>
       )}
