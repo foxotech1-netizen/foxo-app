@@ -412,6 +412,9 @@ export interface InterventionRow extends Intervention {
   syndic: Pick<Organisation, 'id' | 'nom' | 'type' | 'email'> | null;
   technicien: Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
   delegue: Pick<Delegue, 'id' | 'prenom' | 'nom' | 'email' | 'telephone'> | null;
+  // Calculé côté /admin/page.tsx : nombre d'autres interventions sur la
+  // même ACP avec le même type sur les 12 derniers mois. > 0 = récidive.
+  recidive_count?: number;
 }
 
 // Libellés et couleurs des statuts

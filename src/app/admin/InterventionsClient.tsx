@@ -351,10 +351,10 @@ export function InterventionsClient({
     return { inProgress, suspended, reports, closed, urgent };
   }, [rows]);
 
-  function openDrawer(id: string) {
+  function openDrawer(id: string, initialTab: 'dossier' | 'suivi' | 'documents' | 'ia' | 'historique' = 'dossier') {
     const iv = rows.find((r) => r.id === id);
     setSelectedId(id);
-    setTab('dossier');
+    setTab(initialTab);
     setPendingStatut(iv?.statut ?? '');
     setSuspensMotif(iv?.suspens_motif ?? '');
     setPendingTechId(iv?.technicien?.id ?? '');
@@ -1172,6 +1172,16 @@ export function InterventionsClient({
                             >
                               📧 Mail
                             </span>
+                          )}
+                          {(iv.recidive_count ?? 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); openDrawer(iv.id, 'historique'); }}
+                              className="inline-block text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 hover:bg-[#F2DBC9] cursor-pointer"
+                              title={`${iv.recidive_count} intervention(s) similaire(s) sur cette ACP dans les 12 mois — voir Historique`}
+                            >
+                              🔄 Récidive ({iv.recidive_count})
+                            </button>
                           )}
                         </div>
                       </td>

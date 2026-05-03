@@ -81,15 +81,40 @@ export default async function AdminPipelinePage() {
   const techMap = new Map(techs.map((t) => [t.id, t]));
   const delegueMap = new Map(delegues.map((d) => [d.id, d]));
 
-  const rows: InterventionRow[] = interventions.map((iv) => ({
-    ...iv,
-    acp: iv.acp_id ? (acpMap.get(iv.acp_id) ?? null) : null,
-    syndic: iv.syndic_id
-      ? (orgMap.get(iv.syndic_id) ?? null)
-      : iv.organisation_id ? (orgMap.get(iv.organisation_id) ?? null) : null,
-    technicien: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
-    delegue: iv.delegue_id ? (delegueMap.get(iv.delegue_id) ?? null) : null,
-  }));
+  // Détection de récidive en mémoire — toutes les interventions sont déjà
+  // chargées, on évite un round-trip par ligne. O(n) avec un index par
+  // (acp_id, type normalisé) sur la fenêtre 12 mois. Aligné sur la
+  // fenêtre TWELVE_MONTHS_MS du drawer Historique.
+  const TWELVE_MONTHS_MS = 365 * 24 * 60 * 60 * 1000;
+  const recidiveCutoffMs = Date.now() - TWELVE_MONTHS_MS;
+  const recidiveIndex = new Map<string, string[]>(); // key = acp_id|type → [iv.id...]
+  for (const iv of interventions) {
+    if (!iv.acp_id || !iv.type) continue;
+    const created = iv.created_at ? new Date(iv.created_at).getTime() : 0;
+    if (created < recidiveCutoffMs) continue;
+    const key = `${iv.acp_id}|${iv.type.trim().toLowerCase()}`;
+    if (!recidiveIndex.has(key)) recidiveIndex.set(key, []);
+    recidiveIndex.get(key)!.push(iv.id);
+  }
+
+  const rows: InterventionRow[] = interventions.map((iv) => {
+    let recidive_count = 0;
+    if (iv.acp_id && iv.type) {
+      const key = `${iv.acp_id}|${iv.type.trim().toLowerCase()}`;
+      const others = recidiveIndex.get(key);
+      if (others) recidive_count = others.filter((x) => x !== iv.id).length;
+    }
+    return {
+      ...iv,
+      acp: iv.acp_id ? (acpMap.get(iv.acp_id) ?? null) : null,
+      syndic: iv.syndic_id
+        ? (orgMap.get(iv.syndic_id) ?? null)
+        : iv.organisation_id ? (orgMap.get(iv.organisation_id) ?? null) : null,
+      technicien: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
+      delegue: iv.delegue_id ? (delegueMap.get(iv.delegue_id) ?? null) : null,
+      recidive_count,
+    };
+  });
 
   // Group free slots by technicien
   const freeSlotsByTech: Record<string, FreeSlot[]> = {};
