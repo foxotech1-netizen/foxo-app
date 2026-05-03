@@ -127,6 +127,11 @@ export function InterventionsClient({
   const searchParams = useSearchParams();
   const techFilter = searchParams.get('tech');
   const statutParam = searchParams.get('statut');   // 'nouvelle' | 'en_cours' | 'en_suspens' | 'rapport' | 'cloturee' | null
+  const recentResponsesFilter = searchParams.get('recent_responses') === '1';
+  const recentResponseIvIds = useMemo(
+    () => new Set(dashboard.recentResponses.map((r) => r.intervention_id)),
+    [dashboard.recentResponses],
+  );
 
   // Source de temps SSR-stable. Initialisée avec la valeur serveur pour
   // que le SSR et la 1ʳᵉ hydratation produisent le même HTML (React #418).
@@ -305,10 +310,11 @@ export function InterventionsClient({
       const matchSelectFilter = filter === 'tous' || iv.statut === filter;
       const matchUrlStatut = statutMatches(iv.statut, iv.updated_at);
       const matchTech = !techFilter || iv.technicien_id === techFilter;
-      return matchQuery && matchSelectFilter && matchUrlStatut && matchTech;
+      const matchRecentResponses = !recentResponsesFilter || recentResponseIvIds.has(iv.id);
+      return matchQuery && matchSelectFilter && matchUrlStatut && matchTech && matchRecentResponses;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, query, filter, techFilter, statutParam]);
+  }, [rows, query, filter, techFilter, statutParam, recentResponsesFilter, recentResponseIvIds]);
 
   const techFilterName = useMemo(() => {
     if (!techFilter) return null;
@@ -925,19 +931,34 @@ export function InterventionsClient({
             })}
           </p>
         </div>
-        {techFilterName && (
-          <div className="bg-[#A17244] text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
-            <span>🔎 Filtré : {techFilterName}</span>
-            <button
-              type="button"
-              onClick={() => router.push('/admin')}
-              className="hover:opacity-70 leading-none"
-              title="Retirer le filtre"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {techFilterName && (
+            <div className="bg-[#A17244] text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
+              <span>🔎 Filtré : {techFilterName}</span>
+              <button
+                type="button"
+                onClick={() => router.push('/admin')}
+                className="hover:opacity-70 leading-none"
+                title="Retirer le filtre"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          {recentResponsesFilter && (
+            <div className="bg-terra text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
+              <span>📬 Réponses occupants &lt; 48 h ({recentResponseIvIds.size})</span>
+              <button
+                type="button"
+                onClick={() => router.push('/admin')}
+                className="hover:opacity-70 leading-none"
+                title="Retirer le filtre"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {loadError && (

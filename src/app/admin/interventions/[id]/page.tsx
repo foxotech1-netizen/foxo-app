@@ -93,7 +93,9 @@ export default async function InterventionFullPage({
     occupantsPendingByIv[o.intervention_id].push({ id: o.id, appartement: o.appartement, nom: o.nom, conf: o.conf });
   }
 
-  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv };
+  // Vue deep-link sur une intervention spécifique : la carte "réponses
+  // récentes" du dashboard est non pertinente ici — on passe une liste vide.
+  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses: [] };
   const serverNowIso = new Date().toISOString();
 
   return (

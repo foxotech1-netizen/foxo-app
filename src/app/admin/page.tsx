@@ -9,9 +9,23 @@ type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'>;
 
 export type FreeSlot = Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin'>;
 
+export interface RecentOccupantResponse {
+  occupant_id: string;
+  intervention_id: string;
+  prenom: string | null;
+  nom: string | null;
+  appartement: string | null;
+  conf: 'confirme' | 'en_attente' | 'decline' | null;
+  confirmed_at: string;
+  proposed_creneau_debut: string | null;
+  iv_ref: string | null;
+  iv_acp_nom: string | null;
+}
+
 export interface DashboardData {
   freeSlotsByTech: Record<string, FreeSlot[]>;
   occupantsPendingByIv: Record<string, Pick<Occupant, 'id' | 'appartement' | 'nom' | 'conf'>[]>;
+  recentResponses: RecentOccupantResponse[];
 }
 
 export default async function AdminPipelinePage() {
@@ -101,7 +115,47 @@ export default async function AdminPipelinePage() {
     }
   }
 
-  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv };
+  // Réponses occupants récentes (< 48h) sur des interventions encore actives
+  // (pas cloturee ni realisee) — pour le badge "📬 nouvelle réponse" et la
+  // carte dédiée du dashboard.
+  const cutoff48h = new Date(Date.now() - 48 * 3600_000).toISOString();
+  const ivById = new Map(rows.map((r) => [r.id, r]));
+  const recentRes = await supabase
+    .from('occupants')
+    .select('id, intervention_id, prenom, nom, appartement, conf, confirmed_at, proposed_creneau_debut')
+    .gte('confirmed_at', cutoff48h)
+    .order('confirmed_at', { ascending: false })
+    .limit(50);
+  type RecentOccRow = {
+    id: string;
+    intervention_id: string;
+    prenom: string | null;
+    nom: string | null;
+    appartement: string | null;
+    conf: 'confirme' | 'en_attente' | 'decline' | null;
+    confirmed_at: string;
+    proposed_creneau_debut: string | null;
+  };
+  const recentResponses: RecentOccupantResponse[] = ((recentRes.data ?? []) as RecentOccRow[])
+    .map((o) => {
+      const iv = ivById.get(o.intervention_id);
+      if (!iv || iv.statut === 'cloturee' || iv.statut === 'realisee') return null;
+      return {
+        occupant_id: o.id,
+        intervention_id: o.intervention_id,
+        prenom: o.prenom,
+        nom: o.nom,
+        appartement: o.appartement,
+        conf: o.conf,
+        confirmed_at: o.confirmed_at,
+        proposed_creneau_debut: o.proposed_creneau_debut,
+        iv_ref: iv.ref,
+        iv_acp_nom: iv.acp?.nom ?? null,
+      };
+    })
+    .filter((x): x is RecentOccupantResponse => x !== null);
+
+  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses };
 
   // Référence temporelle figée côté serveur — sert d'état initial
   // partagé pour le rendu SSR + 1ʳᵉ hydratation client (évite React #418).

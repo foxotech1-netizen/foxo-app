@@ -150,8 +150,10 @@ const S = {
 // ─── Composant ─────────────────────────────────────────────────────────────────
 export default function Sidebar({
   alertCount = 0,
+  recentResponsesCount = 0,
 }: {
   alertCount?: number
+  recentResponsesCount?: number
 }) {
   const pathname = usePathname()
   const router   = useRouter()
@@ -207,13 +209,25 @@ export default function Sidebar({
         {/* Nav principale */}
         <nav style={S.nav}>
           {NAV_MAIN.map(item => (
-            <Link key={item.href} href={item.href} style={S.navItem(isActive(item.href))}>
+            <Link
+              key={item.href}
+              href={item.href === '/admin' && recentResponsesCount > 0
+                ? '/admin?recent_responses=1'
+                : item.href}
+              style={S.navItem(isActive(item.href))}
+            >
               <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                 <span>{item.icon}</span>
                 <span>{item.label}</span>
               </span>
               {item.badge && alertCount > 0 && (
                 <span style={S.badge}>{alertCount}</span>
+              )}
+              {item.href === '/admin' && recentResponsesCount > 0 && (
+                <span
+                  style={S.badge}
+                  title="Réponses occupants reçues (< 48 h)"
+                >📬 {recentResponsesCount}</span>
               )}
             </Link>
           ))}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
-import type { DashboardData, FreeSlot } from './page';
+import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 
 const TECH_AVATAR_COLORS = [
@@ -133,6 +133,15 @@ export function Dashboard({
         <div className="px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold">
           ⚡ {stats.urgent} intervention(s) urgente(s) en attente de traitement
         </div>
+      )}
+
+      {/* ── 2bis. Réponses occupants récentes (< 48 h) ───────────────────── */}
+      {dashboard.recentResponses.length > 0 && (
+        <RecentResponsesCard
+          responses={dashboard.recentResponses}
+          onOpenIntervention={onOpenIntervention}
+          nowMs={nowMs}
+        />
       )}
 
       {/* ── 3. Nouvelles demandes mail (cron analyse auto) ───────────────── */}
@@ -466,6 +475,92 @@ function TodoCard({
         ) : children}
       </div>
     </div>
+  );
+}
+
+// ─── Carte Réponses occupants récentes (< 48 h) ─────────────────────
+//
+// Affichée seulement si > 0. Chaque ligne ouvre le drawer de l'intervention
+// concernée. La requête source filtre déjà sur intervention.statut actif
+// (cf. /admin/page.tsx).
+function RecentResponsesCard({
+  responses,
+  onOpenIntervention,
+  nowMs,
+}: {
+  responses: RecentOccupantResponse[];
+  onOpenIntervention: (id: string) => void;
+  nowMs: number;
+}) {
+  function relativeTime(iso: string): string {
+    const minutes = Math.floor((nowMs - new Date(iso).getTime()) / 60_000);
+    if (minutes < 1) return 'à l\'instant';
+    if (minutes < 60) return `il y a ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `il y a ${hours} h`;
+    return `il y a ${Math.floor(hours / 24)} j`;
+  }
+
+  function reponseLabel(r: RecentOccupantResponse): { label: string; cls: string } {
+    if (r.proposed_creneau_debut) {
+      return { label: '🔄 Autre créneau', cls: 'bg-navy-pale text-navy border-navy-light' };
+    }
+    if (r.conf === 'confirme') {
+      return { label: '✅ Présent', cls: 'bg-ok-light text-ok border-ok-mid' };
+    }
+    if (r.conf === 'decline') {
+      return { label: '❌ Décline', cls: 'bg-terra-light text-terra border-terra-mid' };
+    }
+    return { label: '— En attente', cls: 'bg-sand-mid text-ink-mid border-sand-border' };
+  }
+
+  return (
+    <section>
+      <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+        📬 Réponses occupants reçues (&lt; 48 h)
+        <span className="ml-2 inline-block px-2 py-0.5 bg-terra text-white rounded-full text-[10px] font-extrabold">
+          {responses.length}
+        </span>
+      </h3>
+      <div className="bg-cream border border-sand-border rounded-2xl divide-y divide-sand-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:divide-[#2C2A24] overflow-hidden">
+        {responses.slice(0, 8).map((r) => {
+          const tag = reponseLabel(r);
+          const fullName = [r.prenom, r.nom].filter(Boolean).join(' ') || 'Occupant';
+          return (
+            <button
+              key={r.occupant_id}
+              type="button"
+              onClick={() => onOpenIntervention(r.intervention_id)}
+              className="w-full text-left px-4 py-2.5 hover:bg-sand-hover flex items-center gap-3 dark:hover:bg-[#221E1A]"
+            >
+              <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap ' + tag.cls}>
+                {tag.label}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-semibold text-ink truncate dark:text-[#F0ECE4]">
+                  {fullName}
+                  {r.appartement && (
+                    <span className="text-ink-mid font-normal ml-1.5 dark:text-[#C8C2B8]">apt. {r.appartement}</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-ink-muted truncate dark:text-[#C8C2B8]">
+                  <span className="font-mono text-navy dark:text-[#A8C4F2]">{r.iv_ref ?? '?'}</span>
+                  {r.iv_acp_nom && <span> · {r.iv_acp_nom}</span>}
+                </div>
+              </div>
+              <span className="text-[10px] text-ink-muted whitespace-nowrap dark:text-[#C8C2B8]">
+                {relativeTime(r.confirmed_at)}
+              </span>
+            </button>
+          );
+        })}
+        {responses.length > 8 && (
+          <div className="px-4 py-2 text-[11px] text-ink-muted italic text-center dark:text-[#C8C2B8]">
+            +{responses.length - 8} autres réponses récentes — utilise le filtre Tableau de bord pour les voir.
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
