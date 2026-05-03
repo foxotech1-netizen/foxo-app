@@ -309,7 +309,20 @@ export const TYPE_CLIENT_LABEL: Record<TypeClient, string> = {
 
 // ─── Facturation ─────────────────────────────────────────────────────────
 
-export type StatutFacture = 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee';
+// Types de documents stockés dans la table factures.
+//   facture : facture standard (défaut, comportement historique)
+//   devis   : devis pré-vente, convertible en facture
+//   avoir   : note de crédit, lié à une facture d'origine via facture_origine_id
+export type TypeFacture = 'facture' | 'devis' | 'avoir';
+
+// Statuts élargis pour gérer les états devis (accepte/refuse/expire).
+// Sous-ensembles attendus par type — validation côté server actions :
+//   facture : brouillon, envoyee, payee, en_retard, annulee
+//   avoir   : brouillon, envoyee, annulee
+//   devis   : brouillon, envoyee, accepte, refuse, expire, annulee
+export type StatutFacture =
+  | 'brouillon' | 'envoyee' | 'payee' | 'en_retard' | 'annulee'
+  | 'accepte' | 'refuse' | 'expire';
 
 // Remise sur ligne ou globale facture ou auto client.
 //   pct  : pourcentage 0..100 appliqué sur le montant concerné
@@ -377,6 +390,16 @@ export interface Facture {
   sent_at: string | null;
   rappel_envoye_at: string | null;
   rappel_count: number | null;
+  // Type de document (cf. migration 2026-05-25_devis_avoirs.sql).
+  type: TypeFacture;
+  // Avoir : facture d'origine. NULL pour facture/devis.
+  facture_origine_id: string | null;
+  // Devis : durée de validité (en jours) à partir de date_emission.
+  validite_jours: number | null;
+  // Devis : timestamp de l'acceptation (sert au flag "converti")
+  accepted_at: string | null;
+  // Devis : si converti, l'id de la facture créée.
+  converted_to_facture_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -404,6 +427,10 @@ export const STATUT_FACTURE_INFO: Record<StatutFacture, { label: string; fg: str
   payee:     { label: 'Payée',      fg: '#1F6B45', bg: '#D4EDE2' },
   en_retard: { label: 'En retard',  fg: '#C4622D', bg: '#F7EDE5' },
   annulee:   { label: 'Annulée',    fg: '#A09A8E', bg: '#E4DFD4' },
+  // Statuts spécifiques aux devis
+  accepte:   { label: 'Accepté',    fg: '#1F6B45', bg: '#D4EDE2' },
+  refuse:    { label: 'Refusé',     fg: '#C4622D', bg: '#F7EDE5' },
+  expire:    { label: 'Expiré',     fg: '#C4622D', bg: '#F7EDE5' },
 };
 
 // Vue jointe — utilisée par l'admin

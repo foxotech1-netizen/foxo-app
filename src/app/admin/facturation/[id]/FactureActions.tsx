@@ -3,7 +3,7 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { RowMenu } from '@/components/RowMenu';
-import { setFactureStatut, deleteFacture } from '../actions';
+import { setFactureStatut, deleteFacture, createAvoirFromFacture } from '../actions';
 import type { Facture } from '@/lib/types/database';
 
 export function FactureActions({ facture }: { facture: Facture }) {
@@ -55,6 +55,25 @@ export function FactureActions({ facture }: { facture: Facture }) {
             onClick: () => call(() => setFactureStatut(facture.id, 'brouillon')),
             hidden: facture.statut === 'brouillon' || facture.statut === 'payee',
             disabled: pending,
+          },
+          {
+            icon: '📝',
+            label: 'Créer un avoir',
+            disabled: pending,
+            // Pas d'avoir sur un avoir, ni sur une facture déjà annulée.
+            hidden: facture.type !== 'facture' || facture.statut === 'annulee',
+            onClick: () => {
+              if (!confirm(`Créer une note de crédit liée à la facture ${facture.numero} ?\n\nUn avoir brouillon sera créé avec les lignes en quantité négative — tu pourras ajuster avant émission.`)) return;
+              startTransition(async () => {
+                const res = await createAvoirFromFacture(facture.id);
+                if (!res.ok) {
+                  alert(res.error);
+                  return;
+                }
+                router.push(`/admin/facturation/notes-credit/${res.data!.id}`);
+                router.refresh();
+              });
+            },
           },
           {
             icon: '🗑️',

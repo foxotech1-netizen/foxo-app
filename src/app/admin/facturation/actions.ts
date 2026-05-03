@@ -20,6 +20,7 @@ import type {
   RemiseType,
   StatutFacture,
   TypeClient,
+  TypeFacture,
 } from '@/lib/types/database';
 import { validateRemise } from '@/lib/facturation/remises';
 
@@ -38,7 +39,18 @@ async function assertAdmin(): Promise<{ ok: true } | { ok: false; error: string 
 
 // ─── Helpers numéro / dates ──────────────────────────────────────────────
 
-const NUMERO_PREFIX = 'FV';
+const NUMERO_PREFIX_BY_TYPE: Record<TypeFacture, string> = {
+  facture: 'FV',
+  devis:   'DEV',
+  avoir:   'NC',
+};
+// Compteur de départ par type (1 pour devis et avoirs, 100 pour les
+// factures pour préserver le pattern historique de la prod).
+const NUMERO_START_BY_TYPE: Record<TypeFacture, number> = {
+  facture: 100,
+  devis:   1,
+  avoir:   1,
+};
 
 function fmtIsoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -51,34 +63,44 @@ function plusDays(iso: string, days: number): string {
   return fmtIsoDate(dt);
 }
 
-// Calcule le prochain numéro FV{YYYY}-{NNN} (3 chiffres min) basé sur le max
-// existant pour l'année en cours. Permet la modification manuelle ensuite.
-export async function generateNextNumero(): Promise<ActionResult<{ numero: string }>> {
+// Calcule le prochain numéro <PREFIX>{YYYY}-{NNN} basé sur le max existant
+// pour l'année et le type donnés. Permet la modification manuelle ensuite.
+//   facture → FV2026-NNN (compte démarre à 100)
+//   devis   → DEV2026-NNN
+//   avoir   → NC2026-NNN
+export async function generateNextNumero(
+  type: TypeFacture = 'facture',
+): Promise<ActionResult<{ numero: string }>> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
 
   const year = new Date().getFullYear();
+  const prefix = NUMERO_PREFIX_BY_TYPE[type];
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('factures')
     .select('numero')
-    .like('numero', `${NUMERO_PREFIX}${year}-%`)
+    .eq('type', type)
+    .like('numero', `${prefix}${year}-%`)
     .order('numero', { ascending: false })
     .limit(1);
   if (error) return { ok: false, error: error.message };
 
-  let next = 100;
+  let next = NUMERO_START_BY_TYPE[type];
   if (data && data.length > 0) {
     const m = data[0].numero.match(/-(\d+)$/);
     if (m) next = parseInt(m[1], 10) + 1;
   }
-  return { ok: true, data: { numero: `${NUMERO_PREFIX}${year}-${String(next).padStart(3, '0')}` } };
+  return { ok: true, data: { numero: `${prefix}${year}-${String(next).padStart(3, '0')}` } };
 }
 
 // ─── CRUD ─────────────────────────────────────────────────────────────────
 
 export interface FactureInput {
   id?: string;
+  // Type de document (par défaut 'facture' — rétro-compat des appelants
+  // existants). Détermine le préfixe de numéro et certains champs.
+  type?: TypeFacture;
   numero: string;
   intervention_id: string | null;
   organisation_id: string | null;
@@ -106,6 +128,9 @@ export interface FactureInput {
   date_emission: string;       // YYYY-MM-DD
   date_echeance: string;       // YYYY-MM-DD
   statut?: StatutFacture;
+  // Spécifiques aux types non-facture (ignorés sinon)
+  facture_origine_id?: string | null;   // avoir → facture d'origine
+  validite_jours?: number | null;       // devis → durée de validité
 }
 
 export async function saveFacture(input: FactureInput): Promise<ActionResult<{ id: string; numero: string }>> {
@@ -160,9 +185,14 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     valeur: input.remise_globale_valeur,
     type: input.remise_globale_type,
   });
-  const referenceStructuree = generateBBA(input.numero);
+  const docType: TypeFacture = input.type ?? 'facture';
+  // BBA (communication structurée) : pertinent pour les factures et
+  // les avoirs (paiement à recevoir/restituer). Pour les devis, pas
+  // de paiement → pas de BBA.
+  const referenceStructuree = docType === 'devis' ? null : generateBBA(input.numero);
 
   const payload = {
+    type: docType,
     numero: input.numero.trim(),
     intervention_id: input.intervention_id,
     organisation_id: input.organisation_id,
@@ -190,6 +220,8 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     statut: input.statut ?? 'brouillon',
     date_emission: input.date_emission,
     date_echeance: input.date_echeance,
+    facture_origine_id: docType === 'avoir' ? (input.facture_origine_id ?? null) : null,
+    validite_jours: docType === 'devis' ? (input.validite_jours ?? 30) : null,
     updated_at: new Date().toISOString(),
   };
 
@@ -219,6 +251,198 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     revalidatePath('/admin/facturation');
     return { ok: true, data: { id: data.id, numero: data.numero } };
   }
+}
+
+// ─── Avoirs (notes de crédit) ────────────────────────────────────────────
+
+// Crée un avoir (brouillon) à partir d'une facture existante. Pré-remplit
+// toutes les coordonnées client + lignes (montants en NÉGATIF par défaut),
+// que l'admin peut ensuite ajuster pour faire un avoir partiel.
+export async function createAvoirFromFacture(
+  factureId: string,
+  options?: { partial?: boolean },
+): Promise<ActionResult<{ id: string; numero: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { data: f } = await supabase.from('factures').select('*').eq('id', factureId).maybeSingle();
+  if (!f) return { ok: false, error: 'Facture introuvable.' };
+  const facture = f as Facture;
+  if (facture.type !== 'facture') {
+    return { ok: false, error: 'Seules les factures peuvent générer un avoir.' };
+  }
+
+  // Lignes : on garde les mêmes lignes mais en quantité négative pour
+  // signaler un retour comptable. Si partial, l'admin retirera des lignes
+  // ou ajustera les quantités dans l'éditeur.
+  const lignesAvoir: FactureLigne[] = (facture.lignes ?? []).map((l) => ({
+    ...l,
+    quantite: options?.partial ? 0 : -Math.abs(Number(l.quantite ?? 0)),
+  }));
+
+  const numeroRes = await generateNextNumero('avoir');
+  if (!numeroRes.ok) return numeroRes;
+  const numero = numeroRes.data!.numero;
+
+  const today = fmtIsoDate(new Date());
+  const totals = computeFactureTotals(lignesAvoir, facture.tva_pct, {
+    valeur: facture.remise_globale_valeur ?? 0,
+    type: facture.remise_globale_type,
+  });
+  const referenceStructuree = generateBBA(numero);
+
+  const payload = {
+    type: 'avoir' as TypeFacture,
+    numero,
+    intervention_id: facture.intervention_id,
+    organisation_id: facture.organisation_id,
+    client_id: facture.client_id,
+    client_nom: facture.client_nom,
+    client_email: facture.client_email,
+    client_adresse: facture.client_adresse,
+    client_bce: facture.client_bce,
+    client_syndic: facture.client_syndic,
+    lignes: lignesAvoir,
+    details_intervention: facture.details_intervention ?? {},
+    remise_pct: 0,
+    remise_globale_valeur: facture.remise_globale_valeur ?? 0,
+    remise_globale_type: facture.remise_globale_type,
+    remise_globale_description: facture.remise_globale_description,
+    tva_pct: facture.tva_pct,
+    montant_ht: totals.ht,
+    montant_tva: totals.tva,
+    montant_ttc: totals.ttc,
+    notes: `Avoir lié à la facture ${facture.numero}.`,
+    remarques: facture.remarques,
+    conditions_paiement: facture.conditions_paiement,
+    reference: facture.numero,
+    reference_structuree: referenceStructuree,
+    statut: 'brouillon' as StatutFacture,
+    date_emission: today,
+    date_echeance: today,
+    facture_origine_id: facture.id,
+    validite_jours: null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('factures')
+    .insert(payload)
+    .select('id, numero')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Erreur création avoir.' };
+
+  revalidatePath('/admin/facturation/notes-credit');
+  return { ok: true, data: { id: data.id, numero: data.numero } };
+}
+
+// ─── Devis ───────────────────────────────────────────────────────────────
+
+// Convertit un devis en facture. Crée une nouvelle facture clone du devis
+// et marque le devis : statut='accepte', accepted_at=now, converted_to_facture_id.
+// Idempotent : si le devis est déjà converti, renvoie l'id de la facture
+// existante.
+export async function convertDevisToFacture(
+  devisId: string,
+): Promise<ActionResult<{ id: string; numero: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { data: d } = await supabase.from('factures').select('*').eq('id', devisId).maybeSingle();
+  if (!d) return { ok: false, error: 'Devis introuvable.' };
+  const devis = d as Facture;
+  if (devis.type !== 'devis') {
+    return { ok: false, error: 'Seul un devis peut être converti en facture.' };
+  }
+
+  // Idempotence : déjà converti
+  if (devis.converted_to_facture_id) {
+    const { data: existing } = await supabase
+      .from('factures')
+      .select('id, numero')
+      .eq('id', devis.converted_to_facture_id)
+      .maybeSingle();
+    if (existing) {
+      return { ok: true, data: { id: existing.id as string, numero: existing.numero as string } };
+    }
+  }
+
+  const numeroRes = await generateNextNumero('facture');
+  if (!numeroRes.ok) return numeroRes;
+  const numero = numeroRes.data!.numero;
+
+  const today = fmtIsoDate(new Date());
+  const totals = computeFactureTotals(devis.lignes ?? [], devis.tva_pct, {
+    valeur: devis.remise_globale_valeur ?? 0,
+    type: devis.remise_globale_type,
+  });
+  const referenceStructuree = generateBBA(numero);
+
+  // Calcule l'échéance depuis conditions_paiement (par défaut 15 jours)
+  const echeanceMatch = (devis.conditions_paiement ?? '').match(/(\d+)/);
+  const echeanceJours = echeanceMatch ? parseInt(echeanceMatch[1], 10) : 15;
+  const dateEcheance = plusDays(today, echeanceJours);
+
+  const payload = {
+    type: 'facture' as TypeFacture,
+    numero,
+    intervention_id: devis.intervention_id,
+    organisation_id: devis.organisation_id,
+    client_id: devis.client_id,
+    client_nom: devis.client_nom,
+    client_email: devis.client_email,
+    client_adresse: devis.client_adresse,
+    client_bce: devis.client_bce,
+    client_syndic: devis.client_syndic,
+    lignes: devis.lignes,
+    details_intervention: devis.details_intervention ?? {},
+    remise_pct: 0,
+    remise_globale_valeur: devis.remise_globale_valeur ?? 0,
+    remise_globale_type: devis.remise_globale_type,
+    remise_globale_description: devis.remise_globale_description,
+    tva_pct: devis.tva_pct,
+    montant_ht: totals.ht,
+    montant_tva: totals.tva,
+    montant_ttc: totals.ttc,
+    notes: `Facture issue du devis ${devis.numero}.`,
+    remarques: devis.remarques,
+    conditions_paiement: devis.conditions_paiement,
+    reference: devis.numero,
+    reference_structuree: referenceStructuree,
+    statut: 'brouillon' as StatutFacture,
+    date_emission: today,
+    date_echeance: dateEcheance,
+    facture_origine_id: null,
+    validite_jours: null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: created, error: createErr } = await supabase
+    .from('factures')
+    .insert(payload)
+    .select('id, numero')
+    .maybeSingle();
+  if (createErr) return { ok: false, error: createErr.message };
+  if (!created) return { ok: false, error: 'Erreur création facture.' };
+
+  // Marque le devis comme accepté + converti
+  const { error: updErr } = await supabase
+    .from('factures')
+    .update({
+      statut: 'accepte',
+      accepted_at: new Date().toISOString(),
+      converted_to_facture_id: created.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', devisId);
+  if (updErr) console.warn('[convertDevis] devis update failed:', updErr.message);
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/devis');
+  return { ok: true, data: { id: created.id as string, numero: created.numero as string } };
 }
 
 export async function setFactureStatut(id: string, statut: StatutFacture, datePaiement?: string): Promise<ActionResult> {
@@ -269,11 +493,29 @@ export async function deleteFacture(id: string): Promise<ActionResult> {
   if (!guard.ok) return guard;
   const supabase = await createClient();
   // Ne supprime que les brouillons. Sinon, on annule.
-  const { data: f } = await supabase.from('factures').select('statut').eq('id', id).maybeSingle();
+  const { data: f } = await supabase.from('factures').select('statut, type').eq('id', id).maybeSingle();
   if (!f) return { ok: false, error: 'Facture introuvable.' };
+
+  // Si c'est une facture, vérifie qu'aucun avoir n'y est attaché.
+  // La DB a `on delete restrict` mais on intercepte avant pour un message clair.
+  if ((f.type ?? 'facture') === 'facture') {
+    const { count } = await supabase
+      .from('factures')
+      .select('id', { count: 'exact', head: true })
+      .eq('facture_origine_id', id);
+    if ((count ?? 0) > 0) {
+      return { ok: false, error: `Cette facture est référencée par ${count} avoir(s). Annule ou supprime d'abord les avoirs liés.` };
+    }
+  }
+
   if (f.statut === 'brouillon') {
     const { error } = await supabase.from('factures').delete().eq('id', id);
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      if (error.code === '23503') {
+        return { ok: false, error: 'Suppression bloquée : un autre document fait référence à celui-ci.' };
+      }
+      return { ok: false, error: error.message };
+    }
   } else {
     const { error } = await supabase
       .from('factures')
@@ -282,6 +524,8 @@ export async function deleteFacture(id: string): Promise<ActionResult> {
     if (error) return { ok: false, error: error.message };
   }
   revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
+  revalidatePath('/admin/facturation/devis');
   return { ok: true };
 }
 

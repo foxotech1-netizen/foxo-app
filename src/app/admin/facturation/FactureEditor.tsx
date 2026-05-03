@@ -59,10 +59,15 @@ export function FactureEditor({
   initial,
   initialNumero,
   articles,
+  mode = 'facture',
+  factureOrigineId = null,
 }: {
   initial: Facture | null;
   initialNumero: string;
   articles: Article[];
+  mode?: 'facture' | 'devis' | 'avoir';
+  // Pour les avoirs créés depuis une facture existante. Ignoré sinon.
+  factureOrigineId?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -119,6 +124,11 @@ export function FactureEditor({
 
   // TVA
   const [tvaPct, setTvaPct] = useState<number>(initial?.tva_pct ?? 21);
+
+  // Devis : durée de validité (jours). Default 30.
+  const [validiteJours, setValiditeJours] = useState<number>(
+    initial?.validite_jours ?? 30,
+  );
 
   // Remise globale (3 champs typés). Migration douce : si l'ancien
   // remise_pct legacy est posé mais pas la nouvelle remise globale,
@@ -283,6 +293,7 @@ export function FactureEditor({
   function buildInput(statut?: StatutFacture): FactureInput {
     return {
       id: initial?.id,
+      type: (initial?.type ?? mode),
       numero,
       intervention_id: linked ? interventionId : null,
       organisation_id: linked ? organisationId : null,
@@ -305,6 +316,10 @@ export function FactureEditor({
       date_emission: dateEmission,
       date_echeance: dateEcheance,
       statut,
+      facture_origine_id: ((initial?.type ?? mode) === 'avoir')
+        ? (initial?.facture_origine_id ?? factureOrigineId ?? null)
+        : null,
+      validite_jours: ((initial?.type ?? mode) === 'devis') ? validiteJours : null,
     };
   }
 
@@ -324,8 +339,19 @@ export function FactureEditor({
           return;
         }
       }
-      setFeedback({ kind: 'ok', msg: asEnvoyee ? 'Facture émise.' : 'Brouillon enregistré.' });
-      router.push(`/admin/facturation/${id}`);
+      const docTypeForRoute = initial?.type ?? mode;
+      const labelByType: Record<typeof docTypeForRoute, string> = {
+        facture: 'Facture',
+        devis: 'Devis',
+        avoir: 'Avoir',
+      };
+      const baseByType: Record<typeof docTypeForRoute, string> = {
+        facture: '/admin/facturation',
+        devis: '/admin/facturation/devis',
+        avoir: '/admin/facturation/notes-credit',
+      };
+      setFeedback({ kind: 'ok', msg: asEnvoyee ? `${labelByType[docTypeForRoute]} émis(e).` : 'Brouillon enregistré.' });
+      router.push(`${baseByType[docTypeForRoute]}/${id}`);
       router.refresh();
     });
   }
@@ -737,6 +763,14 @@ export function FactureEditor({
       <div className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <NumField label="Taux TVA %" value={tvaPct} step="1" onChange={setTvaPct} />
+          {(initial?.type ?? mode) === 'devis' && (
+            <NumField
+              label="Validité (jours)"
+              value={validiteJours}
+              step="1"
+              onChange={(v) => setValiditeJours(Math.max(1, Math.round(v)))}
+            />
+          )}
         </div>
 
         <div className="border-t border-sand-border pt-3 mb-3 dark:border-[#3D3A32]">

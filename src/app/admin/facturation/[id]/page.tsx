@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
@@ -22,6 +22,15 @@ export default async function EditFacturePage({
 
   if (!factureRes.data) notFound();
   const facture = factureRes.data as Facture;
+
+  // Redirige vers la bonne sous-page si l'utilisateur a accédé à
+  // /admin/facturation/[id] avec l'id d'un devis ou d'un avoir.
+  if (facture.type === 'devis') {
+    redirect(`/admin/facturation/devis/${id}`);
+  }
+  if (facture.type === 'avoir') {
+    redirect(`/admin/facturation/notes-credit/${id}`);
+  }
   const articles = (articlesRes.data ?? []) as Article[];
 
   return (

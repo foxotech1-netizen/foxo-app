@@ -270,6 +270,24 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
   const lignes: FactureLigne[] = Array.isArray(facture.lignes) ? facture.lignes : [];
   const details: FactureDetailsIntervention = facture.details_intervention ?? {};
 
+  // Type de document : facture (défaut) | devis | avoir. Les rétro-doc
+  // sans la colonne tombent sur 'facture'.
+  const docType = facture.type ?? 'facture';
+  const titleByType = {
+    facture: 'Facture',
+    devis:   'Devis',
+    avoir:   'Note de crédit',
+  } as const;
+  const docTitle = titleByType[docType];
+  // Numéro labellé : "N° de facture" / "N° de devis" / "N° d'avoir"
+  const numLabelByType = {
+    facture: 'N° de facture',
+    devis:   'N° de devis',
+    avoir:   'N° d\'avoir',
+  } as const;
+  // Date secondaire : échéance pour facture/avoir, validité pour devis
+  const dateSecondaryLabel = docType === 'devis' ? 'Valide jusqu\'au' : 'Date d\'échéance';
+
   // Remise globale : préfère les nouveaux champs typés, fallback sur le
   // legacy remise_pct (factures émises avant 2026-05-24_remises.sql).
   const newRemiseValeur = Number(facture.remise_globale_valeur ?? 0);
@@ -293,9 +311,9 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
 
   return (
     <Document
-      title={`Facture ${facture.numero}`}
+      title={`${docTitle} ${facture.numero}`}
       author={VENDOR.name}
-      subject={`Facture ${facture.numero}${facture.reference ? ' — ' + facture.reference : ''}`}
+      subject={`${docTitle} ${facture.numero}${facture.reference ? ' — ' + facture.reference : ''}`}
     >
       <Page size="A4" style={styles.page}>
         {/* HEADER : logo + vendeur (gauche) + client (droite) */}
@@ -325,23 +343,30 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
         </View>
 
         {/* TITRE */}
-        <Text style={styles.invoiceTitle}>Facture</Text>
+        <Text style={styles.invoiceTitle}>{docTitle}</Text>
+
+        {/* Mention spécifique avoir : pointe vers la facture d'origine */}
+        {docType === 'avoir' && facture.reference && (
+          <Text style={[styles.invoiceTitle, { fontSize: 10, marginTop: -8, marginBottom: 12, color: '#C4622D' }]}>
+            Lié à la facture {facture.reference}
+          </Text>
+        )}
 
         {/* BLOC IDENTIFICATION */}
         <View style={styles.metaRow}>
           <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>N° de facture</Text>
+            <Text style={styles.metaLabel}>{numLabelByType[docType]}</Text>
             <Text style={styles.metaValue}>{facture.numero}</Text>
           </View>
           <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Date de facturation</Text>
+            <Text style={styles.metaLabel}>{docType === 'devis' ? 'Émis le' : 'Date de facturation'}</Text>
             <Text style={styles.metaValueMuted}>{fmtDate(facture.date_emission)}</Text>
           </View>
           <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Date d&apos;échéance</Text>
+            <Text style={styles.metaLabel}>{dateSecondaryLabel}</Text>
             <Text style={styles.metaValueMuted}>{fmtDate(facture.date_echeance)}</Text>
           </View>
-          {facture.reference && (
+          {facture.reference && docType !== 'avoir' && (
             <View style={styles.metaCell}>
               <Text style={styles.metaLabel}>Référence</Text>
               <Text style={styles.metaValueMuted}>{facture.reference}</Text>
@@ -414,30 +439,51 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc }: FactureFoxoPdfPr
           </View>
         )}
 
-        {/* BAS DE PAGE : paiement (gauche) + totaux (droite) */}
+        {/* BAS DE PAGE : paiement (gauche) + totaux (droite).
+            Devis : remplace par bloc validité (pas de paiement). */}
         <View style={styles.bottomRow}>
           <View style={styles.bottomLeft}>
             <View style={styles.paymentBlock}>
-              <Text style={styles.paymentLabel}>Conditions de paiement</Text>
-              <Text style={styles.paymentLine}>
-                Paiement sous {days} jours ({facture.conditions_paiement}).
-              </Text>
-              <Text style={styles.paymentLine}>
-                Sur ce compte : <Text style={{ fontFamily: 'Courier' }}>{VENDOR.iban}</Text> — {VENDOR.bank}
-              </Text>
-              {facture.reference_structuree && (
+              {docType === 'devis' ? (
                 <>
-                  <Text style={[styles.paymentLabel, { marginTop: 8 }]}>Communication structurée</Text>
-                  <Text style={styles.paymentBba}>{facture.reference_structuree}</Text>
-                </>
-              )}
-              {qrDataUrl && (
-                <View style={styles.qrRow}>
-                  <Image src={qrDataUrl} style={styles.qrImg} />
-                  <Text style={styles.qrCaption}>
-                    Scannez ce code avec votre application bancaire pour pré-remplir le virement.
+                  <Text style={styles.paymentLabel}>Validité de l&apos;offre</Text>
+                  <Text style={styles.paymentLine}>
+                    Ce devis est valable {facture.validite_jours ?? 30} jours
+                    {facture.date_echeance ? `, jusqu'au ${fmtDate(facture.date_echeance)}` : ''}.
                   </Text>
-                </View>
+                  <Text style={styles.paymentLine}>
+                    Pour accepter, signez et retournez ce document à {VENDOR.email}.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.paymentLabel}>
+                    {docType === 'avoir' ? 'Modalités de remboursement' : 'Conditions de paiement'}
+                  </Text>
+                  <Text style={styles.paymentLine}>
+                    {docType === 'avoir'
+                      ? `Le montant sera porté en déduction de la facture ${facture.reference ?? ''} ou remboursé sous ${days} jours.`
+                      : `Paiement sous ${days} jours (${facture.conditions_paiement}).`}
+                  </Text>
+                  <Text style={styles.paymentLine}>
+                    {docType === 'avoir' ? 'Compte IBAN : ' : 'Sur ce compte : '}
+                    <Text style={{ fontFamily: 'Courier' }}>{VENDOR.iban}</Text> — {VENDOR.bank}
+                  </Text>
+                  {facture.reference_structuree && (
+                    <>
+                      <Text style={[styles.paymentLabel, { marginTop: 8 }]}>Communication structurée</Text>
+                      <Text style={styles.paymentBba}>{facture.reference_structuree}</Text>
+                    </>
+                  )}
+                  {qrDataUrl && docType !== 'avoir' && (
+                    <View style={styles.qrRow}>
+                      <Image src={qrDataUrl} style={styles.qrImg} />
+                      <Text style={styles.qrCaption}>
+                        Scannez ce code avec votre application bancaire pour pré-remplir le virement.
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
             </View>
           </View>
