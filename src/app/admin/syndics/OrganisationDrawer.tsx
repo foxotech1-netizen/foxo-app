@@ -1,10 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { TypeBadge } from '@/components/TypeBadge';
 import type { Organisation, Delegue, DelegueRole, TypeOrganisation } from '@/lib/types/database';
 
-type Tab = 'infos' | 'delegues';
+type Tab = 'infos' | 'delegues' | 'acps';
+
+interface AcpListItem {
+  id: string;
+  nom: string | null;
+  adresse: string | null;
+  ville: string | null;
+  code_postal: string | null;
+  intervention_count: number;
+}
 
 type DelegueFormDraft = {
   email: string;
@@ -27,8 +37,12 @@ export function OrganisationDrawer({
    *  optimiste). Le drawer ne mute jamais le prop `org` directement. */
   onUpdate?: (updated: Partial<Organisation>) => void;
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>('infos');
   const [delegues, setDelegues] = useState<Delegue[]>([]);
+  const [acps, setAcps] = useState<AcpListItem[]>([]);
+  const [acpsLoading, setAcpsLoading] = useState(false);
+  const [acpsError, setAcpsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,8 +67,24 @@ export function OrganisationDrawer({
     }
   }
 
+  async function loadAcps() {
+    setAcpsLoading(true);
+    setAcpsError(null);
+    try {
+      const r = await fetch(`/api/admin/syndics/${org.id}/acps`, { cache: 'no-store' });
+      const data = await r.json();
+      if (!data.ok) { setAcpsError(data.error ?? 'Erreur'); return; }
+      setAcps(data.acps ?? []);
+    } catch (e) {
+      setAcpsError(e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setAcpsLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (tab === 'delegues') loadDelegues();
+    if (tab === 'acps') loadAcps();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, org.id]);
 
@@ -189,7 +219,7 @@ export function OrganisationDrawer({
         </header>
 
         <nav className="flex bg-cream px-5 border-b border-sand-border dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-          {(['infos', 'delegues'] as Tab[]).map((t) => (
+          {(['infos', 'delegues', 'acps'] as Tab[]).map((t) => (
             <button
               key={t}
               type="button"
@@ -200,7 +230,7 @@ export function OrganisationDrawer({
                   : 'text-ink-muted border-transparent hover:text-ink-mid dark:text-[#C8C2B8]'
               }`}
             >
-              {t === 'infos' ? 'Infos' : '👥 Délégués'}
+              {t === 'infos' ? 'Infos' : t === 'delegues' ? '👥 Délégués' : '🏢 ACPs'}
             </button>
           ))}
         </nav>
@@ -352,6 +382,80 @@ export function OrganisationDrawer({
               {!loading && delegues.length === 0 && !adding && (
                 <p className="text-[12px] text-ink-muted italic dark:text-[#C8C2B8]">
                   Aucun délégué pour le moment. Ajoute-en un pour donner accès au portail.
+                </p>
+              )}
+            </>
+          )}
+
+          {tab === 'acps' && (
+            <>
+              {acpsLoading && <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement…</div>}
+              {acpsError && (
+                <div className="bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 text-[12px] font-semibold mb-2">
+                  {acpsError}
+                </div>
+              )}
+
+              <div className="space-y-1.5 mb-3">
+                {acps.map((a) => {
+                  const adresseShort = [a.adresse, [a.code_postal, a.ville].filter(Boolean).join(' ')]
+                    .filter(Boolean)
+                    .join(', ');
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        // Filtre la liste interventions sur le nom de l'ACP
+                        // via la barre de recherche existante (la table
+                        // interventions.client_nom porte usuellement le nom ACP).
+                        if (!a.nom) return;
+                        router.push(`/admin?q=${encodeURIComponent(a.nom)}`);
+                        onClose();
+                      }}
+                      className="w-full text-left bg-cream border border-sand-border rounded-md px-3 py-2 hover:bg-sand-hover dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:hover:bg-[#221E1A]"
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="font-bold text-[13px] text-ink dark:text-[#F0ECE4] truncate">
+                          {a.nom ?? '—'}
+                        </span>
+                        <span
+                          className={
+                            'text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap ' +
+                            (a.intervention_count > 0
+                              ? 'bg-navy text-white'
+                              : 'bg-sand-mid text-ink-muted dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]')
+                          }
+                          title={`${a.intervention_count} intervention(s)`}
+                        >
+                          {a.intervention_count} interv.
+                        </span>
+                      </div>
+                      {adresseShort && (
+                        <div className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">{adresseShort}</div>
+                      )}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Pas d'écran "Nouvelle ACP" dédié — la liste clients
+                    // permet la création (filtrer par type=ACP). On ferme
+                    // le drawer pour laisser l'admin créer puis revenir.
+                    router.push('/admin/clients');
+                    onClose();
+                  }}
+                  className="w-full text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
+                >
+                  ➕ Ajouter une ACP
+                </button>
+              </div>
+
+              {!acpsLoading && acps.length === 0 && (
+                <p className="text-[12px] text-ink-muted italic dark:text-[#C8C2B8]">
+                  Aucune ACP rattachée à ce {org.type === 'syndic' ? 'syndic' : 'courtier'}. Crée-en une depuis la fiche client.
                 </p>
               )}
             </>
