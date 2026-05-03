@@ -406,11 +406,9 @@ export function OrganisationDrawer({
                       key={a.id}
                       type="button"
                       onClick={() => {
-                        // Filtre la liste interventions sur le nom de l'ACP
-                        // via la barre de recherche existante (la table
-                        // interventions.client_nom porte usuellement le nom ACP).
-                        if (!a.nom) return;
-                        router.push(`/admin?q=${encodeURIComponent(a.nom)}`);
+                        // Filtre exact la liste interventions sur acp_id
+                        // (cf. searchParams.get('acp_id') dans InterventionsClient).
+                        router.push(`/admin?acp_id=${encodeURIComponent(a.id)}`);
                         onClose();
                       }}
                       className="w-full text-left bg-cream border border-sand-border rounded-md px-3 py-2 hover:bg-sand-hover dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:hover:bg-[#221E1A]"

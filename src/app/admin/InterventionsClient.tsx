@@ -136,6 +136,7 @@ export function InterventionsClient({
   const techFilter = searchParams.get('tech');
   const statutParam = searchParams.get('statut');   // 'nouvelle' | 'en_cours' | 'en_suspens' | 'rapport' | 'cloturee' | null
   const recentResponsesFilter = searchParams.get('recent_responses') === '1';
+  const acpIdFilter = searchParams.get('acp_id');
   const recentResponseIvIds = useMemo(
     () => new Set(dashboard.recentResponses.map((r) => r.intervention_id)),
     [dashboard.recentResponses],
@@ -320,10 +321,11 @@ export function InterventionsClient({
       const matchUrlStatut = statutMatches(iv.statut, iv.updated_at);
       const matchTech = !techFilter || iv.technicien_id === techFilter;
       const matchRecentResponses = !recentResponsesFilter || recentResponseIvIds.has(iv.id);
-      return matchQuery && matchSelectFilter && matchUrlStatut && matchTech && matchRecentResponses;
+      const matchAcp = !acpIdFilter || iv.acp_id === acpIdFilter;
+      return matchQuery && matchSelectFilter && matchUrlStatut && matchTech && matchRecentResponses && matchAcp;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, query, filter, techFilter, statutParam, recentResponsesFilter, recentResponseIvIds]);
+  }, [rows, query, filter, techFilter, statutParam, recentResponsesFilter, recentResponseIvIds, acpIdFilter]);
 
   const techFilterName = useMemo(() => {
     if (!techFilter) return null;
