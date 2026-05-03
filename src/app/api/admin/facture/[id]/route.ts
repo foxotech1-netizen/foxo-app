@@ -54,7 +54,8 @@ export async function GET(
       .select('numero, montant_ttc, statut')
       .eq('type', 'avoir')
       .eq('facture_origine_id', facture.id)
-      .neq('statut', 'annulee');
+      .neq('statut', 'annulee')
+      .is('deleted_at', null);
     avoirs = ((avoirsRaw ?? []) as Array<{ numero: string; montant_ttc: number | null; statut: string }>)
       .map((a) => ({ numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
   }

@@ -12,6 +12,7 @@ export default async function FacturationPage() {
     .from('factures')
     .select('*')
     .eq('type', 'facture')
+    .is('deleted_at', null)
     .order('date_emission', { ascending: false, nullsFirst: false })
     .order('numero', { ascending: false })
     .limit(500);
@@ -30,7 +31,8 @@ export default async function FacturationPage() {
       .select('facture_origine_id, montant_ttc, statut')
       .eq('type', 'avoir')
       .in('facture_origine_id', factureIds)
-      .neq('statut', 'annulee');
+      .neq('statut', 'annulee')
+      .is('deleted_at', null);
     avoirsAgg = ((avoirsRaw ?? []) as Array<{ facture_origine_id: string | null; montant_ttc: number | null; statut: string }>)
       .filter((a) => a.facture_origine_id !== null)
       .map((a) => ({ facture_origine_id: a.facture_origine_id as string, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));

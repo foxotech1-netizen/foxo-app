@@ -11,6 +11,7 @@ export default async function DevisPage() {
     .from('factures')
     .select('*')
     .eq('type', 'devis')
+    .is('deleted_at', null)
     .order('date_emission', { ascending: false, nullsFirst: false })
     .order('numero', { ascending: false })
     .limit(500);

@@ -400,6 +400,10 @@ export interface Facture {
   accepted_at: string | null;
   // Devis : si converti, l'id de la facture créée.
   converted_to_facture_id: string | null;
+  // Soft delete (cf. 2026-05-25b_factures_deleted_at.sql) — pour
+  // les brouillons supprimés depuis la liste. Les listings filtrent
+  // toujours `deleted_at IS NULL`.
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }

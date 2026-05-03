@@ -40,6 +40,7 @@ export default async function EditFacturePage({
     .eq('type', 'avoir')
     .eq('facture_origine_id', facture.id)
     .neq('statut', 'annulee')
+    .is('deleted_at', null)
     .order('numero', { ascending: true });
   const avoirs = ((avoirsRaw ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: string }>);
   const totalCredite = avoirs.reduce((s, a) => s + Math.abs(Number(a.montant_ttc ?? 0)), 0);

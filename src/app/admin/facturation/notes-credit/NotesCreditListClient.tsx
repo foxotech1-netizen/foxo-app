@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import type { Facture, StatutFacture } from '@/lib/types/database';
+import { RowMenu } from '@/components/RowMenu';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { deleteFacture, revertToBrouillon } from '../actions';
 
 const STATUT_LABEL: Partial<Record<StatutFacture, string>> = {
   brouillon: 'Brouillon',
@@ -26,6 +29,12 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+type ConfirmKind = 'delete' | 'revert';
+interface ConfirmState {
+  kind: ConfirmKind;
+  avoir: Facture;
+}
+
 export function NotesCreditListClient({
   initial,
   origineMap,
@@ -33,16 +42,61 @@ export function NotesCreditListClient({
   initial: Facture[];
   origineMap: Record<string, string>;
 }) {
+  const [pending, startTransition] = useTransition();
   const [query, setQuery] = useState('');
+  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+
+  const [avoirsList, setAvoirsList] = useState<Facture[]>(initial);
+  const [lastInit, setLastInit] = useState(initial);
+  if (lastInit !== initial) {
+    setLastInit(initial);
+    setAvoirsList(initial);
+  }
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return initial;
-    return initial.filter((a) =>
+    if (!q) return avoirsList;
+    return avoirsList.filter((a) =>
       [a.numero, a.client_nom, a.reference, a.facture_origine_id ? origineMap[a.facture_origine_id] : null]
         .filter(Boolean)
         .some((s) => String(s).toLowerCase().includes(q)),
     );
-  }, [initial, query, origineMap]);
+  }, [avoirsList, query, origineMap]);
+
+  function patchAvoir(id: string, patch: Partial<Facture>) {
+    setAvoirsList((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  }
+
+  function performDelete(avoir: Facture) {
+    const snapshot = avoirsList;
+    setAvoirsList((prev) => prev.filter((a) => a.id !== avoir.id));
+    setConfirmState(null);
+    startTransition(async () => {
+      const res = await deleteFacture(avoir.id);
+      if (!res.ok) {
+        setAvoirsList(snapshot);
+        setFeedback({ kind: 'err', msg: res.error });
+        return;
+      }
+      setFeedback({ kind: 'ok', msg: `Brouillon ${avoir.numero} supprimé.` });
+    });
+  }
+
+  function performRevert(avoir: Facture) {
+    const previous = avoir.statut;
+    patchAvoir(avoir.id, { statut: 'brouillon', sent_at: null });
+    setConfirmState(null);
+    startTransition(async () => {
+      const res = await revertToBrouillon(avoir.id);
+      if (!res.ok) {
+        patchAvoir(avoir.id, { statut: previous });
+        setFeedback({ kind: 'err', msg: res.error });
+        return;
+      }
+      setFeedback({ kind: 'ok', msg: `${avoir.numero} remis en brouillon.` });
+    });
+  }
 
   return (
     <div>
@@ -55,11 +109,20 @@ export function NotesCreditListClient({
         />
       </div>
 
+      {feedback && (
+        <div className={
+          'mb-3 px-3 py-2 text-xs rounded-md font-semibold ' +
+          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra')
+        }>
+          {feedback.msg}
+        </div>
+      )}
+
       <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-sand dark:bg-[#221E1A]">
-              {['N° avoir', 'Facture d\'origine', 'Client', 'Date', 'Montant TTC', 'Statut'].map((h) => (
+              {['N° avoir', 'Facture d\'origine', 'Client', 'Date', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
                 <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
                   {h}
                 </th>
@@ -69,7 +132,7 @@ export function NotesCreditListClient({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px]">
+                <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
                   Aucune note de crédit pour l&apos;instant. Crée un avoir depuis la fiche d&apos;une facture.
                 </td>
               </tr>
@@ -99,12 +162,61 @@ export function NotesCreditListClient({
                       {label}
                     </span>
                   </td>
+                  <td className="px-3.5 py-3 whitespace-nowrap">
+                    <RowMenu
+                      direction="up"
+                      items={[
+                        { icon: '✏️', label: 'Modifier', href: `/admin/facturation/notes-credit/${a.id}` },
+                        { icon: '📄', label: 'Voir le PDF', href: `/api/admin/facture/${a.id}` },
+                        {
+                          icon: '↩',
+                          label: 'Remettre en brouillon',
+                          onClick: () => setConfirmState({ kind: 'revert', avoir: a }),
+                          hidden: a.statut !== 'envoyee',
+                        },
+                        {
+                          icon: '🗑️',
+                          label: 'Supprimer',
+                          onClick: () => setConfirmState({ kind: 'delete', avoir: a }),
+                          hidden: a.statut !== 'brouillon',
+                          destructive: true,
+                        },
+                      ]}
+                    />
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={
+          confirmState?.kind === 'delete'
+            ? `Supprimer le brouillon ${confirmState.avoir.numero} ?`
+            : confirmState?.kind === 'revert'
+            ? `Remettre ${confirmState?.avoir.numero} en brouillon ?`
+            : ''
+        }
+        message={
+          confirmState?.kind === 'delete'
+            ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+            : confirmState?.kind === 'revert'
+            ? 'L\'avoir repassera en brouillon. La date d\'envoi sera effacée.'
+            : ''
+        }
+        confirmLabel={confirmState?.kind === 'delete' ? 'Supprimer' : 'Remettre en brouillon'}
+        destructive={confirmState?.kind === 'delete'}
+        pending={pending}
+        onConfirm={() => {
+          if (!confirmState) return;
+          if (confirmState.kind === 'delete') performDelete(confirmState.avoir);
+          else performRevert(confirmState.avoir);
+        }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

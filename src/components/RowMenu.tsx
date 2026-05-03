@@ -16,13 +16,20 @@ export interface RowMenuItem {
 // ou Escape. Utilisable dans des tables ou cartes pour exposer des actions
 // secondaires sans encombrer la ligne. Touch-friendly (44×44 minimum sur
 // le bouton et chaque item de menu).
+//
+// `direction` contrôle l'ouverture verticale : 'down' (défaut) place le
+// popover sous le bouton, 'up' le place au-dessus — à utiliser dans les
+// tables longues où la dernière ligne ouvrirait un menu coupé en bas de
+// viewport.
 export function RowMenu({
   items,
   align = 'right',
+  direction = 'down',
   ariaLabel = 'Actions',
 }: {
   items: RowMenuItem[];
   align?: 'left' | 'right';
+  direction?: 'up' | 'down';
   ariaLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -69,7 +76,8 @@ export function RowMenu({
         <div
           role="menu"
           className={
-            'absolute z-50 mt-1 min-w-[200px] rounded-lg border border-sand-border bg-cream shadow-lg overflow-hidden ' +
+            'absolute z-50 min-w-[200px] rounded-lg border border-sand-border bg-cream shadow-lg overflow-hidden ' +
+            (direction === 'up' ? 'bottom-full mb-1 ' : 'top-full mt-1 ') +
             (align === 'right' ? 'right-0' : 'left-0') +
             ' dark:bg-[#221E1A] dark:border-[#3D3A32] dark:shadow-2xl'
           }

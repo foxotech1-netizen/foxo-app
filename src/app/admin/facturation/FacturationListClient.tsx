@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
-  setFactureStatut,
+  createAvoirFromFacture,
   deleteFacture,
+  revertToBrouillon,
 } from './actions';
 
 const STATUTS: ('tous' | StatutFacture)[] = ['tous', 'brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'];
@@ -32,6 +34,14 @@ function thisMonthRange(): { from: string; to: string } {
 
 export type AvoirsAggByFacture = Record<string, { totalEmis: number; totalAll: number }>;
 
+// Type d'action confirmable. Le menu remplit ce state, la modale l'affiche
+// puis appelle l'action correspondante. Garde le menu lui-même léger.
+type ConfirmKind = 'delete' | 'revert';
+interface ConfirmState {
+  kind: ConfirmKind;
+  facture: Facture;
+}
+
 export function FacturationListClient({
   initialFactures,
   avoirsByFacture = {},
@@ -40,25 +50,39 @@ export function FacturationListClient({
   avoirsByFacture?: AvoirsAggByFacture;
 }) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS[number]>('tous');
 
+  // État local synchronisé avec la prop pour permettre les mises à jour
+  // optimistes (suppression de ligne, transition de statut) sans attendre
+  // un router.refresh(). Pattern officiel React 19 (« storing information
+  // from previous renders ») : on stocke la dernière valeur de prop dans
+  // un useState et on la compare en render ; si elle a changé, on reset
+  // l'état local. Évite l'effet de bord d'un useEffect.
+  const [factures, setFactures] = useState<Facture[]>(initialFactures);
+  const [lastInit, setLastInit] = useState(initialFactures);
+  if (lastInit !== initialFactures) {
+    setLastInit(initialFactures);
+    setFactures(initialFactures);
+  }
+
   // Marque les factures dont l'échéance est dépassée ET non payées comme "en_retard"
   // côté UI (sans persister — l'admin peut explicitement marquer comme payée)
   const today = new Date().toISOString().slice(0, 10);
-  const factures = useMemo(() => initialFactures.map((f) => {
+  const facturesView = useMemo(() => factures.map((f) => {
     if (f.statut === 'envoyee' && f.date_echeance && f.date_echeance < today) {
       return { ...f, statut: 'en_retard' as StatutFacture };
     }
     return f;
-  }), [initialFactures, today]);
+  }), [factures, today]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return factures.filter((f) => {
+    return facturesView.filter((f) => {
       const matchQ = !q
         || f.numero.toLowerCase().includes(q)
         || (f.client_nom ?? '').toLowerCase().includes(q)
@@ -66,44 +90,62 @@ export function FacturationListClient({
       const matchF = filter === 'tous' || f.statut === filter;
       return matchQ && matchF;
     });
-  }, [factures, query, filter]);
+  }, [facturesView, query, filter]);
 
   // Stats
   const stats = useMemo(() => {
     const m = thisMonthRange();
-    const monthRange = factures.filter((f) => f.date_emission && f.date_emission >= m.from && f.date_emission <= m.to);
+    const monthRange = facturesView.filter((f) => f.date_emission && f.date_emission >= m.from && f.date_emission <= m.to);
     const totalMois = monthRange.reduce((s, f) => s + (f.montant_ttc ?? 0), 0);
-    const enAttente = factures.filter((f) => f.statut === 'envoyee' || f.statut === 'en_retard').reduce((s, f) => s + (f.montant_ttc ?? 0), 0);
-    const enRetard = factures.filter((f) => f.statut === 'en_retard').length;
+    const enAttente = facturesView.filter((f) => f.statut === 'envoyee' || f.statut === 'en_retard').reduce((s, f) => s + (f.montant_ttc ?? 0), 0);
+    const enRetard = facturesView.filter((f) => f.statut === 'en_retard').length;
     return { totalMois, enAttente, enRetard, count: monthRange.length };
-  }, [factures]);
+  }, [facturesView]);
 
-  function markPaid(id: string) {
+  function patchFacture(id: string, patch: Partial<Facture>) {
+    setFactures((prev) => prev.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
+  function performDelete(facture: Facture) {
+    const snapshot = factures;
+    // Optimistic : retire immédiatement.
+    setFactures((prev) => prev.filter((f) => f.id !== facture.id));
+    setConfirmState(null);
     startTransition(async () => {
-      const res = await setFactureStatut(id, 'payee');
-      if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
-      else router.refresh();
+      const res = await deleteFacture(facture.id);
+      if (!res.ok) {
+        setFactures(snapshot);
+        setFeedback({ kind: 'err', msg: res.error });
+        return;
+      }
+      setFeedback({ kind: 'ok', msg: `Brouillon ${facture.numero} supprimé.` });
     });
   }
 
-  function markEnvoyee(id: string) {
+  function performRevert(facture: Facture) {
+    const previousStatut = facture.statut;
+    patchFacture(facture.id, { statut: 'brouillon', sent_at: null, date_paiement: null });
+    setConfirmState(null);
     startTransition(async () => {
-      const res = await setFactureStatut(id, 'envoyee');
-      if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
-      else { setFeedback({ kind: 'ok', msg: 'Facture marquée envoyée.' }); router.refresh(); }
+      const res = await revertToBrouillon(facture.id);
+      if (!res.ok) {
+        patchFacture(facture.id, { statut: previousStatut });
+        setFeedback({ kind: 'err', msg: res.error });
+        return;
+      }
+      setFeedback({ kind: 'ok', msg: `${facture.numero} remise en brouillon.` });
     });
   }
 
-  function handleDelete(f: Facture) {
-    const isDraft = f.statut === 'brouillon';
-    const confirmMsg = isDraft
-      ? `Supprimer définitivement le brouillon ${f.numero} ?`
-      : `Annuler la facture ${f.numero} ? (elle sera marquée "annulée", pas supprimée)`;
-    if (!confirm(confirmMsg)) return;
+  function handleCreateAvoir(facture: Facture) {
+    setFeedback(null);
     startTransition(async () => {
-      const res = await deleteFacture(f.id);
-      if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
-      else { setFeedback({ kind: 'ok', msg: isDraft ? 'Brouillon supprimé.' : 'Facture annulée.' }); router.refresh(); }
+      const res = await createAvoirFromFacture(facture.id);
+      if (!res.ok) {
+        setFeedback({ kind: 'err', msg: res.error });
+        return;
+      }
+      router.push(`/admin/facturation/notes-credit/${res.data!.id}`);
     });
   }
 
@@ -114,7 +156,7 @@ export function FacturationListClient({
         <StatCard num={fmtMoney(stats.totalMois)} label={`Facturé ce mois (${stats.count})`} />
         <StatCard num={fmtMoney(stats.enAttente)} label="En attente de paiement" accent />
         <StatCard num={String(stats.enRetard)} label="En retard" warning={stats.enRetard > 0} />
-        <StatCard num={String(factures.length)} label="Total chargé" muted />
+        <StatCard num={String(facturesView.length)} label="Total chargé" muted />
       </div>
 
       {/* Actions globales */}
@@ -213,8 +255,6 @@ export function FacturationListClient({
                           const a = avoirsByFacture[f.id];
                           if (!a || a.totalEmis === 0) return null;
                           const ttc = Number(f.montant_ttc ?? 0);
-                          // Si la facture est annulée + couverte 100% → "Annulée par avoir"
-                          // Sinon partiel.
                           const fullyCovered = ttc > 0 && a.totalEmis + 0.005 >= ttc;
                           if (f.statut === 'annulee' && fullyCovered) {
                             return (
@@ -233,25 +273,28 @@ export function FacturationListClient({
                     </td>
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
                       <RowMenu
+                        direction="up"
                         items={[
                           { icon: '✏️', label: 'Modifier', href: `/admin/facturation/${f.id}` },
                           { icon: '📄', label: 'Voir le PDF', href: `/api/admin/facture/${f.id}` },
                           {
-                            icon: '✉️',
-                            label: 'Marquer envoyée',
-                            onClick: () => markEnvoyee(f.id),
-                            hidden: f.statut !== 'brouillon',
+                            icon: '📝',
+                            label: 'Créer un avoir',
+                            onClick: () => handleCreateAvoir(f),
+                            hidden: f.statut === 'annulee',
+                            disabled: pending,
                           },
                           {
-                            icon: '✅',
-                            label: 'Marquer payée',
-                            onClick: () => markPaid(f.id),
-                            hidden: f.statut === 'payee' || f.statut === 'annulee',
+                            icon: '↩',
+                            label: 'Remettre en brouillon',
+                            onClick: () => setConfirmState({ kind: 'revert', facture: f }),
+                            hidden: f.statut !== 'envoyee',
                           },
                           {
                             icon: '🗑️',
-                            label: f.statut === 'brouillon' ? 'Supprimer' : 'Annuler la facture',
-                            onClick: () => handleDelete(f),
+                            label: 'Supprimer',
+                            onClick: () => setConfirmState({ kind: 'delete', facture: f }),
+                            hidden: f.statut !== 'brouillon',
                             destructive: true,
                           },
                         ]}
@@ -264,6 +307,33 @@ export function FacturationListClient({
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmState !== null}
+        title={
+          confirmState?.kind === 'delete'
+            ? `Supprimer le brouillon ${confirmState.facture.numero} ?`
+            : confirmState?.kind === 'revert'
+            ? `Remettre ${confirmState?.facture.numero} en brouillon ?`
+            : ''
+        }
+        message={
+          confirmState?.kind === 'delete'
+            ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+            : confirmState?.kind === 'revert'
+            ? 'La facture repassera en brouillon. La date d\'envoi sera effacée — tu pourras la rééditer puis la renvoyer.'
+            : ''
+        }
+        confirmLabel={confirmState?.kind === 'delete' ? 'Supprimer' : 'Remettre en brouillon'}
+        destructive={confirmState?.kind === 'delete'}
+        pending={pending}
+        onConfirm={() => {
+          if (!confirmState) return;
+          if (confirmState.kind === 'delete') performDelete(confirmState.facture);
+          else performRevert(confirmState.facture);
+        }}
+        onCancel={() => setConfirmState(null)}
+      />
     </div>
   );
 }

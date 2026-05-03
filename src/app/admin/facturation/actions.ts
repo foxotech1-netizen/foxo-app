@@ -321,7 +321,8 @@ export async function getFactureAvoirsSummary(
     .select('id, numero, montant_ttc, statut')
     .eq('type', 'avoir')
     .eq('facture_origine_id', factureId)
-    .neq('statut', 'annulee');
+    .neq('statut', 'annulee')
+    .is('deleted_at', null);
   if (options?.excludeAvoirId) q = q.neq('id', options.excludeAvoirId);
 
   const { data: avoirsRaw, error } = await q;
@@ -643,7 +644,8 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
             .select('id, numero, montant_ttc, statut')
             .eq('type', 'avoir')
             .eq('facture_origine_id', facture.id)
-            .neq('statut', 'annulee');
+            .neq('statut', 'annulee')
+            .is('deleted_at', null);
           avoirsForPdf = ((linkedAvoirs ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: StatutFacture }>)
             .map((a) => ({ id: a.id, numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
         }
@@ -662,43 +664,111 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   return { ok: true };
 }
 
+// Soft delete : pose deleted_at = now(). Strictement réservé aux brouillons
+// (factures, devis et avoirs) — l'UI ne propose la suppression que pour ce
+// statut. Pour annuler un document émis, utiliser le statut 'annulee' via
+// un autre flux (rule métier "avoir 100% → facture annulee", action manuelle
+// depuis la fiche, etc.). Conserve l'historique en base.
 export async function deleteFacture(id: string): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
   const supabase = await createClient();
-  // Ne supprime que les brouillons. Sinon, on annule.
-  const { data: f } = await supabase.from('factures').select('statut, type').eq('id', id).maybeSingle();
-  if (!f) return { ok: false, error: 'Facture introuvable.' };
 
-  // Si c'est une facture, vérifie qu'aucun avoir n'y est attaché.
-  // La DB a `on delete restrict` mais on intercepte avant pour un message clair.
+  const { data: f } = await supabase.from('factures').select('statut, type').eq('id', id).maybeSingle();
+  if (!f) return { ok: false, error: 'Document introuvable.' };
+  if (f.statut !== 'brouillon') {
+    return { ok: false, error: 'Seuls les brouillons peuvent être supprimés.' };
+  }
+
+  // Une facture ne doit pas avoir d'avoirs attachés (intégrité comptable
+  // — la DB a `on delete restrict`, mais avec soft delete on s'en assure
+  // avant pour un message clair).
   if ((f.type ?? 'facture') === 'facture') {
     const { count } = await supabase
       .from('factures')
       .select('id', { count: 'exact', head: true })
-      .eq('facture_origine_id', id);
+      .eq('facture_origine_id', id)
+      .is('deleted_at', null);
     if ((count ?? 0) > 0) {
-      return { ok: false, error: `Cette facture est référencée par ${count} avoir(s). Annule ou supprime d'abord les avoirs liés.` };
+      return { ok: false, error: `Cette facture est référencée par ${count} avoir(s). Supprime d'abord les avoirs liés.` };
     }
   }
 
-  if (f.statut === 'brouillon') {
-    const { error } = await supabase.from('factures').delete().eq('id', id);
-    if (error) {
-      if (error.code === '23503') {
-        return { ok: false, error: 'Suppression bloquée : un autre document fait référence à celui-ci.' };
-      }
-      return { ok: false, error: error.message };
-    }
-  } else {
-    const { error } = await supabase
-      .from('factures')
-      .update({ statut: 'annulee', updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) return { ok: false, error: error.message };
-  }
+  const { error } = await supabase
+    .from('factures')
+    .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
   revalidatePath('/admin/facturation');
   revalidatePath('/admin/facturation/notes-credit');
+  revalidatePath('/admin/facturation/devis');
+  return { ok: true };
+}
+
+// Remet un document du statut 'envoyee' au statut 'brouillon'. Sert à
+// corriger une émission prématurée (facture, devis ou avoir). Efface
+// sent_at et date_paiement pour rester cohérent. Refuse les transitions
+// depuis tout autre statut (payee, annulee, accepte/refuse/expire d'un
+// devis — pour ceux-là, un nouveau document est attendu).
+export async function revertToBrouillon(id: string): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const supabase = await createClient();
+
+  const { data: f } = await supabase.from('factures').select('statut').eq('id', id).maybeSingle();
+  if (!f) return { ok: false, error: 'Document introuvable.' };
+  if (f.statut !== 'envoyee') {
+    return { ok: false, error: 'Seul un document envoyé peut être remis en brouillon.' };
+  }
+
+  const { error } = await supabase
+    .from('factures')
+    .update({
+      statut: 'brouillon',
+      sent_at: null,
+      date_paiement: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
+  revalidatePath('/admin/facturation/devis');
+  return { ok: true };
+}
+
+// Marque un devis 'envoyee' comme accepté ou refusé (avant éventuelle
+// conversion en facture via convertDevisToFacture).
+export async function setDevisStatut(
+  id: string,
+  statut: 'accepte' | 'refuse',
+): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const supabase = await createClient();
+
+  const { data: d } = await supabase
+    .from('factures')
+    .select('type, statut')
+    .eq('id', id)
+    .maybeSingle();
+  if (!d) return { ok: false, error: 'Devis introuvable.' };
+  if (d.type !== 'devis') return { ok: false, error: 'Seuls les devis acceptent ce statut.' };
+  if (d.statut !== 'envoyee') {
+    return { ok: false, error: 'Le devis doit être envoyé pour être marqué accepté/refusé.' };
+  }
+
+  const patch: Record<string, unknown> = {
+    statut,
+    updated_at: new Date().toISOString(),
+  };
+  if (statut === 'accepte') patch.accepted_at = new Date().toISOString();
+
+  const { error } = await supabase.from('factures').update(patch).eq('id', id);
+  if (error) return { ok: false, error: error.message };
+
   revalidatePath('/admin/facturation/devis');
   return { ok: true };
 }
