@@ -150,7 +150,7 @@ export function FactureEditor({
     if (!linked) return;
     if (interventionId) return;
     const q = searchQuery.trim();
-    if (q.length < 2) { setSearchResults([]); return; }
+    if (q.length < 2) return;
     const t = setTimeout(async () => {
       const res = await searchInterventionsForFacture(q);
       if (res.ok) setSearchResults(res.data ?? []);
@@ -162,13 +162,23 @@ export function FactureEditor({
   useEffect(() => {
     if (clientId) return;
     const q = clientQuery.trim();
-    if (q.length < 2) { setClientResults([]); return; }
+    if (q.length < 2) return;
     const t = setTimeout(async () => {
       const res = await searchClients(q);
       if (res.ok) setClientResults(res.data ?? []);
     }, 280);
     return () => clearTimeout(t);
   }, [clientQuery, clientId]);
+
+  // Visibilité des dropdowns dérivée de la query — évite de reset l'état
+  // depuis le useEffect (interdit par react-hooks/set-state-in-effect en
+  // React 19). Les anciens résultats restent en mémoire mais ne sont
+  // affichés que si la query est valide ; un nouveau fetch les remplace
+  // après debounce.
+  const showSearchResults =
+    linked && !interventionId && searchQuery.trim().length >= 2 && searchResults.length > 0;
+  const showClientResults =
+    !clientId && clientQuery.trim().length >= 2 && clientResults.length > 0;
 
   function pickClient(c: Client) {
     setClientId(c.id);
@@ -426,7 +436,7 @@ export function FactureEditor({
                 placeholder="Rechercher par référence ou description…"
                 className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
               />
-              {searchResults.length > 0 && (
+              {showSearchResults && (
                 <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[200px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
                   {searchResults.map((r) => (
                     <button
@@ -511,7 +521,7 @@ export function FactureEditor({
               + Nouveau
             </button>
           </div>
-          {clientResults.length > 0 && (
+          {showClientResults && (
             <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
               {clientResults.map((c) => (
                 <button
