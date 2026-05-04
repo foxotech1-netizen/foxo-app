@@ -255,6 +255,7 @@ export async function uploadRapport(args: {
   year: number;
   bytes: Uint8Array;
   filename?: string;
+  mimeType?: string;
 }): Promise<DriveUploadResult> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
@@ -269,11 +270,12 @@ export async function uploadRapport(args: {
   if (!ivF) return { ok: false, error: 'Dossier intervention introuvable.' };
 
   const filename = args.filename ?? 'rapport.pdf';
+  const mimeType = args.mimeType ?? 'application/pdf';
   // Si le fichier existe déjà, on update son contenu (versioning souple)
   const existing = await findChildFile(auth.access_token, ivF.id, filename);
   const f = existing
-    ? await updateFileContent(auth.access_token, existing.id, args.bytes, 'application/pdf')
-    : await uploadMultipart(auth.access_token, ivF.id, filename, args.bytes, 'application/pdf');
+    ? await updateFileContent(auth.access_token, existing.id, args.bytes, mimeType)
+    : await uploadMultipart(auth.access_token, ivF.id, filename, args.bytes, mimeType);
   if (!f) return { ok: false, error: 'Échec upload rapport.' };
   return { ok: true, file_id: f.id, web_view_link: f.webViewLink ?? '' };
 }

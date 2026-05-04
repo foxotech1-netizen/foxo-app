@@ -7,7 +7,23 @@ import type { Acp, Intervention, Organisation, ParticulierContact, Rapport, Util
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
 export type BuildResult =
-  | { ok: true; pdfBuffer: Buffer; ref: string; acpNom: string; syndicEmail: string | null; syndicNom: string | null; technicienNom: string | null }
+  | {
+      ok: true;
+      pdfBuffer: Buffer;
+      ref: string;
+      acpNom: string;
+      acpAdresse: string;
+      interventionId: string;
+      sections: {
+        degats: string;
+        inspection: string;
+        conclusion: string;
+        recommandations: string;
+      };
+      syndicEmail: string | null;
+      syndicNom: string | null;
+      technicienNom: string | null;
+    }
   | { ok: false; error: string };
 
 // Charge les données pour une intervention, génère le PDF du rapport.
@@ -90,6 +106,14 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     pdfBuffer,
     ref,
     acpNom,
+    acpAdresse: acpAdresse || '—',
+    interventionId: iv.id,
+    sections: {
+      degats: rapport.degats ?? '',
+      inspection: rapport.inspection ?? '',
+      conclusion: rapport.conclusion ?? '',
+      recommandations: rapport.recommandations ?? '',
+    },
     syndicEmail: recipient.email ?? syndic?.email ?? null,
     syndicNom: syndic?.nom ?? null,
     technicienNom: techNom,
@@ -114,16 +138,42 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
   if (!sent.ok) return { ok: false, error: sent.error };
 
   // Upload sur Drive en best-effort (non bloquant pour l'envoi email)
+  const year = new Date().getFullYear();
+  const adresse = built.acpNom; // adresse simplifiée — le builder retournait acpNom
+
   try {
-    const adresse = built.acpNom; // adresse simplifiée — le builder retournait acpNom
     await uploadRapport({
       ref: built.ref,
       adresse,
-      year: new Date().getFullYear(),
+      year,
       bytes: new Uint8Array(built.pdfBuffer),
     });
   } catch (e) {
-    console.warn('[dispatchRapport] uploadRapport Drive skipped:', e);
+    console.warn('[dispatchRapport] uploadRapport Drive (PDF) skipped:', e);
+  }
+
+  // Génération + upload du .docx — version éditable du rapport sur Drive,
+  // utile pour les retouches manuelles avant la version PDF finale.
+  try {
+    const { buildRapportDocx } = await import('@/lib/rapport/build-docx');
+    const docxBytes = await buildRapportDocx({
+      interventionId: built.interventionId,
+      ref: built.ref,
+      adresse: built.acpAdresse,
+      acp_nom: built.acpNom,
+      date: new Date(),
+      sections: built.sections,
+    });
+    await uploadRapport({
+      ref: built.ref,
+      adresse,
+      year,
+      bytes: docxBytes,
+      filename: `${built.ref} ${adresse}.docx`,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+  } catch (e) {
+    console.warn('[dispatchRapport] uploadRapport Drive (DOCX) skipped:', e);
   }
 
   return { ok: true, emailId: sent.id };
