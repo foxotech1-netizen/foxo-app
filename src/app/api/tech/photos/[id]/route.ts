@@ -23,7 +23,21 @@ export async function PATCH(
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'tech') {
+  // Autorise les techs whitelist (TECH_EMAILS), les admins, et tout
+  // utilisateur dont la row utilisateurs porte role = 'technicien'
+  // (techs créés en DB sans être hardcodés dans roles.ts).
+  const role = roleForEmail(user?.email);
+  const isTech = role === 'tech' || role === 'admin';
+  const isTechDB = user
+    ? await supabase
+        .from('utilisateurs')
+        .select('id')
+        .eq('email', (user.email ?? '').toLowerCase())
+        .eq('role', 'technicien')
+        .maybeSingle()
+        .then((r) => !!r.data)
+    : false;
+  if (!user || (!isTech && !isTechDB)) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 
