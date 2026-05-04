@@ -103,6 +103,10 @@ export function RapportPanel({
   // formaté avec en-tête FoxO + 4 sections + filigrane BROUILLON).
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  // Export Word : génère le .docx (template FoxO Rapport v3) et l'upload
+  // sur Drive. State séparé de `pending` car ne passe pas par useTransition.
+  const [exportingWord, setExportingWord] = useState(false);
+
   // Fetch photos liées au rapport au mount.
   useEffect(() => {
     let cancelled = false;
@@ -322,6 +326,35 @@ export function RapportPanel({
     });
   }
 
+  async function doExportWord() {
+    setFeedback(null);
+    setExportingWord(true);
+    try {
+      // 1. Sauvegarde le brouillon courant — sinon on exporterait
+      //    l'état persisté en base, pas ce que le tech a tapé depuis.
+      if (!alreadyPublished) await doSave(false);
+      // 2. Génère + upload sur Drive
+      const r = await fetch('/api/tech/rapport-docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intervention_id: interventionId }),
+      });
+      const data = (await r.json()) as { ok: boolean; error?: string; web_view_link?: string };
+      if (!data.ok) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Erreur export Word.' });
+        return;
+      }
+      if (data.web_view_link) {
+        window.open(data.web_view_link, '_blank', 'noopener,noreferrer');
+      }
+      setFeedback({ kind: 'ok', msg: 'Word généré sur Drive ✓' });
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setExportingWord(false);
+    }
+  }
+
   function doDriveSync() {
     setFeedback(null);
     startTransition(async () => {
@@ -466,41 +499,59 @@ export function RapportPanel({
       )}
 
       {!alreadyPublished ? (
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          <button
-            onClick={() => doSave()}
-            disabled={pending}
-            className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50 active:opacity-80"
-          >
-            {pending ? '…' : 'Enregistrer'}
-          </button>
-          <button
-            onClick={() => setPreviewOpen(true)}
-            className="bg-sand-mid text-ink border border-sand-border py-3 rounded-xl font-bold text-[13px] hover:bg-sand-border active:opacity-80"
-          >
-            👁 Aperçu
-          </button>
+        <>
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <button
+              onClick={() => doSave()}
+              disabled={pending || exportingWord}
+              className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50 active:opacity-80"
+            >
+              {pending ? '…' : 'Enregistrer'}
+            </button>
+            <button
+              onClick={doExportWord}
+              disabled={exportingWord || pending}
+              className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:bg-navy-mid disabled:opacity-50 active:opacity-80"
+            >
+              {exportingWord ? 'Génération Word…' : '📄 Exporter Word'}
+            </button>
+            <button
+              onClick={() => setPreviewOpen(true)}
+              className="bg-sand-mid text-ink border border-sand-border py-3 rounded-xl font-bold text-[13px] hover:bg-sand-border active:opacity-80"
+            >
+              👁 Aperçu
+            </button>
+          </div>
           <button
             onClick={doPublish}
-            disabled={pending || !canPublish}
+            disabled={pending || !canPublish || exportingWord}
             title={!canPublish ? 'Clôture l\'intervention avant de publier' : ''}
-            className="bg-ok text-white py-3 rounded-xl font-bold text-[13px] disabled:opacity-40 active:opacity-80"
+            className="w-full mt-2 bg-ok text-white py-3 rounded-xl font-bold text-[13px] disabled:opacity-40 active:opacity-80"
           >
             Publier ✓
           </button>
-        </div>
+        </>
       ) : (
-        <div className="grid grid-cols-1 gap-2 mt-3">
-          <div className="bg-ok-light border border-ok-mid rounded-md px-3 py-2 text-[11px] text-ok text-center font-semibold">
+        <>
+          <div className="bg-ok-light border border-ok-mid rounded-md px-3 py-2 text-[11px] text-ok text-center font-semibold mt-3">
             ✓ Rapport déjà publié
           </div>
-          <button
-            onClick={() => setPreviewOpen(true)}
-            className="bg-sand-mid text-ink border border-sand-border py-2.5 rounded-xl font-bold text-[12px] hover:bg-sand-border"
-          >
-            👁 Aperçu
-          </button>
-        </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <button
+              onClick={doExportWord}
+              disabled={exportingWord}
+              className="bg-navy text-white py-2.5 rounded-xl font-bold text-[12px] hover:bg-navy-mid disabled:opacity-50 active:opacity-80"
+            >
+              {exportingWord ? 'Génération Word…' : '📄 Exporter Word'}
+            </button>
+            <button
+              onClick={() => setPreviewOpen(true)}
+              className="bg-sand-mid text-ink border border-sand-border py-2.5 rounded-xl font-bold text-[12px] hover:bg-sand-border"
+            >
+              👁 Aperçu
+            </button>
+          </div>
+        </>
       )}
 
       <button
