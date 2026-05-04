@@ -162,6 +162,8 @@ export default async function TechInterventionPage({
       {/* Rapport */}
       <RapportPanel
         interventionId={iv.id}
+        interventionRef={iv.ref}
+        acpNom={acp?.nom ?? null}
         initial={
           rapport ?? {
             intervention_id: iv.id,

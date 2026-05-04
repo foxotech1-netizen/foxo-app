@@ -31,6 +31,13 @@ export async function POST(request: Request) {
 
   const file = formData.get('file');
   const interventionId = String(formData.get('intervention_id') ?? '');
+  // Section optionnelle — quand fournie, la photo est attachée à la
+  // section du rapport correspondante (cf. migration 2026-05-28_photos_section).
+  const sectionRaw = formData.get('section');
+  const ALLOWED_SECTIONS = new Set(['degats', 'inspection', 'conclusion', 'recommandations']);
+  const section = typeof sectionRaw === 'string' && ALLOWED_SECTIONS.has(sectionRaw)
+    ? sectionRaw
+    : null;
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ ok: false, error: 'Fichier vide.' }, { status: 400 });
   }
@@ -76,24 +83,49 @@ export async function POST(request: Request) {
 
   // Insère dans photos_interventions (service-role pour bypass RLS si la
   // policy tech_insert n'arrive pas à matcher l'auth.jwt() depuis cette
-  // route — fallback robuste)
+  // route — fallback robuste). Si section fournie, calcule le prochain
+  // ordre = max(ordre) + 1 dans cette section.
+  let insertedId: string | null = null;
   try {
     const admin = createAdminClient();
-    await admin.from('photos_interventions').insert({
-      intervention_id: interventionId,
-      drive_file_id: up.file_id,
-      drive_url: up.web_view_link,
-      filename,
-      uploaded_by: user.id,
-    });
+
+    let ordre = 0;
+    if (section) {
+      const { data: maxRow } = await admin
+        .from('photos_interventions')
+        .select('ordre')
+        .eq('intervention_id', interventionId)
+        .eq('section', section)
+        .order('ordre', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      ordre = ((maxRow?.ordre as number | null) ?? -1) + 1;
+    }
+
+    const { data: insertedRow } = await admin
+      .from('photos_interventions')
+      .insert({
+        intervention_id: interventionId,
+        drive_file_id: up.file_id,
+        drive_url: up.web_view_link,
+        filename,
+        uploaded_by: user.id,
+        section,
+        ordre,
+      })
+      .select('id')
+      .maybeSingle();
+    insertedId = (insertedRow?.id as string | undefined) ?? null;
   } catch (e) {
     console.warn('[upload-photo] DB insert skipped:', e);
   }
 
   return NextResponse.json({
     ok: true,
+    id: insertedId,
     drive_file_id: up.file_id,
     drive_url: up.web_view_link,
     filename,
+    section,
   });
 }
