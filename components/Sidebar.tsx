@@ -27,7 +27,7 @@ const NAV_GESTION = [
   { href: '/admin/clients',      icon: '👤', label: 'Clients'       },
   { href: '/admin/facturation',  icon: '🧾', label: 'Facturation'   },
   { href: '/admin/mails',        icon: '✉',  label: 'Mails'        },
-  { href: '/admin/utilisateurs', icon: '👥', label: 'Utilisateurs'  },
+  { href: '/admin/utilisateurs', icon: '🔐', label: 'Utilisateurs'  },
   { href: '/admin/parametres',   icon: '⊙',  label: 'Paramètres'   },
 ]
 
