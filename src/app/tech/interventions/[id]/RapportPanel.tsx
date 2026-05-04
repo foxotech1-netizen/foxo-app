@@ -205,8 +205,14 @@ export function RapportPanel({
     setFeedback(null);
     startTransition(async () => {
       const res = await triggerDriveSync(interventionId);
-      if (res.ok) setFeedback({ kind: 'ok', msg: `Synchronisé (${res.uploaded} fichier(s))` });
-      else setFeedback({ kind: 'err', msg: res.error });
+      if (res.ok) {
+        const parts: string[] = [];
+        if (res.rapport_url) parts.push('rapport ✓');
+        parts.push(`${res.photos_count} photo${res.photos_count > 1 ? 's' : ''}`);
+        setFeedback({ kind: 'ok', msg: `Sync Drive — ${parts.join(', ')}` });
+      } else {
+        setFeedback({ kind: 'err', msg: res.error });
+      }
     });
   }
 
