@@ -100,7 +100,7 @@ async function uploadMultipart(
   body.set(bytes, preBuf.length);
   body.set(postBuf, preBuf.length + bytes.length);
 
-  const res = await fetch(`${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,name,webViewLink`, {
+  const res = await fetch(`${DRIVE_UPLOAD}/files?uploadType=multipart&fields=id,name,webViewLink&convert=false`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -123,7 +123,7 @@ async function findChildFile(token: string, parentId: string, name: string): Pro
 }
 
 async function updateFileContent(token: string, fileId: string, bytes: Uint8Array, mimeType: string): Promise<DriveFile | null> {
-  const res = await fetch(`${DRIVE_UPLOAD}/files/${fileId}?uploadType=media&fields=id,name,webViewLink`, {
+  const res = await fetch(`${DRIVE_UPLOAD}/files/${fileId}?uploadType=media&fields=id,name,webViewLink&convert=false`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': mimeType },
     body: bytes as unknown as BodyInit,
