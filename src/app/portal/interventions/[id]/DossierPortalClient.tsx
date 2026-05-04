@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { StatutBadge } from '@/components/StatutBadge';
 import { DownloadButton } from '@/components/DownloadButton';
 import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
-import { useVocab } from '../../PortalContext';
+import { usePortalContext, useVocab } from '../../PortalContext';
+import { MessagesPanel } from '@/components/MessagesPanel';
 import type { Occupant } from '@/lib/types/database';
 import type { DossierData } from './page';
 
@@ -16,6 +17,7 @@ const CONF_INFO: Record<NonNullable<Occupant['conf']>, { label: string; fg: stri
 
 export function DossierPortalClient({ data }: { data: DossierData }) {
   const v = useVocab();
+  const { orgEmail } = usePortalContext();
   const { intervention: iv, acp, occupants, technicien: tech, isCourtier, hasReport } = data;
 
   const adresseFull = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ');
@@ -153,17 +155,12 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
         )}
       </Block>
 
-      {/* Bloc messagerie — placeholder, container réservé pour intégration future */}
-      <section
-        id="messages-block"
-        className="bg-cream border border-sand-border rounded-2xl p-5"
-      >
-        <h2 className="text-sm font-bold text-ink mb-2">💬 Messages</h2>
-        <p className="text-[13px] text-ink-muted italic">
-          La messagerie sera disponible prochainement. Pour toute question urgente,
-          contactez-nous sur <a href="mailto:info@foxo.be" className="text-navy underline">info@foxo.be</a>.
-        </p>
-      </section>
+      {/* Messagerie syndic ↔ admin (panel partagé, polling 30s) */}
+      <MessagesPanel
+        interventionId={iv.id}
+        currentUserEmail={orgEmail}
+        isAdmin={false}
+      />
 
       {/* Bloc assurance (mode courtier uniquement) */}
       {showCourtierBlock && (

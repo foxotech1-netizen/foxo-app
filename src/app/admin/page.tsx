@@ -31,6 +31,11 @@ export interface DashboardData {
 export default async function AdminPipelinePage() {
   const supabase = await createClient();
 
+  // Email de l'admin connecté — passé à InterventionsClient pour
+  // alimenter MessagesPanel (auteur_email côté écriture).
+  const { data: { user } } = await supabase.auth.getUser();
+  const adminEmail = user?.email ?? '';
+
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayISO = `${todayStart.getFullYear()}-${String(todayStart.getMonth() + 1).padStart(2, '0')}-${String(todayStart.getDate()).padStart(2, '0')}`;
@@ -97,6 +102,24 @@ export default async function AdminPipelinePage() {
     recidiveIndex.get(key)!.push(iv.id);
   }
 
+  // Compte des messages non lus côté admin par intervention. Best-effort :
+  // si la table messages n'existe pas (migration 2026-05-27 pas appliquée),
+  // on tolère silencieusement. Group côté code : Postgrest n'expose pas
+  // GROUP BY directement, et le volume reste raisonnable (un seul fetch).
+  const unreadByIv = new Map<string, number>();
+  try {
+    const { data: unreadRows } = await supabase
+      .from('messages')
+      .select('intervention_id')
+      .eq('lu_admin', false)
+      .in('auteur_type', ['syndic', 'courtier']);
+    for (const r of (unreadRows ?? []) as { intervention_id: string }[]) {
+      unreadByIv.set(r.intervention_id, (unreadByIv.get(r.intervention_id) ?? 0) + 1);
+    }
+  } catch {
+    /* table messages absente — noop, badge 💬 ne s'affichera pas */
+  }
+
   const rows: InterventionRow[] = interventions.map((iv) => {
     let recidive_count = 0;
     if (iv.acp_id && iv.type) {
@@ -113,6 +136,7 @@ export default async function AdminPipelinePage() {
       technicien: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
       delegue: iv.delegue_id ? (delegueMap.get(iv.delegue_id) ?? null) : null,
       recidive_count,
+      unread_messages_count: unreadByIv.get(iv.id) ?? 0,
     };
   });
 
@@ -193,6 +217,7 @@ export default async function AdminPipelinePage() {
       loadError={interventionsRes.error?.message ?? null}
       dashboard={dashboard}
       serverNowIso={serverNowIso}
+      adminEmail={adminEmail}
     />
   );
 }

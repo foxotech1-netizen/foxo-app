@@ -454,6 +454,10 @@ export interface InterventionRow extends Intervention {
   // Calculé côté /admin/page.tsx : nombre d'autres interventions sur la
   // même ACP avec le même type sur les 12 derniers mois. > 0 = récidive.
   recidive_count?: number;
+  // Calculé côté /admin/page.tsx : nombre de messages non lus côté admin
+  // (lu_admin=false ET auteur_type ∈ syndic/courtier) — alimente le badge
+  // 💬 sur la liste interventions.
+  unread_messages_count?: number;
 }
 
 // Libellés et couleurs des statuts

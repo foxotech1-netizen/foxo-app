@@ -28,6 +28,7 @@ import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
 import { TypeBadge } from '@/components/TypeBadge';
 import { SendSmsModal } from '@/components/SendSmsModal';
 import { MailStepper } from './MailStepper';
+import { MessagesPanel } from '@/components/MessagesPanel';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
   { icon: '📝', label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
@@ -116,6 +117,7 @@ export function InterventionsClient({
   loadError,
   dashboard,
   serverNowIso,
+  adminEmail = '',
   fullPage = false,
   initialSelectedId = null,
 }: {
@@ -124,6 +126,8 @@ export function InterventionsClient({
   loadError: string | null;
   dashboard: DashboardData;
   serverNowIso: string;
+  /** Email admin connecté — alimente MessagesPanel.currentUserEmail. */
+  adminEmail?: string;
   // Mode page complète (route /admin/interventions/[id]) — masque la
   // liste, étend le drawer en pleine largeur, et auto-sélectionne
   // l'intervention `initialSelectedId`. Le bouton "Fermer" devient
@@ -1200,6 +1204,14 @@ export function InterventionsClient({
                               🔄 Récidive ({iv.recidive_count})
                             </button>
                           )}
+                          {(iv.unread_messages_count ?? 0) > 0 && (
+                            <span
+                              className="inline-block text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5"
+                              title={`${iv.unread_messages_count} message(s) non lu(s) du partenaire`}
+                            >
+                              💬 {iv.unread_messages_count}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-3.5 py-2.5">
@@ -2212,6 +2224,18 @@ export function InterventionsClient({
                       )}
                     </Block>
                   )}
+
+                  {/* Messagerie syndic ↔ admin (panel partagé, polling 30s).
+                      Marque automatiquement les messages reçus comme lus
+                      (lu_admin = true) au mount, ce qui décrémente le badge
+                      💬 sur la ligne au prochain refresh de la liste. */}
+                  <div className="mb-3">
+                    <MessagesPanel
+                      interventionId={selected.id}
+                      currentUserEmail={adminEmail}
+                      isAdmin
+                    />
+                  </div>
 
                   <Block title="Notifications SMS / WhatsApp">
                     <p className="text-[12px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
