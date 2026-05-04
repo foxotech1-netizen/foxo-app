@@ -109,26 +109,35 @@ export async function POST(request: Request) {
     sections,
   });
 
-  // Upload sur Drive — convention dispatch.ts : `adresse` = acp_nom pour
-  // le nom du sous-dossier intervention, filename = "{ref} {nom}.docx"
+  // Upload sur Drive en best-effort (archivage). On `await` pour rester
+  // dans la durée de vie de la lambda, mais on ignore le résultat —
+  // l'export client ne doit pas échouer si Drive est indisponible.
   const adresseFolder = acpNom;
   const year = new Date().getFullYear();
-  const upload = await uploadRapport({
-    ref,
-    adresse: adresseFolder,
-    year,
-    bytes: docxBytes,
-    filename: `${ref} ${adresseFolder}.docx`,
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  });
-
-  if (!upload.ok) {
-    return NextResponse.json({ ok: false, error: upload.error }, { status: 502 });
+  const filename = `${ref} ${adresseFolder}.docx`;
+  try {
+    await uploadRapport({
+      ref,
+      adresse: adresseFolder,
+      year,
+      bytes: docxBytes,
+      filename,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+  } catch (e) {
+    console.warn('[rapport-docx] uploadRapport Drive skipped:', e);
   }
 
-  return NextResponse.json({
-    ok: true,
-    web_view_link: upload.web_view_link,
-    file_id: upload.file_id,
+  // Téléchargement HTTP direct du .docx — le client utilise un blob +
+  // anchor download pour déclencher la sauvegarde locale chez le tech.
+  // Cast en BodyInit : Uint8Array est accepté par Response à l'exécution
+  // mais le typage Next/lib.dom hésite avec ArrayBufferLike.
+  return new NextResponse(docxBytes as unknown as BodyInit, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+      'Content-Length': String(docxBytes.length),
+    },
   });
 }

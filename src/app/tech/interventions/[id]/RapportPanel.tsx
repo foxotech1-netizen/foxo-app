@@ -339,22 +339,24 @@ export function RapportPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intervention_id: interventionId }),
       });
-      const data = (await r.json()) as { ok: boolean; error?: string; web_view_link?: string; file_id?: string };
-      if (!data.ok) {
+      if (!r.ok) {
+        const data = (await r.json()) as { ok?: boolean; error?: string };
         setFeedback({ kind: 'err', msg: data.error ?? 'Erreur export Word.' });
         return;
       }
-      // Force le téléchargement direct du .docx — webViewLink ouvre la
-      // visionneuse Drive (qui peut tenter d'afficher le fichier en
-      // ligne) ; uc?export=download streame le binaire pour que le
-      // navigateur déclenche un téléchargement local du Word éditable.
-      if (data.file_id) {
-        const downloadUrl = `https://drive.google.com/uc?export=download&id=${data.file_id}`;
-        window.open(downloadUrl, '_blank', 'noopener,noreferrer');
-      } else if (data.web_view_link) {
-        window.open(data.web_view_link, '_blank', 'noopener,noreferrer');
-      }
-      setFeedback({ kind: 'ok', msg: 'Word généré sur Drive ✓' });
+      // Téléchargement direct depuis la réponse HTTP : on récupère le
+      // blob, on construit une URL objet et on déclenche le download
+      // via un <a> synthétique. Plus fiable que window.open(driveUrl)
+      // qui dépend de la pop-up policy du navigateur.
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = r.headers.get('Content-Disposition')
+        ?.match(/filename="(.+)"/)?.[1] ?? 'rapport.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+      setFeedback({ kind: 'ok', msg: 'Word téléchargé ✓' });
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
