@@ -7,6 +7,7 @@ import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
 import { RapportPanel } from './RapportPanel';
 import { NotesPanel } from './NotesPanel';
+import { PaiementPanel } from './PaiementPanel';
 import { getPhotoSignedUrls } from '../../actions';
 
 export const dynamic = 'force-dynamic';
@@ -183,6 +184,9 @@ export default async function TechInterventionPage({
         interventionId={iv.id}
         initial={iv.notes_tech ?? null}
       />
+
+      {/* Paiement sur place — QR EPC virement européen */}
+      <PaiementPanel interventionId={iv.id} />
     </div>
   );
 }
