@@ -29,6 +29,7 @@ import {
 } from 'docx';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { imageSize } from 'image-size';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/google-auth';
 
@@ -49,12 +50,15 @@ const DIVIDER = 'C0D4E8';
 
 const FONT = 'Calibri';
 
-// Image proportionnée à la largeur disponible / 2 (2 photos par ligne).
-// Hauteur fixe 302 px ; largeur fixée au ratio 4:3 standard téléphone
-// (la lib docx exige width+height numériques — sans lib pour lire les
-// dimensions réelles, on prend un ratio générique acceptable).
+// Hauteur fixe 302 px ; largeur calculée proportionnellement à partir
+// des dimensions réelles de chaque image (lib `image-size`). On clampe
+// la largeur à la moitié de la zone tappable pour conserver le layout
+// 2-cols. Si `image-size` échoue (format inconnu, fichier corrompu),
+// on retombe sur un ratio 4:3 par défaut.
 const PHOTO_HEIGHT_PX = 302;
-const PHOTO_WIDTH_PX = 403; // 302 * 4/3
+const PHOTO_FALLBACK_WIDTH_PX = 403; // 302 * 4/3
+// Largeur max d'une cellule photo en pixels (TW twips → px @ 96 dpi).
+const PHOTO_MAX_WIDTH_PX = Math.floor(((TW - 160) / 2) * 96 / 1440);
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -91,6 +95,38 @@ interface SectionPhoto {
   bytes: Buffer;
   type: 'jpg' | 'png' | 'gif' | 'bmp';
   filename: string;
+  width: number;  // px — déjà clampé à PHOTO_MAX_WIDTH_PX
+  height: number; // px — toujours PHOTO_HEIGHT_PX (sauf si dimensions plus
+                  //   petites que ça après clamp largeur, auquel cas on
+                  //   réduit aussi la hauteur pour conserver le ratio).
+}
+
+// Calcule (width, height) en pixels pour une photo donnée :
+//   - hauteur cible PHOTO_HEIGHT_PX
+//   - largeur calculée au ratio réel de l'image
+//   - clamp largeur ≤ PHOTO_MAX_WIDTH_PX (avec ajustement hauteur)
+// Retombe sur (PHOTO_FALLBACK_WIDTH_PX, PHOTO_HEIGHT_PX) si lecture KO.
+function computePhotoDimensions(bytes: Buffer): { width: number; height: number } {
+  let realW = 0;
+  let realH = 0;
+  try {
+    const dim = imageSize(bytes);
+    realW = dim.width ?? 0;
+    realH = dim.height ?? 0;
+  } catch {
+    // image-size jette si format non détecté
+  }
+  if (!realW || !realH) {
+    return { width: PHOTO_FALLBACK_WIDTH_PX, height: PHOTO_HEIGHT_PX };
+  }
+  const ratio = realW / realH;
+  let height = PHOTO_HEIGHT_PX;
+  let width = Math.round(height * ratio);
+  if (width > PHOTO_MAX_WIDTH_PX) {
+    width = PHOTO_MAX_WIDTH_PX;
+    height = Math.round(width / ratio);
+  }
+  return { width, height };
 }
 
 type SectionKey = 'degats' | 'inspection' | 'conclusion' | 'recommandations';
@@ -126,10 +162,13 @@ async function fetchPhotosBySection(
   for (const p of rows) {
     const bytes = await fetchDrivePhotoBytes(p.drive_file_id, auth.access_token);
     if (!bytes) continue;
+    const { width, height } = computePhotoDimensions(bytes);
     empty[p.section].push({
       bytes,
       type: detectImageType(p.filename),
       filename: p.filename ?? 'photo',
+      width,
+      height,
     });
   }
   return empty;
@@ -307,7 +346,7 @@ function photosTable(photos: SectionPhoto[]): Table | null {
             children: [
               new ImageRun({
                 data: left.bytes,
-                transformation: { width: PHOTO_WIDTH_PX, height: PHOTO_HEIGHT_PX },
+                transformation: { width: left.width, height: left.height },
                 type: left.type,
               }),
             ],
@@ -324,7 +363,7 @@ function photosTable(photos: SectionPhoto[]): Table | null {
               children: [
                 new ImageRun({
                   data: right.bytes,
-                  transformation: { width: PHOTO_WIDTH_PX, height: PHOTO_HEIGHT_PX },
+                  transformation: { width: right.width, height: right.height },
                   type: right.type,
                 }),
               ],
