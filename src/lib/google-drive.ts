@@ -89,7 +89,10 @@ async function uploadMultipart(
   mimeType: string,
 ): Promise<DriveFile | null> {
   const boundary = '----foxo' + Math.random().toString(36).slice(2);
-  const metadata = JSON.stringify({ name: filename, parents: [parentId] });
+  // mimeType dans le metadata : sans ça, Drive devine le type depuis
+  // l'extension du nom et peut convertir un .docx en Google Doc natif.
+  // Le déclarer explicitement bloque la conversion.
+  const metadata = JSON.stringify({ name: filename, parents: [parentId], mimeType });
   const pre = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`;
   const post = `\r\n--${boundary}--`;
 
