@@ -339,12 +339,19 @@ export function RapportPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intervention_id: interventionId }),
       });
-      const data = (await r.json()) as { ok: boolean; error?: string; web_view_link?: string };
+      const data = (await r.json()) as { ok: boolean; error?: string; web_view_link?: string; file_id?: string };
       if (!data.ok) {
         setFeedback({ kind: 'err', msg: data.error ?? 'Erreur export Word.' });
         return;
       }
-      if (data.web_view_link) {
+      // Force le téléchargement direct du .docx — webViewLink ouvre la
+      // visionneuse Drive (qui peut tenter d'afficher le fichier en
+      // ligne) ; uc?export=download streame le binaire pour que le
+      // navigateur déclenche un téléchargement local du Word éditable.
+      if (data.file_id) {
+        const downloadUrl = `https://drive.google.com/uc?export=download&id=${data.file_id}`;
+        window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+      } else if (data.web_view_link) {
         window.open(data.web_view_link, '_blank', 'noopener,noreferrer');
       }
       setFeedback({ kind: 'ok', msg: 'Word généré sur Drive ✓' });
