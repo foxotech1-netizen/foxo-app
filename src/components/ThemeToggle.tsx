@@ -1,13 +1,32 @@
 'use client';
 
-import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { themes, type ThemeKey } from '@/lib/themes';
+import { getCurrentTheme, setTheme, subscribeThemeChange } from './ThemeApplier';
 
-// Bascule clair/sombre. resolvedTheme = thème effectif (résout 'system').
-// Pour éviter l'hydration mismatch, on rend un placeholder tant que pas monté.
+const ORDER: ThemeKey[] = ['dark-amber', 'warm-light', 'foxo-blue'];
+
+const ICON: Record<ThemeKey, string> = {
+  'dark-amber': '🌙',
+  'warm-light': '☀️',
+  'foxo-blue':  '🌊',
+};
+
+const SHORT_LABEL: Record<ThemeKey, string> = {
+  'dark-amber': 'Sombre',
+  'warm-light': 'Clair',
+  'foxo-blue':  'Bleu',
+};
+
+// Bouton compact qui cycle entre les 3 thèmes au clic. Utilisé dans la
+// bannière mobile (header tech, header portal) là où on n'a pas la
+// place du sélecteur complet.
 //
-// `withLabel` : affiche "☀️ Thème clair" / "🌙 Thème sombre" au lieu de l'icône
-// seule. À utiliser dans la sidebar desktop / les en-têtes où l'on a la place.
+// Props héritées de l'ancienne API next-themes pour ne pas casser les
+// callers (Sidebar.tsx, PortalNav.tsx, tech/layout.tsx) :
+//   - className : classes Tailwind/CSS pour le bouton
+//   - inline    : si true, ne fixe pas width/height (place libre)
+//   - withLabel : affiche "{icon} {label}" au lieu de l'icône seule
 export function ThemeToggle({
   className,
   inline = false,
@@ -17,25 +36,23 @@ export function ThemeToggle({
   inline?: boolean;
   withLabel?: boolean;
 }) {
-  const { theme, setTheme } = useTheme();
+  const [current, setCurrent] = useState<ThemeKey>('dark-amber');
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
-  // 4 thèmes : ce toggle bascule entre Sable et Nuit (les 2 défauts).
-  // Pour Ocean/Ardoise, l'utilisateur passe par le sélecteur 4 thèmes
-  // dans la sidebar admin.
-  const isDark = theme === 'nuit' || theme === 'ardoise';
+  useEffect(() => {
+    setMounted(true);
+    setCurrent(getCurrentTheme());
+    return subscribeThemeChange(setCurrent);
+  }, []);
 
-  function toggle() {
-    const next = isDark ? 'sable' : 'nuit';
-    document.documentElement.classList.add('theme-transitioning');
+  function cycle() {
+    const idx = ORDER.indexOf(current);
+    const next = ORDER[(idx + 1) % ORDER.length];
     setTheme(next);
-    window.setTimeout(() => {
-      document.documentElement.classList.remove('theme-transitioning');
-    }, 220);
+    setCurrent(next);
   }
 
-  // Rendu placeholder en SSR + premier rendu client pour éviter mismatch
+  // Placeholder pendant l'hydratation pour éviter le mismatch SSR.
   if (!mounted) {
     return (
       <button
@@ -49,23 +66,24 @@ export function ThemeToggle({
     );
   }
 
-  const ariaLabel = isDark ? 'Passer au thème clair' : 'Passer au thème sombre';
+  const ariaLabel = `Thème actuel : ${themes[current].name}. Cliquer pour changer.`;
+  const icon = ICON[current];
 
   return (
     <button
       type="button"
-      onClick={toggle}
+      onClick={cycle}
       aria-label={ariaLabel}
       title={ariaLabel}
       className={className}
     >
       {withLabel ? (
         <>
-          <span style={{ marginRight: 6 }}>{isDark ? '☀️' : '🌙'}</span>
-          <span>{isDark ? 'Mode clair' : 'Mode sombre'}</span>
+          <span style={{ marginRight: 6 }}>{icon}</span>
+          <span>{SHORT_LABEL[current]}</span>
         </>
       ) : (
-        isDark ? '☀️' : '🌙'
+        icon
       )}
     </button>
   );

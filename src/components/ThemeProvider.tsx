@@ -1,41 +1,15 @@
-'use client';
-
-import { ThemeProvider as NextThemesProvider } from 'next-themes';
-import type { ComponentProps } from 'react';
-
-// 4 thèmes :
-//   - sable    → light, palette FoxO d'origine (cream/navy/ambre)
-//   - nuit     → dark,  palette FoxO d'origine
-//   - ocean    → light, palette océan (#156082)
-//   - ardoise  → dark,  palette ardoise + océan
+// ─── Stub de compat post-migration vers le nouveau système de thèmes ─
 //
-// `value` mappe le nom du thème vers la classe posée sur <html>. Les
-// thèmes "dark" doivent inclure la classe `.dark` pour que les
-// utilitaires Tailwind `dark:` fonctionnent (Sable et Ocean = light,
-// Nuit et Ardoise = dark).
+// L'ancien provider basé sur `next-themes` (4 thèmes : sable / nuit /
+// ocean / ardoise pilotés via classes CSS sur <html>) a été remplacé
+// par le système themes.ts (3 thèmes : dark-amber / warm-light /
+// foxo-blue, pilotés via CSS vars injectées sur <html>). Le bootstrap
+// se fait désormais dans `src/app/layout.tsx` (script blocking +
+// composant ThemeApplier).
 //
-// `storageKey` = clé localStorage. next-themes injecte un script avant
-// le body qui lit cette clé et applique la classe → pas de FOUC.
-type Props = ComponentProps<typeof NextThemesProvider>;
+// Ce fichier reste comme passthrough pour ne pas casser les imports
+// existants — à supprimer une fois certain que plus rien ne l'utilise.
 
-export function ThemeProvider({ children, ...rest }: Props) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      themes={['sable', 'nuit', 'ocean', 'ardoise']}
-      defaultTheme="sable"
-      enableSystem={false}
-      storageKey="foxo-theme"
-      value={{
-        sable: 'theme-sable',
-        nuit: 'theme-nuit',
-        ocean: 'theme-ocean',
-        ardoise: 'theme-ardoise',
-      }}
-      disableTransitionOnChange={false}
-      {...rest}
-    >
-      {children}
-    </NextThemesProvider>
-  );
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
