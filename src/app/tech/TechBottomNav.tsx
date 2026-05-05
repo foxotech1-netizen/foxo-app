@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Home, Clipboard, Receipt, type LucideIcon } from 'lucide-react';
 
-interface NavItem { href: string; icon: string; label: string; exact?: boolean }
+interface NavItem { href: string; Icon: LucideIcon; label: string; exact?: boolean }
 const ITEMS: readonly NavItem[] = [
-  { href: '/tech',             icon: '🏠', label: 'Accueil',    exact: true },
-  { href: '/tech/historique',  icon: '📋', label: 'Historique' },
-  { href: '/tech/notes-frais', icon: '🧾', label: 'Notes'      },
+  { href: '/tech',             Icon: Home,      label: 'Accueil',    exact: true },
+  { href: '/tech/historique',  Icon: Clipboard, label: 'Historique' },
+  { href: '/tech/notes-frais', Icon: Receipt,   label: 'Notes'      },
 ];
 
 // Bottom nav PWA — fixe en bas, safe-area inset iOS, min-height 44px par
@@ -37,7 +38,7 @@ export function TechBottomNav() {
                   : 'text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]')
               }
             >
-              <span className="text-[20px] leading-none" aria-hidden>{item.icon}</span>
+              <item.Icon size={18} aria-hidden />
               <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
             </Link>
           );

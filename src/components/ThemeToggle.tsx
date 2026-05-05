@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Moon, Sun, Waves, type LucideIcon } from 'lucide-react';
 import { themes, type ThemeKey } from '@/lib/themes';
 import { getCurrentTheme, setTheme, subscribeThemeChange } from './ThemeApplier';
 
 const ORDER: ThemeKey[] = ['dark-amber', 'warm-light', 'foxo-blue'];
 
-const ICON: Record<ThemeKey, string> = {
-  'dark-amber': '🌙',
-  'warm-light': '☀️',
-  'foxo-blue':  '🌊',
+const ICON: Record<ThemeKey, LucideIcon> = {
+  'dark-amber': Moon,
+  'warm-light': Sun,
+  'foxo-blue':  Waves,
 };
 
 const SHORT_LABEL: Record<ThemeKey, string> = {
@@ -67,7 +68,7 @@ export function ThemeToggle({
   }
 
   const ariaLabel = `Thème actuel : ${themes[current].name}. Cliquer pour changer.`;
-  const icon = ICON[current];
+  const Icon = ICON[current];
 
   return (
     <button
@@ -78,12 +79,12 @@ export function ThemeToggle({
       className={className}
     >
       {withLabel ? (
-        <>
-          <span style={{ marginRight: 6 }}>{icon}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon size={18} aria-hidden />
           <span>{SHORT_LABEL[current]}</span>
-        </>
+        </span>
       ) : (
-        icon
+        <Icon size={18} aria-hidden />
       )}
     </button>
   );

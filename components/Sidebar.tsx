@@ -14,37 +14,45 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { useTheme } from '@/components/ThemeApplier'
 import { themes } from '@/lib/themes'
+import {
+  LayoutGrid, BarChart3, Bell, Calendar, Wrench, Sparkles,
+  Handshake, Building2, Scale, Search, Hammer,
+  User, BookOpen, Mail, Lock, Settings, Inbox,
+  type LucideIcon,
+} from 'lucide-react'
 
-const NAV_MAIN = [
-  { href: '/admin/home',        icon: '⊞', label: 'Accueil'         },
-  { href: '/admin',             icon: '📊', label: 'Tableau de bord' },
-  { href: '/admin/alertes',     icon: '🔔', label: 'Alertes', badge: true },
-  { href: '/admin/planning',    icon: '📅', label: 'Planning'    },
-  { href: '/admin/techniciens', icon: '🔧', label: 'Techniciens' },
-  { href: '/admin/assistant',   icon: '✨', label: 'Assistant'   },
+interface NavItem { href: string; Icon: LucideIcon; label: string; badge?: boolean }
+
+const NAV_MAIN: NavItem[] = [
+  { href: '/admin/home',        Icon: LayoutGrid,  label: 'Accueil'         },
+  { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
+  { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
+  { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
+  { href: '/admin/techniciens', Icon: Wrench,      label: 'Techniciens' },
+  { href: '/admin/assistant',   Icon: Sparkles,    label: 'Assistant'   },
 ]
 
 // NAV_GESTION ne contient PLUS Syndics — celui-ci est désormais le 1er
-// élément du menu dépliable "🤝 Partenaires" (rendu séparément avant
+// élément du menu dépliable "Partenaires" (rendu séparément avant
 // la map ci-dessous).
-const NAV_GESTION = [
-  { href: '/admin/clients',      icon: '👤', label: 'Clients'       },
+const NAV_GESTION: NavItem[] = [
+  { href: '/admin/clients',      Icon: User,     label: 'Clients'       },
   // /admin/comptabilite redirige vers /admin/facturation (cf. page.tsx
   // dédiée). Le label "Comptabilité" reflète mieux le périmètre actuel
   // (factures + devis + avoirs + paiements + rappels + export comptable).
-  { href: '/admin/comptabilite', icon: '📒', label: 'Comptabilité'  },
-  { href: '/admin/mails',        icon: '✉',  label: 'Mails'        },
-  { href: '/admin/utilisateurs', icon: '🔐', label: 'Utilisateurs'  },
-  { href: '/admin/parametres',   icon: '⊙',  label: 'Paramètres'   },
+  { href: '/admin/comptabilite', Icon: BookOpen, label: 'Comptabilité'  },
+  { href: '/admin/mails',        Icon: Mail,     label: 'Mails'         },
+  { href: '/admin/utilisateurs', Icon: Lock,     label: 'Utilisateurs'  },
+  { href: '/admin/parametres',   Icon: Settings, label: 'Paramètres'    },
 ]
 
 // Sous-items du menu Partenaires — chaque item pointe vers une page
 // /admin/{slug} qui affiche les organisations filtrées par type.
-const PARTENAIRES_SUB = [
-  { href: '/admin/syndics',   icon: '🏢', label: 'Syndics'   },
-  { href: '/admin/courtiers', icon: '⚖️', label: 'Courtiers' },
-  { href: '/admin/experts',   icon: '🔍', label: 'Experts'   },
-  { href: '/admin/metiers',   icon: '🔨', label: 'Métiers'   },
+const PARTENAIRES_SUB: NavItem[] = [
+  { href: '/admin/syndics',   Icon: Building2, label: 'Syndics'   },
+  { href: '/admin/courtiers', Icon: Scale,     label: 'Courtiers' },
+  { href: '/admin/experts',   Icon: Search,    label: 'Experts'   },
+  { href: '/admin/metiers',   Icon: Hammer,    label: 'Métiers'   },
 ]
 
 // ─── Styles inline (pas de Tailwind JIT requis) ────────────────────────────────
@@ -222,12 +230,12 @@ export default function Sidebar({
   }
 
   // ── Mobile bottom nav — 5 items fixes ───────────────────────────────────────
-  const BOTTOM_NAV = [
-    { href: '/admin',           icon: '📊', label: 'Tableau'   },
-    { href: '/admin/alertes',   icon: '🔔', label: 'Alertes'   },
-    { href: '/admin/planning',  icon: '📅', label: 'Planning'  },
-    { href: '/admin/assistant', icon: '✨', label: 'Assistant' },
-    { href: '/admin/home',      icon: '⊞',  label: 'Menu'      },
+  const BOTTOM_NAV: NavItem[] = [
+    { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
+    { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
+    { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
+    { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
+    { href: '/admin/home',      Icon: LayoutGrid, label: 'Menu'     },
   ]
 
   return (
@@ -259,7 +267,7 @@ export default function Sidebar({
               style={S.navItem(isActive(item.href))}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span>{item.icon}</span>
+                <item.Icon size={16} aria-hidden />
                 <span>{item.label}</span>
               </span>
               {item.badge && alertCount > 0 && (
@@ -267,9 +275,9 @@ export default function Sidebar({
               )}
               {item.href === '/admin' && recentResponsesCount > 0 && (
                 <span
-                  style={S.badge}
+                  style={{ ...S.badge, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                   title="Réponses occupants reçues (< 48 h)"
-                >📬 {recentResponsesCount}</span>
+                ><Inbox size={11} aria-hidden /> {recentResponsesCount}</span>
               )}
             </Link>
           ))}
@@ -295,7 +303,7 @@ export default function Sidebar({
               aria-expanded={partenairesOpen}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span>🤝</span>
+                <Handshake size={16} aria-hidden />
                 <span>Partenaires</span>
               </span>
               <span style={{ fontSize: 10, opacity: 0.7 }}>
@@ -315,7 +323,7 @@ export default function Sidebar({
                     }}
                   >
                     <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <span>{sub.icon}</span>
+                      <sub.Icon size={16} aria-hidden />
                       <span>{sub.label}</span>
                     </span>
                   </Link>
@@ -327,7 +335,7 @@ export default function Sidebar({
           {NAV_GESTION.map(item => (
             <Link key={item.href} href={item.href} style={S.navItem(isActive(item.href))}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <span>{item.icon}</span>
+                <item.Icon size={16} aria-hidden />
                 <span>{item.label}</span>
               </span>
               {item.href === '/admin/mails' && unreadMails > 0 && (
@@ -379,7 +387,7 @@ export default function Sidebar({
           const active = isActive(item.href)
           return (
           <Link key={item.href} href={item.href} style={S.bottomNavItem(active)}>
-            <span style={S.bottomNavIcon(active)}>{item.icon}</span>
+            <span style={S.bottomNavIcon(active)}><item.Icon size={18} aria-hidden /></span>
             <span>{item.label}</span>
             {item.href === '/admin/alertes' && alertCount > 0 && (
               <span style={{

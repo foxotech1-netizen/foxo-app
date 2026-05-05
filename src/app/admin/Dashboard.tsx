@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import {
+  AlertTriangle, Zap, Inbox, RefreshCw, Mail, Check, X, Clipboard, Trash2,
+  ArrowUpRight, type LucideIcon,
+} from 'lucide-react';
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
@@ -107,7 +111,7 @@ export function Dashboard({
         />
         <StatCard
           num={stats.enSuspens}
-          label="⚠ En suspens"
+          label="En suspens"
           warning={stats.enSuspens > 0}
           href="/admin?statut=en_suspens"
           active={statutFilter === 'en_suspens'}
@@ -130,8 +134,9 @@ export function Dashboard({
 
       {/* ── 2. Alertes prioritaires ──────────────────────────────────────── */}
       {stats.urgent > 0 && (
-        <div className="px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold">
-          ⚡ {stats.urgent} intervention(s) urgente(s) en attente de traitement
+        <div className="px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold flex items-center gap-2">
+          <Zap size={18} aria-hidden />
+          {stats.urgent} intervention(s) urgente(s) en attente de traitement
         </div>
       )}
 
@@ -504,23 +509,23 @@ function RecentResponsesCard({
     return `il y a ${Math.floor(hours / 24)} j`;
   }
 
-  function reponseLabel(r: RecentOccupantResponse): { label: string; cls: string } {
+  function reponseLabel(r: RecentOccupantResponse): { Icon: LucideIcon | null; label: string; cls: string } {
     if (r.proposed_creneau_debut) {
-      return { label: '🔄 Autre créneau', cls: 'bg-navy-pale text-navy border-navy-light' };
+      return { Icon: RefreshCw, label: 'Autre créneau', cls: 'bg-navy-pale text-navy border-navy-light' };
     }
     if (r.conf === 'confirme') {
-      return { label: '✅ Présent', cls: 'bg-ok-light text-ok border-ok-mid' };
+      return { Icon: Check, label: 'Présent', cls: 'bg-ok-light text-ok border-ok-mid' };
     }
     if (r.conf === 'decline') {
-      return { label: '❌ Décline', cls: 'bg-terra-light text-terra border-terra-mid' };
+      return { Icon: X, label: 'Décline', cls: 'bg-terra-light text-terra border-terra-mid' };
     }
-    return { label: '— En attente', cls: 'bg-sand-mid text-ink-mid border-sand-border' };
+    return { Icon: null, label: 'En attente', cls: 'bg-sand-mid text-ink-mid border-sand-border' };
   }
 
   return (
     <section>
-      <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
-        📬 Réponses occupants reçues (&lt; 48 h)
+      <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <Inbox size={14} aria-hidden /> Réponses occupants reçues (&lt; 48 h)
         <span className="ml-2 inline-block px-2 py-0.5 bg-terra text-white rounded-full text-[10px] font-extrabold">
           {responses.length}
         </span>
@@ -539,7 +544,8 @@ function RecentResponsesCard({
               onClick={() => onOpenIntervention(r.intervention_id)}
               className="w-full text-left px-4 py-2.5 hover:bg-sand-hover flex items-center gap-3"
             >
-              <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap ' + tag.cls}>
+              <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap inline-flex items-center gap-1 ' + tag.cls}>
+                {tag.Icon && <tag.Icon size={11} aria-hidden />}
                 {tag.label}
               </span>
               <div className="flex-1 min-w-0">
@@ -576,7 +582,7 @@ function RecentResponsesCard({
 //   • Clic = ouvre le drawer (comportement legacy)
 //   • Bouton ⋯ = menu avec Réanalyser / Ouvrir / Supprimer
 // En haut de section :
-//   • Bouton "🔄 Tout réanalyser" si > 1 mail (séquentiel pour éviter
+//   • Bouton "Tout réanalyser" si > 1 mail (séquentiel pour éviter
 //     le rate limit Anthropic)
 //   • Progress bar pendant batch
 //   • Toast inline avec résultat
@@ -619,9 +625,9 @@ function computeDifferences(iv: InterventionRow, analysis: ReanalysisAnalysis): 
 function shortSummary(analysis: ReanalysisAnalysis): string {
   const parts: string[] = [];
   if (analysis.type_demandeur) {
-    const icon = analysis.type_demandeur === 'syndic' ? '🏢 Syndic'
-      : analysis.type_demandeur === 'courtier' ? '🛡️ Courtier'
-      : '👤 Particulier';
+    const icon = analysis.type_demandeur === 'syndic' ? 'Syndic'
+      : analysis.type_demandeur === 'courtier' ? 'Courtier'
+      : 'Particulier';
     parts.push(analysis.nom_societe ? `${icon} ${analysis.nom_societe}` : icon);
   }
   if (analysis.type_probleme) parts.push(analysis.type_probleme);
@@ -709,13 +715,13 @@ function NewMailSection({
     if (result.updated) {
       setToast({
         kind: 'warn',
-        msg: `⚠️ Différences détectées sur ${iv.ref} — drawer ouvert pour validation.`,
+        msg: `Différences détectées sur ${iv.ref} — drawer ouvert pour validation.`,
       });
       onOpenIntervention(iv.id);
     } else {
       setToast({
         kind: 'ok',
-        msg: `✅ Analyse terminée${result.analysis ? ' : ' + shortSummary(result.analysis) : ''}.`,
+        msg: `Analyse terminée${result.analysis ? ' : ' + shortSummary(result.analysis) : ''}.`,
       });
     }
   }
@@ -747,7 +753,7 @@ function NewMailSection({
         setToast({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
         return;
       }
-      setToast({ kind: 'ok', msg: `✅ ${data.deleted_ref ?? 'Intervention'} supprimée.` });
+      setToast({ kind: 'ok', msg: `${data.deleted_ref ?? 'Intervention'} supprimée.` });
       setConfirmDeleteId(null);
       // Refresh server data pour retirer la ligne du tableau
       router.refresh();
@@ -759,17 +765,23 @@ function NewMailSection({
   return (
     <section>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
-          📧 Nouvelles demandes mail ({mails.length})
+        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest flex items-center gap-1.5">
+          <Mail size={14} aria-hidden /> Nouvelles demandes mail ({mails.length})
         </h3>
         {mails.length > 1 && (
           <button
             type="button"
             onClick={batchReanalyze}
             disabled={Boolean(batchState?.running)}
-            className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+            className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
           >
-            {batchState?.running ? `Analyse ${batchState.current}/${batchState.total}…` : '🔄 Tout réanalyser'}
+            {batchState?.running ? (
+              `Analyse ${batchState.current}/${batchState.total}…`
+            ) : (
+              <>
+                <RefreshCw size={12} aria-hidden /> Tout réanalyser
+              </>
+            )}
           </button>
         )}
       </div>
@@ -824,8 +836,8 @@ function NewMailSection({
                   onClick={() => onOpenIntervention(iv.id)}
                   className="flex-1 flex items-center gap-2 text-left min-w-0"
                 >
-                  <span className="inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
-                    📧 Mail
+                  <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
+                    <Mail size={11} aria-hidden /> Mail
                   </span>
                   <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0">
                     {iv.ref ?? '?'}
@@ -837,14 +849,14 @@ function NewMailSection({
                     {iv.type ?? ''}
                   </span>
                   {iv.priorite === 'urgente' && (
-                    <span className="text-[10px] font-bold text-terra">⚡</span>
+                    <Zap size={12} className="text-terra flex-shrink-0" aria-hidden />
                   )}
                   {hasDiff && (
                     <span
-                      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]"
+                      className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]"
                       title="Différences détectées par la dernière réanalyse"
                     >
-                      ⚠️ À vérifier
+                      <AlertTriangle size={11} aria-hidden /> À vérifier
                     </span>
                   )}
                   {reanalyzing && (
@@ -873,23 +885,23 @@ function NewMailSection({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <MenuItem
-                      icon="🔄"
+                      Icon={RefreshCw}
                       label={reanalyzing ? 'Analyse en cours…' : 'Réanalyser le mail'}
                       onClick={() => handleReanalyze(iv)}
                       disabled={reanalyzing}
                     />
                     <MenuItem
-                      icon="📋"
+                      Icon={Clipboard}
                       label="Ouvrir le dossier"
                       onClick={() => { setOpenMenuId(null); onOpenIntervention(iv.id); }}
                     />
                     <MenuItem
-                      icon="↗"
+                      Icon={ArrowUpRight}
                       label="Ouvrir dans un nouvel onglet"
                       onClick={() => { setOpenMenuId(null); window.open(`/admin/interventions/${iv.id}`, '_blank'); }}
                     />
                     <MenuItem
-                      icon="🗑"
+                      Icon={Trash2}
                       label="Supprimer"
                       danger
                       onClick={() => { setOpenMenuId(null); setConfirmDeleteId(iv.id); }}
@@ -925,8 +937,8 @@ function NewMailSection({
             className="border border-terra rounded-2xl p-5 w-full max-w-[420px]"
             style={{ background: 'var(--card-bg)' }}
           >
-            <h2 className="text-[14px] font-extrabold text-terra mb-2">
-              🗑 Supprimer cette intervention
+            <h2 className="text-[14px] font-extrabold text-terra mb-2 flex items-center gap-1.5">
+              <Trash2 size={16} aria-hidden /> Supprimer cette intervention
             </h2>
             <p className="text-[13px] text-ink-mid leading-relaxed">
               Êtes-vous sûr de vouloir supprimer l&apos;intervention{' '}
@@ -962,9 +974,9 @@ function NewMailSection({
 }
 
 function MenuItem({
-  icon, label, onClick, disabled, danger,
+  Icon, label, onClick, disabled, danger,
 }: {
-  icon: string;
+  Icon: LucideIcon;
   label: string;
   onClick: () => void;
   disabled?: boolean;
@@ -982,7 +994,7 @@ function MenuItem({
           : 'text-ink hover:bg-sand-hover')
       }
     >
-      <span className="text-[14px]">{icon}</span>
+      <Icon size={16} aria-hidden />
       {label}
     </button>
   );
