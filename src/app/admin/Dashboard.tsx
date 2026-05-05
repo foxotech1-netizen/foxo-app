@@ -170,15 +170,15 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                className="w-full text-left bg-[var(--main-bg)] hover:bg-navy-pale border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
               >
-                <span className="font-mono text-[11px] text-navy font-bold dark:text-[#A8C4F2]">
+                <span className="font-mono text-[11px] text-navy font-bold">
                   {fmtTime(iv.creneau_debut)}
                 </span>
-                <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                <span className="font-bold text-ink truncate flex-1">
                   {iv.acp?.nom ?? '—'}
                 </span>
-                <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                <span className="text-[10px] text-ink-muted">
                   {iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}
                 </span>
               </button>
@@ -197,10 +197,10 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-white hover:bg-ok-light border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                className="w-full text-left bg-[var(--main-bg)] hover:bg-ok-light border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
               >
-                <span className="font-mono text-[11px] text-ok font-bold dark:text-[#7AC9A0]">{iv.ref ?? '?'}</span>
-                <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                <span className="font-mono text-[11px] text-ok font-bold">{iv.ref ?? '?'}</span>
+                <span className="font-bold text-ink truncate flex-1">
                   {iv.acp?.nom ?? '—'}
                 </span>
               </button>
@@ -219,13 +219,13 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-white hover:bg-amber-light border border-sand-border rounded-md px-2.5 py-1.5 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                className="w-full text-left bg-[var(--main-bg)] hover:bg-amber-light border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] text-[#8A5A1A] font-bold dark:text-[#E8C896]">{iv.ref ?? '?'}</span>
-                  <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">{iv.acp?.nom ?? '—'}</span>
+                  <span className="font-mono text-[11px] text-[#8A5A1A] font-bold">{iv.ref ?? '?'}</span>
+                  <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
                 </div>
-                <div className="text-[10px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+                <div className="text-[10px] text-ink-muted mt-0.5">
                   {pending.length} occupant(s) sans réponse
                 </div>
               </button>
@@ -342,15 +342,15 @@ export function DashboardTechs({
                       key={iv.id}
                       type="button"
                       onClick={() => onOpenIntervention(iv.id)}
-                      className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                      className="w-full text-left bg-[var(--main-bg)] hover:bg-navy-pale border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
                     >
-                      <span className="font-mono font-bold text-navy text-[11px] dark:text-[#A8C4F2]">
+                      <span className="font-mono font-bold text-navy text-[11px]">
                         {fmtTime(iv.creneau_debut)}
                       </span>
-                      <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                      <span className="font-bold text-ink truncate flex-1">
                         {iv.acp?.nom ?? iv.particulier_contact?.nom ?? '—'}
                       </span>
-                      <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">{iv.type ?? ''}</span>
+                      <span className="text-[10px] text-ink-muted truncate">{iv.type ?? ''}</span>
                     </button>
                   ))}
                 </div>
@@ -382,7 +382,7 @@ export function DashboardTechs({
                         technicien_id: s.technicien_id,
                       })}
                       title="Cliquer pour planifier une intervention sur ce créneau"
-                      className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors hover:bg-ok-mid hover:border-[#E2C9A1] dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A] dark:hover:bg-[#2A8A5A] dark:hover:border-[#E2C9A1]"
+                      className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors hover:bg-ok-mid hover:border-[#E2C9A1]"
                     >
                       {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
                       {' · '}
@@ -459,9 +459,9 @@ function TodoCard({
   // Mode clair : pastille pâle assortie. Mode sombre : on bascule sur un
   // fond plus opaque + texte blanc pour atteindre le ratio AA WCAG.
   const headerStyle = {
-    navy:  'bg-navy-pale text-navy border-navy-light dark:bg-[#1B3A6B] dark:text-white dark:border-[#2A5298]',
-    ok:    'bg-ok-light text-ok border-ok-mid dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]',
-    amber: 'bg-amber-light text-[#8A5A1A] border-[#E8C896] dark:bg-[#A17244] dark:text-white dark:border-[#C4904F]',
+    navy:  'bg-navy-pale text-navy border-navy-light',
+    ok:    'bg-ok-light text-ok border-ok-mid',
+    amber: 'bg-amber-light text-[#8A5A1A] border-[#E8C896]',
   }[color];
   return (
     <div
@@ -469,12 +469,12 @@ function TodoCard({
       style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
     >
       <div className={'px-4 py-2.5 flex items-center justify-between border-b ' + headerStyle}>
-        <span className="text-[11px] font-bold uppercase tracking-wider dark:text-white">{title}</span>
-        <span className="text-[12px] font-extrabold dark:text-white">{count}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider">{title}</span>
+        <span className="text-[12px] font-extrabold">{count}</span>
       </div>
       <div className="p-3 space-y-1.5 max-h-[240px] overflow-y-auto">
         {count === 0 ? (
-          <div className="text-[12px] text-ink-muted text-center py-4 dark:text-[#C8C2B8]">{empty}</div>
+          <div className="text-[12px] text-ink-muted text-center py-4">{empty}</div>
         ) : children}
       </div>
     </div>
@@ -526,7 +526,7 @@ function RecentResponsesCard({
         </span>
       </h3>
       <div
-        className="border rounded-2xl divide-y divide-sand-mid dark:divide-[#2C2A24] overflow-hidden"
+        className="border rounded-2xl divide-y divide-sand-mid overflow-hidden"
         style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
       >
         {responses.slice(0, 8).map((r) => {
@@ -537,31 +537,31 @@ function RecentResponsesCard({
               key={r.occupant_id}
               type="button"
               onClick={() => onOpenIntervention(r.intervention_id)}
-              className="w-full text-left px-4 py-2.5 hover:bg-sand-hover flex items-center gap-3 dark:hover:bg-[#221E1A]"
+              className="w-full text-left px-4 py-2.5 hover:bg-sand-hover flex items-center gap-3"
             >
               <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap ' + tag.cls}>
                 {tag.label}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-ink truncate dark:text-[#F0ECE4]">
+                <div className="text-[13px] font-semibold text-ink truncate">
                   {fullName}
                   {r.appartement && (
-                    <span className="text-ink-mid font-normal ml-1.5 dark:text-[#C8C2B8]">apt. {r.appartement}</span>
+                    <span className="text-ink-mid font-normal ml-1.5">apt. {r.appartement}</span>
                   )}
                 </div>
-                <div className="text-[11px] text-ink-muted truncate dark:text-[#C8C2B8]">
-                  <span className="font-mono text-navy dark:text-[#A8C4F2]">{r.iv_ref ?? '?'}</span>
+                <div className="text-[11px] text-ink-muted truncate">
+                  <span className="font-mono text-navy">{r.iv_ref ?? '?'}</span>
                   {r.iv_acp_nom && <span> · {r.iv_acp_nom}</span>}
                 </div>
               </div>
-              <span className="text-[10px] text-ink-muted whitespace-nowrap dark:text-[#C8C2B8]">
+              <span className="text-[10px] text-ink-muted whitespace-nowrap">
                 {relativeTime(r.confirmed_at)}
               </span>
             </button>
           );
         })}
         {responses.length > 8 && (
-          <div className="px-4 py-2 text-[11px] text-ink-muted italic text-center dark:text-[#C8C2B8]">
+          <div className="px-4 py-2 text-[11px] text-ink-muted italic text-center">
             +{responses.length - 8} autres réponses récentes — utilise le filtre Tableau de bord pour les voir.
           </div>
         )}
@@ -759,7 +759,7 @@ function NewMailSection({
   return (
     <section>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
           📧 Nouvelles demandes mail ({mails.length})
         </h3>
         {mails.length > 1 && (
@@ -775,10 +775,10 @@ function NewMailSection({
       </div>
 
       {batchState?.running && (
-        <div className="mb-2 bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5 dark:bg-[#1A2540] dark:border-[#2C4878]">
-          <div className="text-[11px] text-navy font-semibold mb-1 dark:text-[#A8C4F2]">
+        <div className="mb-2 bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5">
+          <div className="text-[11px] text-navy font-semibold mb-1">
             Analyse en cours… {batchState.current}/{batchState.total}
-            {batchState.updated > 0 && <span className="text-[#8A5A1A] dark:text-[#E8C896] ml-2">· {batchState.updated} avec diff</span>}
+            {batchState.updated > 0 && <span className="text-[#8A5A1A] ml-2">· {batchState.updated} avec diff</span>}
           </div>
           <div className="h-1.5 bg-sand-mid rounded-full overflow-hidden">
             <div
@@ -793,9 +793,9 @@ function NewMailSection({
         <div className={
           'mb-2 px-3 py-2 text-[11px] font-semibold rounded-md border ' +
           (toast.kind === 'ok'
-            ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
+            ? 'bg-ok-light border-ok-mid text-ok'
             : toast.kind === 'warn'
-              ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A] dark:bg-[#2A220E] dark:border-[#5A4A30] dark:text-[#E8C896]'
+              ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A]'
               : 'bg-terra-light border-terra-mid text-terra')
         }>
           {toast.msg}
@@ -817,7 +817,7 @@ function NewMailSection({
             return (
               <div
                 key={iv.id}
-                className="relative bg-white border border-sand-border rounded-md transition-colors dark:bg-[#221E1A] dark:border-[#3D3A32] flex items-center gap-2 px-2.5 py-2 text-[12px] hover:bg-navy-pale dark:hover:bg-[#2A2520]"
+                className="relative bg-[var(--main-bg)] border border-[var(--card-border-2)] rounded-md transition-colors flex items-center gap-2 px-2.5 py-2 text-[12px] hover:bg-navy-pale"
               >
                 <button
                   type="button"
@@ -827,13 +827,13 @@ function NewMailSection({
                   <span className="inline-block text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
                     📧 Mail
                   </span>
-                  <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0 dark:text-[#A8C4F2]">
+                  <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0">
                     {iv.ref ?? '?'}
                   </span>
-                  <span className="font-bold text-ink truncate flex-1 dark:text-[#F0ECE4]">
+                  <span className="font-bold text-ink truncate flex-1">
                     {fullName}
                   </span>
-                  <span className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">
+                  <span className="text-[10px] text-ink-muted truncate">
                     {iv.type ?? ''}
                   </span>
                   {iv.priorite === 'urgente' && (
@@ -841,14 +841,14 @@ function NewMailSection({
                   )}
                   {hasDiff && (
                     <span
-                      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]"
+                      className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]"
                       title="Différences détectées par la dernière réanalyse"
                     >
                       ⚠️ À vérifier
                     </span>
                   )}
                   {reanalyzing && (
-                    <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">…</span>
+                    <span className="text-[10px] text-ink-muted">…</span>
                   )}
                 </button>
 
@@ -858,7 +858,7 @@ function NewMailSection({
                     e.stopPropagation();
                     setOpenMenuId((cur) => cur === iv.id ? null : iv.id);
                   }}
-                  className="flex-shrink-0 px-1.5 py-0.5 text-ink-mid hover:text-navy text-[14px] leading-none dark:text-[#C8C2B8] dark:hover:text-[#A8C4F2]"
+                  className="flex-shrink-0 px-1.5 py-0.5 text-ink-mid hover:text-navy text-[14px] leading-none"
                   aria-label="Actions"
                   aria-expanded={showMenu}
                 >
@@ -868,7 +868,8 @@ function NewMailSection({
                 {showMenu && (
                   <div
                     ref={menuRef}
-                    className="absolute top-full right-0 mt-1 z-20 bg-cream border border-sand-border rounded-md shadow-lg min-w-[200px] dark:bg-[#1C1A16] dark:border-[#2C2A24]"
+                    className="absolute top-full right-0 mt-1 z-20 border rounded-md shadow-lg min-w-[200px]"
+                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <MenuItem
@@ -903,14 +904,14 @@ function NewMailSection({
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
-            className="w-full mt-2 text-[11px] font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+            className="w-full mt-2 text-[11px] font-bold text-navy hover:underline"
           >
             {showAll
               ? `— Réduire`
               : `+ Voir ${mails.length - 4} de plus`}
           </button>
         )}
-        <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+        <p className="text-[10px] text-ink-muted mt-2 italic">
           Créées automatiquement par le cron à partir de mails entrants. Aucune action n&apos;a été envoyée au client — c&apos;est à toi de planifier.
         </p>
       </div>
@@ -920,13 +921,16 @@ function NewMailSection({
           onClick={(e) => { if (e.target === e.currentTarget && !deleting) setConfirmDeleteId(null); }}
           className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
         >
-          <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
-            <h2 className="text-[14px] font-extrabold text-terra mb-2 dark:text-[#FFB897]">
+          <div
+            className="border border-terra rounded-2xl p-5 w-full max-w-[420px]"
+            style={{ background: 'var(--card-bg)' }}
+          >
+            <h2 className="text-[14px] font-extrabold text-terra mb-2">
               🗑 Supprimer cette intervention
             </h2>
-            <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
+            <p className="text-[13px] text-ink-mid leading-relaxed">
               Êtes-vous sûr de vouloir supprimer l&apos;intervention{' '}
-              <strong className="font-mono text-ink dark:text-[#F0ECE4]">
+              <strong className="font-mono text-ink">
                 {mails.find((m) => m.id === confirmDeleteId)?.ref ?? '?'}
               </strong> ?{' '}
               <strong className="text-terra">Action irréversible.</strong>
@@ -936,7 +940,7 @@ function NewMailSection({
                 type="button"
                 onClick={() => setConfirmDeleteId(null)}
                 disabled={deleting}
-                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-[var(--card-border-2)] bg-[var(--main-bg)] text-ink-mid disabled:opacity-50"
               >
                 Annuler
               </button>
@@ -974,8 +978,8 @@ function MenuItem({
       className={
         'w-full text-left px-3 py-2 text-[12px] font-semibold flex items-center gap-2 disabled:opacity-50 ' +
         (danger
-          ? 'text-terra hover:bg-terra-light dark:text-[#FFB897] dark:hover:bg-[#5A2E18]'
-          : 'text-ink hover:bg-sand-hover dark:text-[#F0ECE4] dark:hover:bg-[#2A2520]')
+          ? 'text-terra hover:bg-terra-light'
+          : 'text-ink hover:bg-sand-hover')
       }
     >
       <span className="text-[14px]">{icon}</span>
