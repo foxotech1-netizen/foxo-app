@@ -128,3 +128,12 @@ body {
 .stat-num {
   color: var(--color-ink);
 }
+
+/* Utility : applique Syne (font display, --font-syne défini par
+   next/font dans app/layout.tsx). À utiliser manuellement sur les
+   <h1> / <h2> pour donner du caractère aux titres ; le corps reste
+   en DM Sans (--font-sans). */
+.font-display {
+  font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
