@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { Building2 } from 'lucide-react';
 import { setParametre } from '../facturation/actions';
 
 const FORMES_JURIDIQUES = ['SRL', 'SA', 'ASBL', 'Indépendant', 'Autre'] as const;
@@ -100,7 +101,9 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
   return (
     <section className="bg-cream rounded-xl border border-sand-border p-5 space-y-5">
       <div>
-        <h2 className="text-[13px] font-extrabold text-ink">🏢 Société</h2>
+        <h2 className="text-[13px] font-extrabold text-ink flex items-center gap-1.5">
+          <Building2 size={16} aria-hidden /> Société
+        </h2>
         <p className="text-[11px] text-ink-muted mt-0.5">
           Informations légales utilisées sur les factures et documents.
         </p>
