@@ -75,7 +75,7 @@ export default async function HomePage() {
       <style>{`
         .foxo-home-root {
           min-height: 100vh;
-          background: linear-gradient(180deg, #2C2A24 0%, #1A1814 100%);
+          background: var(--card-bg);
           display: flex;
           flex-direction: column;
           align-items: stretch;

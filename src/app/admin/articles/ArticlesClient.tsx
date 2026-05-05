@@ -142,18 +142,18 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
         </div>
       )}
 
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[680px]">
             <thead>
-              <tr className="bg-sand dark:bg-[#221E1A]">
+              <tr className="bg-[var(--table-bg)]">
                 <SortableTh label="Code"        sortKey="code"        currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Description" sortKey="description" currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Prix TTC"    sortKey="prix_ttc"    currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="TVA"         sortKey="tva_pct"     currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Prix HT"     sortKey="prix_htva"   currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Statut"      sortKey="actif"       currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
-                <th className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                <th className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                   Actions
                 </th>
               </tr>
@@ -161,33 +161,33 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
+                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
                     {query.trim() || statusFilter !== 'tous'
                       ? 'Aucun article ne correspond au filtre.'
                       : 'Aucun article. Crée-en un pour démarrer.'}
                   </td>
                 </tr>
               ) : sorted.map((a) => (
-                <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
-                  <td className="px-3.5 py-2.5 font-mono text-xs font-bold text-navy dark:text-[#A8C4F2]">
+                <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
+                  <td className="px-3.5 py-2.5 font-mono text-xs font-bold text-navy">
                     {a.code ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[13px] dark:text-[#F0ECE4]">{a.description}</td>
+                  <td className="px-3.5 py-2.5 text-[13px]">{a.description}</td>
                   <td className="px-3.5 py-2.5 text-[13px] font-mono font-bold whitespace-nowrap dark:text-white">
                     {fmtMoney(a.prix_ttc)}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                     {a.tva_pct}%
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                     {fmtMoney(Number(a.prix_htva))}
                   </td>
                   <td className="px-3.5 py-2.5">
                     <span className={
                       'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ' +
                       (a.actif
-                        ? 'bg-ok-light text-ok dark:bg-[#1F6B45] dark:text-white'
-                        : 'bg-sand-mid text-ink-mid dark:bg-[#3D3A32] dark:text-[#C8C2B8]')
+                        ? 'bg-ok-light text-ok dark:text-white'
+                        : 'bg-sand-mid text-ink-mid')
                     }>
                       {a.actif ? 'Actif' : 'Inactif'}
                     </span>
@@ -244,9 +244,9 @@ function SortableTh({
       className={
         'px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b border-sand-border whitespace-nowrap cursor-pointer select-none transition-colors ' +
         (active
-          ? 'text-navy dark:text-[#A8C4F2]'
-          : 'text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]') +
-        ' dark:border-[#3D3A32]'
+          ? 'text-navy'
+          : 'text-ink-muted hover:text-ink') +
+        ''
       }
     >
       <span className="inline-flex items-center gap-1">
@@ -303,9 +303,9 @@ function ArticleEditor({
       className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-cream w-full sm:max-w-[520px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-        <header className="px-5 py-4 border-b border-sand-border dark:border-[#2C2A24]">
-          <h2 className="text-base font-extrabold text-ink dark:text-[#F0ECE4]">
+      <div className="bg-cream w-full sm:max-w-[520px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl">
+        <header className="px-5 py-4 border-b border-sand-border">
+          <h2 className="text-base font-extrabold text-ink">
             {initial ? 'Modifier l\'article' : 'Nouvel article'}
           </h2>
         </header>
@@ -357,22 +357,22 @@ function ArticleEditor({
             </div>
           </div>
 
-          <div className="bg-sand border border-sand-border rounded-lg px-3 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
-            <div className="flex justify-between items-center text-ink-mid dark:text-[#C8C2B8]">
+          <div className="bg-sand border border-sand-border rounded-lg px-3 py-2 text-[12px]">
+            <div className="flex justify-between items-center text-ink-mid">
               <span>HTVA calculé</span>
-              <span className="font-mono font-bold dark:text-[#F0ECE4]">{fmtMoney(prixHtva)}</span>
+              <span className="font-mono font-bold">{fmtMoney(prixHtva)}</span>
             </div>
-            <div className="flex justify-between items-center mt-0.5 text-ink-mid dark:text-[#C8C2B8]">
+            <div className="flex justify-between items-center mt-0.5 text-ink-mid">
               <span>TVA {tvaPct}%</span>
-              <span className="font-mono dark:text-[#C8C2B8]">{fmtMoney(prixTtc - prixHtva)}</span>
+              <span className="font-mono">{fmtMoney(prixTtc - prixHtva)}</span>
             </div>
-            <div className="flex justify-between items-center mt-1 pt-1 border-t border-sand-border dark:border-[#3D3A32]">
-              <span className="font-bold text-ink dark:text-[#F0ECE4]">Total TTC</span>
+            <div className="flex justify-between items-center mt-1 pt-1 border-t border-sand-border">
+              <span className="font-bold text-ink">Total TTC</span>
               <span className="font-mono font-extrabold text-navy dark:text-white">{fmtMoney(prixTtc)}</span>
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-[13px] cursor-pointer dark:text-[#F0ECE4]">
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer">
             <input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} className="accent-[#1B3A6B]" />
             Article actif (sélectionnable dans les factures)
           </label>
@@ -384,12 +384,12 @@ function ArticleEditor({
           )}
         </div>
 
-        <footer className="px-5 py-3 border-t border-sand-border flex justify-end gap-2 dark:border-[#2C2A24]">
+        <footer className="px-5 py-3 border-t border-sand-border flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            className="bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50"
           >
             Annuler
           </button>
@@ -409,7 +409,7 @@ function ArticleEditor({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs font-semibold text-ink-mid block mb-1 dark:text-[#C8C2B8]">
+    <label className="text-xs font-semibold text-ink-mid block mb-1">
       {children}
     </label>
   );
