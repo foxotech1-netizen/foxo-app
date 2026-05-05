@@ -12,6 +12,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ThemeSelector } from '@/components/ThemeSelector'
+import { useTheme } from '@/components/ThemeApplier'
+import { themes } from '@/lib/themes'
 
 const NAV_MAIN = [
   { href: '/admin/home',        icon: '⊞', label: 'Accueil'         },
@@ -173,6 +175,11 @@ export default function Sidebar({
   const pathname = usePathname()
   const router   = useRouter()
   const supabase = createClient()
+  const theme = useTheme()
+  // Logo : inversé en blanc si la sidebar du thème actif est sombre
+  // (cf. sidebarDark dans src/lib/themes.ts). Future-proof pour un
+  // thème sidebar claire.
+  const logoFilterCls = themes[theme]?.sidebarDark ? 'brightness-0 invert' : ''
 
   // Menu Partenaires : ouvert par défaut si on est déjà sur une de ses
   // sous-pages (lazy init useState — pas de useEffect → pas de souci
@@ -234,10 +241,7 @@ export default function Sidebar({
             alt="FoxO"
             width={90}
             height={90}
-            // brightness-0 invert : logo noir → blanc. Les 3 thèmes
-            // (dark-amber / warm-light / foxo-blue) ont tous une
-            // sidebar sombre, donc filtre toujours appliqué.
-            className="brightness-0 invert"
+            className={logoFilterCls}
             style={{ objectFit: 'contain' }}
             priority
           />
@@ -362,7 +366,7 @@ export default function Sidebar({
           alt="FoxO"
           width={36}
           height={36}
-          className="brightness-0 invert"
+          className={logoFilterCls}
           style={{ objectFit: 'contain' }}
         />
         <span className="foxo-mobile-header-label">Interface Admin</span>

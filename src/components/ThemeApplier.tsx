@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { themes, portalDefaults, type ThemeKey } from '@/lib/themes';
 
@@ -66,6 +66,23 @@ export function getCurrentTheme(): ThemeKey {
   const ds = document.documentElement.dataset.theme;
   if (isThemeKey(ds)) return ds;
   return 'dark-amber';
+}
+
+// Hook React qui retourne le thème courant et déclenche un re-render
+// quand le thème change (via ThemeSelector / ThemeToggle ailleurs dans
+// l'arbre, ou via setTheme() programmatique). Pour les composants qui
+// veulent dériver des classes/styles du thème (ex: filtre logo selon
+// sidebarDark).
+//
+// SSR-safe : la valeur initiale est 'dark-amber' côté serveur ; le
+// useEffect synchronise avec getCurrentTheme() au mount.
+export function useTheme(): ThemeKey {
+  const [theme, setThemeState] = useState<ThemeKey>('dark-amber');
+  useEffect(() => {
+    setThemeState(getCurrentTheme());
+    return subscribeThemeChange(setThemeState);
+  }, []);
+  return theme;
 }
 
 // Hook listener pour les composants qui veulent réagir à un changement

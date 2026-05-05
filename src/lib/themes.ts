@@ -3,6 +3,11 @@ export type ThemeKey = 'dark-amber' | 'warm-light' | 'foxo-blue';
 export const themes = {
   'dark-amber': {
     name: 'Sombre Amber',
+    // Si la sidebar du thème est sombre, le logo (noir d'origine) est
+    // inversé en blanc via filter brightness-0 invert. Future-proof :
+    // un thème à sidebar claire mettra `sidebarDark: false` et
+    // affichera le logo natif.
+    sidebarDark: true,
     sidebar: '#1A1916',
     sidebarText: '#9A9690',
     sidebarActive: 'rgba(200,146,74,0.15)',
@@ -27,6 +32,7 @@ export const themes = {
   },
   'warm-light': {
     name: 'Clair Warm',
+    sidebarDark: true,
     sidebar: '#2C2118',
     sidebarText: '#9A8A7A',
     sidebarActive: 'rgba(232,160,80,0.15)',
@@ -51,6 +57,7 @@ export const themes = {
   },
   'foxo-blue': {
     name: 'Bleu FoxO',
+    sidebarDark: true,
     sidebar: '#1B3A5C',
     sidebarText: '#7A9EC0',
     sidebarActive: 'rgba(59,114,176,0.22)',
