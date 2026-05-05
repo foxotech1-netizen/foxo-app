@@ -101,6 +101,13 @@ export function subscribeThemeChange(cb: (k: ThemeKey) => void): () => void {
 // changement de path (ex: l'utilisateur navigue de /admin vers /tech).
 // L'init initial est fait par le script blocking du <head> dans
 // app/layout.tsx (évite le FOUC).
+//
+// Hydratation Supabase user_preferences (best-effort, async) : au mount
+// on tente de charger la préférence persistée serveur. Cascade :
+//   Supabase user_preferences → localStorage → défaut portail.
+// Si Supabase fail (table absente, user non connecté, RLS), on garde
+// la valeur déjà appliquée par le script blocking. Mini-flash possible
+// si la valeur Supabase diffère de localStorage.
 export function ThemeApplier() {
   const pathname = usePathname();
 
@@ -116,6 +123,30 @@ export function ThemeApplier() {
     }
     applyTheme(theme);
   }, [pathname]);
+
+  // Hydratation Supabase une seule fois au mount initial — pas dans
+  // l'effet path-dependent pour éviter de spammer les fetch à chaque
+  // navigation interne.
+  useEffect(() => {
+    let cancelled = false;
+    // Import dynamique pour ne pas bundle l'action côté client si
+    // l'utilisateur n'est pas authentifié (et éviter une dep circulaire).
+    import('@/app/admin/parametres/theme-actions')
+      .then((m) => m.getUserTheme())
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok && res.data && isThemeKey(res.data)) {
+          // Supabase prime sur localStorage si différent
+          try {
+            window.localStorage.setItem(STORAGE_KEY, res.data);
+          } catch { /* noop */ }
+          applyTheme(res.data);
+          window.dispatchEvent(new CustomEvent<ThemeKey>(CHANGE_EVENT, { detail: res.data }));
+        }
+      })
+      .catch(() => { /* user pas connecté ou table absente, silencieux */ });
+    return () => { cancelled = true; };
+  }, []);
 
   return null;
 }

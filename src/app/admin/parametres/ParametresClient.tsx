@@ -17,6 +17,7 @@ import {
   type CalendarWatchStatus,
 } from './actions';
 import { SocieteSection } from './SocieteSection';
+import { ThemePicker } from '@/components/ThemePicker';
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'jamais';
@@ -138,6 +139,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
 
   return (
     <div className="space-y-5 max-w-[760px]">
+      <ThemePicker />
       <SocieteSection initial={initial} />
 
       {feedback && (
