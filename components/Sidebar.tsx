@@ -22,13 +22,24 @@ const NAV_MAIN = [
   { href: '/admin/assistant',   icon: '✨', label: 'Assistant'   },
 ]
 
+// NAV_GESTION ne contient PLUS Syndics — celui-ci est désormais le 1er
+// élément du menu dépliable "🤝 Partenaires" (rendu séparément avant
+// la map ci-dessous).
 const NAV_GESTION = [
-  { href: '/admin/syndics',      icon: '👥', label: 'Syndics'       },
   { href: '/admin/clients',      icon: '👤', label: 'Clients'       },
   { href: '/admin/facturation',  icon: '🧾', label: 'Facturation'   },
   { href: '/admin/mails',        icon: '✉',  label: 'Mails'        },
   { href: '/admin/utilisateurs', icon: '🔐', label: 'Utilisateurs'  },
   { href: '/admin/parametres',   icon: '⊙',  label: 'Paramètres'   },
+]
+
+// Sous-items du menu Partenaires — chaque item pointe vers une page
+// /admin/{slug} qui affiche les organisations filtrées par type.
+const PARTENAIRES_SUB = [
+  { href: '/admin/syndics',   icon: '🏢', label: 'Syndics'   },
+  { href: '/admin/courtiers', icon: '⚖️', label: 'Courtiers' },
+  { href: '/admin/experts',   icon: '🔍', label: 'Experts'   },
+  { href: '/admin/metiers',   icon: '🔨', label: 'Métiers'   },
 ]
 
 // ─── Styles inline (pas de Tailwind JIT requis) ────────────────────────────────
@@ -160,6 +171,16 @@ export default function Sidebar({
   const router   = useRouter()
   const supabase = createClient()
 
+  // Menu Partenaires : ouvert par défaut si on est déjà sur une de ses
+  // sous-pages (lazy init useState — pas de useEffect → pas de souci
+  // avec react-hooks/set-state-in-effect).
+  const [partenairesOpen, setPartenairesOpen] = useState(
+    pathname.startsWith('/admin/syndics')   ||
+    pathname.startsWith('/admin/courtiers') ||
+    pathname.startsWith('/admin/experts')   ||
+    pathname.startsWith('/admin/metiers')
+  )
+
   // Badge unread mails (Gmail) — fetch lazy une fois monté côté client
   const [unreadMails, setUnreadMails] = useState<number>(0)
   useEffect(() => {
@@ -234,6 +255,54 @@ export default function Sidebar({
           ))}
 
           <div style={S.divider} />
+
+          {/* Partenaires — menu dépliable avec 4 sous-items */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setPartenairesOpen(v => !v)}
+              style={{
+                ...S.navItem(false),
+                width: '100%',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                background: PARTENAIRES_SUB.some(s => isActive(s.href))
+                  ? 'rgba(255,255,255,.05)'
+                  : 'transparent',
+              }}
+              aria-expanded={partenairesOpen}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span>🤝</span>
+                <span>Partenaires</span>
+              </span>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>
+                {partenairesOpen ? '▾' : '▸'}
+              </span>
+            </button>
+            {partenairesOpen && (
+              <div>
+                {PARTENAIRES_SUB.map(sub => (
+                  <Link
+                    key={sub.href}
+                    href={sub.href}
+                    style={{
+                      ...S.navItem(isActive(sub.href)),
+                      padding: '7px 12px 7px 32px',
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span>{sub.icon}</span>
+                      <span>{sub.label}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           {NAV_GESTION.map(item => (
             <Link key={item.href} href={item.href} style={S.navItem(isActive(item.href))}>

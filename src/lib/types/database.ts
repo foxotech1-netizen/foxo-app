@@ -32,7 +32,24 @@ export type TypeIntervention =
   | 'Surconsommation eau'
   | 'Autre';
 
-export type TypeOrganisation = 'syndic' | 'courtier';
+export type TypeOrganisation =
+  | 'syndic'
+  | 'courtier'
+  | 'assurance'
+  | 'expert'
+  | 'entrepreneur'
+  | 'plombier'
+  | 'electricien'
+  | 'toiturier'
+  | 'chauffagiste'
+  | 'autre_metier';
+
+// Sous-ensembles utilisés par les pages /admin/{syndics,courtiers,experts,metiers}.
+// `metiers` regroupe les corps de métier sollicités sur intervention
+// (sous-traitants techniques distincts des partenaires commerciaux).
+export const ORGANISATION_TYPES_METIERS: TypeOrganisation[] = [
+  'entrepreneur', 'plombier', 'electricien', 'toiturier', 'chauffagiste', 'autre_metier',
+];
 
 export type DemandeurType = 'particulier' | 'syndic' | 'courtier';
 

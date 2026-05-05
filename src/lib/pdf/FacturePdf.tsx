@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { VENDOR } from '@/lib/constants/vendor';
-import type { RemiseType } from '@/lib/types/database';
+import type { RemiseType, TypeOrganisation } from '@/lib/types/database';
 import { applyRemise } from '@/lib/facturation/remises';
 
 export type FactureItem = {
@@ -27,7 +27,7 @@ export type FacturePdfData = {
   ref: string;
   client: {
     nom: string;
-    type: 'syndic' | 'courtier';
+    type: TypeOrganisation;
     adresse: string | null;
     bce: string | null;
   };
