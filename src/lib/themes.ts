@@ -8,6 +8,10 @@ export const themes = {
     // un thème à sidebar claire mettra `sidebarDark: false` et
     // affichera le logo natif.
     sidebarDark: true,
+    // Hero banner /admin/home — bandeau qui surplombe la grille de
+    // modules. warm-light garde le sable d'origine ; les autres thèmes
+    // l'ajustent à leur palette pour rester cohérents.
+    heroBg: 'rgba(200,146,74,0.15)',
     sidebar: '#1A1916',
     sidebarText: '#9A9690',
     sidebarActive: 'rgba(200,146,74,0.15)',
@@ -33,6 +37,7 @@ export const themes = {
   'warm-light': {
     name: 'Clair Warm',
     sidebarDark: true,
+    heroBg: '#E2C9A1',
     sidebar: '#2C2118',
     sidebarText: '#9A8A7A',
     sidebarActive: 'rgba(232,160,80,0.15)',
@@ -58,6 +63,7 @@ export const themes = {
   'foxo-blue': {
     name: 'Bleu FoxO',
     sidebarDark: true,
+    heroBg: 'rgba(59,114,176,0.10)',
     sidebar: '#1B3A5C',
     sidebarText: '#7A9EC0',
     sidebarActive: 'rgba(59,114,176,0.22)',

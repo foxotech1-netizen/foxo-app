@@ -82,7 +82,7 @@ export default async function HomePage() {
           width: 100%;
         }
         .foxo-home-logo-zone {
-          background: #E2C9A1;
+          background: var(--hero-bg);
           padding: 32px 16px 24px;
           display: flex;
           flex-direction: column;
