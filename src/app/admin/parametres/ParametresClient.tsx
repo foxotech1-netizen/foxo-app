@@ -16,6 +16,7 @@ import {
   unsubscribeCalendarWatchAction, renewCalendarWatchAction,
   type CalendarWatchStatus,
 } from './actions';
+import { SocieteSection } from './SocieteSection';
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'jamais';
@@ -137,6 +138,8 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
 
   return (
     <div className="space-y-5 max-w-[760px]">
+      <SocieteSection initial={initial} />
+
       {feedback && (
         <div
           className={
