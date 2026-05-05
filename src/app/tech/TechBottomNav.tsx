@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation';
 
 interface NavItem { href: string; icon: string; label: string; exact?: boolean }
 const ITEMS: readonly NavItem[] = [
-  { href: '/tech',            icon: '🏠', label: 'Accueil',    exact: true },
-  { href: '/tech/historique', icon: '📋', label: 'Historique' },
+  { href: '/tech',             icon: '🏠', label: 'Accueil',    exact: true },
+  { href: '/tech/historique',  icon: '📋', label: 'Historique' },
+  { href: '/tech/notes-frais', icon: '🧾', label: 'Notes'      },
 ];
 
 // Bottom nav PWA — fixe en bas, safe-area inset iOS, min-height 44px par
