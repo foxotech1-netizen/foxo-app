@@ -464,7 +464,10 @@ function TodoCard({
     amber: 'bg-amber-light text-[#8A5A1A] border-[#E8C896] dark:bg-[#A17244] dark:text-white dark:border-[#C4904F]',
   }[color];
   return (
-    <div className="bg-cream border border-sand-border rounded-2xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+    <div
+      className="border rounded-2xl overflow-hidden"
+      style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+    >
       <div className={'px-4 py-2.5 flex items-center justify-between border-b ' + headerStyle}>
         <span className="text-[11px] font-bold uppercase tracking-wider dark:text-white">{title}</span>
         <span className="text-[12px] font-extrabold dark:text-white">{count}</span>
@@ -522,7 +525,10 @@ function RecentResponsesCard({
           {responses.length}
         </span>
       </h3>
-      <div className="bg-cream border border-sand-border rounded-2xl divide-y divide-sand-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:divide-[#2C2A24] overflow-hidden">
+      <div
+        className="border rounded-2xl divide-y divide-sand-mid dark:divide-[#2C2A24] overflow-hidden"
+        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+      >
         {responses.slice(0, 8).map((r) => {
           const tag = reponseLabel(r);
           const fullName = [r.prenom, r.nom].filter(Boolean).join(' ') || 'Occupant';
@@ -796,7 +802,10 @@ function NewMailSection({
         </div>
       )}
 
-      <div className="bg-cream border border-sand-border rounded-2xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div
+        className="border rounded-2xl p-3"
+        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+      >
         <div className="space-y-1.5">
           {visibleMails.map((iv) => {
             const reanalyzing = reanalyzingIds.has(iv.id);
