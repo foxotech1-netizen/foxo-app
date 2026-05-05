@@ -27,7 +27,10 @@ const NAV_MAIN = [
 // la map ci-dessous).
 const NAV_GESTION = [
   { href: '/admin/clients',      icon: '👤', label: 'Clients'       },
-  { href: '/admin/facturation',  icon: '🧾', label: 'Facturation'   },
+  // /admin/comptabilite redirige vers /admin/facturation (cf. page.tsx
+  // dédiée). Le label "Comptabilité" reflète mieux le périmètre actuel
+  // (factures + devis + avoirs + paiements + rappels + export comptable).
+  { href: '/admin/comptabilite', icon: '📒', label: 'Comptabilité'  },
   { href: '/admin/mails',        icon: '✉',  label: 'Mails'        },
   { href: '/admin/utilisateurs', icon: '🔐', label: 'Utilisateurs'  },
   { href: '/admin/parametres',   icon: '⊙',  label: 'Paramètres'   },
@@ -199,8 +202,17 @@ export default function Sidebar({
     router.push('/auth/login')
   }
 
-  const isActive = (href: string) =>
-    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+  const isActive = (href: string) => {
+    // Cas spéciaux : /admin (exact match pour éviter de match toutes les
+    // sous-routes), et /admin/comptabilite qui redirige vers /admin/
+    // facturation — on highlight l'item Comptabilité sur les 2 paths.
+    if (href === '/admin') return pathname === '/admin'
+    if (href === '/admin/comptabilite') {
+      return pathname.startsWith('/admin/comptabilite')
+        || pathname.startsWith('/admin/facturation')
+    }
+    return pathname.startsWith(href)
+  }
 
   // ── Mobile bottom nav — 5 items fixes ───────────────────────────────────────
   const BOTTOM_NAV = [

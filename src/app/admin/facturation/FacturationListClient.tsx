@@ -14,6 +14,43 @@ import {
 
 const STATUTS: ('tous' | StatutFacture)[] = ['tous', 'brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'];
 
+type Periode = 'tous' | 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'last_year';
+const PERIODE_LABEL: Record<Periode, string> = {
+  tous:         'Toute la période',
+  this_month:   'Ce mois',
+  last_month:   'Mois dernier',
+  this_quarter: 'Ce trimestre',
+  this_year:    'Cette année',
+  last_year:    'Année dernière',
+};
+
+// Retourne l'intervalle [from, to] (YYYY-MM-DD inclusif) correspondant
+// à la période demandée — null = pas de filtre.
+function getPeriodeRange(p: Periode): { from: string; to: string } | null {
+  if (p === 'tous') return null;
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-11
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (p === 'this_month') {
+    return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
+  }
+  if (p === 'last_month') {
+    return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
+  }
+  if (p === 'this_quarter') {
+    const qStart = Math.floor(m / 3) * 3; // 0,3,6,9
+    return { from: iso(new Date(y, qStart, 1)), to: iso(new Date(y, qStart + 3, 0)) };
+  }
+  if (p === 'this_year') {
+    return { from: `${y}-01-01`, to: `${y}-12-31` };
+  }
+  if (p === 'last_year') {
+    return { from: `${y - 1}-01-01`, to: `${y - 1}-12-31` };
+  }
+  return null;
+}
+
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -56,6 +93,7 @@ export function FacturationListClient({
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS[number]>('tous');
+  const [periode, setPeriode] = useState<Periode>('tous');
 
   // État local synchronisé avec la prop pour permettre les mises à jour
   // optimistes (suppression de ligne, transition de statut) sans attendre
@@ -82,15 +120,20 @@ export function FacturationListClient({
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const range = getPeriodeRange(periode);
     return facturesView.filter((f) => {
       const matchQ = !q
         || f.numero.toLowerCase().includes(q)
         || (f.client_nom ?? '').toLowerCase().includes(q)
         || (f.reference ?? '').toLowerCase().includes(q);
       const matchF = filter === 'tous' || f.statut === filter;
-      return matchQ && matchF;
+      const matchP = !range
+        || (f.date_emission !== null
+            && f.date_emission >= range.from
+            && f.date_emission <= range.to);
+      return matchQ && matchF && matchP;
     });
-  }, [facturesView, query, filter]);
+  }, [facturesView, query, filter, periode]);
 
   // Stats
   const stats = useMemo(() => {
@@ -176,6 +219,16 @@ export function FacturationListClient({
             <option key={s} value={s}>
               {s === 'tous' ? 'Tous statuts' : STATUT_FACTURE_INFO[s as StatutFacture].label}
             </option>
+          ))}
+        </select>
+        <select
+          value={periode}
+          onChange={(e) => setPeriode(e.target.value as Periode)}
+          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
+          title="Filtre sur la date d'émission"
+        >
+          {(Object.entries(PERIODE_LABEL) as [Periode, string][]).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
           ))}
         </select>
       </div>

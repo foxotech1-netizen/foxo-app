@@ -49,6 +49,77 @@ export function RappelsClient({
   // Suivi de l'envoi par facture (id → { sending, msg, sent })
   const [sendState, setSendState] = useState<Record<string, { sending: boolean; msg?: string; kind?: 'ok' | 'err' }>>({});
 
+  // Sélection multiple pour envoi groupé.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batch, setBatch] = useState<{ current: number; total: number; errors: number } | null>(null);
+  const [batchMsg, setBatchMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  function toggleOne(id: string, checked: boolean) {
+    setSelected((s) => {
+      const n = new Set(s);
+      if (checked) n.add(id);
+      else n.delete(id);
+      return n;
+    });
+  }
+  function toggleAll(checked: boolean) {
+    setSelected(checked ? new Set(enRetard.map((f) => f.id)) : new Set());
+  }
+  const allChecked = enRetard.length > 0 && selected.size === enRetard.length;
+  const someChecked = selected.size > 0 && selected.size < enRetard.length;
+
+  async function sendOneRaw(id: string): Promise<{ ok: boolean; error?: string; email_sent_to?: string }> {
+    try {
+      const r = await fetch(`/api/admin/facturation/send-rappel/${id}`, { method: 'POST' });
+      return (await r.json()) as { ok: boolean; error?: string; email_sent_to?: string };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : 'Erreur réseau.' };
+    }
+  }
+
+  async function sendBulk() {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    setBatchMsg(null);
+    setBatch({ current: 0, total: ids.length, errors: 0 });
+    let errors = 0;
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      setBatch({ current: i + 1, total: ids.length, errors });
+      setSendState((s) => ({ ...s, [id]: { sending: true } }));
+      const res = await sendOneRaw(id);
+      if (!res.ok) {
+        errors++;
+        setBatch({ current: i + 1, total: ids.length, errors });
+        setSendState((s) => ({ ...s, [id]: { sending: false, kind: 'err', msg: res.error ?? 'Échec envoi.' } }));
+      } else {
+        setSendState((s) => ({
+          ...s,
+          [id]: { sending: false, kind: 'ok', msg: `Envoyé à ${res.email_sent_to ?? '—'}` },
+        }));
+      }
+    }
+    setBatch(null);
+    setSelected(new Set());
+    setBatchMsg({
+      kind: errors > 0 ? 'err' : 'ok',
+      msg: errors > 0
+        ? `${ids.length - errors}/${ids.length} rappel${ids.length > 1 ? 's' : ''} envoyé${ids.length > 1 ? 's' : ''} — ${errors} erreur${errors > 1 ? 's' : ''}.`
+        : `✓ ${ids.length} rappel${ids.length > 1 ? 's' : ''} envoyé${ids.length > 1 ? 's' : ''}.`,
+    });
+    router.refresh();
+  }
+
+  // Estime la date du prochain rappel : dernier rappel + 15j
+  // (la cadence métier par défaut côté FoxO). Si jamais envoyé,
+  // il sera basé sur la date d'échéance dépassée → "imminent".
+  function nextRappelEstimate(rappelEnvoyeAt: string | null): string {
+    if (!rappelEnvoyeAt) return 'imminent';
+    const d = new Date(rappelEnvoyeAt);
+    d.setDate(d.getDate() + 15);
+    return d.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
   async function saveAllParams() {
     setParamsSaving(true);
     setParamSaveMsg(null);
@@ -181,12 +252,52 @@ export function RappelsClient({
 
       {/* Factures en retard */}
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2 dark:text-[#F0ECE4]">
-          🔔 Factures en retard
-          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
-            {enRetard.length}
-          </span>
-        </h2>
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <h2 className="text-[13px] font-extrabold text-ink flex items-center gap-2 dark:text-[#F0ECE4]">
+            🔔 Factures en retard
+            <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+              {enRetard.length}
+            </span>
+          </h2>
+          <button
+            type="button"
+            onClick={sendBulk}
+            disabled={selected.size === 0 || Boolean(batch)}
+            className="bg-navy text-white px-3 py-1.5 rounded text-[11px] font-bold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {batch
+              ? `Envoi ${batch.current}/${batch.total}…`
+              : `📨 Envoyer les rappels sélectionnés (${selected.size})`}
+          </button>
+        </div>
+
+        {batch && (
+          <div className="mb-2 bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5 dark:bg-[#1A2540] dark:border-[#2C4878]">
+            <div className="text-[11px] text-navy font-semibold mb-1 dark:text-[#A8C4F2]">
+              Envoi en cours… {batch.current}/{batch.total}
+              {batch.errors > 0 && (
+                <span className="text-terra ml-2">· {batch.errors} erreur{batch.errors > 1 ? 's' : ''}</span>
+              )}
+            </div>
+            <div className="h-1.5 bg-sand-mid rounded-full overflow-hidden">
+              <div
+                className="h-full bg-navy transition-all"
+                style={{ width: `${Math.round((batch.current / batch.total) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {batchMsg && (
+          <div className={
+            'mb-2 px-3 py-2 text-[11px] font-semibold rounded-md border ' +
+            (batchMsg.kind === 'ok'
+              ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
+              : 'bg-terra-light border-terra-mid text-terra')
+          }>
+            {batchMsg.msg}
+          </div>
+        )}
         {enRetard.length === 0 ? (
           <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]">
             Aucune facture en retard. 🎉
@@ -197,7 +308,17 @@ export function RappelsClient({
               <table className="w-full border-collapse min-w-[860px]">
                 <thead>
                   <tr className="bg-sand dark:bg-[#221E1A]">
-                    {['N°', 'Client', 'Référence', 'Échéance', 'Retard', 'Montant', 'Dernier rappel', 'Action'].map((h) => (
+                    <th className="px-3 py-2 border-b border-sand-border w-8 dark:border-[#3D3A32]">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        ref={(el) => { if (el) el.indeterminate = someChecked; }}
+                        onChange={(e) => toggleAll(e.target.checked)}
+                        className="w-4 h-4 accent-[#1B3A6B] cursor-pointer"
+                        aria-label="Tout sélectionner"
+                      />
+                    </th>
+                    {['N°', 'Client', 'Référence', 'Échéance', 'Retard', 'Montant', 'Dernier rappel', 'Prochain rappel', 'Action'].map((h) => (
                       <th key={h} className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
                         {h}
                       </th>
@@ -208,8 +329,19 @@ export function RappelsClient({
                   {enRetard.map((f) => {
                     const retardJours = f.date_echeance ? Math.max(0, daysBetween(f.date_echeance, todayIso)) : 0;
                     const state = sendState[f.id];
+                    const checked = selected.has(f.id);
                     return (
-                      <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
+                      <tr key={f.id} className={'border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520] ' + (checked ? 'bg-navy-pale/40 dark:bg-[#1A2540]/40' : '')}>
+                        <td className="px-3 py-2 w-8">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => toggleOne(f.id, e.target.checked)}
+                            disabled={Boolean(batch) || state?.sending}
+                            className="w-4 h-4 accent-[#1B3A6B] cursor-pointer"
+                            aria-label={`Sélectionner ${f.numero}`}
+                          />
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           <Link href={`/admin/facturation/${f.id}`} className="font-mono text-xs font-bold text-navy hover:underline dark:text-[#A8C4F2]">
                             {f.numero}
@@ -232,11 +364,14 @@ export function RappelsClient({
                             ? <>{fmtDate(f.rappel_envoye_at)} {f.rappel_count && f.rappel_count > 1 ? `(×${f.rappel_count})` : ''}</>
                             : <span className="italic">jamais</span>}
                         </td>
+                        <td className="px-3 py-2 text-[10px] text-ink-mid whitespace-nowrap dark:text-[#C8C2B8]">
+                          {nextRappelEstimate(f.rappel_envoye_at)}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => sendRappel(f.id)}
-                            disabled={state?.sending}
+                            disabled={state?.sending || Boolean(batch)}
                             className="bg-[#A17244] text-white px-2.5 py-1 rounded text-[10px] font-bold hover:opacity-90 disabled:opacity-50"
                           >
                             {state?.sending ? '…' : '📤 Envoyer rappel'}
