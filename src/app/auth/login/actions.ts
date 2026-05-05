@@ -47,8 +47,8 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
   //      circuit, jamais bloqués (bouclier de récupération).
   //   2. Table public.utilisateurs filtrée sur actif=true. Soft delete via
   //      le toggle « Désactiver » d'/admin/techniciens → bloqué au login.
-  //   3. Table public.delegues filtrée sur actif=true. Soft delete via le
-  //      drawer syndic → bouton « 🚫 Désactiver » → bloqué au login.
+  //   3. Table public.delegues filtrée sur actif=true — partenaire
+  //      désactivé = bloqué au login (toggle dans le drawer syndic).
   // shouldCreateUser reste à true : la whitelist DB est le seul gate.
   const isHardcoded =
     (ADMIN_EMAILS as readonly string[]).includes(email)
