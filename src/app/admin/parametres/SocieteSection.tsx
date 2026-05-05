@@ -95,13 +95,13 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
   }
 
   const inputCls =
-    'w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#2C2A24] dark:text-[#F0ECE4]';
+    'w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid';
 
   return (
-    <section className="bg-cream rounded-xl border border-sand-border p-5 space-y-5 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+    <section className="bg-cream rounded-xl border border-sand-border p-5 space-y-5">
       <div>
-        <h2 className="text-[13px] font-extrabold text-ink dark:text-[#F0ECE4]">🏢 Société</h2>
-        <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+        <h2 className="text-[13px] font-extrabold text-ink">🏢 Société</h2>
+        <p className="text-[11px] text-ink-muted mt-0.5">
           Informations légales utilisées sur les factures et documents.
         </p>
       </div>
@@ -312,20 +312,20 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
             className={
               'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer ' +
               (uploadingLogo
-                ? 'bg-sand-mid text-ink-muted cursor-wait dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]'
-                : 'bg-sand-mid text-ink border border-sand-border hover:bg-sand-hover dark:bg-[rgba(255,255,255,.06)] dark:border-[#2C2A24] dark:text-[#F0ECE4]')
+                ? 'bg-sand-mid text-ink-muted cursor-wait dark:bg-[rgba(255,255,255,.06)]'
+                : 'bg-sand-mid text-ink border border-sand-border hover:bg-sand-hover dark:bg-[rgba(255,255,255,.06)]')
             }
           >
             {uploadingLogo ? '⏳ Upload…' : societeLogoUrl ? '🔁 Remplacer le logo' : '📤 Uploader un logo'}
           </span>
         </label>
-        <p className="text-[10px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+        <p className="text-[10px] text-ink-muted mt-1">
           jpg / png / webp / svg, max 2 Mo. L&apos;ancien logo est écrasé à chaque upload.
         </p>
       </div>
 
       {/* Save + feedback */}
-      <div className="flex items-center gap-3 pt-2 border-t border-sand-border dark:border-[#2C2A24]">
+      <div className="flex items-center gap-3 pt-2 border-t border-sand-border">
         <button
           type="button"
           onClick={handleSave}
@@ -354,7 +354,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1 dark:text-[#C8C2B8]">
+      <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1">
         {label}
       </label>
       {children}
@@ -364,7 +364,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function FieldGroup({ label }: { label: string }) {
   return (
-    <div className="text-[10px] font-bold text-navy uppercase tracking-widest border-b border-sand-border pb-1 dark:text-[#A8C4F2] dark:border-[#2C2A24]">
+    <div className="text-[10px] font-bold text-navy uppercase tracking-widest border-b border-sand-border pb-1">
       {label}
     </div>
   );

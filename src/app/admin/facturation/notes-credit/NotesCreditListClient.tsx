@@ -118,12 +118,12 @@ export function NotesCreditListClient({
         </div>
       )}
 
-      <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      <div className="bg-cream border border-sand-border rounded-xl overflow-hidden">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-sand dark:bg-[#221E1A]">
+            <tr className="bg-sand">
               {['N° avoir', 'Facture d\'origine', 'Client', 'Date', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
-                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -141,7 +141,7 @@ export function NotesCreditListClient({
               const label = STATUT_LABEL[a.statut] ?? a.statut;
               const origNum = a.facture_origine_id ? origineMap[a.facture_origine_id] : null;
               return (
-                <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#2C2A24] dark:hover:bg-[#221E1A]">
+                <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-mono text-xs font-bold text-terra">
                     <Link href={`/admin/facturation/notes-credit/${a.id}`} className="hover:underline">
                       {a.numero}
@@ -149,7 +149,7 @@ export function NotesCreditListClient({
                   </td>
                   <td className="px-3.5 py-3 text-[12px]">
                     {a.facture_origine_id ? (
-                      <Link href={`/admin/facturation/${a.facture_origine_id}`} className="font-mono text-navy hover:underline dark:text-[#A8C4F2]">
+                      <Link href={`/admin/facturation/${a.facture_origine_id}`} className="font-mono text-navy hover:underline">
                         {origNum ?? '?'}
                       </Link>
                     ) : <span className="text-ink-muted">—</span>}

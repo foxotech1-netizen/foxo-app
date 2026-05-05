@@ -299,7 +299,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     <div onMouseUp={endDrag} onMouseLeave={endDrag} className="select-none">
       {/* Onglets techniciens */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mr-2 dark:text-[#C8C2B8]">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mr-2">
           Technicien
         </span>
         {techs.map((t, i) => {
@@ -314,7 +314,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
                 'px-3 py-1.5 rounded-md text-[12px] font-bold border transition-colors ' +
                 (active
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
+                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
               }
             >
               {label}
@@ -328,60 +328,60 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         <button
           type="button"
           onClick={presetSemaineStandard}
-          className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+          className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)]"
         >
           Semaine standard
         </button>
         <button
           type="button"
           onClick={presetAvecSoirees}
-          className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+          className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)]"
         >
           Avec soirées
         </button>
         <button
           type="button"
           onClick={clearAll}
-          className="text-[11px] bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-bold dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+          className="text-[11px] bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-bold"
         >
           ✕ Tout effacer
         </button>
       </div>
 
       {/* Sélecteur de semaine de départ + résumé */}
-      <div className="bg-cream border border-sand-border rounded-xl px-3 py-2.5 mb-3 flex flex-wrap items-center gap-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-        <label className="text-[11px] font-bold text-ink-muted dark:text-[#C8C2B8]">
+      <div className="bg-cream border border-sand-border rounded-xl px-3 py-2.5 mb-3 flex flex-wrap items-center gap-3">
+        <label className="text-[11px] font-bold text-ink-muted">
           Semaine de départ
         </label>
         <input
           type="date"
           value={isoDate(weekStart)}
           onChange={(e) => handleStartDateChange(e.target.value)}
-          className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid font-mono"
         />
-        <span className="text-[11px] text-ink dark:text-[#F0ECE4]">
+        <span className="text-[11px] text-ink">
           → <strong>{fmtLong(weekStart)}</strong>
         </span>
         {cellCount > 0 && (
-          <span className="text-[11px] text-ink-muted ml-auto dark:text-[#C8C2B8]">
-            Créera des créneaux du <strong className="text-ink dark:text-[#F0ECE4]">{fmtLong(weekStart)}</strong> au{' '}
-            <strong className="text-ink dark:text-[#F0ECE4]">{fmtLong(rangeEnd)}</strong>
+          <span className="text-[11px] text-ink-muted ml-auto">
+            Créera des créneaux du <strong className="text-ink">{fmtLong(weekStart)}</strong> au{' '}
+            <strong className="text-ink">{fmtLong(rangeEnd)}</strong>
           </span>
         )}
       </div>
 
       {/* Grille jours × créneaux */}
-      <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="bg-cream border border-sand-border rounded-xl overflow-hidden">
         <div
           className="grid"
           style={{ gridTemplateColumns: '90px repeat(7, 1fr)' }}
         >
           {/* Header — coin vide + jours */}
-          <div className="bg-sand border-b border-r border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]" />
+          <div className="bg-sand border-b border-r border-sand-border" />
           {FOXO_DAYS_SHORT.map((d) => (
             <div
               key={d}
-              className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:bg-[#141210] dark:border-[#2C2A24] dark:text-[#C8C2B8]"
+              className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 text-[11px] font-bold uppercase tracking-wider text-ink-muted"
             >
               {d}
             </div>
@@ -404,7 +404,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 
       {/* Footer actions */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <span className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">
+        <span className="text-[11px] text-ink-mid">
           {loadingExisting ? (
             <span className="italic">Chargement des créneaux existants…</span>
           ) : (
@@ -417,13 +417,13 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           )}
         </span>
         <div className="flex items-center gap-2 ml-auto">
-          <label className="text-[11px] text-ink-mid font-semibold dark:text-[#C8C2B8]">
+          <label className="text-[11px] text-ink-mid font-semibold">
             Appliquer sur
           </label>
           <select
             value={weeks}
             onChange={(e) => setWeeks(parseInt(e.target.value, 10) as WeekCount)}
-            className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+            className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid"
           >
             {ALLOWED_WEEKS.map((n) => (
               <option key={n} value={n}>{n} semaine{n > 1 ? 's' : ''}</option>
@@ -444,19 +444,19 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         <div className={
           'mt-2 px-3 py-2 text-[12px] rounded-md border font-semibold ' +
           (msg.kind === 'ok'
-            ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
+            ? 'bg-ok-light border-ok-mid text-ok'
             : 'bg-terra-light border-terra-mid text-terra')
         }>
           {msg.msg}
         </div>
       )}
 
-      <p className="text-[10px] text-ink-muted italic mt-2 dark:text-[#C8C2B8]">
+      <p className="text-[10px] text-ink-muted italic mt-2">
         Astuce : les cases déjà cochées en navy sont les créneaux enregistrés en DB.
         Décocher une case = suppression au prochain enregistrement (badge ambre ✕).
         Les créneaux 🔒 réservés ou 🚫 bloqués ne peuvent pas être supprimés ici.
       </p>
-      <p className="text-[10px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+      <p className="text-[10px] text-ink-muted mt-1">
         <span className="text-[9px] uppercase font-bold tracking-wider">{totalForWeeks ? `${totalForWeeks} créneaux total après save` : ''}</span>
       </p>
     </div>
@@ -475,11 +475,11 @@ function Row({
 }) {
   return (
     <>
-      <div className="bg-sand border-b border-r border-sand-border text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24]">
-        <div className="text-[11px] font-mono font-extrabold text-ink dark:text-[#F0ECE4]">
+      <div className="bg-sand border-b border-r border-sand-border text-center py-2">
+        <div className="text-[11px] font-mono font-extrabold text-ink">
           {slot.heure_debut}
         </div>
-        <div className="text-[9px] font-mono text-ink-muted dark:text-[#C8C2B8]">
+        <div className="text-[9px] font-mono text-ink-muted">
           →{slot.heure_fin}
         </div>
       </div>
@@ -496,7 +496,7 @@ function Row({
         // - off + nouveau : blanc
         const willDelete = !on && existing && existing.statut === 'libre';
         const willCreate = on && !existing;
-        let cellClass = 'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors dark:border-[#2C2A24] flex items-center justify-center text-[10px] font-bold ';
+        let cellClass = 'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors flex items-center justify-center text-[10px] font-bold ';
         if (locked) {
           cellClass += 'bg-navy/40 cursor-not-allowed text-white/70 ';
         } else if (on && existing) {
@@ -506,7 +506,7 @@ function Row({
         } else if (willDelete) {
           cellClass += 'bg-amber-light hover:brightness-95 cursor-pointer text-[#8A5A1A] border-2 border-[#E8C896] ';
         } else {
-          cellClass += 'bg-white hover:bg-sand-hover cursor-pointer dark:bg-[#221E1A] dark:hover:bg-[#2A2520] ';
+          cellClass += 'bg-white hover:bg-sand-hover cursor-pointer ';
         }
         return (
           <button

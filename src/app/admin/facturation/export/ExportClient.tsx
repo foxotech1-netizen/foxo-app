@@ -103,10 +103,10 @@ export function ExportClient({
 
   return (
     <div className="space-y-6">
-      <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-3 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-3">
         <div>
-          <h2 className="text-[13px] font-extrabold text-ink dark:text-[#F0ECE4]">📅 Période</h2>
-          <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+          <h2 className="text-[13px] font-extrabold text-ink">📅 Période</h2>
+          <p className="text-[11px] text-ink-muted mt-0.5">
             Range actuel : <strong className="font-mono">{range.from}</strong> → <strong className="font-mono">{range.to}</strong>
           </p>
         </div>
@@ -126,7 +126,7 @@ export function ExportClient({
                 'px-3 py-1.5 rounded-md text-[12px] font-bold border transition-colors ' +
                 (periode === opt.v
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
+                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
               }
             >
               {opt.label}
@@ -137,21 +137,21 @@ export function ExportClient({
         {periode === 'custom' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">Du</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">Du</label>
               <input
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">Au</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">Au</label>
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
               />
             </div>
           </div>
@@ -162,7 +162,7 @@ export function ExportClient({
             type="button"
             onClick={handleDownload}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+            className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
           >
             📥 Télécharger CSV
           </button>
@@ -193,20 +193,20 @@ export function ExportClient({
       </section>
 
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2 dark:text-[#F0ECE4]">
+        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
           🗄️ Historique des exports
         </h2>
         {history.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]">
+          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
             Aucun export envoyé pour l&apos;instant.
           </div>
         ) : (
-          <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+          <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-sand dark:bg-[#221E1A]">
+                <tr className="bg-sand">
                   {['Date', 'Statut', 'Description', 'Par'].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                    <th key={h} className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border">
                       {h}
                     </th>
                   ))}
@@ -214,8 +214,8 @@ export function ExportClient({
               </thead>
               <tbody>
                 {history.map((h) => (
-                  <tr key={h.id} className="border-b border-sand-mid dark:border-[#3D3A32]">
-                    <td className="px-3 py-2 text-[11px] font-mono text-ink-mid whitespace-nowrap dark:text-[#C8C2B8]">{fmtDateTime(h.sent_at)}</td>
+                  <tr key={h.id} className="border-b border-sand-mid">
+                    <td className="px-3 py-2 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDateTime(h.sent_at)}</td>
                     <td className="px-3 py-2">
                       <span className={
                         'inline-block text-[10px] font-bold rounded-full px-2 py-0.5 ' +
@@ -226,8 +226,8 @@ export function ExportClient({
                         {h.status === 'sent' ? '✓ Envoyé' : '✗ ' + (h.status ?? 'inconnu')}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-ink dark:text-[#F0ECE4]">{h.message ?? '—'}</td>
-                    <td className="px-3 py-2 text-[10px] text-ink-muted dark:text-[#C8C2B8]">{h.sent_by ?? '—'}</td>
+                    <td className="px-3 py-2 text-[11px] text-ink">{h.message ?? '—'}</td>
+                    <td className="px-3 py-2 text-[10px] text-ink-muted">{h.sent_by ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

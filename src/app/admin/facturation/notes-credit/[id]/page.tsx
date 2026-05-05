@@ -68,7 +68,7 @@ export default async function EditAvoirPage({
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={avoir} defaults={emailDefaults} />
-          <Link href="/admin/facturation/notes-credit" className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8] min-h-[44px] inline-flex items-center">
+          <Link href="/admin/facturation/notes-credit" className="text-[12px] text-ink-mid hover:text-navy min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>
         </div>

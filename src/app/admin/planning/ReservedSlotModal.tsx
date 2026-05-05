@@ -144,13 +144,13 @@ export function ReservedSlotModal({
       onClose={onClose}
     >
       {loadingIv && (
-        <div className="text-[13px] text-ink-muted text-center py-6 dark:text-[#C8C2B8]">Chargement…</div>
+        <div className="text-[13px] text-ink-muted text-center py-6">Chargement…</div>
       )}
 
       {iv && !movePanel && (
         <div className="space-y-4">
           {/* Récap */}
-          <div className="bg-navy-pale border border-navy-light rounded-xl p-3 dark:bg-[#1B3A6B] dark:border-[#2A5298]">
+          <div className="bg-navy-pale border border-navy-light rounded-xl p-3">
             <div className="text-[10px] uppercase tracking-wider font-bold text-navy/70 dark:text-white/70">
               Intervention liée
             </div>
@@ -178,7 +178,7 @@ export function ReservedSlotModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
             />
           </div>
 
@@ -188,7 +188,7 @@ export function ReservedSlotModal({
               <select
                 value={techId}
                 onChange={(e) => setTechId(e.target.value)}
-                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
               >
                 <option value="">— Aucun —</option>
                 {techs.map((t) => (
@@ -198,7 +198,7 @@ export function ReservedSlotModal({
                 ))}
               </select>
               {techId && techMap.get(techId) && techId !== iv.technicien_id && (
-                <p className="text-[10px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+                <p className="text-[10px] text-ink-muted mt-1 italic">
                   Note : changer de tech ici met à jour l&apos;intervention mais pas le créneau du tech d&apos;origine.
                 </p>
               )}
@@ -208,7 +208,7 @@ export function ReservedSlotModal({
               <select
                 value={statut}
                 onChange={(e) => setStatut(e.target.value as Statut)}
-                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
               >
                 {STATUTS.map((s) => (
                   <option key={s} value={s}>{STATUT_LABEL[s]}</option>
@@ -236,7 +236,7 @@ export function ReservedSlotModal({
               type="button"
               onClick={applyFree}
               disabled={pending}
-              className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold disabled:opacity-50 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+              className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold disabled:opacity-50"
             >
               ↩ Libérer le créneau
             </button>
@@ -249,15 +249,15 @@ export function ReservedSlotModal({
           <button
             type="button"
             onClick={() => setMovePanel(false)}
-            className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]"
+            className="text-[12px] text-ink-mid hover:text-navy"
           >
             ← Retour
           </button>
-          <div className="text-[12px] text-ink-mid dark:text-[#C8C2B8]">
+          <div className="text-[12px] text-ink-mid">
             Sélectionne un nouveau créneau libre {iv.technicien_id ? 'pour ce technicien' : ''} :
           </div>
           {freeSlots.length === 0 ? (
-            <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+            <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A]">
               Aucun créneau libre dans les 2 prochains mois. Crée des créneaux dans l&apos;onglet « Gérer ».
             </div>
           ) : (
@@ -268,12 +268,12 @@ export function ReservedSlotModal({
                   type="button"
                   onClick={() => applyMove(s.id)}
                   disabled={pending}
-                  className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-3 py-2 flex items-center justify-between text-[13px] disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                  className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-3 py-2 flex items-center justify-between text-[13px] disabled:opacity-50"
                 >
                   <span>
                     {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'long' })}
                   </span>
-                  <span className="font-mono font-bold text-navy dark:text-[#A8C4F2]">
+                  <span className="font-mono font-bold text-navy">
                     {s.heure_debut} → {s.heure_fin}
                   </span>
                 </button>
@@ -289,7 +289,7 @@ export function ReservedSlotModal({
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
           >
             Fermer
           </button>
@@ -309,7 +309,7 @@ export function ReservedSlotModal({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+    <label className="text-xs font-semibold text-ink-mid block mb-1.5">
       {children}
     </label>
   );

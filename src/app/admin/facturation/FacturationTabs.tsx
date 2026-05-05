@@ -28,7 +28,7 @@ export function FacturationTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="px-6 pt-3 bg-sand border-b border-sand-border flex-shrink-0 dark:bg-[#141210] dark:border-[#2C2A24]">
+    <div className="px-6 pt-3 bg-sand border-b border-sand-border flex-shrink-0">
       <div className="flex flex-wrap gap-0.5 -mb-px">
         {TABS.map((t) => {
           const active = t.exact === true
@@ -41,8 +41,8 @@ export function FacturationTabs() {
               className={
                 'flex items-center gap-1.5 px-3.5 py-2 rounded-t-lg text-[12px] font-bold border-b-2 transition-colors ' +
                 (active
-                  ? 'bg-cream border-navy text-navy dark:bg-[#1C1A16] dark:text-[#A8C4F2] dark:border-[#7AA8E8]'
-                  : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)] dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4] dark:hover:border-[rgba(255,255,255,.2)]')
+                  ? 'bg-cream border-navy text-navy'
+                  : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)] dark:hover:border-[rgba(255,255,255,.2)]')
               }
             >
               <span aria-hidden>{t.icon}</span>

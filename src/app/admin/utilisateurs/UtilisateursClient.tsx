@@ -207,13 +207,13 @@ export function UtilisateursClient({
 
         {/* Form inline collapsible */}
         {formOpen && (
-          <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+          <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3">
+            <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">
               Nouvel utilisateur
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
                   Email *
                 </label>
                 <input
@@ -221,17 +221,17 @@ export function UtilisateursClient({
                   value={fEmail}
                   onChange={(e) => setFEmail(e.target.value)}
                   placeholder="contact@partenaire.be"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
                   Rôle *
                 </label>
                 <select
                   value={fRole}
                   onChange={(e) => setFRole(e.target.value as typeof fRole)}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white cursor-pointer dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white cursor-pointer"
                 >
                   <option value="syndic">Syndic</option>
                   <option value="courtier">Courtier</option>
@@ -239,14 +239,14 @@ export function UtilisateursClient({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
                   Organisation {fRole === 'technicien' ? '' : '*'}
                 </label>
                 <select
                   value={fOrgId}
                   onChange={(e) => setFOrgId(e.target.value)}
                   disabled={fRole === 'technicien'}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white cursor-pointer disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white cursor-pointer disabled:opacity-50"
                 >
                   <option value="">{fRole === 'technicien' ? '— (interne)' : 'Sélectionner…'}</option>
                   {orgs.map((o) => (
@@ -260,7 +260,7 @@ export function UtilisateursClient({
                 type="button"
                 onClick={() => { setFormOpen(false); resetForm(); }}
                 disabled={pending}
-                className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
               >
                 Annuler
               </button>
@@ -303,13 +303,13 @@ export function UtilisateursClient({
         </div>
 
         {/* Tableau */}
-        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse min-w-[760px]">
               <thead>
-                <tr className="bg-sand dark:bg-[#221E1A]">
+                <tr className="bg-sand">
                   {['Email', 'Rôle', 'Organisation', 'Actif', 'Créé le', 'Actions'].map((h) => (
-                    <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                    <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -318,13 +318,13 @@ export function UtilisateursClient({
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
+                    <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px]">
                       Aucun utilisateur ne correspond au filtre.
                     </td>
                   </tr>
                 ) : filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
-                    <td className="px-3.5 py-3 font-mono text-xs font-semibold text-ink dark:text-[#F0ECE4]">
+                  <tr key={u.id} className="border-b border-sand-mid hover:bg-sand-hover">
+                    <td className="px-3.5 py-3 font-mono text-xs font-semibold text-ink">
                       {u.email ?? '—'}
                     </td>
                     <td className="px-3.5 py-3">
@@ -343,7 +343,7 @@ export function UtilisateursClient({
                     <td className="px-3.5 py-3">
                       <Toggle active={u.actif} onChange={() => toggleActif(u)} disabled={pending} />
                     </td>
-                    <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                    <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                       {fmtDate(u.created_at)}
                     </td>
                     <td className="px-3.5 py-3 whitespace-nowrap">
@@ -351,7 +351,7 @@ export function UtilisateursClient({
                         type="button"
                         onClick={() => setConfirmDelete(u)}
                         disabled={pending}
-                        className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+                        className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50"
                         title="Supprimer"
                       >
                         🗑
@@ -396,7 +396,7 @@ function Toggle({
       disabled={disabled}
       className={
         'relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ' +
-        (active ? 'bg-ok' : 'bg-sand-border dark:bg-[#3D3A32]')
+        (active ? 'bg-ok' : 'bg-sand-border')
       }
     >
       <span

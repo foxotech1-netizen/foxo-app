@@ -322,7 +322,7 @@ export function CreateInterventionModal({
               'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors ' +
               (demandeurType === 'syndic'
                 ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink border-sand-border hover:border-navy-mid dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
+                : 'bg-white text-ink border-sand-border hover:border-navy-mid')
             }
           >
             🏢 Syndic
@@ -334,7 +334,7 @@ export function CreateInterventionModal({
               'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors ' +
               (demandeurType === 'particulier'
                 ? 'bg-[#1F6B45] text-white border-[#1F6B45]'
-                : 'bg-white text-ink border-sand-border hover:border-[#1F6B45] dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
+                : 'bg-white text-ink border-sand-border hover:border-[#1F6B45]')
             }
           >
             👤 Particulier
@@ -357,7 +357,7 @@ export function CreateInterventionModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Décris le problème, l'étage, les dégâts visibles…"
               rows={3}
-              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -370,8 +370,8 @@ export function CreateInterventionModal({
                     className={
                       'px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-2 text-xs ' +
                       (priorite === p
-                        ? 'border-navy bg-navy-pale dark:bg-[#1B3A6B] dark:text-white'
-                        : 'border-sand-border bg-white dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]')
+                        ? 'border-navy bg-navy-pale dark:text-white'
+                        : 'border-sand-border bg-white')
                     }
                   >
                     <input type="radio" checked={priorite === p} onChange={() => setPriorite(p)} className="accent-[#1B3A6B]" />
@@ -388,7 +388,7 @@ export function CreateInterventionModal({
           <>
             <Section title="ACP (immeuble)">
               {selectedAcp ? (
-                <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3 dark:bg-[#1B3A6B] dark:border-[#2A5298]">
+                <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3">
                   <div>
                     <div className="font-bold text-[13px] text-navy dark:text-white">{selectedAcp.nom}</div>
                     <div className="text-[11px] text-navy/80 dark:text-white/80">
@@ -409,16 +409,16 @@ export function CreateInterventionModal({
                     className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
                   />
                   {acpResults.length > 0 && (
-                    <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
+                    <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
                       {acpResults.map((a) => (
                         <button
                           key={a.id}
                           type="button"
                           onClick={() => { setSelectedAcp(a); setAcpResults([]); setAcpQuery(a.nom); }}
-                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand"
                         >
                           <div className="font-bold">{a.nom}</div>
-                          <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                          <div className="text-[10px] text-ink-muted">
                             {[a.adresse, a.code_postal, a.ville].filter(Boolean).join(', ')}
                             {a.bce ? ` · BCE ${a.bce}` : ''}
                           </div>
@@ -432,7 +432,7 @@ export function CreateInterventionModal({
 
             <Section title="Syndic">
               {selectedOrg ? (
-                <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3 dark:bg-[#1B3A6B] dark:border-[#2A5298]">
+                <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="font-bold text-[13px] text-navy dark:text-white flex items-center gap-2">
                       {selectedOrg.nom}
@@ -451,19 +451,19 @@ export function CreateInterventionModal({
                     className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
                   />
                   {orgResults.length > 0 && (
-                    <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
+                    <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
                       {orgResults.map((o) => (
                         <button
                           key={o.id}
                           type="button"
                           onClick={() => { setSelectedOrg(o); setOrgResults([]); setOrgQuery(o.nom); }}
-                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand"
                         >
                           <div className="font-bold flex items-center gap-2">
                             {o.nom}
                             <TypeBadge type={o.type} />
                           </div>
-                          <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">{o.email}</div>
+                          <div className="text-[10px] text-ink-muted">{o.email}</div>
                         </button>
                       ))}
                     </div>
@@ -475,27 +475,27 @@ export function CreateInterventionModal({
             {/* Adresses syndic — info + override facturation */}
             {selectedAcp && selectedOrg && (
               <Section title="Adresses">
-                <div className="bg-sand border border-sand-border rounded-lg p-3 mb-3 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                <div className="bg-sand border border-sand-border rounded-lg p-3 mb-3 text-[12px]">
                   <div className="flex items-start gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] w-[110px] flex-shrink-0 mt-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted w-[110px] flex-shrink-0 mt-0.5">
                       Intervention
                     </span>
-                    <span className="text-ink dark:text-[#F0ECE4]">
+                    <span className="text-ink">
                       {[selectedAcp.adresse, selectedAcp.code_postal, selectedAcp.ville].filter(Boolean).join(', ') || '—'}
-                      <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8] ml-1">(ACP)</span>
+                      <span className="text-[10px] text-ink-muted ml-1">(ACP)</span>
                     </span>
                   </div>
                   <div className="flex items-start gap-2 mt-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] w-[110px] flex-shrink-0 mt-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted w-[110px] flex-shrink-0 mt-0.5">
                       Facturation
                     </span>
-                    <span className="text-ink dark:text-[#F0ECE4]">
+                    <span className="text-ink">
                       {billingOverride
                         ? <span className="italic">Adresse custom (ci-dessous)</span>
                         : (
                           <>
-                            {selectedOrg.adresse || <em className="text-ink-muted dark:text-[#C8C2B8]">—</em>}
-                            <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8] ml-1">
+                            {selectedOrg.adresse || <em className="text-ink-muted">—</em>}
+                            <span className="text-[10px] text-ink-muted ml-1">
                               ({selectedOrg.nom})
                             </span>
                           </>
@@ -504,7 +504,7 @@ export function CreateInterventionModal({
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-[12px] cursor-pointer mb-2 dark:text-[#F0ECE4]">
+                <label className="flex items-center gap-2 text-[12px] cursor-pointer mb-2">
                   <input
                     type="checkbox"
                     checked={billingOverride}
@@ -558,7 +558,7 @@ export function CreateInterventionModal({
                 <Field label="Téléphone *" type="tel" value={pTel} onChange={setPTel} />
               </div>
               <div className="mt-3">
-                <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+                <label className="text-xs font-semibold text-ink-mid block mb-1.5">
                   Adresse de facturation *
                 </label>
                 <input
@@ -589,7 +589,7 @@ export function CreateInterventionModal({
 
             {/* Lieu intervention */}
             <Section title="Lieu d'intervention">
-              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2 dark:text-[#F0ECE4]">
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2">
                 <input
                   type="checkbox"
                   checked={pLieuMeme}
@@ -626,7 +626,7 @@ export function CreateInterventionModal({
 
             {/* Contact sur place */}
             <Section title="Contact sur place (optionnel)">
-              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2 dark:text-[#F0ECE4]">
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2">
                 <input
                   type="checkbox"
                   checked={pContactActif}
@@ -644,7 +644,7 @@ export function CreateInterventionModal({
                   <Field label="Téléphone *" type="tel" value={pContactTel} onChange={setPContactTel} placeholder="+32 ..." />
                   <Field label="Email (optionnel)" type="email" value={pContactEmail} onChange={setPContactEmail} />
                   <div>
-                    <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+                    <label className="text-xs font-semibold text-ink-mid block mb-1.5">
                       Instructions d&apos;accès
                     </label>
                     <textarea
@@ -665,9 +665,9 @@ export function CreateInterventionModal({
         <Section title={demandeurType === 'syndic' ? 'Appartements / unités concernés' : 'Autres unités à inspecter (optionnel)'}>
           <div className="space-y-2">
             {occupants.map((o, i) => (
-              <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
                     Unité {i + 1}
                   </span>
                   {occupants.length > 1 && (
@@ -685,13 +685,13 @@ export function CreateInterventionModal({
                     value={o.appartement}
                     onChange={(e) => updateOccupant(i, { appartement: e.target.value })}
                     placeholder="Numéro / nom (Apt 3B, Cave 2, Communs…)"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
                   />
                   <input
                     value={o.etage ?? ''}
                     onChange={(e) => updateOccupant(i, { etage: e.target.value })}
                     placeholder="Étage (optionnel)"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -699,31 +699,31 @@ export function CreateInterventionModal({
                     value={o.prenom}
                     onChange={(e) => updateOccupant(i, { prenom: e.target.value })}
                     placeholder="Prénom occupant"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
                   />
                   <input
                     value={o.nom}
                     onChange={(e) => updateOccupant(i, { nom: e.target.value })}
                     placeholder="Nom occupant"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
                   />
                   <input
                     value={o.telephone}
                     onChange={(e) => updateOccupant(i, { telephone: e.target.value })}
                     type="tel"
                     placeholder="+32 488 12 34 56"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono"
                   />
                   <input
                     value={o.email}
                     onChange={(e) => updateOccupant(i, { email: e.target.value })}
                     type="email"
                     placeholder="Email (lien occupant /o/…)"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
                   />
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] mb-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
                     Statut accès
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
@@ -739,8 +739,8 @@ export function CreateInterventionModal({
                         className={
                           'px-2 py-1.5 border rounded text-[11px] font-semibold cursor-pointer text-center ' +
                           (o.conf === opt.v
-                            ? 'border-navy bg-navy-pale text-navy dark:bg-[#1B3A6B] dark:text-white dark:border-[#2A5298]'
-                            : 'border-sand-border bg-white text-ink-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]')
+                            ? 'border-navy bg-navy-pale text-navy dark:text-white'
+                            : 'border-sand-border bg-white text-ink-mid')
                         }
                       >
                         <input
@@ -755,7 +755,7 @@ export function CreateInterventionModal({
                   </div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8] mb-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
                     Préférence contact
                   </div>
                   <div className="grid grid-cols-4 gap-1.5">
@@ -772,8 +772,8 @@ export function CreateInterventionModal({
                         className={
                           'px-1.5 py-1 border rounded text-[10px] font-semibold cursor-pointer text-center ' +
                           (o.contact_preference === opt.v
-                            ? 'border-navy bg-navy-pale text-navy dark:bg-[#1B3A6B] dark:text-white dark:border-[#2A5298]'
-                            : 'border-sand-border bg-white text-ink-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]')
+                            ? 'border-navy bg-navy-pale text-navy dark:text-white'
+                            : 'border-sand-border bg-white text-ink-mid')
                         }
                       >
                         <input
@@ -792,19 +792,19 @@ export function CreateInterventionModal({
                   onChange={(e) => updateOccupant(i, { instructions: e.target.value })}
                   placeholder="Instructions spécifiques (digicode, gardien, créneau d'accès…)"
                   rows={2}
-                  className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none resize-y dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none resize-y"
                 />
               </div>
             ))}
             <button
               type="button"
               onClick={addOccupant}
-              className="w-full bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-semibold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+              className="w-full bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-semibold dark:bg-[rgba(255,255,255,.06)]"
             >
               + Ajouter un appartement
             </button>
             {demandeurType === 'particulier' && (
-              <p className="text-[10px] text-ink-muted dark:text-[#C8C2B8] italic mt-1">
+              <p className="text-[10px] text-ink-muted italic mt-1">
                 Le particulier ci-dessus reste le contact principal. Cette section sert pour les unités annexes (cave, communs, voisin impacté, etc.).
               </p>
             )}
@@ -823,7 +823,7 @@ export function CreateInterventionModal({
           type="button"
           onClick={onClose}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
         >
           Annuler
         </button>
@@ -855,18 +855,18 @@ export function ModalShell({
       className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-cream w-full sm:max-w-[640px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-        <header className="px-5 py-4 border-b border-sand-border flex items-start justify-between gap-3 flex-shrink-0 dark:border-[#2C2A24]">
+      <div className="bg-cream w-full sm:max-w-[640px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl">
+        <header className="px-5 py-4 border-b border-sand-border flex items-start justify-between gap-3 flex-shrink-0">
           <div>
-            <h2 className="text-base font-extrabold text-ink dark:text-[#F0ECE4]">{title}</h2>
+            <h2 className="text-base font-extrabold text-ink">{title}</h2>
             {subtitle && (
-              <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">{subtitle}</p>
+              <p className="text-[11px] text-ink-muted mt-0.5">{subtitle}</p>
             )}
           </div>
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)]"
           >
             ✕
           </button>
@@ -879,7 +879,7 @@ export function ModalShell({
 
 export function ModalFooter({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-sand-border dark:border-[#2C2A24]">
+    <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-sand-border">
       {children}
     </div>
   );
@@ -888,7 +888,7 @@ export function ModalFooter({ children }: { children: React.ReactNode }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">
         {title}
       </div>
       {children}
@@ -898,7 +898,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+    <label className="text-xs font-semibold text-ink-mid block mb-1.5">
       {children}
     </label>
   );
@@ -917,7 +917,7 @@ function Field({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
         >
           {children}
         </select>
@@ -933,7 +933,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={
-          'w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4] ' +
+          'w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid ' +
           (mono ? 'font-mono' : '')
         }
       />

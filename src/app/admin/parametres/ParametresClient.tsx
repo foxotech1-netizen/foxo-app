@@ -171,7 +171,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             value={emailComptable}
             onChange={(e) => setEmailComptable(e.target.value)}
             placeholder="comptable@cabinet.be"
-            className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+            className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
           <SaveBtn pending={pending} onClick={() => save('email_comptable', emailComptable)} />
         </Row>
@@ -185,7 +185,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             max="120"
             value={paymentTerms}
             onChange={(e) => setPaymentTerms(e.target.value)}
-            className="w-24 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+            className="w-24 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
           <SaveBtn pending={pending} onClick={() => save('payment_terms_days', paymentTerms)} />
         </Row>
@@ -197,7 +197,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         desc="Réconciliation automatique des paiements Beobank via MyPonto. Tant que ce n'est pas activé, l'import CSV manuel reste disponible depuis /admin/facturation."
       >
         <Row label="Activer Ponto" hint="Synchronisation continue des transactions et matching auto sur la communication structurée.">
-          <label className="flex items-center gap-2 text-[13px] cursor-pointer dark:text-[#F0ECE4]">
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer">
             <input
               type="checkbox"
               checked={pontoEnabled}
@@ -214,11 +214,11 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             value={pontoApiKey}
             onChange={(e) => setPontoApiKey(e.target.value)}
             placeholder="••••••••••••"
-            className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4] font-mono"
+            className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
           />
           <SaveBtn pending={pending} onClick={() => save('ponto_api_key', pontoApiKey)} />
         </Row>
-        <p className="text-[11px] text-ink-muted dark:text-[#C8C2B8] italic">
+        <p className="text-[11px] text-ink-muted italic">
           Le branchement effectif est dans <code>src/lib/ponto.ts</code> (TODO connectPonto, syncTransactions). Quand les credentials seront disponibles, la sync s&apos;activera automatiquement.
         </p>
       </Section>
@@ -237,7 +237,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 'px-3 py-2 rounded-lg text-[12px] font-bold border-2 ' +
                 (smsMode === 'manuel'
                   ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink border-sand-border dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
+                  : 'bg-white text-ink border-sand-border')
               }
             >
               Manuel
@@ -249,7 +249,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 'px-3 py-2 rounded-lg text-[12px] font-bold border-2 ' +
                 (smsMode === 'auto'
                   ? 'bg-[#A17244] text-white border-[#A17244]'
-                  : 'bg-white text-ink border-sand-border dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
+                  : 'bg-white text-ink border-sand-border')
               }
             >
               Automatique
@@ -258,7 +258,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         </Row>
 
         {smsMode === 'auto' && (
-          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A]">
             ⚠ Mode automatique actif — les SMS partent sans confirmation manuelle. Active uniquement les toggles ci-dessous quand tu es sûr du contenu.
           </div>
         )}
@@ -283,8 +283,8 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           </>
         )}
 
-        <div className="border-t border-sand-border dark:border-[#3D3A32] pt-3 mt-3">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2 dark:text-[#C8C2B8]">
+        <div className="border-t border-sand-border pt-3 mt-3">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">
             Configuration Twilio
           </div>
 
@@ -337,13 +337,13 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             <SaveBtn pending={pending} onClick={() => save('twilio_whatsapp_number', twilioWaFrom)} />
           </Row>
 
-          <p className="text-[11px] text-ink-muted italic mt-2 dark:text-[#C8C2B8]">
-            Crée un compte sur <a href="https://www.twilio.com" target="_blank" rel="noopener noreferrer" className="text-navy underline dark:text-[#A8C4F2]">twilio.com</a> pour activer les SMS. Pour Vercel : ajoute aussi les variables d&apos;env <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_PHONE_NUMBER</code>, <code>TWILIO_WHATSAPP_NUMBER</code> (priorité sur la DB).
+          <p className="text-[11px] text-ink-muted italic mt-2">
+            Crée un compte sur <a href="https://www.twilio.com" target="_blank" rel="noopener noreferrer" className="text-navy underline">twilio.com</a> pour activer les SMS. Pour Vercel : ajoute aussi les variables d&apos;env <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, <code>TWILIO_PHONE_NUMBER</code>, <code>TWILIO_WHATSAPP_NUMBER</code> (priorité sur la DB).
           </p>
 
           {twilioReady && (
-            <div className="mt-3 bg-cream border border-sand-border rounded-lg p-3 dark:bg-[#221E1A] dark:border-[#3D3A32]">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2 dark:text-[#C8C2B8]">
+            <div className="mt-3 bg-cream border border-sand-border rounded-lg p-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">
                 Tester l&apos;envoi
               </div>
               <div className="flex flex-wrap gap-2 items-end">
@@ -384,11 +384,11 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           )}
         </div>
 
-        <div className="border-t border-sand-border dark:border-[#3D3A32] pt-3 mt-3">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2 dark:text-[#C8C2B8]">
+        <div className="border-t border-sand-border pt-3 mt-3">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-2">
             Templates SMS
           </div>
-          <p className="text-[11px] text-ink-muted mb-3 dark:text-[#C8C2B8]">
+          <p className="text-[11px] text-ink-muted mb-3">
             Variables disponibles : <code>[Prénom]</code>, <code>[date]</code>, <code>[heure]</code>, <code>[adresse]</code>, <code>[lien]</code>
           </p>
 
@@ -433,18 +433,18 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         desc="Connecte un compte Google pour brancher Drive (rapports + factures), Gmail (lecture pour enrichir l'assistant) et Calendar (sync des créneaux)."
       >
         {googleLoading ? (
-          <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement du statut…</div>
+          <div className="text-[12px] text-ink-muted">Chargement du statut…</div>
         ) : googleStatus.connected ? (
-          <div className="bg-ok-light border border-ok-mid rounded-lg p-3 text-[12px] text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]">
+          <div className="bg-ok-light border border-ok-mid rounded-lg p-3 text-[12px] text-ok">
             ✓ Connecté en tant que <strong className="font-mono">{googleStatus.email ?? '—'}</strong>
             {googleStatus.expiry && (
-              <span className="block text-[10px] text-ink-muted dark:text-[#C8C2B8] mt-1">
+              <span className="block text-[10px] text-ink-muted mt-1">
                 Token expire : {new Date(googleStatus.expiry).toLocaleString('fr-BE')}
               </span>
             )}
           </div>
         ) : (
-          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A]">
             Aucun compte Google connecté.
           </div>
         )}
@@ -465,7 +465,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                   }
                 });
               }}
-              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90"
             >
               Déconnecter
             </button>
@@ -508,7 +508,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                     }
                   });
                 }}
-                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)]"
               >
                 Tester Drive
               </button>
@@ -522,7 +522,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                     else setGoogleTestMsg({ kind: 'err', msg: res.error });
                   });
                 }}
-                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)]"
               >
                 Tester Gmail
               </button>
@@ -536,7 +536,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                     else setGoogleTestMsg({ kind: 'err', msg: res.error });
                   });
                 }}
-                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+                className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)]"
               >
                 Tester Calendar
               </button>
@@ -548,7 +548,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           <div className={
             'mt-3 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
             (googleTestMsg.kind === 'ok'
-              ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+              ? 'bg-ok-light border-ok-mid text-ok dark:text-white'
               : 'bg-terra-light border-terra-mid text-terra')
           }>
             {googleTestMsg.msg}
@@ -556,7 +556,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         )}
 
         {driveTest?.scopes && driveTest.scopes.has_drive_file_only && (
-          <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg p-3 text-[12px] dark:bg-[#2E1A12] dark:border-[#5A2E18] dark:text-[#FFB897]">
+          <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg p-3 text-[12px]">
             <div className="font-bold mb-1">⚠ Scope Drive insuffisant : <code>drive.file</code> au lieu de <code>drive</code></div>
             <p className="leading-relaxed">
               Ton token Google n&apos;a accès qu&apos;aux fichiers créés par l&apos;app — pas aux dossiers existants.
@@ -567,7 +567,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         )}
 
         {driveTest?.scopes && driveTest.scopes.missing.length > 0 && (
-          <div className="mt-3 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg p-3 text-[12px] dark:bg-[#2A220E] dark:border-[#5A4A30] dark:text-[#E8C896]">
+          <div className="mt-3 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg p-3 text-[12px]">
             <div className="font-bold mb-1">⚠ Scopes manquants ({driveTest.scopes.missing.length})</div>
             <ul className="list-disc list-inside font-mono text-[11px]">
               {driveTest.scopes.missing.map((s) => <li key={s}>{s}</li>)}
@@ -582,7 +582,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           </div>
         )}
 
-        <p className="text-[11px] text-ink-muted italic mt-3 dark:text-[#C8C2B8]">
+        <p className="text-[11px] text-ink-muted italic mt-3">
           Variables d&apos;env Vercel requises : <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>,
           <code>GOOGLE_DRIVE_RAPPORTS_FOLDER_ID</code>, <code>GOOGLE_DRIVE_FACTURES_FOLDER_ID</code>,
           <code>NEXT_PUBLIC_APP_URL</code>. Le redirect_uri doit être déclaré côté Google Cloud :{' '}
@@ -601,7 +601,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           onChange={(v) => { setMailAutoAnalyse(v); save('mail_auto_analyse', String(v)); }}
         />
         {mailAutoAnalyse && (
-          <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+          <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px]">
             ⚠ Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (scope <code>gmail.readonly</code>) et fais un test à blanc :
             <code className="block mt-1 font-mono text-[10px] break-all">
               GET /api/cron/check-mails/preview?secret={'<CRON_SECRET>'}
@@ -634,7 +634,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           >
             {pending ? 'Vérification…' : 'Vérifier maintenant'}
           </button>
-          <span className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+          <span className="text-[11px] text-ink-muted">
             Dernière vérification : <strong>{formatRelative(mailLastCheck)}</strong>
           </span>
         </div>
@@ -643,14 +643,14 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           <div className={
             'mt-2 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
             (mailCheckResult.kind === 'ok'
-              ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+              ? 'bg-ok-light border-ok-mid text-ok dark:text-white'
               : 'bg-terra-light border-terra-mid text-terra')
           }>
             {mailCheckResult.msg}
           </div>
         )}
 
-        <p className="text-[11px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+        <p className="text-[11px] text-ink-muted mt-2 italic">
           Mails labelisés <code>FOXO_TRAITE</code> (demande convertie) ou <code>FOXO_LU</code> (pas une demande) après passage. Aucun mail n&apos;est traité deux fois.
         </p>
       </Section>
@@ -697,7 +697,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
 
       {/* À venir */}
       <Section title="À venir" desc="Configurations encore à brancher.">
-        <ul className="text-[12px] text-ink-mid leading-relaxed list-disc list-inside dark:text-[#C8C2B8]">
+        <ul className="text-[12px] text-ink-mid leading-relaxed list-disc list-inside">
           <li>Coordonnées légales (BCE, TVA, IBAN, adresse) éditables</li>
           <li>Taux TVA par défaut</li>
           <li>Gestion des techniciens (ajout, suspension, accès PWA)</li>
@@ -721,29 +721,29 @@ function CalendarWatchPanel({
   onUnsubscribe: () => void;
 }) {
   if (!watch) {
-    return <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement du statut…</div>;
+    return <div className="text-[12px] text-ink-muted">Chargement du statut…</div>;
   }
   const banner = (() => {
     if (watch.status === 'active') {
       return {
-        cls: 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]',
+        cls: 'bg-ok-light border-ok-mid text-ok',
         text: <>✅ Active — expire le <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong></>,
       };
     }
     if (watch.status === 'expiring_soon') {
       return {
-        cls: 'bg-amber-light border-[#E8C896] text-[#8A5A1A] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]',
+        cls: 'bg-amber-light border-[#E8C896] text-[#8A5A1A]',
         text: <>⚠️ Expire dans moins de 24h — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Le cron quotidien renouvellera automatiquement.</>,
       };
     }
     if (watch.status === 'expired') {
       return {
-        cls: 'bg-terra-light border-terra-mid text-terra dark:bg-[#2E1A12] dark:border-[#5A2E18] dark:text-[#FFB897]',
+        cls: 'bg-terra-light border-terra-mid text-terra',
         text: <>❌ Expirée — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</>,
       };
     }
     return {
-      cls: 'bg-sand-mid border-sand-border text-ink-mid dark:bg-[rgba(255,255,255,.04)] dark:border-[#3D3A32] dark:text-[#C8C2B8]',
+      cls: 'bg-sand-mid border-sand-border text-ink-mid dark:bg-[rgba(255,255,255,.04)]',
       text: <>❌ Inactive — aucun push Calendar ne sera reçu tant qu&apos;une subscription n&apos;est pas créée.</>,
     };
   })();
@@ -778,7 +778,7 @@ function CalendarWatchPanel({
               type="button"
               onClick={onUnsubscribe}
               disabled={pending}
-              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
             >
               ✕ Désactiver
             </button>
@@ -790,7 +790,7 @@ function CalendarWatchPanel({
         <div className={
           'mt-3 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
           (msg.kind === 'ok'
-            ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+            ? 'bg-ok-light border-ok-mid text-ok dark:text-white'
             : 'bg-terra-light border-terra-mid text-terra')
         }>
           {msg.msg}
@@ -798,7 +798,7 @@ function CalendarWatchPanel({
       )}
 
       {watch.channel_id && (
-        <div className="mt-3 text-[10px] text-ink-muted font-mono dark:text-[#C8C2B8]">
+        <div className="mt-3 text-[10px] text-ink-muted font-mono">
           channel_id: {watch.channel_id}
           <br />resource_id: {watch.resource_id}
         </div>
@@ -886,7 +886,7 @@ function PlanningCouleursPanel() {
   }
 
   if (!loaded) {
-    return <div className="text-[12px] text-ink-mid italic dark:text-[#C8C2B8]">Chargement…</div>;
+    return <div className="text-[12px] text-ink-mid italic">Chargement…</div>;
   }
 
   const TYPES_LABELS: { key: PlanningColorKey; label: string; hint: string }[] = [
@@ -901,12 +901,12 @@ function PlanningCouleursPanel() {
     <div className="space-y-4">
       {/* Types de créneaux */}
       <div>
-        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">
           Types de créneaux
         </div>
         <div className="space-y-1.5">
           {TYPES_LABELS.map(({ key, label, hint }) => (
-            <div key={key} className="flex items-center gap-2.5 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+            <div key={key} className="flex items-center gap-2.5 bg-white border border-sand-border rounded-md px-2.5 py-1.5">
               <input
                 type="color"
                 value={types[key]}
@@ -922,11 +922,11 @@ function PlanningCouleursPanel() {
                   const v = e.target.value;
                   if (/^#[0-9A-Fa-f]{0,6}$/.test(v)) setType(key, v);
                 }}
-                className="w-[90px] px-2 py-1 border border-sand-border rounded text-[11px] bg-white font-mono dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="w-[90px] px-2 py-1 border border-sand-border rounded text-[11px] bg-white font-mono"
               />
               <div className="flex-1 min-w-0">
-                <div className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">{label}</div>
-                <div className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">{hint}</div>
+                <div className="text-[12px] font-bold text-ink">{label}</div>
+                <div className="text-[10px] text-ink-muted truncate">{hint}</div>
               </div>
             </div>
           ))}
@@ -935,11 +935,11 @@ function PlanningCouleursPanel() {
 
       {/* Techniciens */}
       <div>
-        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">
           Couleur par technicien
         </div>
         {techs.length === 0 ? (
-          <div className="text-[12px] text-ink-muted italic dark:text-[#C8C2B8]">
+          <div className="text-[12px] text-ink-muted italic">
             Aucun technicien — ajoute des comptes via le code (TECH_EMAILS dans roles.ts).
           </div>
         ) : (
@@ -949,7 +949,7 @@ function PlanningCouleursPanel() {
               const display = [t.prenom, t.nom].filter(Boolean).join(' ') || t.email || '—';
               const couleur = t.couleur ?? '#888888';
               return (
-                <div key={t.id} className="flex items-center gap-2.5 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                <div key={t.id} className="flex items-center gap-2.5 bg-white border border-sand-border rounded-md px-2.5 py-1.5">
                   <div
                     className="w-9 h-9 rounded-full flex items-center justify-center text-white text-[11px] font-extrabold flex-shrink-0"
                     style={{ background: couleur }}
@@ -973,13 +973,13 @@ function PlanningCouleursPanel() {
                       }
                     }}
                     placeholder="(défaut)"
-                    className="w-[90px] px-2 py-1 border border-sand-border rounded text-[11px] bg-white font-mono dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                    className="w-[90px] px-2 py-1 border border-sand-border rounded text-[11px] bg-white font-mono"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">
+                    <div className="text-[12px] font-bold text-ink">
                       T.{idx + 1} {display}
                     </div>
-                    <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                    <div className="text-[10px] text-ink-muted">
                       {t.email}
                     </div>
                   </div>
@@ -1004,14 +1004,14 @@ function PlanningCouleursPanel() {
           type="button"
           onClick={resetDefaults}
           disabled={saving}
-          className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+          className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
         >
           Réinitialiser les défauts
         </button>
         {msg && (
           <span className={
             'text-[11px] font-semibold ' +
-            (msg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+            (msg.kind === 'ok' ? 'text-ok' : 'text-terra')
           }>
             {msg.msg}
           </span>
@@ -1023,9 +1023,9 @@ function PlanningCouleursPanel() {
 
 function Section({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-      <h2 className="text-sm font-extrabold text-ink mb-1 dark:text-[#F0ECE4]">{title}</h2>
-      <p className="text-[12px] text-ink-mid mb-3 dark:text-[#C8C2B8]">{desc}</p>
+    <section className="bg-cream border border-sand-border rounded-2xl p-4">
+      <h2 className="text-sm font-extrabold text-ink mb-1">{title}</h2>
+      <p className="text-[12px] text-ink-mid mb-3">{desc}</p>
       <div className="space-y-3">{children}</div>
     </section>
   );
@@ -1038,11 +1038,11 @@ function Row({
 }) {
   return (
     <div>
-      <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-1">
         {label}
       </div>
       <div className="flex flex-wrap items-center gap-2">{children}</div>
-      {hint && <p className="text-[10px] text-ink-muted mt-1 dark:text-[#8A8278]">{hint}</p>}
+      {hint && <p className="text-[10px] text-ink-muted mt-1">{hint}</p>}
     </div>
   );
 }
@@ -1070,25 +1070,25 @@ function DriveFolderCard({
     <div className={
       'rounded-lg border p-3 text-[12px] ' +
       (ok
-        ? 'bg-ok-light border-ok-mid dark:bg-[#14281E] dark:border-[#2A4F3A]'
-        : 'bg-terra-light border-terra-mid dark:bg-[#2E1A12] dark:border-[#5A2E18]')
+        ? 'bg-ok-light border-ok-mid'
+        : 'bg-terra-light border-terra-mid')
     }>
       <div className={
         'font-bold ' +
-        (ok ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra dark:text-[#FFB897]')
+        (ok ? 'text-ok' : 'text-terra')
       }>
         {label} — {headline}
       </div>
       {status.id && (
-        <div className="text-[10px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+        <div className="text-[10px] text-ink-muted mt-1">
           <span className="font-mono">{envKey}</span> = <span className="font-mono">{status.id}</span>
         </div>
       )}
       {!ok && status.error && status.status !== 404 && status.status !== 403 && (
-        <div className="text-[10px] text-ink-mid mt-1 dark:text-[#C8C2B8]">{status.error}</div>
+        <div className="text-[10px] text-ink-mid mt-1">{status.error}</div>
       )}
       {!ok && (
-        <div className="text-[10px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+        <div className="text-[10px] text-ink-muted mt-1 italic">
           {status.status === 404
             ? <>Vérifie que l&apos;ID dans Vercel ({envKey}) correspond à un dossier existant et non supprimé.</>
             : status.status === 403
@@ -1121,12 +1121,12 @@ function ToggleRow({
 }) {
   return (
     <label className="flex items-center justify-between gap-3 py-2 cursor-pointer">
-      <span className="text-[12px] text-ink dark:text-[#F0ECE4]">{label}</span>
+      <span className="text-[12px] text-ink">{label}</span>
       <span
         onClick={() => onChange(!checked)}
         className={
           'relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ' +
-          (checked ? 'bg-ok' : 'bg-sand-mid dark:bg-[#3D3A32]')
+          (checked ? 'bg-ok' : 'bg-sand-mid')
         }
       >
         <span
@@ -1158,14 +1158,14 @@ function TemplateRow({
   return (
     <div className="mb-3">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
           {label}
         </span>
         {!isDefault && (
           <button
             type="button"
             onClick={() => { setValue(defaultValue); onSave(cle, defaultValue); }}
-            className="text-[10px] text-ink-mid hover:text-navy underline dark:text-[#C8C2B8]"
+            className="text-[10px] text-ink-mid hover:text-navy underline"
           >
             Réinitialiser par défaut
           </button>
@@ -1178,7 +1178,7 @@ function TemplateRow({
         className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid resize-y"
       />
       <div className="flex justify-between items-center mt-1.5">
-        <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">{value.length} caractères</span>
+        <span className="text-[10px] text-ink-muted">{value.length} caractères</span>
         <SaveBtn pending={pending} onClick={() => onSave(cle, value)} />
       </div>
     </div>

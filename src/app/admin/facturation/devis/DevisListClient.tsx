@@ -209,12 +209,12 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
         </div>
       )}
 
-      <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      <div className="bg-cream border border-sand-border rounded-xl overflow-hidden">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-sand dark:bg-[#221E1A]">
+            <tr className="bg-sand">
               {['Numéro', 'Client', 'Émis le', 'Validité', 'Total TTC', 'Statut', 'Actions'].map((h) => (
-                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -231,8 +231,8 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
               const sc = STATUT_COLOR[d.statut];
               const dejaConverti = Boolean(d.converted_to_facture_id);
               return (
-                <tr key={d.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#2C2A24] dark:hover:bg-[#221E1A]">
-                  <td className="px-3.5 py-3 font-mono text-xs font-bold text-navy dark:text-[#A8C4F2]">
+                <tr key={d.id} className="border-b border-sand-mid hover:bg-sand-hover">
+                  <td className="px-3.5 py-3 font-mono text-xs font-bold text-navy">
                     <Link href={`/admin/facturation/devis/${d.id}`} className="hover:underline">
                       {d.numero}
                     </Link>
@@ -249,7 +249,7 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
                       {dejaConverti && d.converted_to_facture_id && (
                         <Link
                           href={`/admin/facturation/${d.converted_to_facture_id}`}
-                          className="text-[10px] text-navy underline dark:text-[#A8C4F2]"
+                          className="text-[10px] text-navy underline"
                         >
                           → Facture liée
                         </Link>

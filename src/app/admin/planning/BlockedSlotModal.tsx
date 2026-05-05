@@ -78,7 +78,7 @@ export function BlockedSlotModal({
     >
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">
+          <label className="text-xs font-semibold text-ink-mid block mb-1.5">
             Motif de blocage
           </label>
           <textarea
@@ -86,7 +86,7 @@ export function BlockedSlotModal({
             onChange={(e) => setMotif(e.target.value)}
             rows={3}
             placeholder="Ex : congé annuel, déplacement chantier, formation…"
-            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
           />
         </div>
 
@@ -113,7 +113,7 @@ export function BlockedSlotModal({
           type="button"
           onClick={onClose}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
         >
           Annuler
         </button>

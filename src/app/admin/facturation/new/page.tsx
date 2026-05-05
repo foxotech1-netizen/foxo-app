@@ -28,7 +28,7 @@ export default async function NewFacturePage() {
         </div>
         <Link
           href="/admin/facturation"
-          className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]"
+          className="text-[12px] text-ink-mid hover:text-navy"
         >
           ← Retour à la liste
         </Link>

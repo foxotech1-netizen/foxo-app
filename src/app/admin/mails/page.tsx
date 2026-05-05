@@ -15,14 +15,14 @@ export default async function MailsPage() {
       <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
         <div>
           <h1 className="text-xl font-extrabold text-ink">Mails</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+          <p className="text-[11px] text-ink-muted mt-0.5">
             {connected ? <>Boîte connectée : <span className="font-mono">{accountEmail ?? 'compte Google'}</span></> : 'Boîte non connectée'}
           </p>
         </div>
       </header>
 
       {!connected && (
-        <div className="mx-6 mt-3 px-4 py-3 bg-amber-light border border-[#E8C896] rounded-lg text-[13px] text-[#8A5A1A] flex items-center justify-between gap-3 flex-shrink-0 dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+        <div className="mx-6 mt-3 px-4 py-3 bg-amber-light border border-[#E8C896] rounded-lg text-[13px] text-[#8A5A1A] flex items-center justify-between gap-3 flex-shrink-0">
           <span>
             ⚠ Connectez votre compte Google dans{' '}
             <Link href="/admin/parametres" className="underline font-bold">Paramètres → Intégrations Google</Link>

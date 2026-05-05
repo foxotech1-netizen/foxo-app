@@ -338,7 +338,7 @@ export function PlanningCalendar({
               onClick={() => setViewMode('week')}
               className={
                 'px-3 py-1 rounded text-[11px] font-bold ' +
-                (viewMode === 'week' ? 'bg-navy text-white' : 'text-ink-mid dark:text-[#C8C2B8]')
+                (viewMode === 'week' ? 'bg-navy text-white' : 'text-ink-mid')
               }
             >
               Semaine
@@ -348,7 +348,7 @@ export function PlanningCalendar({
               onClick={() => setViewMode('month')}
               className={
                 'px-3 py-1 rounded text-[11px] font-bold ' +
-                (viewMode === 'month' ? 'bg-navy text-white' : 'text-ink-mid dark:text-[#C8C2B8]')
+                (viewMode === 'month' ? 'bg-navy text-white' : 'text-ink-mid')
               }
             >
               Mois
@@ -365,7 +365,7 @@ export function PlanningCalendar({
                   d.setDate(d.getDate() - 7);
                   setWeekMonday(d);
                 }}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)]"
               >‹</button>
               <button
                 type="button"
@@ -378,7 +378,7 @@ export function PlanningCalendar({
                   m.setHours(0, 0, 0, 0);
                   setWeekMonday(m);
                 }}
-                className="bg-sand-mid px-2 h-8 rounded-md text-ink-mid text-[11px] font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                className="bg-sand-mid px-2 h-8 rounded-md text-ink-mid text-[11px] font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)]"
               >
                 Aujourd&apos;hui
               </button>
@@ -389,7 +389,7 @@ export function PlanningCalendar({
                   d.setDate(d.getDate() + 7);
                   setWeekMonday(d);
                 }}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)]"
               >›</button>
             </>
           )}
@@ -460,7 +460,7 @@ export function PlanningCalendar({
         <div className="flex items-center gap-2 flex-wrap">
           {googleConnected ? (
             <>
-              <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer dark:text-[#C8C2B8]">
+              <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer">
                 <input
                   type="checkbox"
                   checked={showGoogle}
@@ -472,7 +472,7 @@ export function PlanningCalendar({
               <ResyncButton />
             </>
           ) : (
-            <span className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+            <span className="text-[11px] text-ink-muted italic">
               📅 Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
             </span>
           )}
@@ -545,24 +545,24 @@ export function PlanningCalendar({
 
       {/* Calendar — vue Semaine (5 créneaux fixes FoxO × 7 jours) */}
       {viewMode === 'week' && (
-        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
           <div
             className="grid"
             style={{ gridTemplateColumns: '90px repeat(7, 1fr)' }}
           >
             {/* Header — coin vide + 7 jours avec date */}
-            <div className="bg-sand border-b border-r border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]" />
+            <div className="bg-sand border-b border-r border-sand-border" />
             {weekDates.map((d) => {
               const iso = isoDate(d);
               const isToday = iso === todayStr;
               return (
                 <div
                   key={iso}
-                  className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 dark:bg-[#141210] dark:border-[#2C2A24]"
+                  className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0"
                 >
                   <div className={
                     'text-[10px] font-bold uppercase tracking-wider ' +
-                    (isToday ? 'text-navy' : 'text-ink-muted dark:text-[#C8C2B8]')
+                    (isToday ? 'text-navy' : 'text-ink-muted')
                   }>
                     {DAYS[(d.getDay() + 6) % 7]}
                   </div>
@@ -570,7 +570,7 @@ export function PlanningCalendar({
                     'mt-0.5 text-[13px] font-extrabold inline-flex items-center justify-center w-7 h-7 ' +
                     (isToday
                       ? 'rounded-full bg-navy text-white'
-                      : 'text-ink-mid dark:text-[#F0ECE4]')
+                      : 'text-ink-mid')
                   }>
                     {d.getDate()}
                   </div>
@@ -581,11 +581,11 @@ export function PlanningCalendar({
             {/* Lignes : créneau FoxO + 7 cases */}
             {FOXO_SLOTS.map((slot, slotIdx) => (
               <Fragment key={slotIdx}>
-                <div className="bg-sand border-b border-r border-sand-border text-center py-2 dark:bg-[#141210] dark:border-[#2C2A24]">
-                  <div className="text-[11px] font-mono font-extrabold text-ink dark:text-[#F0ECE4]">
+                <div className="bg-sand border-b border-r border-sand-border text-center py-2">
+                  <div className="text-[11px] font-mono font-extrabold text-ink">
                     {slot.heure_debut}
                   </div>
-                  <div className="text-[9px] font-mono text-ink-muted dark:text-[#C8C2B8]">
+                  <div className="text-[9px] font-mono text-ink-muted">
                     →{slot.heure_fin}
                   </div>
                 </div>
@@ -610,10 +610,10 @@ export function PlanningCalendar({
                     <div
                       key={`${iso}-${slotIdx}`}
                       className={
-                        'border-b border-r border-sand-border last:border-r-0 min-h-[64px] p-1 space-y-0.5 relative dark:border-[#2C2A24] ' +
+                        'border-b border-r border-sand-border last:border-r-0 min-h-[64px] p-1 space-y-0.5 relative ' +
                         (isTodayCell
                           ? 'bg-navy-pale dark:bg-[rgba(122,168,232,.08)]'
-                          : 'bg-cream dark:bg-[#1C1A16]')
+                          : 'bg-cream')
                       }
                     >
                       {showGoogle && cellGcal.map((ev) => {
@@ -694,7 +694,7 @@ export function PlanningCalendar({
                         return (
                           <div
                             key={cr.id}
-                            className="w-full rounded px-1.5 py-1 bg-sand-mid text-ink-muted text-[10px] font-bold flex items-center gap-1 dark:bg-[#3D3A32] dark:text-[#C8C2B8]"
+                            className="w-full rounded px-1.5 py-1 bg-sand-mid text-ink-muted text-[10px] font-bold flex items-center gap-1"
                             title="Créneau bloqué"
                           >
                             <span className="text-[8px]">🚫</span>
@@ -707,7 +707,7 @@ export function PlanningCalendar({
                         <button
                           type="button"
                           onClick={() => createSlotAndOpenModal(iso, slotIdx, techFilter)}
-                          className="absolute inset-0 flex items-center justify-center text-[18px] font-bold text-ink-muted/30 hover:text-navy hover:bg-sand-hover/50 transition-colors cursor-pointer dark:text-[#C8C2B8]/30 dark:hover:text-[#7AA8E8]"
+                          className="absolute inset-0 flex items-center justify-center text-[18px] font-bold text-ink-muted/30 hover:text-navy hover:bg-sand-hover/50 transition-colors cursor-pointer/30"
                           title="Créer un créneau libre pour ce technicien"
                           aria-label="Créer un créneau"
                         >
@@ -725,7 +725,7 @@ export function PlanningCalendar({
 
       {/* Calendar — vue Mois (legacy) */}
       {viewMode === 'month' && (
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
         <div className="grid grid-cols-7 gap-px bg-sand-border">
           {DAYS.map((d) => (
             <div key={d} className="bg-sand text-center py-2 text-[10px] font-bold text-ink-muted uppercase">
@@ -825,7 +825,7 @@ export function PlanningCalendar({
                       key={cr.id}
                       type="button"
                       onClick={() => setOpenModal({ kind: 'blocked', slot: cr })}
-                      className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate bg-sand-mid text-ink-muted hover:bg-sand-border cursor-pointer dark:bg-[#3D3A32] dark:text-[#C8C2B8]"
+                      className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate bg-sand-mid text-ink-muted hover:bg-sand-border cursor-pointer"
                       title="Cliquer pour modifier le motif ou débloquer"
                     >
                       {time}
@@ -900,7 +900,7 @@ function ResyncButton() {
         type="button"
         onClick={run}
         disabled={pending}
-        className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+        className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
         title="Crée les events Google Calendar manquants pour les créneaux libres futurs"
       >
         {pending ? '🔄 Resync en cours…' : '🔄 Resync Google Calendar'}
@@ -908,7 +908,7 @@ function ResyncButton() {
       {msg && (
         <span className={
           'text-[10px] font-bold ' +
-          (msg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+          (msg.kind === 'ok' ? 'text-ok' : 'text-terra')
         }>
           {msg.msg}
         </span>

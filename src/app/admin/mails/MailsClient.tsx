@@ -457,12 +457,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       {/* Liste à gauche */}
       <aside
         className={
-          'flex flex-col w-full sm:w-[380px] border-r border-sand-border bg-cream dark:bg-[#1C1A16] dark:border-[#2C2A24] ' +
+          'flex flex-col w-full sm:w-[380px] border-r border-sand-border bg-cream ' +
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
         {/* Filtres + Recherche */}
-        <div className="p-3 border-b border-sand-border dark:border-[#2C2A24] space-y-2 flex-shrink-0">
+        <div className="p-3 border-b border-sand-border space-y-2 flex-shrink-0">
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -484,7 +484,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   'px-2 py-1.5 rounded text-[11px] font-bold border ' +
                   (filter === f
                     ? 'bg-navy text-white border-navy'
-                    : 'bg-white text-ink-mid border-sand-border dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
+                    : 'bg-white text-ink-mid border-sand-border')
                 }
               >
                 {label}
@@ -495,7 +495,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             ref={refreshRef}
             type="button"
             onClick={() => setRefreshTick((t) => t + 1)}
-            className="w-full text-[11px] text-ink-muted hover:text-navy underline dark:text-[#C8C2B8]"
+            className="w-full text-[11px] text-ink-muted hover:text-navy underline"
             disabled={loading}
           >
             {loading ? 'Chargement…' : '↻ Actualiser'}
@@ -503,15 +503,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         </div>
 
         {/* Section Libellés */}
-        <div className="p-3 border-b border-sand-border dark:border-[#2C2A24] flex-shrink-0">
+        <div className="p-3 border-b border-sand-border flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
               Libellés{totalUnread > 0 ? ` · ${totalUnread} non lus` : ''}
             </span>
             <button
               type="button"
               onClick={() => setCreateLabelOpen(true)}
-              className="text-[10px] font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+              className="text-[10px] font-bold text-navy hover:underline"
             >
               + Nouveau libellé
             </button>
@@ -521,16 +521,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <button
               type="button"
               onClick={() => setActiveLabel(null)}
-              className="w-full text-left mb-1.5 text-[11px] bg-amber-light border border-[#E8C896] rounded px-2 py-1 text-[#8A5A1A] font-semibold dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]"
+              className="w-full text-left mb-1.5 text-[11px] bg-amber-light border border-[#E8C896] rounded px-2 py-1 text-[#8A5A1A] font-semibold"
             >
               ✕ Filtre actif : {activeLabel}
             </button>
           )}
 
           {labelsLoading ? (
-            <div className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">Chargement…</div>
+            <div className="text-[11px] text-ink-muted">Chargement…</div>
           ) : labels.length === 0 ? (
-            <div className="text-[11px] text-ink-muted dark:text-[#C8C2B8] italic">
+            <div className="text-[11px] text-ink-muted italic">
               Aucun libellé personnalisé.
             </div>
           ) : (
@@ -547,7 +547,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                         'w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-colors text-left ' +
                         (active
                           ? 'bg-navy text-white'
-                          : 'hover:bg-sand-hover text-ink dark:text-[#F0ECE4] dark:hover:bg-[#2A2520]')
+                          : 'hover:bg-sand-hover text-ink')
                       }
                     >
                       <span
@@ -558,7 +558,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       {l.messages_unread > 0 && (
                         <span className={
                           'text-[9px] font-bold px-1.5 py-0.5 rounded-full ' +
-                          (active ? 'bg-white/25 text-white' : 'bg-terra-light text-terra dark:bg-[#5A2E18] dark:text-[#FFB897]')
+                          (active ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
                         }>
                           {l.messages_unread}
                         </span>
@@ -573,7 +573,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
         {/* Header sélection */}
         {filtered.length > 0 && (
-          <div className="px-3 py-2 border-b border-sand-border dark:border-[#2C2A24] bg-sand dark:bg-[#141210] flex items-center gap-2 flex-shrink-0">
+          <div className="px-3 py-2 border-b border-sand-border bg-sand flex items-center gap-2 flex-shrink-0">
             <input
               type="checkbox"
               checked={allFilteredSelected}
@@ -581,7 +581,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               aria-label="Tout sélectionner"
               className="w-4 h-4 accent-[#1B3A6B] cursor-pointer"
             />
-            <span className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+            <span className="text-[11px] text-ink-muted">
               {selectedIds.size > 0
                 ? `${selectedIds.size} sélectionné(s)`
                 : `${filtered.length} mail(s)${inTrash ? ' (corbeille)' : ''}`}
@@ -599,7 +599,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             </div>
           )}
           {filtered.length === 0 && !loading && !error && (
-            <div className="text-[13px] text-ink-muted text-center py-12 dark:text-[#C8C2B8]">
+            <div className="text-[13px] text-ink-muted text-center py-12">
               {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
             </div>
           )}
@@ -612,8 +612,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <div
                 key={m.id}
                 className={
-                  'flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors dark:border-[#3D3A32] dark:hover:bg-[#2A2520] ' +
-                  (active ? 'bg-navy-pale dark:bg-[#1B3A6B]' : '')
+                  'flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
+                  (active ? 'bg-navy-pale' : '')
                 }
               >
                 <input
@@ -636,14 +636,14 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     {isImportant && (
                       <span className="text-[10px] flex-shrink-0" title="Marqué important" aria-label="Important">⭐</span>
                     )}
-                    <div className={'text-[12px] font-bold truncate flex-1 ' + (active ? 'text-navy dark:text-white' : 'text-ink dark:text-[#F0ECE4]')}>
+                    <div className={'text-[12px] font-bold truncate flex-1 ' + (active ? 'text-navy dark:text-white' : 'text-ink')}>
                       {senderName(m.from)}
                     </div>
-                    <span className="text-[10px] text-ink-muted whitespace-nowrap dark:text-[#C8C2B8]">
+                    <span className="text-[10px] text-ink-muted whitespace-nowrap">
                       {fmtDate(m.date)}
                     </span>
                   </div>
-                  <div className={'text-[12px] truncate ' + (m.unread ? 'font-semibold text-ink dark:text-[#F0ECE4]' : 'text-ink-mid dark:text-[#C8C2B8]')}>
+                  <div className={'text-[12px] truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
                     {m.subject}
                   </div>
                   {badges.length > 0 && (
@@ -653,7 +653,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       ))}
                     </div>
                   )}
-                  <div className="text-[11px] text-ink-muted truncate mt-0.5 dark:text-[#C8C2B8]">
+                  <div className="text-[11px] text-ink-muted truncate mt-0.5">
                     {m.snippet}
                   </div>
                 </button>
@@ -682,34 +682,34 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       {/* Détail à droite (drawer sur mobile) */}
       <main
         className={
-          'flex-1 bg-sand overflow-y-auto dark:bg-[#141210] ' +
+          'flex-1 bg-sand overflow-y-auto ' +
           (selectedId ? 'flex' : 'hidden sm:flex') + ' flex-col'
         }
       >
         {!selectedId && (
-          <div className="flex-1 flex items-center justify-center text-[13px] text-ink-muted dark:text-[#C8C2B8]">
+          <div className="flex-1 flex items-center justify-center text-[13px] text-ink-muted">
             Sélectionnez un mail pour l&apos;ouvrir.
           </div>
         )}
 
         {selectedId && (
           <>
-            <header className="px-4 py-3 border-b border-sand-border bg-cream flex items-start justify-between gap-3 flex-shrink-0 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+            <header className="px-4 py-3 border-b border-sand-border bg-cream flex items-start justify-between gap-3 flex-shrink-0">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setSelectedId(null)}
-                    className="sm:hidden text-[12px] text-navy underline dark:text-[#A8C4F2]"
+                    className="sm:hidden text-[12px] text-navy underline"
                   >
                     ← Retour
                   </button>
-                  <h2 className="text-[14px] font-extrabold text-ink truncate dark:text-[#F0ECE4]">
+                  <h2 className="text-[14px] font-extrabold text-ink truncate">
                     {detail?.subject ?? '…'}
                   </h2>
                 </div>
                 {detail && (
-                  <div className="text-[11px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+                  <div className="text-[11px] text-ink-muted mt-1">
                     <span className="font-semibold">{senderName(detail.from)}</span>
                     <span className="ml-1 font-mono text-[10px]">&lt;{senderEmail(detail.from)}&gt;</span>
                     <span className="mx-1.5">·</span>
@@ -720,12 +720,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
-                className="hidden sm:inline-flex bg-sand-mid w-8 h-8 rounded-md text-ink-mid items-center justify-center dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                className="hidden sm:inline-flex bg-sand-mid w-8 h-8 rounded-md text-ink-mid items-center justify-center dark:bg-[rgba(255,255,255,.06)]"
                 aria-label="Fermer"
               >✕</button>
             </header>
 
-            <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-sand-border bg-sand flex-shrink-0 dark:bg-[#141210] dark:border-[#2C2A24]">
+            <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-sand-border bg-sand flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setReplyOpen((v) => !v)}
@@ -738,7 +738,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 type="button"
                 onClick={analyzeMail}
                 disabled={analysisLoading || !detail}
-                className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] dark:bg-[#221E1A] dark:text-[#A8C4F2]"
+                className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px]"
               >
                 🤖 {analysisLoading ? 'Analyse…' : 'Analyser avec IA'}
               </button>
@@ -765,7 +765,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     type="button"
                     onClick={() => applyBulkActionForOne(detail.id, 'restore')}
                     disabled={bulkLoading}
-                    className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32] min-h-[44px]"
+                    className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] min-h-[44px]"
                   >
                     ↺ Restaurer
                   </button>
@@ -773,7 +773,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     type="button"
                     onClick={() => setConfirmDelete({ ids: [detail.id] })}
                     disabled={bulkLoading}
-                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px] dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px]"
                   >
                     🗑 Supprimer définitivement
                   </button>
@@ -784,7 +784,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   href={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center min-h-[44px] dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                  className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center min-h-[44px] dark:bg-[rgba(255,255,255,.06)]"
                 >
                   ↗ Voir dans Gmail
                 </a>
@@ -796,7 +796,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 className={
                   'mx-4 mt-3 px-3 py-2 text-[12px] font-semibold border rounded-md ' +
                   (feedback.kind === 'ok'
-                    ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#1F6B45] dark:text-white dark:border-[#2A8A5A]'
+                    ? 'bg-ok-light border-ok-mid text-ok dark:text-white'
                     : 'bg-terra-light border-terra-mid text-terra')
                 }
               >
@@ -806,8 +806,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
             {/* Panel "Répondre" */}
             {replyOpen && detail && (
-              <div className="mx-4 mt-3 bg-cream border border-navy rounded-xl p-3 dark:bg-[#1C1A16] dark:border-[#2A5298]">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1 dark:text-[#C8C2B8]">
+              <div className="mx-4 mt-3 bg-cream border border-navy rounded-xl p-3">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1">
                   Réponse à <span className="font-mono">{senderEmail(detail.from)}</span>
                 </div>
                 <textarea
@@ -815,7 +815,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   onChange={(e) => setReplyBody(e.target.value)}
                   rows={6}
                   placeholder="Écris ta réponse ici. Le sujet et le threading sont gérés automatiquement."
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
                   autoFocus
                 />
                 <div className="flex justify-end gap-2 mt-2">
@@ -823,7 +823,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     type="button"
                     onClick={() => { setReplyOpen(false); setReplyBody(''); }}
                     disabled={replyLoading}
-                    className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+                    className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
                   >
                     Annuler
                   </button>
@@ -841,15 +841,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
             {/* Section Libellés du mail */}
             {detail && (
-              <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+              <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
                     Libellés
                   </span>
                   <button
                     type="button"
                     onClick={() => setAddLabelMenuOpen((v) => !v)}
-                    className="text-[11px] font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+                    className="text-[11px] font-bold text-navy hover:underline"
                     aria-expanded={addLabelMenuOpen}
                   >
                     {addLabelMenuOpen ? '✕ Annuler' : '+ Libellé'}
@@ -858,7 +858,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
                 <div className="flex flex-wrap gap-1.5">
                   {userBadgesForMail(detail).length === 0 && !addLabelMenuOpen && (
-                    <span className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+                    <span className="text-[11px] text-ink-muted italic">
                       Aucun libellé sur ce mail.
                     </span>
                   )}
@@ -876,8 +876,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 </div>
 
                 {addLabelMenuOpen && (
-                  <div className="mt-2 pt-2 border-t border-sand-border dark:border-[#3D3A32]">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5 dark:text-[#C8C2B8]">
+                  <div className="mt-2 pt-2 border-t border-sand-border">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                       Choisir un libellé à ajouter
                     </div>
                     <div className="flex flex-wrap gap-1.5 max-h-[180px] overflow-y-auto">
@@ -896,7 +896,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           </button>
                         ))}
                       {labels.filter((l) => !detail.label_ids.includes(l.id)).length === 0 && (
-                        <span className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+                        <span className="text-[11px] text-ink-muted italic">
                           Tous les libellés sont déjà appliqués.
                         </span>
                       )}
@@ -907,8 +907,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             )}
 
             {analysis && (
-              <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+              <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">
                   ✨ Analyse IA
                 </div>
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
@@ -930,27 +930,27 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
             <div className="flex-1 px-4 py-4">
               {detailLoading && (
-                <div className="text-[13px] text-ink-muted text-center py-12 dark:text-[#C8C2B8]">Chargement…</div>
+                <div className="text-[13px] text-ink-muted text-center py-12">Chargement…</div>
               )}
               {!detailLoading && detail && (
-                <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px] dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+                <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px]">
                   {detail.body_html ? (
                     <div
-                      className="text-[13px] text-ink dark:text-[#F0ECE4]"
+                      className="text-[13px] text-ink"
                       style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                       dangerouslySetInnerHTML={{ __html: detail.body_html }}
                     />
                   ) : (
-                    <pre className="text-[13px] text-ink whitespace-pre-wrap font-sans dark:text-[#F0ECE4]">
+                    <pre className="text-[13px] text-ink whitespace-pre-wrap font-sans">
                       {detail.body_text || detail.snippet}
                     </pre>
                   )}
                   {detail.attachments.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-sand-border dark:border-[#3D3A32]">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1.5 dark:text-[#C8C2B8]">
+                    <div className="mt-4 pt-3 border-t border-sand-border">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1.5">
                         Pièces jointes
                       </div>
-                      <ul className="text-[12px] text-ink-mid space-y-1 dark:text-[#C8C2B8]">
+                      <ul className="text-[12px] text-ink-mid space-y-1">
                         {detail.attachments.map((a, i) => (
                           <li key={i} className="font-mono">
                             📎 {a.filename} <span className="text-ink-muted">· {Math.round(a.size / 1024)} KB</span>
@@ -1008,15 +1008,15 @@ function BulkActionBar({
   onRequestPermanentDelete: () => void;
 }) {
   return (
-    <div className="border-t border-sand-border bg-cream px-3 py-2.5 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)] dark:bg-[#1C1A16] dark:border-[#2C2A24] relative">
+    <div className="border-t border-sand-border bg-cream px-3 py-2.5 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)] relative">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-navy dark:text-[#A8C4F2]">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-navy">
           {count} sélectionné(s)
         </span>
         <button
           type="button"
           onClick={onClear}
-          className="text-[11px] text-ink-muted hover:text-terra dark:text-[#C8C2B8]"
+          className="text-[11px] text-ink-muted hover:text-terra"
           title="Désélectionner tout"
         >
           ✕ Désélectionner
@@ -1056,8 +1056,8 @@ function BulkActionBar({
           </div>
 
           {menuOpen && (
-            <div className="absolute bottom-full left-3 right-3 mb-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto dark:bg-[#1C1A16] dark:border-[#2C2A24] z-20">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5 dark:text-[#C8C2B8]">
+            <div className="absolute bottom-full left-3 right-3 mb-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto z-20">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Appliquer un libellé
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -1089,11 +1089,11 @@ function BulkBtn({
 }) {
   const className = {
     'navy': 'bg-navy text-white border border-navy',
-    'navy-outline': 'bg-white text-navy border border-navy dark:bg-[#221E1A] dark:text-[#A8C4F2]',
-    'amber': 'bg-amber-light text-[#8A5A1A] border border-[#E8C896] dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]',
-    'muted': 'bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]',
+    'navy-outline': 'bg-white text-navy border border-navy',
+    'amber': 'bg-amber-light text-[#8A5A1A] border border-[#E8C896]',
+    'muted': 'bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)]',
     'terra': 'bg-terra text-white border border-terra',
-    'terra-soft': 'bg-terra-light text-terra border border-terra-mid dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]',
+    'terra-soft': 'bg-terra-light text-terra border border-terra-mid',
   }[color];
   return (
     <button
@@ -1165,32 +1165,32 @@ function CreateLabelModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px]">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[14px] font-extrabold text-ink dark:text-[#F0ECE4]">
+          <h2 className="text-[14px] font-extrabold text-ink">
             Nouveau libellé Gmail
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)]"
             aria-label="Fermer"
           >✕</button>
         </div>
 
-        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
           Nom du libellé
         </label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ex : Devis en cours"
-          className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           autoFocus
         />
 
         <div className="mt-3">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5 dark:text-[#C8C2B8]">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
             Couleur
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -1220,7 +1220,7 @@ function CreateLabelModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
           >
             Annuler
           </button>
@@ -1251,11 +1251,11 @@ function ConfirmDeleteModal({
       onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
-        <h2 className="text-[14px] font-extrabold text-terra mb-2 dark:text-[#FFB897]">
+      <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px]">
+        <h2 className="text-[14px] font-extrabold text-terra mb-2">
           🗑 Supprimer définitivement
         </h2>
-        <p className="text-[12px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
+        <p className="text-[12px] text-ink-mid leading-relaxed">
           Tu vas supprimer définitivement <strong>{count} mail{count > 1 ? 's' : ''}</strong>.
           Cette action est <strong className="text-terra">irréversible</strong> — les mails ne seront pas récupérables même depuis la corbeille Gmail.
         </p>
@@ -1265,7 +1265,7 @@ function ConfirmDeleteModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
           >
             Annuler
           </button>
@@ -1286,11 +1286,11 @@ function ConfirmDeleteModal({
 function AnalysisRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
   return (
     <>
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
         {label}
       </dt>
-      <dd className={'text-[12px] dark:text-[#F0ECE4] ' + (mono ? 'font-mono' : '')}>
-        {value ?? <span className="text-ink-muted italic dark:text-[#8A8278]">—</span>}
+      <dd className={'text-[12px] ' + (mono ? 'font-mono' : '')}>
+        {value ?? <span className="text-ink-muted italic">—</span>}
       </dd>
     </>
   );

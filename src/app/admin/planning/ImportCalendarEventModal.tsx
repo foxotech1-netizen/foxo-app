@@ -97,26 +97,26 @@ export function ImportCalendarEventModal({
       onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4 overflow-y-auto"
     >
-      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[560px] my-8 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[560px] my-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[14px] font-extrabold text-ink dark:text-[#F0ECE4]">
+          <h2 className="text-[14px] font-extrabold text-ink">
             📅 Importer cet événement Calendar
           </h2>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)]"
             aria-label="Fermer"
           >✕</button>
         </div>
 
         {/* Aperçu de l'event Calendar */}
-        <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-lg p-3 mb-4 dark:bg-[#1E1B4B] dark:border-[#3730A3]">
-          <div className="text-[13px] font-bold text-[#4338CA] dark:text-[#A5B4FC]">
+        <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-lg p-3 mb-4">
+          <div className="text-[13px] font-bold text-[#4338CA]">
             {event.title}
           </div>
-          <div className="text-[11px] text-[#6366F1] mt-0.5 dark:text-[#A5B4FC]">
+          <div className="text-[11px] text-[#6366F1] mt-0.5">
             🕒 {fmtDateTime(event.start, event.all_day)}
             {event.location && (
               <>
@@ -126,14 +126,14 @@ export function ImportCalendarEventModal({
             )}
           </div>
           {event.description && (
-            <div className="text-[11px] text-ink-mid mt-2 line-clamp-3 dark:text-[#C8C2B8]">
+            <div className="text-[11px] text-ink-mid mt-2 line-clamp-3">
               {event.description}
             </div>
           )}
         </div>
 
         {event.is_foxo_event && (
-          <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-md px-3 py-2 text-[12px] mb-3 dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]">
+          <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-md px-3 py-2 text-[12px] mb-3">
             ⚠ Cet événement a déjà été importé comme intervention FoxO. Tu peux le ré-ouvrir mais pas le ré-importer.
           </div>
         )}
@@ -141,14 +141,14 @@ export function ImportCalendarEventModal({
         {/* Form */}
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
               Type d&apos;intervention *
             </label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as TypeIntervention)}
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
             >
               <option value="">— Choisir —</option>
               {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -156,7 +156,7 @@ export function ImportCalendarEventModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
               Adresse d&apos;intervention
             </label>
             <input
@@ -164,19 +164,19 @@ export function ImportCalendarEventModal({
               onChange={(e) => setAdresse(e.target.value)}
               placeholder="Pré-rempli depuis le lieu de l'event"
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
               Technicien assigné
             </label>
             <select
               value={technicienId}
               onChange={(e) => setTechnicienId(e.target.value)}
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
             >
               <option value="">— Non assigné —</option>
               {techs.map((t) => (
@@ -188,7 +188,7 @@ export function ImportCalendarEventModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
               Description / Notes *
             </label>
             <textarea
@@ -196,7 +196,7 @@ export function ImportCalendarEventModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
             />
           </div>
         </div>
@@ -212,7 +212,7 @@ export function ImportCalendarEventModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
           >
             Annuler
           </button>

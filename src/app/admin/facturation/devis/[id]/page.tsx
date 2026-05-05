@@ -51,7 +51,7 @@ export default async function EditDevisPage({
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={devis} defaults={emailDefaults} />
-          <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8] min-h-[44px] inline-flex items-center">
+          <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>
         </div>

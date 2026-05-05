@@ -83,7 +83,7 @@ export default async function EditFacturePage({
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"
-            className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8] min-h-[44px] inline-flex items-center"
+            className="text-[12px] text-ink-mid hover:text-navy min-h-[44px] inline-flex items-center"
           >
             ← Retour
           </Link>
@@ -92,10 +92,10 @@ export default async function EditFacturePage({
 
       <div className="flex-1 overflow-auto px-6 py-5">
         {avoirs.length > 0 && (
-          <div className="mb-4 bg-amber-light border border-[#E8C896] rounded-2xl px-4 py-3 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
+          <div className="mb-4 bg-amber-light border border-[#E8C896] rounded-2xl px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold text-[#8A5A1A] uppercase tracking-wider mb-1 dark:text-[#F0D896]">
+                <div className="text-[10px] font-bold text-[#8A5A1A] uppercase tracking-wider mb-1">
                   📝 {avoirs.length} avoir(s) lié(s) — solde réel
                 </div>
                 <div className="flex flex-wrap items-baseline gap-3 text-[13px]">
@@ -105,12 +105,12 @@ export default async function EditFacturePage({
                   <span className="text-terra">
                     − Avoirs émis : <strong className="font-mono">{totalCrediteEmis.toFixed(2)} €</strong>
                   </span>
-                  <span className="text-navy font-bold dark:text-[#A8C4F2]">
+                  <span className="text-navy font-bold">
                     = Solde réel : <span className="font-mono">{soldeReel.toFixed(2)} €</span>
                   </span>
                 </div>
                 {totalCredite > totalCrediteEmis && (
-                  <div className="text-[11px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+                  <div className="text-[11px] text-ink-muted mt-1 italic">
                     + {(totalCredite - totalCrediteEmis).toFixed(2)} € en brouillon (non encore émis).
                   </div>
                 )}

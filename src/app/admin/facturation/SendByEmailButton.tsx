@@ -114,12 +114,12 @@ export function SendByEmailButton({
           />
           <form
             onSubmit={handleSubmit}
-            className="relative bg-cream rounded-xl border border-sand-border shadow-2xl w-full max-w-lg p-5 dark:bg-[#221E1A] dark:border-[#3D3A32]"
+            className="relative bg-cream rounded-xl border border-sand-border shadow-2xl w-full max-w-lg p-5"
           >
-            <h2 id="send-email-dialog-title" className="text-base font-extrabold text-ink mb-1 dark:text-[#F0ECE4]">
+            <h2 id="send-email-dialog-title" className="text-base font-extrabold text-ink mb-1">
               Envoyer {labelForType(facture.type)} <span className="font-mono">{facture.numero}</span>
             </h2>
-            <p className="text-[12px] text-ink-muted mb-4 dark:text-[#C8C2B8]">
+            <p className="text-[12px] text-ink-muted mb-4">
               Le PDF sera joint automatiquement. {facture.statut === 'brouillon' && 'Le statut passera à « envoyé ».'}
             </p>
 
@@ -133,7 +133,7 @@ export function SendByEmailButton({
                   onChange={(e) => setTo(e.target.value)}
                   disabled={pending}
                   placeholder="contact@exemple.be"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
                 />
               </Field>
 
@@ -145,7 +145,7 @@ export function SendByEmailButton({
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   disabled={pending}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
                 />
               </Field>
 
@@ -157,7 +157,7 @@ export function SendByEmailButton({
                   disabled={pending}
                   rows={4}
                   placeholder="Ajoute un mot personnel — le texte standard « Veuillez trouver ci-joint… » est déjà inclus dans le mail."
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
                 />
               </Field>
             </div>
@@ -180,7 +180,7 @@ export function SendByEmailButton({
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={pending}
-                className="px-3.5 py-2 rounded-lg text-xs font-bold border border-sand-border bg-cream text-ink-mid hover:bg-sand-mid disabled:opacity-50 dark:bg-[#1C1A16] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+                className="px-3.5 py-2 rounded-lg text-xs font-bold border border-sand-border bg-cream text-ink-mid hover:bg-sand-mid disabled:opacity-50"
               >
                 Annuler
               </button>
@@ -202,7 +202,7 @@ export function SendByEmailButton({
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+      <label htmlFor={htmlFor} className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
         {label}
       </label>
       {children}

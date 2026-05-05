@@ -63,11 +63,11 @@ export function PaiementsClient({
   return (
     <div className="space-y-6">
       {/* Import Beobank */}
-      <section className="bg-cream rounded-xl border border-sand-border p-4 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-        <h2 className="text-[13px] font-extrabold text-ink mb-1 dark:text-[#F0ECE4]">
+      <section className="bg-cream rounded-xl border border-sand-border p-4">
+        <h2 className="text-[13px] font-extrabold text-ink mb-1">
           ⬇ Import Beobank CSV
         </h2>
-        <p className="text-[11px] text-ink-muted mb-3 dark:text-[#C8C2B8]">
+        <p className="text-[11px] text-ink-muted mb-3">
           Charge l&apos;export CSV de ton compte Beobank — les transactions
           dont la communication structurée matche une facture seront marquées
           payées automatiquement.
@@ -105,14 +105,14 @@ export function PaiementsClient({
 
       {/* En attente */}
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2 dark:text-[#F0ECE4]">
+        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
           ⏳ En attente de paiement
-          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
             {enAttente.length}
           </span>
         </h2>
         {enAttente.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]">
+          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
             Aucune facture en attente — tout est payé. 👍
           </div>
         ) : (
@@ -122,14 +122,14 @@ export function PaiementsClient({
 
       {/* Récents paiements */}
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2 dark:text-[#F0ECE4]">
+        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
           ✅ Paiements récents
-          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
             {recentes.length}
           </span>
         </h2>
         {recentes.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]">
+          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
             Aucun paiement enregistré pour l&apos;instant.
           </div>
         ) : (
@@ -149,18 +149,18 @@ function FactureTable({
   showPaiement?: boolean;
 }) {
   return (
-    <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+    <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse min-w-[720px]">
           <thead>
-            <tr className="bg-sand dark:bg-[#221E1A]">
+            <tr className="bg-sand">
               {[
                 'N°', 'Client', 'Référence', 'Émission',
                 ...(showRetard ? ['Échéance', 'Retard'] : []),
                 ...(showPaiement ? ['Payée le'] : []),
                 'TTC',
               ].map((h) => (
-                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -172,33 +172,33 @@ function FactureTable({
                 ? Math.max(0, daysBetween(f.date_echeance, todayIso))
                 : 0;
               return (
-                <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
+                <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-2.5 whitespace-nowrap">
                     <Link
                       href={`/admin/facturation/${f.id}`}
-                      className="font-mono text-xs font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+                      className="font-mono text-xs font-bold text-navy hover:underline"
                     >
                       {f.numero}
                     </Link>
                   </td>
                   <td className="px-3.5 py-2.5">
-                    <div className="text-xs font-semibold dark:text-[#F0ECE4]">{f.client_nom ?? '—'}</div>
+                    <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
                     {f.client_syndic && (
-                      <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">{f.client_syndic}</div>
+                      <div className="text-[10px] text-ink-muted">{f.client_syndic}</div>
                     )}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid dark:text-[#C8C2B8]">{f.reference ?? '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">{fmtDate(f.date_emission)}</td>
+                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">{f.reference ?? '—'}</td>
+                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDate(f.date_emission)}</td>
                   {showRetard && (
                     <>
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">{fmtDate(f.date_echeance)}</td>
+                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
                         {retardJours > 0 ? (
                           <span className="inline-block text-[10px] font-bold rounded-full px-2 py-0.5 bg-terra-light text-terra border border-terra-mid">
                             {retardJours}j
                           </span>
                         ) : (
-                          <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">—</span>
+                          <span className="text-[10px] text-ink-muted">—</span>
                         )}
                       </td>
                     </>

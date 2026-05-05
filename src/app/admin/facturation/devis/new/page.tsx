@@ -24,7 +24,7 @@ export default async function NewDevisPage() {
             N° proposé : <span className="font-mono">{initialNumero}</span> (modifiable)
           </p>
         </div>
-        <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]">
+        <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy">
           ← Retour à la liste
         </Link>
       </header>

@@ -247,13 +247,13 @@ export function FacturationListClient({
       )}
 
       {/* Tableau — desktop only */}
-      <div className="hidden md:block bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      <div className="hidden md:block bg-cream rounded-xl border border-sand-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[860px]">
             <thead>
-              <tr className="bg-sand dark:bg-[#221E1A]">
+              <tr className="bg-sand">
                 {['N°', 'Client', 'Référence', 'Émission', 'Échéance', 'HT', 'TVA', 'TTC', 'Statut', 'Actions'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -262,40 +262,40 @@ export function FacturationListClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
+                  <td colSpan={10} className="text-center py-12 text-ink-muted text-[13px]">
                     Aucune facture ne correspond au filtre.
                   </td>
                 </tr>
               ) : (
                 filtered.map((f) => (
-                  <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
+                  <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
                       <Link
                         href={`/admin/facturation/${f.id}`}
-                        className="font-mono text-xs font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+                        className="font-mono text-xs font-bold text-navy hover:underline"
                       >
                         {f.numero}
                       </Link>
                     </td>
                     <td className="px-3.5 py-2.5">
-                      <div className="text-xs font-semibold dark:text-[#F0ECE4]">{f.client_nom ?? '—'}</div>
+                      <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
                       {f.client_syndic && (
-                        <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">{f.client_syndic}</div>
+                        <div className="text-[10px] text-ink-muted">{f.client_syndic}</div>
                       )}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid dark:text-[#C8C2B8]">
+                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
                       {f.reference ?? '—'}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                       {fmtDate(f.date_emission)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                       {fmtDate(f.date_echeance)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono whitespace-nowrap dark:text-[#F0ECE4]">
+                    <td className="px-3.5 py-2.5 text-[11px] font-mono whitespace-nowrap">
                       {fmtMoney(f.montant_ht)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono whitespace-nowrap text-ink-mid dark:text-[#C8C2B8]">
+                    <td className="px-3.5 py-2.5 text-[11px] font-mono whitespace-nowrap text-ink-mid">
                       {fmtMoney(f.montant_tva)}
                     </td>
                     <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap dark:text-white">
@@ -365,7 +365,7 @@ export function FacturationListClient({
           fiche détail (où on retrouve les actions avoir/revert/delete). */}
       <div className="md:hidden space-y-2">
         {filtered.length === 0 ? (
-          <div className="text-center py-12 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]">
+          <div className="text-center py-12 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border">
             Aucune facture ne correspond au filtre.
           </div>
         ) : (
@@ -377,25 +377,25 @@ export function FacturationListClient({
               <Link
                 key={f.id}
                 href={`/admin/facturation/${f.id}`}
-                className="block bg-cream rounded-xl border border-sand-border p-3 hover:bg-sand-hover transition-colors dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+                className="block bg-cream rounded-xl border border-sand-border p-3 hover:bg-sand-hover transition-colors"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-mono text-[12px] font-bold text-navy dark:text-[#A8C4F2]">
+                  <span className="font-mono text-[12px] font-bold text-navy">
                     {f.numero}
                   </span>
                   <StatutBadge statut={f.statut} />
                 </div>
 
-                <div className="text-[13px] font-semibold text-ink dark:text-[#F0ECE4] truncate">
+                <div className="text-[13px] font-semibold text-ink truncate">
                   {f.client_nom ?? '—'}
                 </div>
                 {f.client_syndic && (
-                  <div className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">
+                  <div className="text-[10px] text-ink-muted truncate">
                     {f.client_syndic}
                   </div>
                 )}
                 {f.reference && (
-                  <div className="text-[10px] text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
+                  <div className="text-[10px] text-ink-mid mt-0.5">
                     Réf : <span className="font-mono">{f.reference}</span>
                   </div>
                 )}
@@ -414,17 +414,17 @@ export function FacturationListClient({
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-sand-mid dark:border-[#3D3A32]">
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-sand-mid">
                   <div>
-                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider dark:text-[#C8C2B8]">Émission</div>
-                    <div className="text-[11px] font-mono dark:text-[#F0ECE4]">{fmtDate(f.date_emission)}</div>
+                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Émission</div>
+                    <div className="text-[11px] font-mono">{fmtDate(f.date_emission)}</div>
                   </div>
                   <div>
-                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider dark:text-[#C8C2B8]">Échéance</div>
-                    <div className="text-[11px] font-mono dark:text-[#F0ECE4]">{fmtDate(f.date_echeance)}</div>
+                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Échéance</div>
+                    <div className="text-[11px] font-mono">{fmtDate(f.date_echeance)}</div>
                   </div>
                   <div className="col-span-2">
-                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider dark:text-[#C8C2B8]">TTC</div>
+                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">TTC</div>
                     <div className="text-[16px] font-mono font-bold text-ink dark:text-white">
                       {fmtMoney(f.montant_ttc)}
                     </div>
@@ -488,12 +488,12 @@ function StatCard({
   let border = 'border-sand-border';
   let numColor = '';
   if (accent) { bg = 'bg-navy-pale'; border = 'border-navy-light'; numColor = 'text-navy dark:text-white'; }
-  if (muted) numColor = 'text-ink-mid dark:text-[#C8C2B8]';
+  if (muted) numColor = 'text-ink-mid';
   if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra dark:text-white'; }
   return (
-    <div className={`${bg} ${border} border rounded-xl px-4 py-3 dark:bg-[#1C1A16] dark:border-[#3D3A32]`}>
+    <div className={`${bg} ${border} border rounded-xl px-4 py-3`}>
       <div className={`text-[18px] font-extrabold leading-tight ${numColor || 'stat-num'}`}>{num}</div>
-      <div className="text-[10px] text-ink-muted mt-1 font-semibold dark:text-[#C8C2B8]">{label}</div>
+      <div className="text-[10px] text-ink-muted mt-1 font-semibold">{label}</div>
     </div>
   );
 }
