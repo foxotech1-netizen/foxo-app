@@ -1,12 +1,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import {
+  BarChart3, Bell, Calendar, Wrench, Sparkles, Users, User,
+  Receipt, Package, Mail, Settings, type LucideIcon,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 interface Tile {
   href: string;
-  icon: string;
+  Icon: LucideIcon;
   title: string;
   subtitle?: string;
   bg: string;
@@ -24,17 +28,17 @@ export default async function HomePage() {
 
   // Palette FoxO par section, cohérente avec sidebar / badges existants
   const tiles: Tile[] = [
-    { href: '/admin',             icon: '📊', title: 'Tableau de bord', subtitle: 'Vue opérationnelle',  bg: '#1B3A6B' },
-    { href: '/admin/alertes',     icon: '🔔', title: 'Alertes',          subtitle: alertCount > 0 ? `${alertCount} en attente` : 'Tout est OK', bg: '#C4622D', badgeCount: alertCount },
-    { href: '/admin/planning',    icon: '📅', title: 'Planning',         subtitle: 'Créneaux & RDV',     bg: '#1F6B45' },
-    { href: '/admin/techniciens', icon: '🔧', title: 'Techniciens',      subtitle: 'Équipe terrain',     bg: '#3D3A32' },
-    { href: '/admin/assistant',   icon: '✨', title: 'Assistant IA',     subtitle: 'Claude FoxO',        bg: '#A17244' },
-    { href: '/admin/syndics',     icon: '👥', title: 'Syndics',          subtitle: 'Partenaires',        bg: '#1B3A6B' },
-    { href: '/admin/clients',     icon: '👤', title: 'Clients',          subtitle: 'Base contacts',      bg: '#1F6B45' },
-    { href: '/admin/facturation', icon: '🧾', title: 'Facturation',      subtitle: 'Factures émises',    bg: '#A17244' },
-    { href: '/admin/articles',    icon: '📦', title: 'Catalogue',        subtitle: 'Prestations',        bg: '#3D3A32' },
-    { href: '/admin/mails',       icon: '✉️', title: 'Mails',            subtitle: 'Boîte FoxO',         bg: '#1B3A6B' },
-    { href: '/admin/parametres',  icon: '⚙️', title: 'Paramètres',       subtitle: 'Configuration',      bg: '#3D3A32' },
+    { href: '/admin',             Icon: BarChart3, title: 'Tableau de bord', subtitle: 'Vue opérationnelle',  bg: '#1B3A6B' },
+    { href: '/admin/alertes',     Icon: Bell,      title: 'Alertes',          subtitle: alertCount > 0 ? `${alertCount} en attente` : 'Tout est OK', bg: '#C4622D', badgeCount: alertCount },
+    { href: '/admin/planning',    Icon: Calendar,  title: 'Planning',         subtitle: 'Créneaux & RDV',     bg: '#1F6B45' },
+    { href: '/admin/techniciens', Icon: Wrench,    title: 'Techniciens',      subtitle: 'Équipe terrain',     bg: '#3D3A32' },
+    { href: '/admin/assistant',   Icon: Sparkles,  title: 'Assistant IA',     subtitle: 'Claude FoxO',        bg: '#A17244' },
+    { href: '/admin/syndics',     Icon: Users,     title: 'Syndics',          subtitle: 'Partenaires',        bg: '#1B3A6B' },
+    { href: '/admin/clients',     Icon: User,      title: 'Clients',          subtitle: 'Base contacts',      bg: '#1F6B45' },
+    { href: '/admin/facturation', Icon: Receipt,   title: 'Facturation',      subtitle: 'Factures émises',    bg: '#A17244' },
+    { href: '/admin/articles',    Icon: Package,   title: 'Catalogue',        subtitle: 'Prestations',        bg: '#3D3A32' },
+    { href: '/admin/mails',       Icon: Mail,      title: 'Mails',            subtitle: 'Boîte FoxO',         bg: '#1B3A6B' },
+    { href: '/admin/parametres',  Icon: Settings,  title: 'Paramètres',       subtitle: 'Configuration',      bg: '#3D3A32' },
   ];
 
   return (
@@ -58,7 +62,7 @@ export default async function HomePage() {
               {t.badgeCount && t.badgeCount > 0 ? (
                 <span className="foxo-home-tile-badge">{t.badgeCount}</span>
               ) : null}
-              <span className="foxo-home-tile-icon">{t.icon}</span>
+              <span className="foxo-home-tile-icon"><t.Icon size={24} aria-hidden /></span>
               <span className="foxo-home-tile-title">{t.title}</span>
               {t.subtitle && (
                 <span className="foxo-home-tile-subtitle">{t.subtitle}</span>
@@ -127,9 +131,11 @@ export default async function HomePage() {
           text-align: center;
         }
         .foxo-home-tile-icon {
-          font-size: 36px;
           line-height: 1;
           margin-bottom: 4px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .foxo-home-tile-title {
           font-size: 13px;
@@ -185,7 +191,7 @@ export default async function HomePage() {
             border-radius: 14px;
             padding: 6px;
           }
-          .foxo-home-tile-icon { font-size: 30px; }
+          /* size={24} sur Lucide reste constant en mobile (consigne) */
           .foxo-home-tile-title { font-size: 11px; }
           .foxo-home-tile-subtitle { font-size: 9px; }
           .foxo-home-grid-wrap { padding: 24px 12px 32px; }
