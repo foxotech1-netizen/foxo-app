@@ -13,6 +13,7 @@ const TABS: readonly Tab[] = [
   { href: '/admin/facturation',              icon: '📄', label: 'Factures',         exact: true },
   { href: '/admin/facturation/devis',        icon: '📋', label: 'Devis'            },
   { href: '/admin/facturation/notes-credit', icon: '📝', label: 'Notes de crédit'  },
+  { href: '/admin/notes-frais',              icon: '🧾', label: 'Notes de frais'   },
   { href: '/admin/facturation/paiements',    icon: '💳', label: 'Paiements'        },
   { href: '/admin/facturation/rappels',      icon: '🔔', label: 'Rappels'          },
   { href: '/admin/articles',                 icon: '📦', label: 'Catalogue'        },

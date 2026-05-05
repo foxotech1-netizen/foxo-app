@@ -508,3 +508,35 @@ export const STATUT_INFO: Record<StatutIntervention, { label: string; fg: string
   cloturee:    { label: 'Clôturée',     fg: '#6B6558', bg: '#E4DFD4' },
   en_suspens:  { label: 'En suspens',   fg: '#C4622D', bg: '#F7EDE5' },
 };
+
+// ─── Notes de frais (Sprint 6) ────────────────────────────────────────────
+
+export type StatutNoteFrais = 'brouillon' | 'soumise' | 'approuvee' | 'rejetee' | 'remboursee';
+export type CategorieNoteFrais = 'carburant' | 'materiel' | 'outillage' | 'transport' |
+  'restauration' | 'fournitures' | 'sous_traitance' | 'autre';
+
+export interface NoteFrais {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  technicien_email: string;
+  technicien_nom: string | null;
+  titre: string;
+  categorie: CategorieNoteFrais;
+  montant_htva: number;
+  taux_tva: number;
+  montant_ttc: number;
+  fournisseur: string | null;
+  date_depense: string;
+  description: string | null;
+  intervention_id: string | null;
+  photo_url: string | null;
+  photo_drive_id: string | null;
+  ia_raw: Record<string, unknown> | null;
+  ia_confiance: number | null;
+  statut: StatutNoteFrais;
+  note_admin: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+}
