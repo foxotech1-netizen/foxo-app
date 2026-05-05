@@ -234,6 +234,10 @@ export default function Sidebar({
             alt="FoxO"
             width={90}
             height={90}
+            // brightness-0 invert : logo noir → blanc. Les 3 thèmes
+            // (dark-amber / warm-light / foxo-blue) ont tous une
+            // sidebar sombre, donc filtre toujours appliqué.
+            className="brightness-0 invert"
             style={{ objectFit: 'contain' }}
             priority
           />
@@ -358,6 +362,7 @@ export default function Sidebar({
           alt="FoxO"
           width={36}
           height={36}
+          className="brightness-0 invert"
           style={{ objectFit: 'contain' }}
         />
         <span className="foxo-mobile-header-label">Interface Admin</span>
