@@ -639,6 +639,10 @@ function NewMailSection({
     running: boolean; current: number; total: number; updated: number; errors: number;
   } | null>(null);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err' | 'warn'; msg: string } | null>(null);
+  // Au-delà de 4 mails non traités, on tronque la liste pour ne pas
+  // saturer le dashboard. Le bouton "Voir N de plus" déplie tout.
+  const [showAll, setShowAll] = useState(false);
+  const visibleMails = showAll ? mails : mails.slice(0, 4);
 
   // Auto-dismiss toast après 5s
   useEffect(() => {
@@ -794,7 +798,7 @@ function NewMailSection({
 
       <div className="bg-cream border border-sand-border rounded-2xl p-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <div className="space-y-1.5">
-          {mails.map((iv) => {
+          {visibleMails.map((iv) => {
             const reanalyzing = reanalyzingIds.has(iv.id);
             const hasDiff = diffIds.has(iv.id);
             const fullName = iv.particulier_contact
@@ -886,6 +890,17 @@ function NewMailSection({
             );
           })}
         </div>
+        {mails.length > 4 && (
+          <button
+            type="button"
+            onClick={() => setShowAll((v) => !v)}
+            className="w-full mt-2 text-[11px] font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+          >
+            {showAll
+              ? `— Réduire`
+              : `+ Voir ${mails.length - 4} de plus`}
+          </button>
+        )}
         <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
           Créées automatiquement par le cron à partir de mails entrants. Aucune action n&apos;a été envoyée au client — c&apos;est à toi de planifier.
         </p>
