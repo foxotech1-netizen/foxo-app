@@ -47,10 +47,13 @@ export function ThemePicker() {
   }
 
   return (
-    <section className="bg-cream rounded-xl border border-sand-border p-5 space-y-3 dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+    <section
+      className="rounded-xl border p-5 space-y-3"
+      style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+    >
       <div>
-        <h2 className="text-[13px] font-extrabold text-ink dark:text-[#F0ECE4]">🎨 Apparence</h2>
-        <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+        <h2 className="text-[13px] font-extrabold text-ink">🎨 Apparence</h2>
+        <p className="text-[11px] text-ink-muted mt-0.5">
           Thème de l&apos;interface — synchronisé entre tous tes appareils.
         </p>
       </div>
@@ -71,7 +74,7 @@ export function ThemePicker() {
                 'group relative flex flex-col rounded-lg border-2 overflow-hidden text-left transition-all ' +
                 (active
                   ? 'border-navy ring-2 ring-navy/30 shadow-md'
-                  : 'border-sand-border hover:border-navy-mid hover:shadow-sm dark:border-[#3D3A32] dark:hover:border-[#7AA8E8]')
+                  : 'border-[var(--card-border)] hover:border-navy-mid hover:shadow-sm')
                 + ' disabled:opacity-60 disabled:cursor-wait'
               }
             >
@@ -87,16 +90,16 @@ export function ThemePicker() {
               </div>
 
               {/* Pied : nom + état */}
-              <div className="px-3 py-2 bg-white border-t border-sand-border dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <div className="px-3 py-2 bg-[var(--main-bg)] border-t border-[var(--card-border)]">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">{t.name}</span>
+                  <span className="text-[12px] font-bold text-ink">{t.name}</span>
                   {active && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-navy bg-navy-pale rounded-full px-1.5 py-0.5 dark:text-[#A8C4F2] dark:bg-[#1A2540]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-navy bg-navy-pale rounded-full px-1.5 py-0.5">
                       Actif
                     </span>
                   )}
                   {isSaving && (
-                    <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">…</span>
+                    <span className="text-[10px] text-ink-muted">…</span>
                   )}
                 </div>
               </div>
@@ -110,8 +113,8 @@ export function ThemePicker() {
           className={
             'text-[11px] rounded-md px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
-              ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
-              : 'bg-amber-light border-[#E8C896] text-[#8A5A1A] dark:bg-[#2A220E] dark:border-[#5A4A30] dark:text-[#E8C896]')
+              ? 'bg-ok-light border-ok-mid text-ok'
+              : 'bg-amber-light border-[#E8C896] text-[#8A5A1A]')
           }
         >
           {feedback.msg}
