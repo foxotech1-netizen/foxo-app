@@ -246,8 +246,8 @@ export function FacturationListClient({
         </div>
       )}
 
-      {/* Tableau */}
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      {/* Tableau — desktop only */}
+      <div className="hidden md:block bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[860px]">
             <thead>
@@ -359,6 +359,81 @@ export function FacturationListClient({
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Cards mobile (< 768px) — version condensée. Le clic ouvre la
+          fiche détail (où on retrouve les actions avoir/revert/delete). */}
+      <div className="md:hidden space-y-2">
+        {filtered.length === 0 ? (
+          <div className="text-center py-12 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:text-[#C8C2B8]">
+            Aucune facture ne correspond au filtre.
+          </div>
+        ) : (
+          filtered.map((f) => {
+            const a = avoirsByFacture[f.id];
+            const ttc = Number(f.montant_ttc ?? 0);
+            const fullyCovered = a && a.totalEmis > 0 && ttc > 0 && a.totalEmis + 0.005 >= ttc;
+            return (
+              <Link
+                key={f.id}
+                href={`/admin/facturation/${f.id}`}
+                className="block bg-cream rounded-xl border border-sand-border p-3 hover:bg-sand-hover transition-colors dark:bg-[#1C1A16] dark:border-[#3D3A32] dark:hover:bg-[#2A2520]"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="font-mono text-[12px] font-bold text-navy dark:text-[#A8C4F2]">
+                    {f.numero}
+                  </span>
+                  <StatutBadge statut={f.statut} />
+                </div>
+
+                <div className="text-[13px] font-semibold text-ink dark:text-[#F0ECE4] truncate">
+                  {f.client_nom ?? '—'}
+                </div>
+                {f.client_syndic && (
+                  <div className="text-[10px] text-ink-muted truncate dark:text-[#C8C2B8]">
+                    {f.client_syndic}
+                  </div>
+                )}
+                {f.reference && (
+                  <div className="text-[10px] text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
+                    Réf : <span className="font-mono">{f.reference}</span>
+                  </div>
+                )}
+
+                {a && a.totalEmis > 0 && (
+                  <div className="mt-1.5">
+                    {f.statut === 'annulee' && fullyCovered ? (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white">
+                        ❌ Annulée par avoir
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid">
+                        📝 Avoir partiel ({a.totalEmis.toFixed(2)} €)
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-sand-mid dark:border-[#3D3A32]">
+                  <div>
+                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider dark:text-[#C8C2B8]">Émission</div>
+                    <div className="text-[11px] font-mono dark:text-[#F0ECE4]">{fmtDate(f.date_emission)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider dark:text-[#C8C2B8]">Échéance</div>
+                    <div className="text-[11px] font-mono dark:text-[#F0ECE4]">{fmtDate(f.date_echeance)}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider dark:text-[#C8C2B8]">TTC</div>
+                    <div className="text-[16px] font-mono font-bold text-ink dark:text-white">
+                      {fmtMoney(f.montant_ttc)}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })
+        )}
       </div>
 
       <ConfirmDialog

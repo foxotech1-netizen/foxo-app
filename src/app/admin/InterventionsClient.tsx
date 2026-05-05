@@ -1132,9 +1132,9 @@ export function InterventionsClient({
         </select>
       </div>
 
-      {/* Table */}
+      {/* Table — desktop only (cf. cards mobile plus bas) */}
       <div className="flex-1 overflow-auto px-6 pt-3 pb-4">
-        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
+        <div className="hidden md:block bg-cream rounded-xl border border-sand-border overflow-hidden">
           <table className="w-full border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-sand">
@@ -1281,6 +1281,106 @@ export function InterventionsClient({
             </tbody>
           </table>
         </div>
+
+        {/* Cards mobile (< 768px) — version condensée de chaque ligne */}
+        <div className="md:hidden space-y-2">
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border">
+              Aucune intervention
+            </div>
+          ) : (
+            filtered.map((iv) => {
+              const sel = iv.id === selectedId;
+              const adresse = iv.acp ? [iv.acp.adresse, iv.acp.ville].filter(Boolean).join(', ') : '';
+              return (
+                <button
+                  key={iv.id}
+                  type="button"
+                  onClick={() => openDrawer(iv.id)}
+                  className={
+                    'w-full text-left bg-cream rounded-xl border p-3 transition-colors ' +
+                    (sel
+                      ? 'border-navy ring-2 ring-navy/20'
+                      : 'border-sand-border hover:bg-sand-hover')
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {iv.color && (
+                        <span
+                          className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0 border border-black/10"
+                          style={{ background: iv.color }}
+                        />
+                      )}
+                      <span className="font-mono text-[11px] font-bold text-navy truncate">
+                        {iv.ref ?? '—'}
+                      </span>
+                    </div>
+                    <Badge statut={iv.statut} />
+                  </div>
+
+                  {(iv.priorite === 'urgente'
+                    || iv.source === 'mail'
+                    || (iv.recidive_count ?? 0) > 0
+                    || (iv.unread_messages_count ?? 0) > 0) && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {iv.priorite === 'urgente' && (
+                        <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                          ⚡ URGENT
+                        </span>
+                      )}
+                      {iv.source === 'mail' && (
+                        <span
+                          className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
+                          style={{ background: '#A17244' }}
+                        >
+                          📧 Mail
+                        </span>
+                      )}
+                      {(iv.recidive_count ?? 0) > 0 && (
+                        <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                          🔄 Récidive ({iv.recidive_count})
+                        </span>
+                      )}
+                      {(iv.unread_messages_count ?? 0) > 0 && (
+                        <span className="text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5">
+                          💬 {iv.unread_messages_count}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="text-[13px] font-bold text-ink truncate">
+                    {iv.acp?.nom ?? (iv.source === 'mail' ? '⚠️ ACP à associer' : '—')}
+                  </div>
+                  {adresse && (
+                    <div className="text-[10px] text-ink-muted truncate">{adresse}</div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-sand-mid">
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Type</div>
+                      <div className="text-[11px] truncate">{iv.type ?? '—'}</div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Tech</div>
+                      <div className="text-[11px] truncate">
+                        {iv.technicien
+                          ? `${(iv.technicien.prenom ?? '')[0]}. ${iv.technicien.nom ?? ''}`
+                          : <span className="text-terra font-semibold">Non assigné</span>}
+                      </div>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Créneau</div>
+                      <div className="text-[11px] font-mono">{fmtDate(iv.creneau_debut)}</div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+
         <p className="text-[11px] text-ink-muted mt-2 px-0.5">
           {filtered.length} intervention(s)
           {filtered.length !== rows.length ? ` sur ${rows.length}` : ''} · Cliquez une ligne pour ouvrir le détail
