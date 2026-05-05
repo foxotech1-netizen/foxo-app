@@ -11,7 +11,8 @@ import {
   type InterventionRow,
   type StatutIntervention,
 } from '@/lib/types/database';
-import type { Acp, Utilisateur } from '@/lib/types/database';
+import type { Acp, TypeOccupant, Utilisateur } from '@/lib/types/database';
+import { TYPE_OCCUPANT_LABEL } from '@/lib/types/database';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
 import {
   updateInterventionStatus,
@@ -180,7 +181,7 @@ export function InterventionsClient({
     conf: 'confirme' | 'en_attente' | 'decline' | null;
     contact_preference?: 'email' | 'sms' | 'whatsapp' | 'both' | null;
     token_sent_at?: string | null;
-    type_occupant?: 'occupant' | 'proprietaire' | 'parties_communes' | null;
+    type_occupant?: TypeOccupant | null;
     proposed_creneau_debut?: string | null;
     proposed_creneau_fin?: string | null;
   };
@@ -291,10 +292,12 @@ export function InterventionsClient({
     prenom: string; nom: string; email: string; telephone: string;
     appartement: string; etage: string;
     contact_preference: 'email' | 'sms' | 'whatsapp' | 'both';
+    type_occupant: TypeOccupant;
   };
   const EMPTY_OCC_FORM: OccupantForm = {
     prenom: '', nom: '', email: '', telephone: '',
     appartement: '', etage: '', contact_preference: 'email',
+    type_occupant: 'occupant',
   };
   const [editingOccupantId, setEditingOccupantId] = useState<string | null>(null);
   const [addingOccupant, setAddingOccupant] = useState(false);
@@ -734,6 +737,7 @@ export function InterventionsClient({
       appartement: o.appartement ?? '',
       etage: o.etage ?? '',
       contact_preference: (o.contact_preference ?? 'email') as OccupantForm['contact_preference'],
+      type_occupant: o.type_occupant ?? 'occupant',
     });
   }
 
@@ -1903,17 +1907,12 @@ export function InterventionsClient({
                                       🔄 Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   )}
-                                  {o.type_occupant && o.type_occupant !== 'occupant' && (
+                                  {o.type_occupant && (
                                     <span
-                                      className={
-                                        'inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ' +
-                                        (o.type_occupant === 'parties_communes'
-                                          ? 'bg-[#EEF2FF] text-[#4338CA] border border-[#C7D2FE] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]'
-                                          : 'bg-[#F5F3FF] text-[#7C3AED] border border-[#DDD6FE] dark:bg-[#2D1B54] dark:text-[#C4B5FD] dark:border-[#4C2BA0]')
-                                      }
-                                      title={o.type_occupant === 'parties_communes' ? 'Zone commune (escaliers, couloir, hall…)' : 'Propriétaire bailleur (ne réside pas)'}
+                                      className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                                      title="Type d'occupant"
                                     >
-                                      {o.type_occupant === 'parties_communes' ? '🏛 communs' : '🏠 propriétaire'}
+                                      {TYPE_OCCUPANT_LABEL[o.type_occupant] ?? o.type_occupant}
                                     </span>
                                   )}
                                   {fromMail && (
@@ -2806,6 +2805,7 @@ type OccupantEditForm = {
   prenom: string; nom: string; email: string; telephone: string;
   appartement: string; etage: string;
   contact_preference: 'email' | 'sms' | 'whatsapp' | 'both';
+  type_occupant: TypeOccupant;
 };
 
 function OccupantEditCard({
@@ -2868,6 +2868,16 @@ function OccupantEditCard({
           placeholder="Étage (ex : 2ème)"
           className={cls}
         />
+        <select
+          value={form.type_occupant}
+          onChange={(e) => onChange({ ...form, type_occupant: e.target.value as TypeOccupant })}
+          className={cls + ' col-span-2'}
+          title="Type d'occupant"
+        >
+          {(Object.entries(TYPE_OCCUPANT_LABEL) as [TypeOccupant, string][]).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
       </div>
       <div className="flex justify-end gap-1.5">
         {onDelete && (

@@ -13,9 +13,16 @@ interface OccupantPatch {
   telephone?: unknown;
   instructions?: unknown;
   contact_preference?: unknown;
+  type_occupant?: unknown;
 }
 
 const ALLOWED_PREF = new Set(['email', 'sms', 'whatsapp', 'both']);
+// Doit rester aligné avec le CHECK SQL
+// (cf. db/migrations/2026-05-29_occupant_types_extended.sql).
+const ALLOWED_TYPE_OCCUPANT = new Set([
+  'occupant', 'proprietaire', 'locataire', 'concierge',
+  'voisin', 'gestionnaire', 'parties_communes', 'autre',
+]);
 
 function sanitize(b: OccupantPatch): Record<string, string | null> {
   const out: Record<string, string | null> = {};
@@ -28,6 +35,9 @@ function sanitize(b: OccupantPatch): Record<string, string | null> {
   }
   if (typeof b.contact_preference === 'string' && ALLOWED_PREF.has(b.contact_preference)) {
     out.contact_preference = b.contact_preference;
+  }
+  if (typeof b.type_occupant === 'string' && ALLOWED_TYPE_OCCUPANT.has(b.type_occupant)) {
+    out.type_occupant = b.type_occupant;
   }
   return out;
 }

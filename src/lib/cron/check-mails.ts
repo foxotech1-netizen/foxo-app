@@ -51,7 +51,22 @@ async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise
   }
 }
 
-export type CronOccupantType = 'occupant' | 'proprietaire' | 'parties_communes';
+export type CronOccupantType =
+  | 'occupant'
+  | 'proprietaire'
+  | 'locataire'
+  | 'concierge'
+  | 'voisin'
+  | 'gestionnaire'
+  | 'parties_communes'
+  | 'autre';
+
+// Doit rester aligné avec le CHECK SQL
+// (cf. db/migrations/2026-05-29_occupant_types_extended.sql).
+const ALLOWED_CRON_OCCUPANT_TYPES = new Set<CronOccupantType>([
+  'occupant', 'proprietaire', 'locataire', 'concierge',
+  'voisin', 'gestionnaire', 'parties_communes', 'autre',
+]);
 
 export interface CronExtractedOccupant {
   prenom: string;
@@ -439,7 +454,7 @@ export async function analyzeMailWithClaude(
     `      "prenom": "string ou \\"\\"",`,
     `      "email": "string ou \\"\\"",`,
     `      "telephone": "string ou \\"\\"",`,
-    `      "type": "occupant" | "proprietaire" | "parties_communes",`,
+    `      "type": "occupant" | "proprietaire" | "locataire" | "concierge" | "voisin" | "gestionnaire" | "parties_communes" | "autre",`,
     `      "remarques": "string courte ou \\"\\""`,
     `    }`,
     `  ],`,
@@ -465,6 +480,15 @@ export async function analyzeMailWithClaude(
     `- Sinon "occupants": [].`,
     `- Si pas d'assurance mentionnée → tous les champs assurance à null.`,
     `- Le From: doit toujours être identifiable comme demandeur.email_contact / nom_contact (au moins).`,
+    `- Pour le champ occupants[].type, choisis le plus précis :`,
+    `   "occupant"         = résident principal de l'appartement (défaut si non précisé)`,
+    `   "proprietaire"     = propriétaire bailleur qui ne réside pas`,
+    `   "locataire"        = locataire identifié distinct du résident`,
+    `   "concierge"        = concierge / loge`,
+    `   "voisin"           = voisin sollicité pour accès ou nuisance`,
+    `   "gestionnaire"     = gestionnaire d'immeuble / régie`,
+    `   "parties_communes" = zone commune sans résident (escaliers, hall, parking…)`,
+    `   "autre"            = ne rentre dans aucune catégorie ci-dessus.`,
   ].join('\n');
 
   // Log diagnostique — prompt complet + meta du mail. Activable via
@@ -649,8 +673,8 @@ export async function analyzeMailWithClaude(
       const nom = strOrEmpty(r.nom);
       const prenom = strOrEmpty(r.prenom);
       const tRaw = typeof r.type === 'string' ? r.type : '';
-      const type: CronOccupantType = tRaw === 'parties_communes' || tRaw === 'proprietaire'
-        ? tRaw
+      const type: CronOccupantType = ALLOWED_CRON_OCCUPANT_TYPES.has(tRaw as CronOccupantType)
+        ? (tRaw as CronOccupantType)
         : 'occupant';
       // Le nouveau prompt utilise 'remarques' ; on accepte 'notes' aussi
       // par rétrocompat si jamais Claude rechute sur l'ancienne clé.

@@ -216,7 +216,28 @@ export interface Rapport {
 
 export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
 
-export type TypeOccupant = 'occupant' | 'proprietaire' | 'parties_communes';
+export type TypeOccupant =
+  | 'occupant'
+  | 'proprietaire'
+  | 'locataire'
+  | 'concierge'
+  | 'voisin'
+  | 'gestionnaire'
+  | 'parties_communes'
+  | 'autre';
+
+// Libellés FR pour l'UI (drawer admin, sélecteurs). L'ordre du Record
+// est l'ordre d'affichage dans les <select> via Object.entries().
+export const TYPE_OCCUPANT_LABEL: Record<TypeOccupant, string> = {
+  occupant:         'Occupant',
+  proprietaire:     'Propriétaire',
+  locataire:        'Locataire',
+  concierge:        'Concierge',
+  voisin:           'Voisin',
+  gestionnaire:     'Gestionnaire',
+  parties_communes: 'Parties communes',
+  autre:            'Autre',
+};
 
 export interface Occupant {
   id: string;
