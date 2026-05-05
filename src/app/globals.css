@@ -1,24 +1,18 @@
 @import "tailwindcss";
 
-/* Active le variant `dark:` Tailwind v4 sur :
-   - .dark               (legacy / autres parties qui posent encore .dark)
-   - .theme-nuit         (thème sombre d'origine)
-   - .theme-ardoise      (thème sombre océan)
-   next-themes ne supporte qu'une seule classe par thème dans `value`,
-   donc on ne peut pas combiner .dark + .theme-nuit. Le custom-variant
-   matche directement les classes de thème sombres. */
-@custom-variant dark (&:where(
-  .dark, .dark *,
-  .theme-nuit, .theme-nuit *,
-  .theme-ardoise, .theme-ardoise *
-));
-
 /* ─────────────────────────────────────────────────────────────────────────
-   PALETTE — variables thématisables.
-   Tailwind v4 lit ces tokens via @theme et génère bg-sand, text-ink, etc.
-   `:root` = thème clair (défaut). `.dark` = thème sombre.
-   next-themes pose la classe .dark sur <html>.
-   ───────────────────────────────────────────────────────────────────────── */
+   PALETTE — variables FoxO de base utilisées par les utilitaires Tailwind
+   (bg-sand, text-ink, border-sand-border, etc.). Ces tokens sont mappés
+   sur Tailwind v4 via @theme plus bas.
+
+   Le système de thèmes multi-portail (cf. src/lib/themes.ts) injecte
+   en plus des CSS vars dynamiques (--accent, --main-bg, --sidebar,
+   --sidebar-text, etc.) sur <html> via ThemeApplier — celles-ci sont
+   consommées par Sidebar et les composants qui les référencent
+   explicitement. La palette :root ci-dessous reste invariante pour
+   préserver le rendu des composants admin existants qui utilisent
+   bg-cream / text-ink / etc.
+   ───────────────────────────────────────────────────────────────────── */
 
 :root {
   /* Surfaces */
@@ -33,7 +27,7 @@
   --color-ink-mid:    #6B6558;
   --color-ink-muted:  #A09A8E;
 
-  /* Marine — inchangé entre thèmes (logos, accents) */
+  /* Marine — accents (logos, boutons primary) */
   --color-navy:       #1B3A6B;
   --color-navy-dark:  #152D54;
   --color-navy-deep:  #0F2040;
@@ -59,12 +53,14 @@
   --color-ok-light: #E4F2EB;
   --color-ok-mid:   #B8D9C8;
 
-  /* Sidebar (admin) */
+  /* Sidebar — fallback (override runtime par ThemeApplier qui injecte
+     --sidebar-bg / --sidebar-logo-bg / --sidebar-logo-fg selon le
+     thème actif). Cf. src/components/ThemeApplier.tsx. */
   --sidebar-bg:        linear-gradient(180deg, #2C2A24 0%, #1A1814 100%);
   --sidebar-logo-bg:   #E2C9A1;
   --sidebar-logo-fg:   #7A6A50;
 
-  /* Tech app — light theme aligné sur la palette générale */
+  /* Tech app — palette dédiée */
   --tech-bg:        #F5F2EC;
   --tech-card:      #FDFBF7;
   --tech-card-mid:  #EDE8DF;
@@ -76,149 +72,9 @@
   color-scheme: light;
 }
 
-.dark, .theme-nuit {
-  /* Surfaces */
-  --color-sand:        #141210;
-  --color-sand-mid:    #1A1814;
-  --color-sand-border: #2C2A24;
-  --color-sand-hover:  #221E1A;
-  --color-cream:       #1C1A16;
-
-  /* Texte — contraste boosté pour rester lisible sur fonds sombres */
-  --color-ink:        #F0ECE4;  /* texte principal + titres sections */
-  --color-ink-mid:    #C8C2B8;  /* texte secondaire */
-  --color-ink-muted:  #C8C2B8;  /* labels (uppercase, petits) */
-
-  /* Pales/lights utilisés sur cartes — assombris pour rester lisibles */
-  --color-navy-pale:  #1A2540;
-  --color-navy-light: #2C4878;
-  --color-amber-light: #2A220E;
-  --color-terra-light: #2E1A12;
-  --color-terra-mid:   #5A2E18;
-  --color-ok-light:    #14281E;
-  --color-ok-mid:      #2A4F3A;
-
-  /* Sidebar (admin) — gradient légèrement plus sombre */
-  --sidebar-bg:      linear-gradient(180deg, #1A1814 0%, #0E0C0A 100%);
-  --sidebar-logo-bg: #C8A876;
-  --sidebar-logo-fg: #5A4A30;
-
-  /* Tech — variantes sombres en dark mode */
-  --tech-bg:        #141210;
-  --tech-card:      #1C1A16;
-  --tech-card-mid:  #221E1A;
-  --tech-text:      #F0ECE4;
-  --tech-text-mid:  #8A8278;
-  --tech-text-mute: #5A5650;
-  --tech-border:    #2C2A24;
-
-  color-scheme: dark;
-}
-
 /* ─────────────────────────────────────────────────────────────────────────
-   OCÉAN (clair) — variante "bleu lagune". Override de :root.
-   La classe `.theme-ocean` est posée par next-themes via value mapping.
-   ───────────────────────────────────────────────────────────────────────── */
-.theme-ocean {
-  /* Surfaces */
-  --color-sand:        #f5f8fa;   /* fond page */
-  --color-sand-mid:    #e4f1f8;   /* éléments actifs sidebar / pills */
-  --color-sand-border: #dce9f0;
-  --color-sand-hover:  #f0f7fb;
-  --color-cream:       #ffffff;   /* card bg */
-
-  /* Texte */
-  --color-ink:        #1a2b35;
-  --color-ink-mid:    #5a7080;
-  --color-ink-muted:  #8faab8;
-
-  /* Marine — devient océan (#156082) */
-  --color-navy:       #156082;
-  --color-navy-dark:  #0e4560;
-  --color-navy-deep:  #0a3548;
-  --color-navy-mid:   #1a7aa3;
-  --color-navy-light: #cce3ef;
-  --color-navy-pale:  #e4f1f8;
-
-  /* Sky cohérent avec la palette océan */
-  --color-sky-foxo:       #4a9bbf;
-  --color-sky-light-foxo: #cce3ef;
-
-  /* Sidebar — gradient bleu profond (texte sidebar reste lisible). On
-     ne passe PAS au blanc total parce que Sidebar.tsx a des couleurs
-     hardcodées qui supposent un fond sombre. */
-  --sidebar-bg:        linear-gradient(180deg, #0e4560 0%, #0a3548 100%);
-  --sidebar-logo-bg:   #156082;
-  --sidebar-logo-fg:   #ffffff;
-
-  /* Tech */
-  --tech-bg:        #f5f8fa;
-  --tech-card:      #ffffff;
-  --tech-card-mid:  #e4f1f8;
-  --tech-text:      #1a2b35;
-  --tech-text-mid:  #5a7080;
-  --tech-text-mute: #8faab8;
-  --tech-border:    #dce9f0;
-
-  color-scheme: light;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   ARDOISE (sombre) — variante "ardoise + océan". Override de .dark
-   (donc déclaré APRÈS .dark pour gagner la spécificité égale via l'ordre).
-   La classe est `.dark .theme-ardoise` (next-themes met les deux).
-   ───────────────────────────────────────────────────────────────────────── */
-.theme-ardoise {
-  /* Surfaces */
-  --color-sand:        #2b2b2b;    /* fond page */
-  --color-sand-mid:    #222222;    /* sidebar/toolbar zones */
-  --color-sand-border: #3a3a3a;
-  --color-sand-hover:  #2a2a2a;
-  --color-cream:       #1e1e1e;    /* card bg + inputs */
-
-  /* Texte */
-  --color-ink:        #e8e8e8;
-  --color-ink-mid:    #9a9a9a;
-  --color-ink-muted:  #5a5a5a;
-
-  /* Marine — océan dans le mode dark aussi */
-  --color-navy:       #156082;
-  --color-navy-dark:  #0e4560;
-  --color-navy-deep:  #0a3548;
-  --color-navy-mid:   #4a9bbf;
-  --color-navy-light: #2d4a5a;
-  --color-navy-pale:  #1e1e1e;
-
-  --color-sky-foxo:       #4a9bbf;
-  --color-sky-light-foxo: #2d4a5a;
-
-  /* Pales/lights cartes — repris de .dark pour rester lisibles */
-  --color-amber-light: #2A220E;
-  --color-terra-light: #2E1A12;
-  --color-terra-mid:   #5A2E18;
-  --color-ok-light:    #14281E;
-  --color-ok-mid:      #2A4F3A;
-
-  /* Sidebar */
-  --sidebar-bg:        linear-gradient(180deg, #222222 0%, #1a1a1a 100%);
-  --sidebar-logo-bg:   #156082;
-  --sidebar-logo-fg:   #ffffff;
-
-  /* Tech */
-  --tech-bg:        #2b2b2b;
-  --tech-card:      #1e1e1e;
-  --tech-card-mid:  #222222;
-  --tech-text:      #e8e8e8;
-  --tech-text-mid:  #9a9a9a;
-  --tech-text-mute: #5a5a5a;
-  --tech-border:    #3a3a3a;
-
-  color-scheme: dark;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Tailwind theme : mappe les tokens utilitaires sur les variables ci-dessus.
-   ───────────────────────────────────────────────────────────────────────── */
+   Tailwind v4 — mappe les tokens utilitaires sur les variables :root.
+   ───────────────────────────────────────────────────────────────────── */
 @theme {
   --color-sand:        var(--color-sand);
   --color-sand-mid:    var(--color-sand-mid);
@@ -257,7 +113,7 @@
 
 /* ─────────────────────────────────────────────────────────────────────────
    Base
-   ───────────────────────────────────────────────────────────────────────── */
+   ───────────────────────────────────────────────────────────────────── */
 html, body { height: 100%; }
 
 body {
@@ -268,63 +124,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─────────────────────────────────────────────────────────────────────────
-   Inputs / textarea / select en mode sombre — défaut universel.
-   Cible les champs qui n'ont PAS de classe explicite bg-* / text-* posée.
-   Les composants qui utilisent déjà bg-white / dark:bg-... gardent la
-   priorité (Tailwind utilities ont une spécificité supérieure).
-   ───────────────────────────────────────────────────────────────────────── */
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="text"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="email"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="tel"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="number"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="date"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="time"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="datetime-local"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="password"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="search"],
-:where(.dark, .theme-nuit, .theme-ardoise) input[type="url"],
-:where(.dark, .theme-nuit, .theme-ardoise) input:not([type]),
-:where(.dark, .theme-nuit, .theme-ardoise) textarea,
-:where(.dark, .theme-nuit, .theme-ardoise) select {
-  background: #221E1A;
-  color: #F0ECE4;
-  border-color: #2C2A24;
-}
-:where(.dark, .theme-nuit, .theme-ardoise) input::placeholder,
-:where(.dark, .theme-nuit, .theme-ardoise) textarea::placeholder {
-  color: #8A8278;
-  opacity: 1;
-}
-:where(.dark, .theme-nuit, .theme-ardoise) input:disabled,
-:where(.dark, .theme-nuit, .theme-ardoise) textarea:disabled,
-:where(.dark, .theme-nuit, .theme-ardoise) select:disabled {
-  background: #1A1814;
-  color: #8A8278;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Stats — chiffres mis en avant. Couleur boostée en mode sombre pour passer
-   à #FFFFFF (texte principal #F0ECE4 reste plus doux pour les paragraphes).
-   ───────────────────────────────────────────────────────────────────────── */
+/* Stats — chiffres mis en avant */
 .stat-num {
   color: var(--color-ink);
-}
-:where(.dark, .theme-nuit, .theme-ardoise) .stat-num {
-  color: #FFFFFF;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Transitions thème — uniquement pendant le switch pour ne pas marcher sur
-   les transitions component-spécifiques (hover, etc.). La classe
-   `theme-transitioning` est posée sur <html> pendant 220ms par ThemeToggle.
-   ───────────────────────────────────────────────────────────────────────── */
-.theme-transitioning,
-.theme-transitioning *,
-.theme-transitioning *::before,
-.theme-transitioning *::after {
-  transition-property: background-color, background-image, border-color, color, fill, stroke !important;
-  transition-duration: 200ms !important;
-  transition-timing-function: ease !important;
-  transition-delay: 0s !important;
 }
