@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -13,6 +14,17 @@ import {
 } from './actions';
 
 const STATUTS: ('tous' | StatutFacture)[] = ['tous', 'brouillon', 'envoyee', 'payee', 'en_retard', 'annulee'];
+
+// Chips de filtre statut affichés au-dessus du tableau. "envoyee" est
+// renommé "En attente" pour la lisibilité métier.
+type StatutChip = 'tous' | 'brouillon' | 'envoyee' | 'en_retard' | 'payee';
+const STATUT_CHIPS: { key: StatutChip; label: string }[] = [
+  { key: 'tous',      label: 'Toutes'     },
+  { key: 'brouillon', label: 'Brouillons' },
+  { key: 'envoyee',   label: 'En attente' },
+  { key: 'en_retard', label: 'En retard'  },
+  { key: 'payee',     label: 'Payées'     },
+];
 
 type Periode = 'tous' | 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'last_year';
 const PERIODE_LABEL: Record<Periode, string> = {
@@ -91,9 +103,19 @@ export function FacturationListClient({
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
-  const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<typeof STATUTS[number]>('tous');
+  // Recherche debouncée — searchInput pilote le champ contrôlé,
+  // debouncedQuery est ce qui filtre réellement (300ms).
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchInput), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const [chip, setChip] = useState<StatutChip>('tous');
   const [periode, setPeriode] = useState<Periode>('tous');
+  const [syndicFilter, setSyndicFilter] = useState<string>('all');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // État local synchronisé avec la prop pour permettre les mises à jour
   // optimistes (suppression de ligne, transition de statut) sans attendre
@@ -118,22 +140,62 @@ export function FacturationListClient({
     return f;
   }), [factures, today]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  // Base filtrée par les filtres avancés (recherche + syndic + période),
+  // SANS le chip statut. Sert à calculer les counts de chips et à
+  // appliquer ensuite le filtre statut chip pour obtenir filtered.
+  const baseFiltered = useMemo(() => {
+    const q = debouncedQuery.trim().toLowerCase();
     const range = getPeriodeRange(periode);
     return facturesView.filter((f) => {
       const matchQ = !q
         || f.numero.toLowerCase().includes(q)
         || (f.client_nom ?? '').toLowerCase().includes(q)
+        || (f.client_syndic ?? '').toLowerCase().includes(q)
         || (f.reference ?? '').toLowerCase().includes(q);
-      const matchF = filter === 'tous' || f.statut === filter;
+      const matchSyndic = syndicFilter === 'all' || (f.client_syndic ?? '') === syndicFilter;
       const matchP = !range
         || (f.date_emission !== null
             && f.date_emission >= range.from
             && f.date_emission <= range.to);
-      return matchQ && matchF && matchP;
+      return matchQ && matchSyndic && matchP;
     });
-  }, [facturesView, query, filter, periode]);
+  }, [facturesView, debouncedQuery, syndicFilter, periode]);
+
+  // Counts par chip — recalculés selon les filtres avancés actifs
+  // (cumulatifs avec recherche/syndic/période).
+  const chipCounts = useMemo(() => ({
+    tous:      baseFiltered.length,
+    brouillon: baseFiltered.filter((f) => f.statut === 'brouillon').length,
+    envoyee:   baseFiltered.filter((f) => f.statut === 'envoyee').length,
+    en_retard: baseFiltered.filter((f) => f.statut === 'en_retard').length,
+    payee:     baseFiltered.filter((f) => f.statut === 'payee').length,
+  } as Record<StatutChip, number>), [baseFiltered]);
+
+  const filtered = useMemo(() => {
+    if (chip === 'tous') return baseFiltered;
+    return baseFiltered.filter((f) => f.statut === chip);
+  }, [baseFiltered, chip]);
+
+  // Liste unique des syndics présents pour alimenter le dropdown.
+  const syndicOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of facturesView) {
+      if (f.client_syndic && f.client_syndic.trim()) set.add(f.client_syndic.trim());
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'fr-BE'));
+  }, [facturesView]);
+
+  const hasActiveAdvanced = debouncedQuery.length > 0
+    || syndicFilter !== 'all'
+    || periode !== 'tous';
+
+  function resetFilters() {
+    setChip('tous');
+    setSearchInput('');
+    setDebouncedQuery('');
+    setSyndicFilter('all');
+    setPeriode('tous');
+  }
 
   // Stats
   const stats = useMemo(() => {
@@ -202,36 +264,98 @@ export function FacturationListClient({
         <StatCard num={String(facturesView.length)} label="Total chargé" muted />
       </div>
 
-      {/* Actions globales */}
+      {/* Filtres rapides — chips horizontaux avec count */}
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rechercher — n° facture, client, référence…"
-          className="flex-1 min-w-[200px] px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
-        />
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value as typeof filter)}
-          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
+        <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+          {STATUT_CHIPS.map((c) => {
+            const active = chip === c.key;
+            const count = chipCounts[c.key];
+            return (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => setChip(c.key)}
+                className={
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ' +
+                  (active
+                    ? 'bg-navy text-white border-navy'
+                    : 'bg-[var(--card-bg)] text-ink-mid border-[var(--card-border)] hover:border-navy-mid')
+                }
+              >
+                {c.label}
+                <span
+                  className={
+                    'text-[10px] font-bold px-1.5 py-0 rounded-full ' +
+                    (active ? 'bg-white/20 text-white' : 'bg-sand-mid text-ink-mid')
+                  }
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className={
+            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold border transition-colors ' +
+            (showAdvanced || hasActiveAdvanced
+              ? 'bg-navy-pale text-navy border-navy-light'
+              : 'bg-[var(--card-bg)] text-ink-mid border-[var(--card-border)] hover:border-navy-mid')
+          }
+          aria-expanded={showAdvanced}
         >
-          {STATUTS.map((s) => (
-            <option key={s} value={s}>
-              {s === 'tous' ? 'Tous statuts' : STATUT_FACTURE_INFO[s as StatutFacture].label}
-            </option>
-          ))}
-        </select>
-        <select
-          value={periode}
-          onChange={(e) => setPeriode(e.target.value as Periode)}
-          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
-          title="Filtre sur la date d'émission"
-        >
-          {(Object.entries(PERIODE_LABEL) as [Periode, string][]).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
+          Filtres
+          {showAdvanced ? <ChevronUp size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
+          {hasActiveAdvanced && (
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-navy" aria-hidden />
+          )}
+        </button>
       </div>
+
+      {/* Filtres avancés — recherche + syndic + période + reset */}
+      {showAdvanced && (
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)]">
+          <input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Rechercher — n° facture, client, syndic, référence…"
+            className="flex-1 min-w-[200px] px-3.5 py-2 border border-sand-border rounded-md text-xs bg-cream outline-none focus:border-navy-mid"
+          />
+          <select
+            value={syndicFilter}
+            onChange={(e) => setSyndicFilter(e.target.value)}
+            className="px-3 py-2 border border-sand-border rounded-md text-xs bg-cream cursor-pointer max-w-[200px]"
+            title="Filtre par syndic / organisation"
+          >
+            <option value="all">Tous syndics</option>
+            {syndicOptions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={periode}
+            onChange={(e) => setPeriode(e.target.value as Periode)}
+            className="px-3 py-2 border border-sand-border rounded-md text-xs bg-cream cursor-pointer"
+            title="Filtre sur la date d'émission"
+          >
+            {(Object.entries(PERIODE_LABEL) as [Periode, string][]).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+          {(hasActiveAdvanced || chip !== 'tous') && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-[11px] font-semibold text-terra hover:bg-terra-light border border-terra-mid"
+            >
+              <X size={12} aria-hidden /> Réinitialiser
+            </button>
+          )}
+        </div>
+      )}
 
       {feedback && (
         <div
@@ -252,7 +376,7 @@ export function FacturationListClient({
           <table className="w-full border-collapse min-w-[860px]">
             <thead>
               <tr className="bg-sand">
-                {['N°', 'Client', 'Référence', 'Émission', 'Échéance', 'HT', 'TVA', 'TTC', 'Statut', 'Actions'].map((h) => (
+                {['N°', 'Client', 'Référence', 'Réf. paiement', 'Émission', 'Échéance', 'HT', 'TVA', 'TTC', 'Statut', 'Actions'].map((h) => (
                   <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                     {h}
                   </th>
@@ -262,7 +386,7 @@ export function FacturationListClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={11} className="text-center py-12 text-ink-muted text-[13px]">
                     Aucune facture ne correspond au filtre.
                   </td>
                 </tr>
@@ -285,6 +409,9 @@ export function FacturationListClient({
                     </td>
                     <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
                       {f.reference ?? '—'}
+                    </td>
+                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap max-w-[160px] truncate" title={f.reference_structuree ?? undefined}>
+                      {f.reference_structuree ?? '—'}
                     </td>
                     <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                       {fmtDate(f.date_emission)}
@@ -397,6 +524,11 @@ export function FacturationListClient({
                 {f.reference && (
                   <div className="text-[10px] text-ink-mid mt-0.5">
                     Réf : <span className="font-mono">{f.reference}</span>
+                  </div>
+                )}
+                {f.reference_structuree && (
+                  <div className="text-[10px] text-ink-mid mt-0.5 truncate">
+                    Réf. paiement : <span className="font-mono">{f.reference_structuree}</span>
                   </div>
                 )}
 

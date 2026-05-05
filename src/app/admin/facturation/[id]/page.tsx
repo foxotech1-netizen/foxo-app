@@ -5,6 +5,7 @@ import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
 import { FactureActions } from './FactureActions';
 import { SendByEmailButton } from '../SendByEmailButton';
+import { PaymentRefBadge } from './PaymentRefBadge';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 
 export const dynamic = 'force-dynamic';
@@ -77,6 +78,9 @@ export default async function EditFacturePage({
             Statut : <strong className="capitalize">{facture.statut}</strong>
             {facture.date_paiement && ` · Payée le ${new Date(facture.date_paiement).toLocaleDateString('fr-BE')}`}
           </p>
+          <div className="mt-2">
+            <PaymentRefBadge reference={facture.reference_structuree} />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={facture} defaults={emailDefaults} />
