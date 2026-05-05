@@ -160,21 +160,21 @@ export function NoteFraisDrawer({
       />
 
       {/* Panel */}
-      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-cream shadow-2xl z-50 flex flex-col dark:bg-[#1C1A16]">
+      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-cream shadow-2xl z-50 flex flex-col">
         {/* Header */}
-        <header className="border-b border-sand-border px-5 py-3 flex items-start justify-between dark:border-[#2C2A24]">
+        <header className="border-b border-sand-border px-5 py-3 flex items-start justify-between">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+            <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
               Note de frais
             </div>
-            <h2 className="text-[14px] font-extrabold text-ink mt-0.5 truncate dark:text-[#F0ECE4]">
+            <h2 className="text-[14px] font-extrabold text-ink mt-0.5 truncate">
               {note.titre}
             </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-ink-muted hover:text-ink text-[18px] leading-none px-2 dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]"
+            className="text-ink-muted hover:text-ink text-[18px] leading-none px-2"
             aria-label="Fermer"
           >
             ✕
@@ -182,7 +182,7 @@ export function NoteFraisDrawer({
         </header>
 
         {/* Tabs */}
-        <div className="flex border-b border-sand-border dark:border-[#2C2A24]">
+        <div className="flex border-b border-sand-border">
           {(['infos', 'photo', 'workflow'] as Tab[]).map((t) => {
             const active = tab === t;
             const label = t === 'infos' ? 'Infos' : t === 'photo' ? 'Photo / IA' : 'Workflow';
@@ -194,8 +194,8 @@ export function NoteFraisDrawer({
                 className={
                   'flex-1 px-3 py-2.5 text-[12px] font-bold border-b-2 transition-colors ' +
                   (active
-                    ? 'bg-cream border-navy text-navy dark:bg-[#1C1A16] dark:text-[#A8C4F2] dark:border-[#7AA8E8]'
-                    : 'border-transparent text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]')
+                    ? 'bg-cream border-navy text-navy'
+                    : 'border-transparent text-ink-muted hover:text-ink')
                 }
               >
                 {label}
@@ -209,10 +209,10 @@ export function NoteFraisDrawer({
           {tab === 'infos' && (
             <>
               <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1 dark:text-[#C8C2B8]">
+                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
                   Catégorie
                 </div>
-                <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-sand-mid text-ink-mid dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+                <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-sand-mid text-ink-mid">
                   {CATEGORIE_LABEL[note.categorie]}
                 </span>
               </div>
@@ -223,22 +223,22 @@ export function NoteFraisDrawer({
 
               <Field label="Date de la dépense" value={fmtDate(note.date_depense)} mono />
 
-              <div className="bg-sand rounded-lg p-3 space-y-1 dark:bg-[#221E1A]">
+              <div className="bg-sand rounded-lg p-3 space-y-1">
                 <Money label="HTVA" value={note.montant_htva} />
                 <Money label={`TVA (${note.taux_tva}%)`} value={note.montant_ttc - note.montant_htva} />
-                <div className="border-t border-sand-border pt-1 mt-1 dark:border-[#2C2A24]">
+                <div className="border-t border-sand-border pt-1 mt-1">
                   <Money label="TTC" value={note.montant_ttc} bold />
                 </div>
               </div>
 
               {note.intervention_id && (
                 <div>
-                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1 dark:text-[#C8C2B8]">
+                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
                     Intervention liée
                   </div>
                   <Link
                     href={`/admin/?intervention=${note.intervention_id}`}
-                    className="text-[12px] text-navy hover:underline font-mono dark:text-[#A8C4F2]"
+                    className="text-[12px] text-navy hover:underline font-mono"
                   >
                     {note.intervention_id.slice(0, 8)}…
                   </Link>
@@ -249,7 +249,7 @@ export function NoteFraisDrawer({
                 <Field label="Description" value={note.description} />
               )}
 
-              <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8] pt-2 border-t border-sand-border dark:border-[#2C2A24]">
+              <div className="text-[10px] text-ink-muted pt-2 border-t border-sand-border">
                 Créée par {note.technicien_nom ?? note.technicien_email}
                 {' · '}
                 <span className="font-mono">{fmtDate(note.created_at)}</span>
@@ -264,28 +264,28 @@ export function NoteFraisDrawer({
                 <img
                   src={note.photo_url}
                   alt="ticket"
-                  className="max-h-64 rounded-lg border border-sand-border w-full object-contain bg-white dark:border-[#2C2A24]"
+                  className="max-h-64 rounded-lg border border-sand-border w-full object-contain bg-white"
                 />
               ) : (
-                <div className="bg-sand rounded-lg p-4 text-[12px] text-ink-muted text-center dark:bg-[#221E1A] dark:text-[#C8C2B8]">
+                <div className="bg-sand rounded-lg p-4 text-[12px] text-ink-muted text-center">
                   Aucune photo — à uploader depuis l&apos;app tech.
                 </div>
               )}
 
               <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-2 dark:text-[#C8C2B8]">
+                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-2">
                   Extraction IA
                 </div>
 
                 {note.ia_raw ? (
-                  <div className="bg-sand rounded-lg p-3 space-y-2 dark:bg-[#221E1A]">
+                  <div className="bg-sand rounded-lg p-3 space-y-2">
                     <ConfidenceBadge value={note.ia_confiance ?? 0} />
-                    <pre className="text-[10px] font-mono whitespace-pre-wrap text-ink-mid dark:text-[#C8C2B8] overflow-x-auto">
+                    <pre className="text-[10px] font-mono whitespace-pre-wrap text-ink-mid overflow-x-auto">
                       {JSON.stringify(note.ia_raw, null, 2)}
                     </pre>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+                  <p className="text-[11px] text-ink-muted italic">
                     Aucune extraction encore lancée.
                   </p>
                 )}
@@ -305,7 +305,7 @@ export function NoteFraisDrawer({
           {tab === 'workflow' && (
             <>
               <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1 dark:text-[#C8C2B8]">
+                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
                   Statut actuel
                 </div>
                 <span
@@ -315,7 +315,7 @@ export function NoteFraisDrawer({
                   {badge.label}
                 </span>
                 {note.approved_at && (
-                  <div className="text-[10px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+                  <div className="text-[10px] text-ink-muted mt-1">
                     Approuvée le {fmtDate(note.approved_at)}
                     {note.approved_by && <> par <span className="font-mono">{note.approved_by}</span></>}
                   </div>
@@ -323,7 +323,7 @@ export function NoteFraisDrawer({
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1 dark:text-[#C8C2B8]">
+                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1">
                   Note admin
                 </label>
                 <textarea
@@ -331,16 +331,16 @@ export function NoteFraisDrawer({
                   onChange={(e) => setNoteAdmin(e.target.value)}
                   rows={3}
                   placeholder="Optionnel — motif rejet, contexte remboursement…"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#2C2A24] dark:text-[#F0ECE4]"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid resize-y"
                 />
               </div>
 
               <div className="space-y-2">
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
                   Transitions
                 </div>
                 {nextTransitions(note.statut).length === 0 ? (
-                  <p className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+                  <p className="text-[11px] text-ink-muted italic">
                     Aucune transition disponible — note remboursée.
                   </p>
                 ) : (
@@ -365,7 +365,7 @@ export function NoteFraisDrawer({
                 )}
               </div>
 
-              <div className="border-t border-sand-border pt-4 dark:border-[#2C2A24]">
+              <div className="border-t border-sand-border pt-4">
                 <button
                   type="button"
                   onClick={handleDelete}
@@ -385,7 +385,7 @@ export function NoteFraisDrawer({
             className={
               'border-t px-5 py-3 text-[11px] font-semibold ' +
               (feedback.kind === 'ok'
-                ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
+                ? 'bg-ok-light border-ok-mid text-ok'
                 : 'bg-terra-light border-terra-mid text-terra')
             }
           >
@@ -402,10 +402,10 @@ export function NoteFraisDrawer({
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-0.5 dark:text-[#C8C2B8]">
+      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-0.5">
         {label}
       </div>
-      <div className={'text-[12px] text-ink dark:text-[#F0ECE4] ' + (mono ? 'font-mono' : '')}>
+      <div className={'text-[12px] text-ink ' + (mono ? 'font-mono' : '')}>
         {value}
       </div>
     </div>
@@ -415,10 +415,10 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 function Money({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
   return (
     <div className="flex justify-between items-baseline">
-      <span className={'text-[11px] dark:text-[#C8C2B8] ' + (bold ? 'font-bold text-ink dark:text-[#F0ECE4]' : 'text-ink-mid')}>
+      <span className={'text-[11px] ' + (bold ? 'font-bold text-ink' : 'text-ink-mid')}>
         {label}
       </span>
-      <span className={'font-mono dark:text-[#F0ECE4] ' + (bold ? 'text-[14px] font-bold text-ink' : 'text-[12px] text-ink-mid')}>
+      <span className={'font-mono ' + (bold ? 'text-[14px] font-bold text-ink' : 'text-[12px] text-ink-mid')}>
         {value.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
       </span>
     </div>
@@ -429,9 +429,9 @@ function ConfidenceBadge({ value }: { value: number }) {
   const pct = Math.round(value * 100);
   const color = value > 0.8 ? 'ok' : value >= 0.5 ? 'amber' : 'terra';
   const cls = color === 'ok'
-    ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
+    ? 'bg-ok-light border-ok-mid text-ok'
     : color === 'amber'
-      ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A] dark:bg-[#2A220E] dark:border-[#5A4A30] dark:text-[#E8C896]'
+      ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A]'
       : 'bg-terra-light border-terra-mid text-terra';
   return (
     <span className={'inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ' + cls}>

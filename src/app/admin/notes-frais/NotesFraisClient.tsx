@@ -66,8 +66,8 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
     <div className="space-y-4 p-6">
       <header className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-extrabold text-ink dark:text-[#F0ECE4]">Notes de frais</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+          <h1 className="text-xl font-extrabold text-ink">Notes de frais</h1>
+          <p className="text-[11px] text-ink-muted mt-0.5">
             {notes.length} note{notes.length > 1 ? 's' : ''} — gestion des dépenses techniciens
           </p>
         </div>
@@ -81,7 +81,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
       </header>
 
       {/* Tabs filtre statut */}
-      <div className="flex flex-wrap gap-0.5 border-b border-sand-border -mb-px dark:border-[#2C2A24]">
+      <div className="flex flex-wrap gap-0.5 border-b border-sand-border -mb-px">
         {STATUT_TABS.map((t) => {
           const active = filter === t.key;
           const count = counts[t.key];
@@ -93,12 +93,12 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
               className={
                 'flex items-center gap-1.5 px-3.5 py-2 rounded-t-lg text-[12px] font-bold border-b-2 transition-colors ' +
                 (active
-                  ? 'bg-cream border-navy text-navy dark:bg-[#1C1A16] dark:text-[#A8C4F2] dark:border-[#7AA8E8]'
-                  : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)] dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]')
+                  ? 'bg-cream border-navy text-navy'
+                  : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)]')
               }
             >
               {t.label}
-              <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-1.5 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+              <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-1.5 py-0.5 rounded-full">
                 {count}
               </span>
             </button>
@@ -107,15 +107,18 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
       </div>
 
       {/* Tableau */}
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#3D3A32]">
+      <div
+        className="rounded-xl border overflow-hidden"
+        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+      >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[860px]">
             <thead>
-              <tr className="bg-sand dark:bg-[#221E1A]">
+              <tr className="bg-[var(--table-bg)]">
                 {['Date', 'Technicien', 'Titre', 'Catégorie', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
                   <th
                     key={h}
-                    className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+                    className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -125,7 +128,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
+                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
                     Aucune note de frais{filter !== 'tous' ? ` au statut « ${STATUT_BADGE[filter as StatutNoteFrais]?.label.toLowerCase() ?? filter} »` : ''}.
                   </td>
                 </tr>
@@ -133,30 +136,30 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                 filtered.map((n) => {
                   const badge = STATUT_BADGE[n.statut];
                   return (
-                    <tr key={n.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                    <tr key={n.id} className="border-b border-sand-mid hover:bg-sand-hover">
+                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                         {fmtDate(n.date_depense)}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <div className="text-xs font-semibold dark:text-[#F0ECE4]">
+                        <div className="text-xs font-semibold">
                           {n.technicien_nom ?? n.technicien_email}
                         </div>
                         {n.technicien_nom && (
-                          <div className="text-[10px] text-ink-muted font-mono dark:text-[#C8C2B8]">
+                          <div className="text-[10px] text-ink-muted font-mono">
                             {n.technicien_email}
                           </div>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-xs dark:text-[#F0ECE4]">
+                      <td className="px-3.5 py-2.5 text-xs">
                         <div className="font-semibold">{n.titre}</div>
                         {n.fournisseur && (
-                          <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">{n.fournisseur}</div>
+                          <div className="text-[10px] text-ink-muted">{n.fournisseur}</div>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid dark:text-[#C8C2B8]">
+                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
                         {CATEGORIE_LABEL[n.categorie]}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap dark:text-white">
+                      <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap">
                         {fmtMoney(n.montant_ttc)}
                       </td>
                       <td className="px-3.5 py-2.5">
@@ -171,7 +174,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                         <button
                           type="button"
                           onClick={() => setSelectedNote(n)}
-                          className="text-[11px] text-navy hover:underline font-bold dark:text-[#A8C4F2]"
+                          className="text-[11px] text-navy hover:underline font-bold"
                         >
                           Voir
                         </button>
