@@ -1,0 +1,83 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { roleForEmail } from '@/lib/auth/roles';
+
+export const dynamic = 'force-dynamic';
+
+interface AcpInput {
+  nom?: unknown;
+  adresse?: unknown;
+  code_postal?: unknown;
+  ville?: unknown;
+  bce?: unknown;
+  email_rapports?: unknown;
+  email_factures?: unknown;
+  syndic_id_ref?: unknown;
+}
+
+function strOrNull(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t || null;
+}
+
+// POST /api/admin/acps
+//
+// Création rapide d'une ACP depuis le drawer syndic (formulaire inline).
+// Insert dans la table `acps` (technique / interventions) — distincte de
+// la table `clients` (facturation) où ClientForm écrit. Le brief
+// initial mentionnait `clients` mais le drawer lit `acps` via
+// /api/admin/syndics/[org_id]/acps : si on insérait dans clients, la
+// nouvelle ACP n'apparaîtrait pas dans le drawer après refresh.
+//
+// Pour qu'une ACP soit aussi visible côté facturation, l'admin doit
+// passer par /admin/clients/new (qui peuple `clients` avec type='acp').
+// La consolidation des deux tables est hors scope de ce sprint.
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || roleForEmail(user.email) !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
+  }
+
+  let body: AcpInput;
+  try {
+    body = (await request.json()) as AcpInput;
+  } catch {
+    return NextResponse.json({ ok: false, error: 'Body JSON invalide.' }, { status: 400 });
+  }
+
+  const nom = strOrNull(body.nom);
+  if (!nom) {
+    return NextResponse.json({ ok: false, error: 'Nom requis.' }, { status: 400 });
+  }
+
+  const payload: Record<string, string | null> = {
+    nom,
+    adresse:        strOrNull(body.adresse),
+    code_postal:    strOrNull(body.code_postal),
+    ville:          strOrNull(body.ville),
+    bce:            strOrNull(body.bce),
+    email_rapports: strOrNull(body.email_rapports)?.toLowerCase() ?? null,
+    email_factures: strOrNull(body.email_factures)?.toLowerCase() ?? null,
+    syndic_id_ref:  strOrNull(body.syndic_id_ref),
+  };
+
+  const { data, error } = await supabase
+    .from('acps')
+    .insert(payload)
+    .select('id, nom')
+    .maybeSingle();
+  if (error) {
+    console.error('[acps POST] insert error', {
+      code: (error as { code?: string }).code ?? null,
+      message: error.message,
+      details: (error as { details?: string }).details ?? null,
+      hint: (error as { hint?: string }).hint ?? null,
+    });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+  if (!data) return NextResponse.json({ ok: false, error: 'Erreur création.' }, { status: 500 });
+
+  return NextResponse.json({ ok: true, acp: { id: data.id as string, nom: data.nom as string | null } });
+}

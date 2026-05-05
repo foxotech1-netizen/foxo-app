@@ -3,7 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TypeBadge } from '@/components/TypeBadge';
+import { AddressAutocomplete, type AddressValue } from '@/components/AddressAutocomplete';
 import type { Organisation, Delegue, DelegueRole, TypeOrganisation } from '@/lib/types/database';
+
+const EMPTY_ADDRESS: AddressValue = {
+  adresse: '', rue: '', numero: '', code_postal: '', ville: '',
+  pays: 'Belgique', lat: null, lng: null, verified: false,
+};
 
 type Tab = 'infos' | 'delegues' | 'acps';
 
@@ -51,6 +57,65 @@ export function OrganisationDrawer({
   const [saving, setSaving] = useState(false);
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Création ACP inline (toggle + formulaire dans l'onglet ACPs).
+  // Évite la navigation /admin/clients/new qui sortait l'admin du drawer.
+  const [showAcpForm, setShowAcpForm] = useState(false);
+  const [acpAddress, setAcpAddress] = useState<AddressValue>(EMPTY_ADDRESS);
+  const [acpForm, setAcpForm] = useState({
+    nom: '',
+    bce: '',
+    email_rapports: '',
+    email_factures: '',
+  });
+  const [acpSaving, setAcpSaving] = useState(false);
+  const [acpError, setAcpError] = useState<string | null>(null);
+  const [acpToast, setAcpToast] = useState<string | null>(null);
+
+  function resetAcpForm() {
+    setAcpForm({ nom: '', bce: '', email_rapports: '', email_factures: '' });
+    setAcpAddress(EMPTY_ADDRESS);
+    setAcpError(null);
+  }
+
+  async function submitAcp() {
+    if (!acpForm.nom.trim()) {
+      setAcpError('Nom requis.');
+      return;
+    }
+    setAcpSaving(true);
+    setAcpError(null);
+    try {
+      const r = await fetch('/api/admin/acps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nom: acpForm.nom,
+          adresse: acpAddress.adresse,
+          code_postal: acpAddress.code_postal,
+          ville: acpAddress.ville,
+          bce: acpForm.bce,
+          email_rapports: acpForm.email_rapports,
+          email_factures: acpForm.email_factures,
+          syndic_id_ref: org.id,
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setAcpError(data.error ?? 'Échec création ACP.');
+        return;
+      }
+      resetAcpForm();
+      setShowAcpForm(false);
+      setAcpToast('ACP créée ✓');
+      setTimeout(() => setAcpToast(null), 3000);
+      await loadAcps();
+    } catch (e) {
+      setAcpError(e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setAcpSaving(false);
+    }
+  }
 
   async function loadDelegues() {
     setLoading(true);
@@ -405,53 +470,131 @@ export function OrganisationDrawer({
                     .filter(Boolean)
                     .join(', ');
                   return (
-                    <button
+                    <div
                       key={a.id}
-                      type="button"
-                      onClick={() => {
-                        // Filtre exact la liste interventions sur acp_id
-                        // (cf. searchParams.get('acp_id') dans InterventionsClient).
-                        router.push(`/admin?acp_id=${encodeURIComponent(a.id)}`);
-                        onClose();
-                      }}
-                      className="w-full text-left bg-cream border border-sand-border rounded-md px-3 py-2 hover:bg-sand-hover dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:hover:bg-[#221E1A]"
+                      className="flex bg-cream border border-sand-border rounded-md hover:bg-sand-hover dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:hover:bg-[#221E1A]"
                     >
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="font-bold text-[13px] text-ink dark:text-[#F0ECE4] truncate">
-                          {a.nom ?? '—'}
-                        </span>
-                        <span
-                          className={
-                            'text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap ' +
-                            (a.intervention_count > 0
-                              ? 'bg-navy text-white'
-                              : 'bg-sand-mid text-ink-muted dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]')
-                          }
-                          title={`${a.intervention_count} intervention(s)`}
-                        >
-                          {a.intervention_count} interv.
-                        </span>
-                      </div>
-                      {adresseShort && (
-                        <div className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">{adresseShort}</div>
-                      )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Filtre exact la liste interventions sur acp_id
+                          // (cf. searchParams.get('acp_id') dans InterventionsClient).
+                          router.push(`/admin?acp_id=${encodeURIComponent(a.id)}`);
+                          onClose();
+                        }}
+                        className="flex-1 text-left px-3 py-2 min-w-0"
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <span className="font-bold text-[13px] text-ink dark:text-[#F0ECE4] truncate">
+                            {a.nom ?? '—'}
+                          </span>
+                          <span
+                            className={
+                              'text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded whitespace-nowrap ' +
+                              (a.intervention_count > 0
+                                ? 'bg-navy text-white'
+                                : 'bg-sand-mid text-ink-muted dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]')
+                            }
+                            title={`${a.intervention_count} intervention(s)`}
+                          >
+                            {a.intervention_count} interv.
+                          </span>
+                        </div>
+                        {adresseShort && (
+                          <div className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">{adresseShort}</div>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Fiche complète de l'ACP côté facturation /
+                          // gestion clients (édition, contacts, remises).
+                          router.push(`/admin/clients/${a.id}`);
+                          onClose();
+                        }}
+                        title="Ouvrir la fiche complète de l'ACP"
+                        className="flex-shrink-0 px-3 border-l border-sand-border text-[11px] font-bold text-navy hover:bg-navy-pale dark:border-[#2C2A24] dark:text-[#A8C4F2] dark:hover:bg-[#1A2540]"
+                      >
+                        ↗ Fiche
+                      </button>
+                    </div>
                   );
                 })}
 
                 <button
                   type="button"
                   onClick={() => {
-                    // Pré-remplit ClientForm via query params : type=acp +
-                    // syndic_id=<org.id> (cf. lecture useSearchParams dans
-                    // src/app/admin/clients/ClientForm.tsx).
-                    router.push(`/admin/clients/new?type=acp&syndic_id=${org.id}`);
-                    onClose();
+                    if (showAcpForm) {
+                      resetAcpForm();
+                      setShowAcpForm(false);
+                    } else {
+                      setShowAcpForm(true);
+                    }
                   }}
                   className="w-full text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
                 >
-                  ➕ Ajouter une ACP
+                  {showAcpForm ? '✕ Annuler' : '➕ Ajouter une ACP'}
                 </button>
+
+                {showAcpForm && (
+                  <div className="bg-navy-pale border border-navy-light rounded-md p-3 space-y-2 dark:bg-[#1A2540] dark:border-[#2C4878]">
+                    <div className="text-[11px] font-bold text-navy uppercase tracking-widest dark:text-[#A8C4F2]">
+                      Nouvelle ACP
+                    </div>
+                    <input
+                      type="text"
+                      value={acpForm.nom}
+                      onChange={(e) => setAcpForm((f) => ({ ...f, nom: e.target.value }))}
+                      placeholder="Nom de l'ACP *"
+                      className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid"
+                    />
+                    <AddressAutocomplete
+                      value={acpAddress}
+                      onChange={setAcpAddress}
+                      placeholder="Rue, numéro, ville…"
+                    />
+                    <input
+                      type="text"
+                      value={acpForm.bce}
+                      onChange={(e) => setAcpForm((f) => ({ ...f, bce: e.target.value }))}
+                      placeholder="BCE (BE0xxx.xxx.xxx)"
+                      className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono outline-none focus:border-navy-mid"
+                    />
+                    <input
+                      type="email"
+                      value={acpForm.email_rapports}
+                      onChange={(e) => setAcpForm((f) => ({ ...f, email_rapports: e.target.value }))}
+                      placeholder="Email rapports"
+                      className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono outline-none focus:border-navy-mid"
+                    />
+                    <input
+                      type="email"
+                      value={acpForm.email_factures}
+                      onChange={(e) => setAcpForm((f) => ({ ...f, email_factures: e.target.value }))}
+                      placeholder="Email factures"
+                      className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono outline-none focus:border-navy-mid"
+                    />
+                    {acpError && (
+                      <div className="bg-terra-light border border-terra-mid text-terra rounded-md px-2.5 py-1.5 text-[11px] font-semibold">
+                        {acpError}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={submitAcp}
+                      disabled={acpSaving}
+                      className="w-full bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold hover:bg-navy-mid disabled:opacity-50"
+                    >
+                      {acpSaving ? 'Enregistrement…' : 'Enregistrer'}
+                    </button>
+                  </div>
+                )}
+
+                {acpToast && (
+                  <div className="bg-ok-light border border-ok-mid text-ok rounded-md px-3 py-2 text-[11px] font-semibold dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]">
+                    {acpToast}
+                  </div>
+                )}
               </div>
 
               {!acpsLoading && acps.length === 0 && (
