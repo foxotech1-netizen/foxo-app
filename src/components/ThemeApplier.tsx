@@ -13,9 +13,13 @@ function isThemeKey(s: string | null | undefined): s is ThemeKey {
   return typeof s === 'string' && (THEME_KEYS as string[]).includes(s);
 }
 
-// Convertit 'sidebarText' → '--sidebar-text' (camelCase → kebab CSS var).
+// Convertit 'sidebarText' → '--sidebar-text' et 'cardBorder2' →
+// '--card-border-2' (camelCase + suffixe numérique → kebab CSS var).
+// Le `\d+` ajoute un tiret avant les blocs de chiffres pour rester
+// cohérent avec les conventions CSS et matcher les usages côté code
+// (ex: var(--card-border-2), var(--text-2)).
 function toCssVar(k: string): string {
-  return '--' + k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase());
+  return '--' + k.replace(/[A-Z]|\d+/g, (m) => '-' + m.toLowerCase());
 }
 
 // Détecte le portail courant à partir du pathname pour récupérer le
@@ -170,7 +174,7 @@ export const THEME_INIT_SCRIPT = `(function(){
     var r = document.documentElement;
     for (var k in t) {
       if (k === 'name') continue;
-      var cssVar = '--' + k.replace(/[A-Z]/g, function(m){return '-'+m.toLowerCase();});
+      var cssVar = '--' + k.replace(/[A-Z]|\\d+/g, function(m){return '-'+m.toLowerCase();});
       r.style.setProperty(cssVar, t[k]);
     }
     r.style.setProperty('--sidebar-bg', t.sidebar);
