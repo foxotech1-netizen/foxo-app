@@ -11,10 +11,17 @@ const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
   materiel:       'Matériel',
   outillage:      'Outillage',
   transport:      'Transport',
-  restauration:   'Restauration',
+  restauration:   'Restauration (legacy)',
   fournitures:    'Fournitures',
   sous_traitance: 'Sous-traitance',
   autre:          'Autre',
+  restaurant:     'Restaurant',
+  cafe_client:    'Café client',
+  repas_travail:  'Repas de travail',
+  reception:      'Réception',
+  telephonie:     'Téléphonie',
+  formation:      'Formation',
+  autre_achat:    'Autre achat',
 };
 
 const STATUT_BADGE: Record<StatutNoteFrais, { fg: string; bg: string; label: string }> = {

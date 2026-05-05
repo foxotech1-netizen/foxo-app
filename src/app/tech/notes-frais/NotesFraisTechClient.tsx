@@ -3,16 +3,29 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
+import { categorieComptable } from '@/lib/types/database';
 
+// Catégories regroupées par classification comptable belge — l'ordre
+// d'affichage met les frais professionnels en premier (les plus courants).
 const CATEGORIES: { v: CategorieNoteFrais; l: string }[] = [
+  // Frais professionnels (100% déductible)
   { v: 'carburant',      l: 'Carburant' },
   { v: 'materiel',       l: 'Matériel' },
   { v: 'outillage',      l: 'Outillage' },
-  { v: 'transport',      l: 'Transport' },
-  { v: 'restauration',   l: 'Restauration' },
   { v: 'fournitures',    l: 'Fournitures' },
+  { v: 'telephonie',     l: 'Téléphonie' },
+  { v: 'formation',      l: 'Formation' },
+  { v: 'transport',      l: 'Transport' },
   { v: 'sous_traitance', l: 'Sous-traitance' },
-  { v: 'autre',          l: 'Autre' },
+  { v: 'autre_achat',    l: 'Autre achat' },
+  // Frais de représentation (50% déductible)
+  { v: 'restaurant',     l: 'Restaurant' },
+  { v: 'cafe_client',    l: 'Café client' },
+  { v: 'repas_travail',  l: 'Repas de travail' },
+  { v: 'reception',      l: 'Réception' },
+  // Legacy (rétro-compat)
+  { v: 'restauration',   l: 'Restauration (legacy)' },
+  { v: 'autre',          l: 'Autre (legacy)' },
 ];
 
 const STATUT_BADGE: Record<StatutNoteFrais, { fg: string; bg: string; label: string }> = {
@@ -226,10 +239,32 @@ export function NotesFraisTechClient({
             <select
               value={form.categorie}
               onChange={(e) => setForm((f) => ({ ...f, categorie: e.target.value as CategorieNoteFrais }))}
-              className="w-full px-3 py-3 border border-sand-border rounded-lg text-[14px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#2C2A24] dark:text-[#F0ECE4]"
+              className="w-full px-3 py-3 border border-sand-border rounded-lg text-[14px] bg-white outline-none focus:border-navy-mid"
             >
               {CATEGORIES.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
             </select>
+            {/* Badge de déductibilité comptable belge — calculé en
+                live depuis la catégorie sélectionnée. Le trigger SQL
+                applique la même logique côté DB à l'insert. */}
+            {(() => {
+              const d = categorieComptable(form.categorie);
+              const isFull = d.tauxDeductibilite >= 100;
+              return (
+                <div
+                  className={
+                    'mt-1.5 text-[11px] font-bold inline-block px-2 py-0.5 rounded-full border ' +
+                    (isFull
+                      ? 'bg-ok-light text-ok border-ok-mid'
+                      : 'bg-amber-light text-[#8A5A1A] border-[#E8C896]')
+                  }
+                  title={d.comptable === 'representation'
+                    ? 'Frais de représentation — TVA non récupérable'
+                    : 'Frais professionnel — TVA récupérable'}
+                >
+                  {d.tauxDeductibilite}% déductible
+                </div>
+              );
+            })()}
           </FormField>
 
           <FormField label="Date de la dépense">

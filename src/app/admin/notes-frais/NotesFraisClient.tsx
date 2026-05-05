@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
+import { categorieComptable } from '@/lib/types/database';
 import { NoteFraisDrawer } from './NoteFraisDrawer';
 
 const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
@@ -9,10 +10,17 @@ const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
   materiel:       'Matériel',
   outillage:      'Outillage',
   transport:      'Transport',
-  restauration:   'Restauration',
+  restauration:   'Restauration (legacy)',
   fournitures:    'Fournitures',
   sous_traitance: 'Sous-traitance',
   autre:          'Autre',
+  restaurant:     'Restaurant',
+  cafe_client:    'Café client',
+  repas_travail:  'Repas de travail',
+  reception:      'Réception',
+  telephonie:     'Téléphonie',
+  formation:      'Formation',
+  autre_achat:    'Autre achat',
 };
 
 // Tabs de filtrage. 'tous' = pas de filtre statut.
@@ -42,6 +50,17 @@ function fmtDate(iso: string | null): string {
 function fmtMoney(n: number | null | undefined): string {
   const v = typeof n === 'number' ? n : 0;
   return v.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+// Lit la déductibilité depuis la DB (champs calculés par le trigger)
+// avec fallback sur le helper TS — utile pour les rows pas encore
+// mises à jour ou pour l'affichage optimiste avant insert.
+function deductibiliteOf(n: NoteFrais): { taux: number; comptable: 'professionnel' | 'representation' } {
+  if (typeof n.taux_deductibilite === 'number' && (n.categorie_comptable === 'professionnel' || n.categorie_comptable === 'representation')) {
+    return { taux: n.taux_deductibilite, comptable: n.categorie_comptable };
+  }
+  const c = categorieComptable(n.categorie);
+  return { taux: c.tauxDeductibilite, comptable: c.comptable };
 }
 
 export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) {
@@ -115,7 +134,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
           <table className="w-full border-collapse min-w-[860px]">
             <thead>
               <tr className="bg-[var(--table-bg)]">
-                {['Date', 'Technicien', 'Titre', 'Catégorie', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
+                {['Date', 'Technicien', 'Titre', 'Catégorie', 'Déductibilité', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
                   <th
                     key={h}
                     className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
@@ -128,7 +147,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={8} className="text-center py-12 text-ink-muted text-[13px]">
                     Aucune note de frais{filter !== 'tous' ? ` au statut « ${STATUT_BADGE[filter as StatutNoteFrais]?.label.toLowerCase() ?? filter} »` : ''}.
                   </td>
                 </tr>
@@ -158,6 +177,27 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                       </td>
                       <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
                         {CATEGORIE_LABEL[n.categorie]}
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        {(() => {
+                          const d = deductibiliteOf(n);
+                          const isFull = d.taux >= 100;
+                          return (
+                            <span
+                              className={
+                                'inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ' +
+                                (isFull
+                                  ? 'bg-ok-light text-ok border-ok-mid'
+                                  : 'bg-amber-light text-[#8A5A1A] border-[#E8C896]')
+                              }
+                              title={d.comptable === 'representation'
+                                ? 'Frais de représentation — TVA non récupérable'
+                                : 'Frais professionnel — TVA récupérable'}
+                            >
+                              {d.taux}% déductible
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap">
                         {fmtMoney(n.montant_ttc)}

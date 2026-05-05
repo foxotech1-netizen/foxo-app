@@ -512,8 +512,41 @@ export const STATUT_INFO: Record<StatutIntervention, { label: string; fg: string
 // ─── Notes de frais (Sprint 6) ────────────────────────────────────────────
 
 export type StatutNoteFrais = 'brouillon' | 'soumise' | 'approuvee' | 'rejetee' | 'remboursee';
-export type CategorieNoteFrais = 'carburant' | 'materiel' | 'outillage' | 'transport' |
-  'restauration' | 'fournitures' | 'sous_traitance' | 'autre';
+
+// Catégories des notes de frais. Anciennes valeurs (transport, restauration,
+// sous_traitance) conservées pour rétro-compat des rows historiques. Nouvelles
+// valeurs alignées sur la classification comptable belge :
+//   - Frais professionnels (déductible 100%, TVA récupérable)
+//   - Frais de représentation (déductible 50%, TVA non récupérable)
+export type CategorieNoteFrais =
+  | 'carburant' | 'materiel' | 'outillage' | 'transport'
+  | 'restauration' | 'fournitures' | 'sous_traitance' | 'autre'
+  | 'restaurant' | 'cafe_client' | 'repas_travail' | 'reception'
+  | 'telephonie' | 'formation' | 'autre_achat';
+
+// Catégorie comptable dérivée de la catégorie utilisateur. Le trigger
+// SQL `notes_frais_set_comptable` la calcule automatiquement BEFORE
+// INSERT/UPDATE — le code TS n'a pas à la setter manuellement, juste
+// à la lire.
+export type CategorieComptable = 'professionnel' | 'representation';
+
+const CATEGORIES_REPRESENTATION = new Set<CategorieNoteFrais>([
+  'restaurant', 'cafe_client', 'repas_travail', 'reception', 'restauration',
+]);
+
+// Helper pur (sans dépendance DB) qui retourne la classification
+// comptable d'une catégorie. Utilisé côté UI pour afficher les badges
+// de déductibilité dans les formulaires sans attendre l'aller-retour
+// serveur. Doit rester aligné avec le trigger SQL.
+export function categorieComptable(c: CategorieNoteFrais): {
+  comptable: CategorieComptable;
+  tauxDeductibilite: number;
+} {
+  if (CATEGORIES_REPRESENTATION.has(c)) {
+    return { comptable: 'representation', tauxDeductibilite: 50 };
+  }
+  return { comptable: 'professionnel', tauxDeductibilite: 100 };
+}
 
 export interface NoteFrais {
   id: string;
@@ -524,6 +557,9 @@ export interface NoteFrais {
   technicien_nom: string | null;
   titre: string;
   categorie: CategorieNoteFrais;
+  // Calculées côté DB par le trigger — read-only pour l'app
+  categorie_comptable: CategorieComptable | null;
+  taux_deductibilite: number | null;
   montant_htva: number;
   taux_tva: number;
   montant_ttc: number;
