@@ -19,6 +19,7 @@ export default async function SyndicsPage() {
     <SyndicsClient
       initial={(data ?? []) as Organisation[]}
       loadError={error?.message ?? null}
+      title="Syndics"
     />
   );
 }

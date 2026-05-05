@@ -11,6 +11,23 @@ const EMPTY_ADDRESS: AddressValue = {
   pays: 'Belgique', lat: null, lng: null, verified: false,
 };
 
+// Liste partagée des types d'organisations affichés dans le <select>
+// d'édition (onglet Infos). Dupliquée volontairement de SyndicsClient.tsx
+// pour éviter un import cross-file ; toute modif doit être propagée des
+// 2 côtés ET dans la migration SQL `organisations_type_check`.
+const ORG_TYPES: { v: TypeOrganisation; l: string; emoji: string }[] = [
+  { v: 'syndic',       l: 'Syndic',       emoji: '🏢' },
+  { v: 'courtier',     l: 'Courtier',     emoji: '⚖️'  },
+  { v: 'assurance',    l: 'Assurance',    emoji: '🛡️'  },
+  { v: 'expert',       l: 'Expert',       emoji: '🔍' },
+  { v: 'entrepreneur', l: 'Entrepreneur', emoji: '🔨' },
+  { v: 'plombier',     l: 'Plombier',     emoji: '🚿' },
+  { v: 'electricien',  l: 'Électricien',  emoji: '⚡' },
+  { v: 'toiturier',    l: 'Toiturier',    emoji: '🏠' },
+  { v: 'chauffagiste', l: 'Chauffagiste', emoji: '🔥' },
+  { v: 'autre_metier', l: 'Autre métier', emoji: '📦' },
+];
+
 type Tab = 'infos' | 'delegues' | 'acps';
 
 interface AcpListItem {
@@ -768,8 +785,9 @@ function SyndicInfosBlock({
               onChange={(e) => setDraft({ ...draft, type: e.target.value as TypeOrganisation })}
               className={inputCls}
             >
-              <option value="syndic">Syndic</option>
-              <option value="courtier">Courtier</option>
+              {ORG_TYPES.map((t) => (
+                <option key={t.v} value={t.v}>{t.emoji} {t.l}</option>
+              ))}
             </select>
           </InfoEditField>
           <InfoEditField label="Email principal" required>

@@ -1,25 +1,45 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import type { Organisation } from '@/lib/types/database';
+import type { Organisation, TypeOrganisation } from '@/lib/types/database';
 import { TypeBadge } from '@/components/TypeBadge';
 import { createOrganisation } from '../actions';
 import { OrganisationDrawer } from './OrganisationDrawer';
 import { AddressAutocomplete, emptyAddress, type AddressValue } from '@/components/AddressAutocomplete';
 
+// Source unique de vérité pour la liste des types d'organisations dans
+// l'UI partenaires (radios de création + select d'édition dans le drawer).
+// Si tu en ajoutes/retires une, mets aussi à jour OrganisationDrawer.tsx
+// (même constante dupliquée localement, par choix de scope) et la
+// migration SQL `organisations_type_check` / `user_role`.
+const ORG_TYPES: { v: TypeOrganisation; l: string; emoji: string }[] = [
+  { v: 'syndic',       l: 'Syndic',       emoji: '🏢' },
+  { v: 'courtier',     l: 'Courtier',     emoji: '⚖️'  },
+  { v: 'assurance',    l: 'Assurance',    emoji: '🛡️'  },
+  { v: 'expert',       l: 'Expert',       emoji: '🔍' },
+  { v: 'entrepreneur', l: 'Entrepreneur', emoji: '🔨' },
+  { v: 'plombier',     l: 'Plombier',     emoji: '🚿' },
+  { v: 'electricien',  l: 'Électricien',  emoji: '⚡' },
+  { v: 'toiturier',    l: 'Toiturier',    emoji: '🏠' },
+  { v: 'chauffagiste', l: 'Chauffagiste', emoji: '🔥' },
+  { v: 'autre_metier', l: 'Autre métier', emoji: '📦' },
+];
+
 export function SyndicsClient({
   initial,
   loadError,
+  title,
 }: {
   initial: Organisation[];
   loadError: string | null;
+  title?: string;
 }) {
   const [orgs, setOrgs] = useState(initial);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [type, setType] = useState<'syndic' | 'courtier'>('syndic');
+  const [type, setType] = useState<TypeOrganisation>('syndic');
   const [drawerOrg, setDrawerOrg] = useState<Organisation | null>(null);
   // État contrôlé pour le champ Adresse (AddressAutocomplete) — on
   // injecte ensuite adresse + lat + lng dans le formData via des hidden
@@ -43,7 +63,7 @@ export function SyndicsClient({
     <>
       <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Syndics & Courtiers</h1>
+          <h1 className="text-xl font-extrabold text-ink">{title ?? 'Partenaires'}</h1>
           <p className="text-[11px] text-ink-muted mt-0.5">{orgs.length} partenaire(s)</p>
         </div>
         <button
@@ -124,21 +144,22 @@ export function SyndicsClient({
             <form action={onSubmit} className="px-6 py-5 space-y-4">
               <div>
                 <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['syndic', 'courtier'] as const).map((t) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  {ORG_TYPES.map((t) => (
                     <label
-                      key={t}
-                      className={`px-3.5 py-2.5 border-2 rounded-lg cursor-pointer flex items-center gap-2 text-xs ${
-                        type === t ? 'border-navy bg-navy-pale' : 'border-sand-border'
+                      key={t.v}
+                      className={`px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-1.5 text-xs ${
+                        type === t.v ? 'border-navy bg-navy-pale' : 'border-sand-border'
                       }`}
                     >
                       <input
-                        type="radio" name="type" value={t}
-                        checked={type === t}
-                        onChange={() => setType(t)}
+                        type="radio" name="type" value={t.v}
+                        checked={type === t.v}
+                        onChange={() => setType(t.v)}
                         className="accent-[#1B3A6B]"
                       />
-                      {t === 'syndic' ? 'Syndic' : 'Courtier'}
+                      <span>{t.emoji}</span>
+                      <span>{t.l}</span>
                     </label>
                   ))}
                 </div>

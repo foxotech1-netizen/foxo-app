@@ -35,6 +35,7 @@ export default async function ExpertsPage() {
     <SyndicsClient
       initial={experts}
       loadError={error?.message ?? null}
+      title="Experts"
     />
   );
 }

@@ -20,6 +20,7 @@ export default async function MetiersPage() {
     <SyndicsClient
       initial={(data ?? []) as Organisation[]}
       loadError={error?.message ?? null}
+      title="Métiers & Entrepreneurs"
     />
   );
 }

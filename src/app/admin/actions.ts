@@ -9,7 +9,7 @@ import { generateFacturePdf } from '@/lib/pdf/generateFacture';
 import { computeTotals, type FactureItem } from '@/lib/pdf/FacturePdf';
 import { VENDOR } from '@/lib/constants/vendor';
 import { notifyStatusChange } from '@/lib/email/notifications';
-import type { Acp, Intervention, Organisation, StatutIntervention } from '@/lib/types/database';
+import type { Acp, Intervention, Organisation, StatutIntervention, TypeOrganisation } from '@/lib/types/database';
 
 export type ActionState = { ok?: true; error?: string; data?: unknown };
 
@@ -197,7 +197,7 @@ export async function deleteInterventionDocument(
 export async function createOrganisation(formData: FormData): Promise<ActionState> {
   const nom = String(formData.get('nom') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const type = String(formData.get('type') ?? 'syndic') as 'syndic' | 'courtier';
+  const type = String(formData.get('type') ?? 'syndic') as TypeOrganisation;
   const contact = String(formData.get('contact') ?? '').trim() || null;
   const telephone = String(formData.get('telephone') ?? '').trim() || null;
   const bce = String(formData.get('bce') ?? '').trim() || null;
@@ -212,7 +212,14 @@ export async function createOrganisation(formData: FormData): Promise<ActionStat
 
   if (!nom) return { error: 'Le nom de la société est obligatoire.' };
   if (!email || !email.includes('@')) return { error: 'Email invalide.' };
-  if (type !== 'syndic' && type !== 'courtier') return { error: 'Type invalide.' };
+  // Whitelist alignée sur l'enum SQL user_role (cf. migration
+  // 2026-05-29_organisation_types_extended.sql) — toute valeur hors
+  // de cette liste serait rejetée côté DB par le check enum.
+  const ALLOWED_ORG_TYPES: TypeOrganisation[] = [
+    'syndic', 'courtier', 'assurance', 'expert', 'entrepreneur',
+    'plombier', 'electricien', 'toiturier', 'chauffagiste', 'autre_metier',
+  ];
+  if (!ALLOWED_ORG_TYPES.includes(type)) return { error: 'Type invalide.' };
 
   const supabase = await createClient();
   const fullPayload: Record<string, unknown> = { nom, email, type, contact, telephone, bce, adresse, lat, lng };

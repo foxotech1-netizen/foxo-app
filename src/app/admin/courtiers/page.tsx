@@ -18,6 +18,7 @@ export default async function CourtiersPage() {
     <SyndicsClient
       initial={(data ?? []) as Organisation[]}
       loadError={error?.message ?? null}
+      title="Courtiers & Assurances"
     />
   );
 }
