@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
+import { NoteFraisDrawer } from './NoteFraisDrawer';
 
 const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
   carburant:      'Carburant',
@@ -44,8 +45,9 @@ function fmtMoney(n: number | null | undefined): string {
 }
 
 export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) {
-  const [notes] = useState<NoteFrais[]>(initialData);
+  const [notes, setNotes] = useState<NoteFrais[]>(initialData);
   const [filter, setFilter] = useState<StatutFilter>('tous');
+  const [selectedNote, setSelectedNote] = useState<NoteFrais | null>(null);
 
   const filtered = useMemo(
     () => filter === 'tous' ? notes : notes.filter((n) => n.statut === filter),
@@ -168,7 +170,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => alert(`Détail note ${n.id} — drawer à implémenter.`)}
+                          onClick={() => setSelectedNote(n)}
                           className="text-[11px] text-navy hover:underline font-bold dark:text-[#A8C4F2]"
                         >
                           Voir
@@ -182,6 +184,17 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
           </table>
         </div>
       </div>
+
+      {selectedNote && (
+        <NoteFraisDrawer
+          note={selectedNote}
+          onClose={() => setSelectedNote(null)}
+          onUpdate={(patch) => {
+            setNotes((prev) => prev.map((n) => n.id === selectedNote.id ? { ...n, ...patch } : n));
+            setSelectedNote((prev) => prev ? { ...prev, ...patch } : null);
+          }}
+        />
+      )}
     </div>
   );
 }
