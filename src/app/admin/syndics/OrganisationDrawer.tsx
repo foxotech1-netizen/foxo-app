@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Users, Building2, X, Pencil, Send, Check, Trash2, Plus, Save, Mail, XCircle, CheckCircle2 } from 'lucide-react';
 import { TypeBadge } from '@/components/TypeBadge';
 import { AddressAutocomplete, type AddressValue } from '@/components/AddressAutocomplete';
 import type { Organisation, Delegue, DelegueRole, TypeOrganisation } from '@/lib/types/database';
@@ -15,17 +16,17 @@ const EMPTY_ADDRESS: AddressValue = {
 // d'édition (onglet Infos). Dupliquée volontairement de SyndicsClient.tsx
 // pour éviter un import cross-file ; toute modif doit être propagée des
 // 2 côtés ET dans la migration SQL `organisations_type_check`.
-const ORG_TYPES: { v: TypeOrganisation; l: string; emoji: string }[] = [
-  { v: 'syndic',       l: 'Syndic',       emoji: '🏢' },
-  { v: 'courtier',     l: 'Courtier',     emoji: '⚖️'  },
-  { v: 'assurance',    l: 'Assurance',    emoji: '🛡️'  },
-  { v: 'expert',       l: 'Expert',       emoji: '🔍' },
-  { v: 'entrepreneur', l: 'Entrepreneur', emoji: '🔨' },
-  { v: 'plombier',     l: 'Plombier',     emoji: '🚿' },
-  { v: 'electricien',  l: 'Électricien',  emoji: '⚡' },
-  { v: 'toiturier',    l: 'Toiturier',    emoji: '🏠' },
-  { v: 'chauffagiste', l: 'Chauffagiste', emoji: '🔥' },
-  { v: 'autre_metier', l: 'Autre métier', emoji: '📦' },
+const ORG_TYPES: { v: TypeOrganisation; l: string }[] = [
+  { v: 'syndic',       l: 'Syndic' },
+  { v: 'courtier',     l: 'Courtier' },
+  { v: 'assurance',    l: 'Assurance' },
+  { v: 'expert',       l: 'Expert' },
+  { v: 'entrepreneur', l: 'Entrepreneur' },
+  { v: 'plombier',     l: 'Plombier' },
+  { v: 'electricien',  l: 'Électricien' },
+  { v: 'toiturier',    l: 'Toiturier' },
+  { v: 'chauffagiste', l: 'Chauffagiste' },
+  { v: 'autre_metier', l: 'Autre métier' },
 ];
 
 type Tab = 'infos' | 'delegues' | 'acps';
@@ -124,7 +125,7 @@ export function OrganisationDrawer({
       }
       resetAcpForm();
       setShowAcpForm(false);
-      setAcpToast('ACP créée ✓');
+      setAcpToast('ACP créée');
       setTimeout(() => setAcpToast(null), 3000);
       await loadAcps();
     } catch (e) {
@@ -221,7 +222,7 @@ export function OrganisationDrawer({
       }
       cancelForm();
       await loadDelegues();
-      setFeedback({ kind: 'ok', msg: editingId ? 'Modifié ✓' : 'Délégué ajouté ✓' });
+      setFeedback({ kind: 'ok', msg: editingId ? 'Modifié' : 'Délégué ajouté' });
     } finally {
       setSaving(false);
     }
@@ -238,7 +239,7 @@ export function OrganisationDrawer({
         return;
       }
       await loadDelegues();
-      setFeedback({ kind: 'ok', msg: 'Supprimé ✓' });
+      setFeedback({ kind: 'ok', msg: 'Supprimé' });
     } finally {
       setSaving(false);
     }
@@ -273,7 +274,7 @@ export function OrganisationDrawer({
         return;
       }
       await loadDelegues();
-      setFeedback({ kind: 'ok', msg: 'Invitation envoyée ✓' });
+      setFeedback({ kind: 'ok', msg: 'Invitation envoyée' });
     } finally {
       setInvitingId(null);
     }
@@ -298,8 +299,8 @@ export function OrganisationDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
-            >✕</button>
+              className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 inline-flex items-center justify-center dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            ><X size={16} /></button>
           </div>
         </header>
 
@@ -315,7 +316,11 @@ export function OrganisationDrawer({
                   : 'text-ink-muted border-transparent hover:text-ink-mid dark:text-[#C8C2B8]'
               }`}
             >
-              {t === 'infos' ? 'Infos' : t === 'delegues' ? '👥 Délégués' : '🏢 ACPs'}
+              {t === 'infos' ? 'Infos' : t === 'delegues' ? (
+                <span className="inline-flex items-center gap-1.5"><Users size={14} />Délégués</span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5"><Building2 size={14} />ACPs</span>
+              )}
             </button>
           ))}
         </nav>
@@ -338,14 +343,14 @@ export function OrganisationDrawer({
                 org={org}
                 onSaved={(updated) => {
                   onUpdate?.(updated);
-                  setFeedback({ kind: 'ok', msg: 'Infos sauvegardées ✓' });
+                  setFeedback({ kind: 'ok', msg: 'Infos sauvegardées' });
                 }}
               />
               <SyndicEmailsBlock
                 org={org}
                 onSaved={(updated) => {
                   onUpdate?.(updated);
-                  setFeedback({ kind: 'ok', msg: 'Emails dédiés sauvegardés ✓' });
+                  setFeedback({ kind: 'ok', msg: 'Emails dédiés sauvegardés' });
                 }}
               />
             </>
@@ -376,10 +381,10 @@ export function OrganisationDrawer({
                   }
                   const fullName = [d.prenom, d.nom].filter(Boolean).join(' ') || d.email;
                   const status = !d.actif
-                    ? { label: '❌ Inactif', cls: 'text-terra' }
+                    ? { label: (<span className="inline-flex items-center gap-1.5"><XCircle size={12} />Inactif</span>), cls: 'text-terra' }
                     : d.invite_sent_at
-                      ? { label: '✅ Actif', cls: 'text-ok dark:text-[#7AC9A0]' }
-                      : { label: '⏳ Pas encore invité', cls: 'text-[#8A5A1A] dark:text-[#E8C896]' };
+                      ? { label: (<span className="inline-flex items-center gap-1.5"><CheckCircle2 size={12} />Actif</span>), cls: 'text-ok dark:text-[#7AC9A0]' }
+                      : { label: (<span>Pas encore invité</span>), cls: 'text-[#8A5A1A] dark:text-[#E8C896]' };
                   return (
                     <div key={d.id} className="bg-cream border border-sand-border rounded-md px-3 py-2 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
@@ -410,33 +415,39 @@ export function OrganisationDrawer({
                         <button
                           type="button"
                           onClick={() => startEdit(d)}
-                          className="text-[10px] bg-sand-mid text-ink-mid border border-sand-border px-2 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+                          className="inline-flex items-center gap-1.5 text-[10px] bg-sand-mid text-ink-mid border border-sand-border px-2 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
                         >
-                          ✏️ Modifier
+                          <Pencil size={12} />Modifier
                         </button>
                         <button
                           type="button"
                           onClick={() => sendInvite(d.id)}
                           disabled={invitingId === d.id}
-                          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
                         >
-                          {invitingId === d.id ? 'Envoi…' : (d.invite_sent_at ? '📤 Renvoyer invitation' : '📤 Envoyer invitation')}
+                          {invitingId === d.id ? 'Envoi…' : (
+                            <><Send size={12} />{d.invite_sent_at ? 'Renvoyer invitation' : 'Envoyer invitation'}</>
+                          )}
                         </button>
                         <button
                           type="button"
                           onClick={() => toggleActif(d)}
                           disabled={saving}
-                          className="text-[10px] bg-amber-light text-[#8A5A1A] border border-[#E8C896] px-2 py-1 rounded font-bold dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]"
+                          className="inline-flex items-center gap-1.5 text-[10px] bg-amber-light text-[#8A5A1A] border border-[#E8C896] px-2 py-1 rounded font-bold dark:bg-[#2A220E] dark:text-[#E8C896] dark:border-[#5A4A30]"
                         >
-                          {d.actif ? '🚫 Désactiver' : '✓ Activer'}
+                          {d.actif ? (
+                            <>Désactiver</>
+                          ) : (
+                            <><Check size={12} />Activer</>
+                          )}
                         </button>
                         <button
                           type="button"
                           onClick={() => deleteDelegue(d.id)}
                           disabled={saving}
-                          className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+                          className="inline-flex items-center gap-1.5 text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
                         >
-                          🗑 Supprimer
+                          <Trash2 size={12} />Supprimer
                         </button>
                       </div>
                     </div>
@@ -457,9 +468,9 @@ export function OrganisationDrawer({
                   <button
                     type="button"
                     onClick={startAdd}
-                    className="w-full text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
+                    className="w-full inline-flex items-center justify-center gap-1.5 text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
                   >
-                    ➕ Ajouter un délégué
+                    <Plus size={14} />Ajouter un délégué
                   </button>
                 )}
               </div>
@@ -548,9 +559,13 @@ export function OrganisationDrawer({
                       setShowAcpForm(true);
                     }
                   }}
-                  className="w-full text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
+                  className="w-full inline-flex items-center justify-center gap-1.5 text-[12px] bg-cream text-navy border border-navy border-dashed rounded-md px-3 py-2 font-bold hover:bg-navy-pale dark:bg-[#1C1A16] dark:border-[#2A5298] dark:text-[#A8C4F2]"
                 >
-                  {showAcpForm ? '✕ Annuler' : '➕ Ajouter une ACP'}
+                  {showAcpForm ? (
+                    <><X size={14} />Annuler</>
+                  ) : (
+                    <><Plus size={14} />Ajouter une ACP</>
+                  )}
                 </button>
 
                 {showAcpForm && (
@@ -742,9 +757,9 @@ function SyndicInfosBlock({
           <button
             type="button"
             onClick={startEdit}
-            className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+            className="inline-flex items-center gap-1.5 text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
           >
-            ✏️ Modifier
+            <Pencil size={12} />Modifier
           </button>
         ) : (
           <div className="flex gap-1.5">
@@ -760,9 +775,9 @@ function SyndicInfosBlock({
               type="button"
               onClick={save}
               disabled={saving}
-              className="text-[11px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 text-[11px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50"
             >
-              {saving ? '…' : '💾 Sauvegarder'}
+              {saving ? '…' : (<><Save size={12} />Sauvegarder</>)}
             </button>
           </div>
         )}
@@ -786,7 +801,7 @@ function SyndicInfosBlock({
               className={inputCls}
             >
               {ORG_TYPES.map((t) => (
-                <option key={t.v} value={t.v}>{t.emoji} {t.l}</option>
+                <option key={t.v} value={t.v}>{t.l}</option>
               ))}
             </select>
           </InfoEditField>
@@ -913,9 +928,9 @@ function DelegueEditCard({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
         >
-          {saving ? '…' : '💾 Sauvegarder'}
+          {saving ? '…' : (<><Save size={12} />Sauvegarder</>)}
         </button>
       </div>
     </div>
@@ -965,8 +980,8 @@ function SyndicEmailsBlock({
 
   return (
     <div className="bg-cream border border-sand-border rounded-xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-      <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
-        📧 Emails dédiés
+      <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-ink-muted mb-2 dark:text-[#C8C2B8]">
+        <Mail size={12} />Emails dédiés
       </div>
       <p className="text-[10px] text-ink-muted mb-3 italic dark:text-[#C8C2B8]">
         Si vide, on retombe sur l&apos;email principal {org.email}.
@@ -981,9 +996,9 @@ function SyndicEmailsBlock({
           type="button"
           onClick={save}
           disabled={saving}
-          className="text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50"
         >
-          {saving ? '…' : '💾 Sauvegarder'}
+          {saving ? '…' : (<><Save size={14} />Sauvegarder</>)}
         </button>
       </div>
     </div>
