@@ -183,6 +183,7 @@ export function PortalNav() {
             width={90}
             height={90}
             style={{ objectFit: 'contain' }}
+            className="brightness-0 invert"
             priority
           />
           <span style={S.logoLabel}>{orgNom || vocab.portalLabel}</span>
@@ -237,6 +238,7 @@ export function PortalNav() {
           width={36}
           height={36}
           style={{ objectFit: 'contain' }}
+          className="brightness-0 invert"
         />
         <span className="foxo-portal-mobile-header-label">{orgNom || vocab.portalLabel}</span>
         <ThemeToggle className="foxo-portal-theme-toggle-mobile" />

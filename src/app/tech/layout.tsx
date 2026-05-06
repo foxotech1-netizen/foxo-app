@@ -55,7 +55,7 @@ export default async function TechLayout({
         style={{ background: 'var(--sidebar-logo-bg)' }}
       >
         <Link href="/tech" className="flex items-center gap-2.5">
-          <Logo size={36} variant="black" priority />
+          <Logo size={36} variant="black" priority className="brightness-0 invert" />
           <div>
             <div className="text-[10px] text-[#7A6A50] uppercase tracking-[.15em] font-semibold">
               Technicien
