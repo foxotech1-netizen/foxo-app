@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { FileText, Send } from 'lucide-react';
 import {
   uploadInterventionDocument,
   deleteInterventionDocument,
@@ -173,7 +174,7 @@ function UploadCard({
 
       {existing ? (
         <div className="bg-ok-light border border-ok-mid rounded-lg p-2.5 flex items-center gap-2">
-          <div className="text-xl">📄</div>
+          <div className="text-ok"><FileText size={20} /></div>
           <div className="flex-1 min-w-0">
             <div className="text-[12px] font-semibold text-ok truncate">{existing.name}</div>
             <div className="text-[10px] text-ink-muted">
@@ -217,7 +218,7 @@ function UploadCard({
               if (f) void startUpload(f);
             }}
           />
-          <div className="text-2xl mb-1">📤</div>
+          <div className="flex justify-center mb-1 text-ink-mid"><Send size={24} /></div>
           <div className="text-[12px] font-semibold text-ink mb-0.5">
             {kind === 'rapport' ? 'Uploader un rapport PDF' : 'Uploader une facture PDF'}
           </div>

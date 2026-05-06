@@ -11,6 +11,8 @@
 // Les futures étapes (pas encore complétées et non actives) restent
 // non-cliquables (curseur default + pas de hover).
 
+import { Check } from 'lucide-react';
+
 interface StepDef {
   key: string;
   label: string;
@@ -62,7 +64,7 @@ export function MailStepper({ steps }: { steps: StepDef[] }) {
                     border: `1.5px solid ${stateColor}`,
                   }}
                 >
-                  {s.done ? '✓' : idx + 1}
+                  {s.done ? <Check size={14} /> : idx + 1}
                 </div>
                 <span
                   className={

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check } from 'lucide-react';
 import type { FactureItem } from '@/lib/pdf/FacturePdf';
 import { computeTotals } from '@/lib/pdf/FacturePdf';
 import { emitFacture } from './actions';
@@ -82,7 +83,10 @@ export function FactureBlock({
         <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
           Facturation
         </div>
-        <div className="text-[13px] text-ok font-semibold">✓ Facture émise</div>
+        <div className="text-[13px] text-ok font-semibold inline-flex items-center gap-1.5">
+          <Check size={14} />
+          Facture émise
+        </div>
         <p className="text-[11px] text-ink-muted mt-1">
           PDF stocké dans le bucket <span className="font-mono">invoices/{interventionId}.pdf</span>
         </p>
@@ -218,7 +222,14 @@ export function FactureBlock({
             'bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50'
           }
         >
-          {pending ? 'Génération…' : facturee ? '✓ Confirmer la ré-émission' : '✓ Émettre la facture'}
+          {pending ? (
+            'Génération…'
+          ) : (
+            <span className="inline-flex items-center gap-1.5">
+              <Check size={14} />
+              {facturee ? 'Confirmer la ré-émission' : 'Émettre la facture'}
+            </span>
+          )}
         </button>
       </div>
 
