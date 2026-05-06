@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Pause, Circle, FileText, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDateTime, relTime } from '@/lib/format';
@@ -73,7 +74,7 @@ export default async function AlertesPage() {
         <Section
           title="En suspens"
           subtitle="Dossiers bloqués nécessitant une action"
-          icon="⏸"
+          icon={Pause}
           color="terra"
           items={enSuspens}
           empty="Aucun dossier en suspens."
@@ -81,7 +82,7 @@ export default async function AlertesPage() {
         <Section
           title="Nouvelles non assignées"
           subtitle="Demandes reçues sans technicien attribué"
-          icon="◉"
+          icon={Circle}
           color="amber"
           items={nonAssignees}
           empty="Toutes les nouvelles demandes ont un technicien."
@@ -89,7 +90,7 @@ export default async function AlertesPage() {
         <Section
           title="Rapports prêts à envoyer"
           subtitle="Rapports publiés en attente de transmission au syndic"
-          icon="📄"
+          icon={FileText}
           color="navy"
           items={rapportsAEnvoyer}
           empty="Aucun rapport en attente."
@@ -100,11 +101,11 @@ export default async function AlertesPage() {
 }
 
 function Section({
-  title, subtitle, icon, color, items, empty,
+  title, subtitle, icon: Icon, color, items, empty,
 }: {
   title: string;
   subtitle: string;
-  icon: string;
+  icon: LucideIcon;
   color: 'terra' | 'amber' | 'navy';
   items: AlertItem[];
   empty: string;
@@ -127,7 +128,7 @@ function Section({
   return (
     <section>
       <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${accentBg} mb-3`}>
-        <span className="text-xl leading-none">{icon}</span>
+        <Icon size={18} className={accentFg} aria-hidden />
         <div className="flex-1">
           <h2 className={`text-sm font-bold ${accentFg} dark:text-[#F0ECE4]`}>{title}</h2>
           <p className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">{subtitle}</p>

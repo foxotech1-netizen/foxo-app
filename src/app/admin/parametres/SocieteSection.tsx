@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Building2 } from 'lucide-react';
+import { Building2, Hourglass, RefreshCw, Send, Save } from 'lucide-react';
 import { setParametre } from '../facturation/actions';
 
 const FORMES_JURIDIQUES = ['SRL', 'SA', 'ASBL', 'Indépendant', 'Autre'] as const;
@@ -58,7 +58,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
         return;
       }
       setSocieteLogoUrl(data.url as string);
-      setFeedback({ kind: 'ok', msg: 'Logo mis à jour ✓' });
+      setFeedback({ kind: 'ok', msg: 'Logo mis à jour.' });
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -319,7 +319,13 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 : 'bg-sand-mid text-ink border border-sand-border hover:bg-sand-hover dark:bg-[rgba(255,255,255,.06)]')
             }
           >
-            {uploadingLogo ? '⏳ Upload…' : societeLogoUrl ? '🔁 Remplacer le logo' : '📤 Uploader un logo'}
+            {uploadingLogo ? (
+              <><Hourglass size={14} aria-hidden /> Upload…</>
+            ) : societeLogoUrl ? (
+              <><RefreshCw size={14} aria-hidden /> Remplacer le logo</>
+            ) : (
+              <><Send size={14} aria-hidden /> Uploader un logo</>
+            )}
           </span>
         </label>
         <p className="text-[10px] text-ink-muted mt-1">
@@ -333,9 +339,9 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
           type="button"
           onClick={handleSave}
           disabled={pending}
-          className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
+          className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
         >
-          {pending ? '…' : '💾 Enregistrer'}
+          {pending ? '…' : (<><Save size={14} aria-hidden /> Enregistrer</>)}
         </button>
         {feedback && (
           <span

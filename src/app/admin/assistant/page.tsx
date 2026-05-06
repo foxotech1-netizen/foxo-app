@@ -1,4 +1,4 @@
-import { Clock, Sun, Mail, BarChart3, Zap, Pause } from 'lucide-react';
+import { Clock, Sun, Mail, BarChart3, Zap, Pause, Sparkles } from 'lucide-react';
 import { AssistantChat, type QuickAction } from './AssistantChat';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export default function AssistantPage() {
     <>
       <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">✨ Assistant Claude</h1>
+          <h1 className="text-xl font-extrabold text-ink inline-flex items-center gap-1.5"><Sparkles size={16} aria-hidden /> Assistant Claude</h1>
           <p className="text-[11px] text-ink-muted mt-0.5">
             Pose n&apos;importe quelle question sur l&apos;activité FoxO. Claude a accès aux interventions, syndics et techniciens en temps réel.
           </p>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { X, type LucideIcon } from 'lucide-react';
+import { X, Sparkles, type LucideIcon } from 'lucide-react';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -158,7 +158,7 @@ export function AssistantChat({
       <div ref={scrollerRef} className="flex-1 overflow-y-auto bg-white border border-sand-border rounded-xl p-3 mb-3 min-h-[260px]">
         {messages.length === 0 && !pending && (
           <div className="h-full flex flex-col items-center justify-center text-center py-8">
-            <div className="text-3xl mb-2">✨</div>
+            <Sparkles size={28} className="mb-2 text-ink-muted" aria-hidden />
             <div className="text-[14px] font-bold text-ink mb-1">{emptyTitle}</div>
             <p className="text-[12px] text-ink-muted max-w-[400px]">{emptyHint}</p>
           </div>
@@ -174,8 +174,8 @@ export function AssistantChat({
                   : 'mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2'
               }
             >
-              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted">
-                {m.role === 'user' ? 'Vous' : '✨ Claude'}
+              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted inline-flex items-center gap-1">
+                {m.role === 'user' ? 'Vous' : (<><Sparkles size={12} aria-hidden /> Claude</>)}
               </div>
               <div className="text-[13px] text-ink whitespace-pre-wrap leading-relaxed">{m.content}</div>
               {m.role === 'assistant' && (
@@ -202,8 +202,8 @@ export function AssistantChat({
           ))}
           {pending && (
             <div className="mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted">
-                ✨ Claude
+              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted inline-flex items-center gap-1">
+                <Sparkles size={12} aria-hidden /> Claude
               </div>
               <div className="text-[13px] text-ink-muted italic">Réflexion en cours…</div>
             </div>

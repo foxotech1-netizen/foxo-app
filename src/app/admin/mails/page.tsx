@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AlertTriangle } from 'lucide-react';
 import { loadTokens } from '@/lib/google-auth';
 import { MailsClient } from './MailsClient';
 
@@ -23,8 +24,8 @@ export default async function MailsPage() {
 
       {!connected && (
         <div className="mx-6 mt-3 px-4 py-3 bg-amber-light border border-[#E8C896] rounded-lg text-[13px] text-[#8A5A1A] flex items-center justify-between gap-3 flex-shrink-0">
-          <span>
-            ⚠ Connectez votre compte Google dans{' '}
+          <span className="inline-flex items-center gap-1.5">
+            <AlertTriangle size={14} aria-hidden /> Connectez votre compte Google dans{' '}
             <Link href="/admin/parametres" className="underline font-bold">Paramètres → Intégrations Google</Link>
             {' '}pour afficher la boîte mail.
           </span>
