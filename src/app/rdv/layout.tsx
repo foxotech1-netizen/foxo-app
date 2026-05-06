@@ -9,7 +9,10 @@ export default function RdvLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-sand flex flex-col">
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: 'var(--main-bg)', color: 'var(--text)' }}
+    >
       <header
         className="border-b border-[rgba(0,0,0,0.12)] py-4 px-4 sticky top-0 z-40"
         style={{ background: '#E2C9A1' }}

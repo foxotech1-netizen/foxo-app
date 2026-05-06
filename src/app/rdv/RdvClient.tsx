@@ -197,18 +197,18 @@ export function RdvClient({ months }: { months: MonthData[] }) {
   // ── Vue succès ─────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="bg-cream border border-sand-border rounded-2xl p-8 text-center max-w-[560px] mx-auto mt-4">
+      <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-8 text-center max-w-[560px] mx-auto mt-4">
         <div className="flex justify-center mb-3">
           <PartyPopper size={48} className="text-ok" />
         </div>
         <h1 className="text-2xl font-extrabold text-ok">Demande reçue !</h1>
-        <p className="text-sm text-ink-mid mt-2 leading-relaxed">
+        <p className="text-sm text-[var(--text-2)] mt-2 leading-relaxed">
           Un email de confirmation vous a été envoyé.<br />
           FoxO vous confirmera un créneau sous <strong>24h ouvrables</strong>.
         </p>
-        <div className="mt-5 inline-block bg-sand border border-sand-border rounded-xl px-5 py-3">
-          <div className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">Référence</div>
-          <div className="text-lg font-bold text-navy font-mono mt-1">{success.ref}</div>
+        <div className="mt-5 inline-block bg-[var(--table-bg)] border border-[var(--card-border)] rounded-xl px-5 py-3">
+          <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold">Référence</div>
+          <div className="text-lg font-bold text-[var(--accent)] font-mono mt-1">{success.ref}</div>
         </div>
       </div>
     );
@@ -218,8 +218,8 @@ export function RdvClient({ months }: { months: MonthData[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-ink">Demander une intervention</h1>
-        <p className="text-sm text-ink-mid mt-1">
+        <h1 className="text-2xl font-extrabold text-[var(--text)]">Demander une intervention</h1>
+        <p className="text-sm text-[var(--text-2)] mt-1">
           Choisissez un créneau dans le calendrier ou complétez directement le formulaire.
         </p>
       </div>
@@ -234,7 +234,7 @@ export function RdvClient({ months }: { months: MonthData[] }) {
       />
 
       {/* FORM */}
-      <div ref={formRef} className="bg-cream border border-sand-border rounded-2xl overflow-hidden">
+      <div ref={formRef} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
         <StepIndicator step={step} />
 
         <div className="p-5 sm:p-6">
@@ -302,7 +302,7 @@ export function RdvClient({ months }: { months: MonthData[] }) {
               type="button"
               onClick={tryGoBack}
               disabled={step === 1 || submitting}
-              className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+              className="bg-[var(--card-border-2)] text-[var(--text-2)] px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
             >
               ← Précédent
             </button>
@@ -311,7 +311,7 @@ export function RdvClient({ months }: { months: MonthData[] }) {
                 type="button"
                 onClick={tryAdvance}
                 disabled={submitting}
-                className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                className="bg-[var(--btn-bg)] text-[var(--btn-color)] px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
               >
                 Suivant →
               </button>
@@ -320,7 +320,7 @@ export function RdvClient({ months }: { months: MonthData[] }) {
                 type="button"
                 onClick={trySubmit}
                 disabled={submitting}
-                className="bg-navy text-white px-5 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                className="bg-[var(--btn-bg)] text-[var(--btn-color)] px-5 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
               >
                 {submitting ? 'Envoi…' : 'Confirmer ma demande'}
               </button>
@@ -348,11 +348,11 @@ function CalendarWidget({
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
-    <section className="bg-cream rounded-2xl border border-sand-border overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-sand-border">
+    <section className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--card-border)]">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-ink-muted font-bold">Disponibilités FoxO</div>
-          <div className="text-base font-bold text-ink mt-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-[var(--text-3)] font-bold">Disponibilités FoxO</div>
+          <div className="text-base font-bold text-[var(--text)] mt-0.5">
             {MONTH_NAMES[m.month]} {m.year}
           </div>
         </div>
@@ -361,20 +361,20 @@ function CalendarWidget({
             type="button"
             onClick={() => onChange(Math.max(0, active - 1))}
             disabled={active === 0}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-40"
+            className="bg-[var(--card-border-2)] w-8 h-8 rounded-md text-[var(--text-2)] hover:bg-[var(--card-border)] disabled:opacity-40"
           >‹</button>
           <button
             type="button"
             onClick={() => onChange(Math.min(months.length - 1, active + 1))}
             disabled={active >= months.length - 1}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-40"
+            className="bg-[var(--card-border-2)] w-8 h-8 rounded-md text-[var(--text-2)] hover:bg-[var(--card-border)] disabled:opacity-40"
           >›</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-sand-border">
+      <div className="grid grid-cols-7 gap-px bg-[var(--card-border)]">
         {DAYS_SHORT.map((d) => (
-          <div key={d} className="bg-sand text-center py-2 text-[10px] font-bold text-ink-muted uppercase">
+          <div key={d} className="bg-[var(--table-bg)] text-center py-2 text-[10px] font-bold text-[var(--text-3)] uppercase">
             {d}
           </div>
         ))}
@@ -384,14 +384,14 @@ function CalendarWidget({
             className={
               'p-1.5 sm:p-2 min-h-[72px] ' +
               (c.inMonth
-                ? c.iso === todayStr ? 'bg-navy-pale' : 'bg-cream'
-                : 'bg-[#FAFAF8] opacity-50')
+                ? c.iso === todayStr ? 'bg-[var(--accent-dim)]' : 'bg-[var(--card-bg)]'
+                : 'bg-[var(--main-bg)] opacity-50')
             }
           >
             {c.inMonth && (
               <div className={
                 'text-[11px] font-semibold mb-1 ' +
-                (c.iso === todayStr ? 'text-navy font-extrabold' : 'text-ink-mid')
+                (c.iso === todayStr ? 'text-[var(--accent)] font-extrabold' : 'text-[var(--text-2)]')
               }>
                 {c.day}
               </div>
@@ -409,7 +409,7 @@ function CalendarWidget({
                       className={
                         'flex items-center justify-center gap-1 w-full text-[10px] font-semibold rounded px-1.5 py-0.5 truncate transition-colors ' +
                         (isSelected
-                          ? 'bg-navy text-white'
+                          ? 'bg-[var(--btn-bg)] text-[var(--btn-color)]'
                           : 'bg-ok-light text-ok hover:bg-[#C8E5D5]')
                       }
                     >
@@ -420,7 +420,7 @@ function CalendarWidget({
                 }
                 if (s.status === 'reserve') {
                   return (
-                    <div key={s.iso} className="text-[10px] font-semibold rounded px-1.5 py-0.5 bg-navy-light text-navy truncate">
+                    <div key={s.iso} className="text-[10px] font-semibold rounded px-1.5 py-0.5 bg-[var(--accent-dim)] text-[var(--accent)] truncate">
                       {time}
                     </div>
                   );
@@ -432,19 +432,19 @@ function CalendarWidget({
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-4 px-4 py-3 border-t border-sand-border">
-        <Legend bg="bg-ok-light" border="border-ok-mid" label="Disponible" />
-        <Legend bg="bg-navy-light" border="border-navy-mid" label="Réservé" />
-        <Legend bg="bg-navy" border="border-navy" label="Sélectionné" textWhite />
+      <div className="flex flex-wrap gap-4 px-4 py-3 border-t border-[var(--card-border)]">
+        <Legend swatchClass="bg-ok-light border-ok-mid" label="Disponible" />
+        <Legend swatchClass="bg-[var(--accent-dim)] border-[var(--accent)]" label="Réservé" />
+        <Legend swatchClass="bg-[var(--btn-bg)] border-[var(--btn-bg)]" label="Sélectionné" />
       </div>
     </section>
   );
 }
 
-function Legend({ bg, border, label, textWhite }: { bg: string; border: string; label: string; textWhite?: boolean }) {
+function Legend({ swatchClass, label }: { swatchClass: string; label: string }) {
   return (
-    <div className="flex items-center gap-1.5 text-[11px] text-ink-mid">
-      <span className={`w-3 h-3 rounded-sm ${bg} ${border} border ${textWhite ? '' : ''}`} />
+    <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
+      <span className={`w-3 h-3 rounded-sm border ${swatchClass}`} />
       {label}
     </div>
   );
@@ -489,7 +489,7 @@ function buildGrid(year: number, month: number, slots: Slot[]): Cell[] {
 
 function StepIndicator({ step }: { step: Step }) {
   return (
-    <div className="bg-sand border-b border-sand-border px-4 py-3">
+    <div className="bg-[var(--table-bg)] border-b border-[var(--card-border)] px-4 py-3">
       <div className="flex gap-1.5 sm:gap-2 items-center">
         {STEP_LABELS.map((label, i) => {
           const n = (i + 1) as Step;
@@ -500,18 +500,18 @@ function StepIndicator({ step }: { step: Step }) {
                 className={
                   'w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ' +
                   (state === 'done' ? 'bg-ok text-white' :
-                    state === 'active' ? 'bg-navy text-white' :
-                    'bg-sand-mid text-ink-muted')
+                    state === 'active' ? 'bg-[var(--btn-bg)] text-[var(--btn-color)]' :
+                    'bg-[var(--card-border-2)] text-[var(--text-3)]')
                 }
               >
                 {state === 'done' ? <Check size={14} /> : n}
               </div>
               <span className={
                 'text-[11px] font-semibold truncate hidden sm:inline ' +
-                (state === 'active' ? 'text-navy' : 'text-ink-mid')
+                (state === 'active' ? 'text-[var(--accent)]' : 'text-[var(--text-2)]')
               }>{label}</span>
               {i < STEP_LABELS.length - 1 && (
-                <div className={'flex-1 h-px ' + (n < step ? 'bg-ok' : 'bg-sand-border')} />
+                <div className={'flex-1 h-px ' + (n < step ? 'bg-ok' : 'bg-[var(--card-border)]')} />
               )}
             </div>
           );
@@ -531,7 +531,7 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+      <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
         {label}{required && <span className="text-terra"> *</span>}
       </label>
       <input
@@ -540,7 +540,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
       />
     </div>
   );
@@ -570,8 +570,8 @@ function Step1(props: {
     <div className="space-y-5">
       {/* Section 1 : Mandant */}
       <section>
-        <h3 className="text-sm font-bold text-navy mb-3">
-          Vos coordonnées <span className="text-[10px] uppercase tracking-wider text-ink-muted ml-1">(mandant — facturation)</span>
+        <h3 className="text-sm font-bold text-[var(--accent)] mb-3">
+          Vos coordonnées <span className="text-[10px] uppercase tracking-wider text-[var(--text-3)] ml-1">(mandant — facturation)</span>
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Prénom" value={props.prenom} onChange={props.setPrenom} required />
@@ -617,14 +617,14 @@ function Step1(props: {
       </section>
 
       {/* Section 2 : Lieu d'intervention */}
-      <section className="border-t border-sand-border pt-4 dark:border-[#2C2A24]">
-        <h3 className="text-sm font-bold text-navy mb-3">Lieu d&apos;intervention</h3>
-        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 dark:text-[#F0ECE4]">
+      <section className="border-t border-[var(--card-border)] pt-4">
+        <h3 className="text-sm font-bold text-[var(--accent)] mb-3">Lieu d&apos;intervention</h3>
+        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 text-[var(--text)]">
           <input
             type="checkbox"
             checked={props.lieuMeme}
             onChange={(e) => props.setLieuMeme(e.target.checked)}
-            className="accent-[#1B3A6B]"
+            className="accent-[var(--btn-bg)]"
           />
           Même adresse que ci-dessus
         </label>
@@ -634,20 +634,20 @@ function Step1(props: {
               value={props.lieuRue}
               onChange={(e) => props.setLieuRue(e.target.value)}
               placeholder="Rue et numéro de l'intervention"
-              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+              className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)] mb-2"
             />
             <div className="grid grid-cols-3 gap-2">
               <input
                 value={props.lieuCp}
                 onChange={(e) => props.setLieuCp(e.target.value)}
                 placeholder="Code postal"
-                className="col-span-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="col-span-1 px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
               />
               <input
                 value={props.lieuVille}
                 onChange={(e) => props.setLieuVille(e.target.value)}
                 placeholder="Ville"
-                className="col-span-2 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="col-span-2 px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
               />
             </div>
           </div>
@@ -655,16 +655,16 @@ function Step1(props: {
       </section>
 
       {/* Section 3 : Contact sur place (optionnel) */}
-      <section className="border-t border-sand-border pt-4 dark:border-[#2C2A24]">
-        <h3 className="text-sm font-bold text-navy mb-3">
-          Contact sur place <span className="text-[10px] uppercase tracking-wider text-ink-muted ml-1">(optionnel)</span>
+      <section className="border-t border-[var(--card-border)] pt-4">
+        <h3 className="text-sm font-bold text-[var(--accent)] mb-3">
+          Contact sur place <span className="text-[10px] uppercase tracking-wider text-[var(--text-3)] ml-1">(optionnel)</span>
         </h3>
-        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 dark:text-[#F0ECE4]">
+        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 text-[var(--text)]">
           <input
             type="checkbox"
             checked={props.contactActif}
             onChange={(e) => props.setContactActif(e.target.checked)}
-            className="accent-[#1B3A6B]"
+            className="accent-[var(--btn-bg)]"
           />
           Contact différent de moi
         </label>
@@ -677,7 +677,7 @@ function Step1(props: {
             <Field label="Téléphone" type="tel" value={props.contactTel} onChange={props.setContactTel} placeholder="+32 ..." required />
             <Field label="Email (optionnel)" type="email" value={props.contactEmail} onChange={props.setContactEmail} placeholder="contact@..." />
             <div>
-              <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+              <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
                 Instructions d&apos;accès
               </label>
               <textarea
@@ -685,7 +685,7 @@ function Step1(props: {
                 onChange={(e) => props.setContactInstr(e.target.value)}
                 placeholder="Digicode, gardien, créneau d'accès…"
                 rows={3}
-                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)] resize-y"
               />
             </div>
           </div>
@@ -706,16 +706,16 @@ function Step2(props: {
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">2. Le problème</h3>
+      <h3 className="text-sm font-bold text-[var(--accent)]">2. Le problème</h3>
 
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
           Type d&apos;intervention <span className="text-terra">*</span>
         </label>
         <select
           value={props.type}
           onChange={(e) => props.setType(e.target.value)}
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
+          className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)]"
           required
         >
           <option value="">— Sélectionner —</option>
@@ -724,7 +724,7 @@ function Step2(props: {
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
           Description détaillée <span className="text-terra">*</span>
         </label>
         <textarea
@@ -733,22 +733,24 @@ function Step2(props: {
           placeholder="Décrivez le problème, l'étage, les dégâts visibles…"
           rows={5}
           required
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y min-h-[100px]"
+          className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)] resize-y min-h-[100px]"
         />
-        <p className="text-[11px] text-ink-muted mt-1">
+        <p className="text-[11px] text-[var(--text-3)] mt-1">
           {props.description.trim().length} caractère(s) — minimum 10
         </p>
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">Priorité</label>
+        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Priorité</label>
         <div className="grid grid-cols-2 gap-2">
           {(['normale', 'urgente'] as const).map((p) => (
             <label
               key={p}
               className={
                 'px-3.5 py-2.5 border-2 rounded-lg cursor-pointer flex items-center gap-2 text-xs ' +
-                (props.priorite === p ? 'border-navy bg-navy-pale' : 'border-sand-border bg-white')
+                (props.priorite === p
+                  ? 'border-[var(--btn-bg)] bg-[var(--accent-dim)] text-[var(--text)]'
+                  : 'border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text)]')
               }
             >
               <input
@@ -756,7 +758,7 @@ function Step2(props: {
                 name="priorite"
                 checked={props.priorite === p}
                 onChange={() => props.setPriorite(p)}
-                className="accent-[#1B3A6B]"
+                className="accent-[var(--btn-bg)]"
               />
               {p === 'urgente' ? (
                 <span className="inline-flex items-center gap-1">
@@ -769,7 +771,7 @@ function Step2(props: {
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">Photos (facultatif, max 3)</label>
+        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Photos (facultatif, max 3)</label>
         <input
           ref={props.photosInputRef}
           type="file"
@@ -784,8 +786,8 @@ function Step2(props: {
           className={
             'inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold cursor-pointer ' +
             (props.photos.length >= 3
-              ? 'bg-sand-mid text-ink-muted cursor-not-allowed'
-              : 'bg-sand-mid text-ink-mid hover:bg-sand-border')
+              ? 'bg-[var(--card-border-2)] text-[var(--text-3)] cursor-not-allowed'
+              : 'bg-[var(--card-border-2)] text-[var(--text-2)] hover:bg-[var(--card-border)]')
           }
         >
           <Camera size={14} />
@@ -794,9 +796,9 @@ function Step2(props: {
         {props.photos.length > 0 && (
           <div className="mt-2 space-y-1.5">
             {props.photos.map((p, i) => (
-              <div key={i} className="flex items-center justify-between bg-sand rounded-md px-3 py-1.5 text-[12px]">
+              <div key={i} className="flex items-center justify-between bg-[var(--table-bg)] rounded-md px-3 py-1.5 text-[12px] text-[var(--text)]">
                 <span className="truncate flex-1">{p.name}</span>
-                <span className="text-ink-muted text-[11px] mx-2">{(p.size / 1024 / 1024).toFixed(1)} MB</span>
+                <span className="text-[var(--text-3)] text-[11px] mx-2">{(p.size / 1024 / 1024).toFixed(1)} MB</span>
                 <button
                   type="button"
                   onClick={() => props.onRemovePhoto(i)}
@@ -819,8 +821,8 @@ function Step3(props: {
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">3. Créneau souhaité</h3>
-      <p className="text-xs text-ink-mid">Non contractuel — FoxO confirmera sous 24h ouvrables.</p>
+      <h3 className="text-sm font-bold text-[var(--accent)]">3. Créneau souhaité</h3>
+      <p className="text-xs text-[var(--text-2)]">Non contractuel — FoxO confirmera sous 24h ouvrables.</p>
       {props.preSelected && (
         <div className="bg-ok-light border border-ok-mid rounded-lg px-3.5 py-2.5 text-[13px] text-ok flex justify-between items-center">
           <span className="inline-flex items-center gap-1.5">
@@ -835,27 +837,27 @@ function Step3(props: {
       )}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">Date</label>
+          <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Date</label>
           <input
             type="date"
             value={props.date}
             onChange={(e) => props.setDate(e.target.value)}
-            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">Heure</label>
+          <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Heure</label>
           <select
             value={props.heure}
             onChange={(e) => props.setHeure(e.target.value)}
-            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
+            className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)]"
           >
             <option value="">— Indifférent —</option>
             {HOURS.map((h) => <option key={h} value={h}>{h.replace(':', 'h')}</option>)}
           </select>
         </div>
       </div>
-      <p className="text-[11px] text-ink-muted">
+      <p className="text-[11px] text-[var(--text-3)]">
         Vous pouvez aussi laisser vide — FoxO vous proposera un créneau.
       </p>
     </div>
@@ -877,8 +879,8 @@ function Step4(props: {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">4. Récapitulatif</h3>
-      <div className="bg-sand rounded-xl p-4 border border-sand-border space-y-2 text-[13px]">
+      <h3 className="text-sm font-bold text-[var(--accent)]">4. Récapitulatif</h3>
+      <div className="bg-[var(--table-bg)] rounded-xl p-4 border border-[var(--card-border)] space-y-2 text-[13px] text-[var(--text)]">
         <Row label="Demandeur" value={`${props.prenom} ${props.nom}`} />
         <Row label="Email" value={props.email} mono />
         <Row label="Téléphone" value={props.telephone} mono />
@@ -898,8 +900,8 @@ function Step4(props: {
         {props.photoCount > 0 && <Row label="Photos" value={`${props.photoCount} jointe(s)`} />}
       </div>
 
-      <div className="bg-cream border border-sand-border rounded-lg p-3 text-[12px] text-ink-mid leading-relaxed">
-        <strong className="text-ink block mb-1">Description :</strong>
+      <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg p-3 text-[12px] text-[var(--text-2)] leading-relaxed">
+        <strong className="text-[var(--text)] block mb-1">Description :</strong>
         <p className="whitespace-pre-wrap">{props.description}</p>
       </div>
 
@@ -908,9 +910,9 @@ function Step4(props: {
           type="checkbox"
           checked={props.accepted}
           onChange={(e) => props.setAccepted(e.target.checked)}
-          className="mt-0.5 accent-[#1B3A6B]"
+          className="mt-0.5 accent-[var(--btn-bg)]"
         />
-        <span className="text-[12px] text-ink-mid leading-relaxed">
+        <span className="text-[12px] text-[var(--text-2)] leading-relaxed">
           J&apos;accepte d&apos;être contacté par FoxO pour confirmation du créneau et accepte le traitement de mes données pour le suivi de cette demande.
         </span>
       </label>
@@ -921,7 +923,7 @@ function Step4(props: {
 function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="grid grid-cols-3 gap-2">
-      <span className="text-[11px] text-ink-muted uppercase tracking-wider font-bold col-span-1">{label}</span>
+      <span className="text-[11px] text-[var(--text-3)] uppercase tracking-wider font-bold col-span-1">{label}</span>
       <span className={'col-span-2 ' + (mono ? 'font-mono text-xs' : '')}>{value}</span>
     </div>
   );
