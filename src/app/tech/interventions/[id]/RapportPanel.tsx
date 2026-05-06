@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Mic, Sparkles, FileText, Eye, Check, X, Cloud, Camera } from 'lucide-react';
 import { saveRapport, publishRapport, triggerDriveSync, type RapportInput } from '../../actions';
 import { generateRapportSections } from './generate-action';
 import type { Rapport } from '@/lib/types/database';
@@ -295,7 +296,7 @@ export function RapportPanel({
     startTransition(async () => {
       const res = await publishRapport(interventionId, values);
       if (res.ok) {
-        setFeedback({ kind: 'ok', msg: 'Rapport publié ✓' });
+        setFeedback({ kind: 'ok', msg: 'Rapport publié' });
         router.refresh();
       } else {
         setFeedback({ kind: 'err', msg: res.error });
@@ -356,7 +357,7 @@ export function RapportPanel({
         ?.match(/filename="(.+)"/)?.[1] ?? 'rapport.docx';
       a.click();
       URL.revokeObjectURL(url);
-      setFeedback({ kind: 'ok', msg: 'Word téléchargé ✓' });
+      setFeedback({ kind: 'ok', msg: 'Word téléchargé' });
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -370,7 +371,7 @@ export function RapportPanel({
       const res = await triggerDriveSync(interventionId);
       if (res.ok) {
         const parts: string[] = [];
-        if (res.rapport_url) parts.push('rapport ✓');
+        if (res.rapport_url) parts.push('rapport ok');
         parts.push(`${res.photos_count} photo${res.photos_count > 1 ? 's' : ''}`);
         setFeedback({ kind: 'ok', msg: `Sync Drive — ${parts.join(', ')}` });
       } else {
@@ -411,7 +412,11 @@ export function RapportPanel({
                     : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
                 }
               >
-                {activeDictation === 'brief' ? '● Arrêter' : '🎙 Dicter'}
+                {activeDictation === 'brief' ? (
+                  <span className="inline-flex items-center gap-1.5">● Arrêter</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5"><Mic size={14} />Dicter</span>
+                )}
               </button>
             )}
           </div>
@@ -428,7 +433,9 @@ export function RapportPanel({
             disabled={generating || pending}
             className="w-full mt-2 bg-navy text-white py-2.5 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50"
           >
-            {generating ? 'Génération en cours…' : '✨ Générer avec Claude'}
+            {generating ? 'Génération en cours…' : (
+              <span className="inline-flex items-center justify-center gap-1.5"><Sparkles size={14} />Générer avec Claude</span>
+            )}
           </button>
           {generateMessage && (
             <div
@@ -466,7 +473,11 @@ export function RapportPanel({
                         : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
                     }
                   >
-                    {isActive ? '● Arrêter' : '🎙 Dicter'}
+                    {isActive ? (
+                      <span className="inline-flex items-center gap-1.5">● Arrêter</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5"><Mic size={14} />Dicter</span>
+                    )}
                   </button>
                 )}
               </div>
@@ -522,13 +533,15 @@ export function RapportPanel({
               disabled={exportingWord || pending}
               className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:bg-navy-mid disabled:opacity-50 active:opacity-80"
             >
-              {exportingWord ? 'Génération Word…' : '📄 Exporter Word'}
+              {exportingWord ? 'Génération Word…' : (
+                <span className="inline-flex items-center justify-center gap-1.5"><FileText size={14} />Exporter Word</span>
+              )}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
               className="bg-sand-mid text-ink border border-sand-border py-3 rounded-xl font-bold text-[13px] hover:bg-sand-border active:opacity-80"
             >
-              👁 Aperçu
+              <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} />Aperçu</span>
             </button>
           </div>
           <button
@@ -537,13 +550,13 @@ export function RapportPanel({
             title={!canPublish ? 'Clôture l\'intervention avant de publier' : ''}
             className="w-full mt-2 bg-ok text-white py-3 rounded-xl font-bold text-[13px] disabled:opacity-40 active:opacity-80"
           >
-            Publier ✓
+            <span className="inline-flex items-center justify-center gap-1.5">Publier<Check size={14} /></span>
           </button>
         </>
       ) : (
         <>
           <div className="bg-ok-light border border-ok-mid rounded-md px-3 py-2 text-[11px] text-ok text-center font-semibold mt-3">
-            ✓ Rapport déjà publié
+            <span className="inline-flex items-center justify-center gap-1.5"><Check size={14} />Rapport déjà publié</span>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-2">
             <button
@@ -551,13 +564,15 @@ export function RapportPanel({
               disabled={exportingWord}
               className="bg-navy text-white py-2.5 rounded-xl font-bold text-[12px] hover:bg-navy-mid disabled:opacity-50 active:opacity-80"
             >
-              {exportingWord ? 'Génération Word…' : '📄 Exporter Word'}
+              {exportingWord ? 'Génération Word…' : (
+                <span className="inline-flex items-center justify-center gap-1.5"><FileText size={14} />Exporter Word</span>
+              )}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
               className="bg-sand-mid text-ink border border-sand-border py-2.5 rounded-xl font-bold text-[12px] hover:bg-sand-border"
             >
-              👁 Aperçu
+              <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} />Aperçu</span>
             </button>
           </div>
         </>
@@ -568,7 +583,7 @@ export function RapportPanel({
         disabled={pending}
         className="w-full mt-2 bg-[#A17244] text-white py-2.5 rounded-xl text-[12px] font-semibold hover:bg-[#8A613B] disabled:opacity-50"
       >
-        ☁ Synchroniser vers Google Drive
+        <span className="inline-flex items-center justify-center gap-1.5"><Cloud size={14} />Synchroniser vers Google Drive</span>
       </button>
 
       {!supportsSpeech && (
@@ -634,7 +649,9 @@ function SectionPhotos({
                 : 'bg-sand-mid text-ink border border-sand-border hover:bg-sand-border')
             }
           >
-            {uploading ? 'Upload…' : '📷 Ajouter photo'}
+            {uploading ? 'Upload…' : (
+              <span className="inline-flex items-center gap-1.5"><Camera size={14} />Ajouter photo</span>
+            )}
           </label>
         </>
       )}
@@ -725,7 +742,7 @@ function PreviewModal({
           onClick={onClose}
           className="text-[13px] font-bold text-ink-mid hover:text-ink"
         >
-          ✕ Fermer
+          <span className="inline-flex items-center gap-1.5"><X size={14} />Fermer</span>
         </button>
         {isDraft && (
           <span className="bg-terra text-white text-[10px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full">
