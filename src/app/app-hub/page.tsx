@@ -8,9 +8,8 @@ import {
 import { Logo } from '@/components/Logo';
 import { EspaceClientTile } from './EspaceClientTile';
 
-// Page publique — pas d'auth, pas de SSR data. force-static pour
-// permettre la mise en cache CDN (le contenu est constant, et les
-// liens sont externes).
+// Page publique sans donnée serveur. force-static permet la mise en
+// cache CDN (le contenu et les liens sont constants).
 export const dynamic = 'force-static';
 
 type Tile = {
@@ -18,30 +17,30 @@ type Tile = {
   icon: LucideIcon;
   label: string;
   subtitle: string;
-  accent: string;
+  iconColor: string;
 };
 
-const TILES_TOP: Tile[] = [
+const TILES_BEFORE_CLIENT: Tile[] = [
   {
     href: 'https://portal.foxo.be',
     icon: Building2,
     label: 'Syndic',
-    subtitle: 'Accédez à vos dossiers et documents',
-    accent: '#3B82C4',
+    subtitle: 'Accédez à vos dossiers',
+    iconColor: '#60A5FA',
   },
   {
     href: 'https://portal.foxo.be/expert',
     icon: Search,
     label: 'Expert',
-    subtitle: 'Espace experts en sinistres',
-    accent: '#2D9E6B',
+    subtitle: 'Espace experts sinistres',
+    iconColor: '#34D399',
   },
   {
     href: 'https://portal.foxo.be/courtier',
     icon: Landmark,
     label: 'Courtier',
-    subtitle: 'Suivi de vos dossiers clients',
-    accent: '#9B59B6',
+    subtitle: 'Suivi dossiers clients',
+    iconColor: '#A78BFA',
   },
 ];
 
@@ -50,57 +49,87 @@ const TILE_RDV: Tile = {
   icon: CalendarDays,
   label: 'Prise de RDV',
   subtitle: 'Demandez une intervention',
-  accent: '#C8924A',
+  iconColor: '#FB923C',
 };
 
 export default function AppHubPage() {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#F7F5F2' }}>
-      <header
-        className="px-6 py-10 text-center"
-        style={{ background: 'linear-gradient(180deg, #1A1916 0%, #2C2A24 100%)' }}
-      >
-        <div className="flex justify-center mb-4">
-          <Logo size={56} variant="black" priority className="brightness-0 invert" />
+    <div
+      className="min-h-screen flex flex-col items-center"
+      style={{
+        background: 'linear-gradient(180deg, #0F1E35 0%, #1A3A5C 100%)',
+      }}
+    >
+      <header className="w-full pt-16 pb-8 flex flex-col items-center px-4">
+        <Logo
+          size={56}
+          variant="black"
+          priority
+          className="brightness-0 invert"
+        />
+        <div
+          className="w-32 h-px mt-6 mb-4"
+          style={{ background: 'rgba(255,255,255,0.15)' }}
+        />
+        <div
+          className="text-[13px] font-display font-semibold uppercase text-center"
+          style={{
+            letterSpacing: '0.3em',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+        >
+          Espace Partenaires &amp; Clients
         </div>
-        <h1 className="text-2xl font-extrabold text-white font-display">
-          Bienvenue chez FoxO
-        </h1>
       </header>
 
-      <main className="flex-1 px-6 py-10 flex justify-center">
-        <div className="grid grid-cols-2 gap-5 max-w-[600px]">
-          {TILES_TOP.map((t) => (
-            <ExternalTile key={t.href} tile={t} />
+      <main className="flex-1 w-full px-4 py-4 flex items-start justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-[680px]">
+          {TILES_BEFORE_CLIENT.map((t, i) => (
+            <CompactTile key={t.href} tile={t} delayMs={i * 50} />
           ))}
-          <EspaceClientTile />
-          <ExternalTile tile={TILE_RDV} />
+          <EspaceClientTile delayMs={3 * 50} />
+          <CompactTile tile={TILE_RDV} delayMs={4 * 50} />
         </div>
       </main>
 
-      <footer className="text-center py-6 text-[11px]" style={{ color: '#8A8278' }}>
-        © Fox Group SRL — foxo.be
+      <footer
+        className="w-full text-center pb-8 pt-12"
+        style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}
+      >
+        © Fox Group SRL · foxo.be
       </footer>
     </div>
   );
 }
 
-function ExternalTile({ tile }: { tile: Tile }) {
+function CompactTile({ tile, delayMs }: { tile: Tile; delayMs: number }) {
   const Icon = tile.icon;
   return (
     <a
       href={tile.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="relative w-[140px] sm:w-[160px] aspect-square bg-white border border-[#E6E2DC] rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.03] hover:shadow-lg"
+      className="hub-tile"
+      style={{ animation: `hubFadeInUp 0.4s ease-out ${delayMs}ms both` }}
     >
-      <div className="absolute top-0 left-0 right-0 h-1" style={{ background: tile.accent }} />
-      <Icon size={40} style={{ color: tile.accent }} />
-      <div className="text-[15px] font-bold font-display text-ink text-center px-2">
-        {tile.label}
-      </div>
-      <div className="text-[12px] text-ink-mid text-center px-3 leading-tight">
-        {tile.subtitle}
+      <div className="flex items-start gap-3 p-4 sm:p-5">
+        <div
+          className="w-11 h-11 rounded-[10px] flex items-center justify-center flex-shrink-0"
+          style={{ background: `${tile.iconColor}26` }}
+        >
+          <Icon size={22} style={{ color: tile.iconColor }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-bold font-display text-white">
+            {tile.label}
+          </div>
+          <div
+            className="text-[13px] mt-0.5"
+            style={{ color: 'rgba(255,255,255,0.6)' }}
+          >
+            {tile.subtitle}
+          </div>
+        </div>
       </div>
     </a>
   );

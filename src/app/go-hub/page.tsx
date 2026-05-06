@@ -1,24 +1,22 @@
-import { redirect } from 'next/navigation';
 import {
   LayoutDashboard,
   Wrench,
   type LucideIcon,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
 import { Logo } from '@/components/Logo';
 
-// Auth requise — pas dans isProtected du proxy (le proxy renverrait
-// vers /auth/login sur le meme host go.foxo.be qui n'expose pas cette
-// route). On gere le check ici et on redirige vers auth.foxo.be (URL
-// absolue, supportee par next/navigation:redirect depuis Next 14).
-export const dynamic = 'force-dynamic';
+// Page publique — pas de check auth (volontaire, cf. spec). Sert de
+// pivot visuel entre admin.foxo.be et tech.foxo.be ; le contrôle
+// d'accès est géré côté chaque sous-domaine cible (proxy.ts +
+// admin/layout.tsx, tech/layout.tsx).
+export const dynamic = 'force-static';
 
 type Tile = {
   href: string;
   icon: LucideIcon;
   label: string;
   subtitle: string;
-  accent: string;
+  iconColor: string;
 };
 
 const TILES: Tile[] = [
@@ -26,40 +24,51 @@ const TILES: Tile[] = [
     href: 'https://admin.foxo.be',
     icon: LayoutDashboard,
     label: 'Administration',
-    subtitle: 'Interventions, facturation, clients',
-    accent: '#C8924A',
+    subtitle: 'Interventions · Facturation · Clients',
+    iconColor: '#FBBF24',
   },
   {
     href: 'https://tech.foxo.be',
     icon: Wrench,
     label: 'App Terrain',
-    subtitle: 'Rapports, photos, paiements',
-    accent: '#2D9E6B',
+    subtitle: 'Rapports · Photos · Paiements',
+    iconColor: '#34D399',
   },
 ];
 
-export default async function GoHubPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('https://auth.foxo.be');
-
+export default function GoHubPage() {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#F7F5F2' }}>
-      <header
-        className="px-6 py-10 text-center"
-        style={{ background: 'linear-gradient(180deg, #1A1916 0%, #2C2A24 100%)' }}
-      >
-        <div className="flex justify-center mb-4">
-          <Logo size={56} variant="black" priority className="brightness-0 invert" />
+    <div
+      className="min-h-screen flex flex-col items-center"
+      style={{
+        background: 'linear-gradient(180deg, #0F1E35 0%, #1A3A5C 100%)',
+      }}
+    >
+      <header className="w-full pt-16 pb-8 flex flex-col items-center px-4">
+        <Logo
+          size={56}
+          variant="black"
+          priority
+          className="brightness-0 invert"
+        />
+        <div
+          className="w-32 h-px mt-6 mb-4"
+          style={{ background: 'rgba(255,255,255,0.15)' }}
+        />
+        <div
+          className="text-[13px] font-display font-semibold uppercase text-center"
+          style={{
+            letterSpacing: '0.3em',
+            color: 'rgba(255,255,255,0.5)',
+          }}
+        >
+          Accès Interne FoxO
         </div>
-        <h1 className="text-2xl font-extrabold text-white font-display">
-          Espace FoxO — Accès interne
-        </h1>
       </header>
 
-      <main className="flex-1 px-6 py-10 flex justify-center">
-        <div className="grid grid-cols-2 gap-5 max-w-[600px]">
-          {TILES.map((t) => {
+      <main className="flex-1 w-full px-4 py-4 flex items-start justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-[680px]">
+          {TILES.map((t, i) => {
             const Icon = t.icon;
             return (
               <a
@@ -67,18 +76,30 @@ export default async function GoHubPage() {
                 href={t.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative w-[140px] sm:w-[160px] aspect-square bg-white border border-[#E6E2DC] rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.03] hover:shadow-lg"
+                className="hub-tile"
+                style={{
+                  minHeight: '200px',
+                  animation: `hubFadeInUp 0.4s ease-out ${i * 50}ms both`,
+                }}
               >
-                <div
-                  className="absolute top-0 left-0 right-0 h-1"
-                  style={{ background: t.accent }}
-                />
-                <Icon size={40} style={{ color: t.accent }} />
-                <div className="text-[15px] font-bold font-display text-ink text-center px-2">
-                  {t.label}
-                </div>
-                <div className="text-[12px] text-ink-mid text-center px-3 leading-tight">
-                  {t.subtitle}
+                <div className="flex items-start gap-4 p-7 h-full">
+                  <div
+                    className="w-11 h-11 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                    style={{ background: `${t.iconColor}26` }}
+                  >
+                    <Icon size={22} style={{ color: t.iconColor }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[17px] font-bold font-display text-white">
+                      {t.label}
+                    </div>
+                    <div
+                      className="text-[14px] mt-1"
+                      style={{ color: 'rgba(255,255,255,0.6)' }}
+                    >
+                      {t.subtitle}
+                    </div>
+                  </div>
                 </div>
               </a>
             );
@@ -86,8 +107,11 @@ export default async function GoHubPage() {
         </div>
       </main>
 
-      <footer className="text-center py-6 text-[11px]" style={{ color: '#8A8278' }}>
-        © Fox Group SRL — foxo.be
+      <footer
+        className="w-full text-center pb-8 pt-12"
+        style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}
+      >
+        © Fox Group SRL · foxo.be
       </footer>
     </div>
   );
