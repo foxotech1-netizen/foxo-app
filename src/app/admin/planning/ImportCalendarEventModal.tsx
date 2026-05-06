@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Calendar, X, Clock, MapPin, AlertTriangle, ClipboardList } from 'lucide-react';
 import type { TypeIntervention, Utilisateur } from '@/lib/types/database';
 
 const TYPES: TypeIntervention[] = [
@@ -99,16 +100,16 @@ export function ImportCalendarEventModal({
     >
       <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[560px] my-8">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[14px] font-extrabold text-ink">
-            📅 Importer cet événement Calendar
+          <h2 className="text-[14px] font-extrabold text-ink inline-flex items-center gap-1.5">
+            <Calendar size={14} /> Importer cet événement Calendar
           </h2>
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)]"
+            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)] inline-flex items-center justify-center"
             aria-label="Fermer"
-          >✕</button>
+          ><X size={16} /></button>
         </div>
 
         {/* Aperçu de l'event Calendar */}
@@ -116,12 +117,12 @@ export function ImportCalendarEventModal({
           <div className="text-[13px] font-bold text-[#4338CA]">
             {event.title}
           </div>
-          <div className="text-[11px] text-[#6366F1] mt-0.5">
-            🕒 {fmtDateTime(event.start, event.all_day)}
+          <div className="text-[11px] text-[#6366F1] mt-0.5 inline-flex items-center gap-1.5 flex-wrap">
+            <Clock size={12} /> {fmtDateTime(event.start, event.all_day)}
             {event.location && (
               <>
                 <span className="mx-1.5">·</span>
-                📍 {event.location}
+                <MapPin size={12} /> {event.location}
               </>
             )}
           </div>
@@ -133,8 +134,9 @@ export function ImportCalendarEventModal({
         </div>
 
         {event.is_foxo_event && (
-          <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-md px-3 py-2 text-[12px] mb-3">
-            ⚠ Cet événement a déjà été importé comme intervention FoxO. Tu peux le ré-ouvrir mais pas le ré-importer.
+          <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-md px-3 py-2 text-[12px] mb-3 inline-flex items-start gap-1.5">
+            <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+            <span>Cet événement a déjà été importé comme intervention FoxO. Tu peux le ré-ouvrir mais pas le ré-importer.</span>
           </div>
         )}
 
@@ -220,9 +222,9 @@ export function ImportCalendarEventModal({
             type="button"
             onClick={submit}
             disabled={submitting || event.is_foxo_event}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50"
+            className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            {submitting ? 'Import…' : '📋 Importer comme intervention'}
+            {submitting ? 'Import…' : (<><ClipboardList size={14} /> Importer comme intervention</>)}
           </button>
         </div>
       </div>

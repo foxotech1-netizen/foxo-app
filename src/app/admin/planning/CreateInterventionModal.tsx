@@ -2,6 +2,20 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Building2,
+  User,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  Mail,
+  Smartphone,
+  MessageCircle,
+  Check,
+  X,
+  Hourglass,
+  type LucideIcon,
+} from 'lucide-react';
 import { TypeBadge } from '@/components/TypeBadge';
 import {
   createInterventionFromSlot,
@@ -319,25 +333,25 @@ export function CreateInterventionModal({
             type="button"
             onClick={() => setDemandeurType('syndic')}
             className={
-              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors ' +
+              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
               (demandeurType === 'syndic'
                 ? 'bg-navy text-white border-navy'
                 : 'bg-white text-ink border-sand-border hover:border-navy-mid')
             }
           >
-            🏢 Syndic
+            <Building2 size={14} /> Syndic
           </button>
           <button
             type="button"
             onClick={() => setDemandeurType('particulier')}
             className={
-              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors ' +
+              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
               (demandeurType === 'particulier'
                 ? 'bg-[#1F6B45] text-white border-[#1F6B45]'
                 : 'bg-white text-ink border-sand-border hover:border-[#1F6B45]')
             }
           >
-            👤 Particulier
+            <User size={14} /> Particulier
           </button>
         </div>
 
@@ -375,7 +389,7 @@ export function CreateInterventionModal({
                     }
                   >
                     <input type="radio" checked={priorite === p} onChange={() => setPriorite(p)} className="accent-[#1B3A6B]" />
-                    {p === 'urgente' ? '⚡ Urgente' : 'Normale'}
+                    {p === 'urgente' ? (<span className="inline-flex items-center gap-1"><Zap size={12} /> Urgente</span>) : 'Normale'}
                   </label>
                 ))}
               </div>
@@ -729,15 +743,15 @@ export function CreateInterventionModal({
                   <div className="grid grid-cols-3 gap-1.5">
                     {(
                       [
-                        { v: 'confirme', label: '✅ Confirmé' },
-                        { v: 'en_attente', label: '⏳ À confirmer' },
-                        { v: 'decline', label: '❌ Pas d\'accès' },
+                        { v: 'confirme', icon: CheckCircle2 as LucideIcon, label: 'Confirmé' },
+                        { v: 'en_attente', icon: Hourglass as LucideIcon, label: 'À confirmer' },
+                        { v: 'decline', icon: XCircle as LucideIcon, label: 'Pas d\'accès' },
                       ] as const
                     ).map((opt) => (
                       <label
                         key={opt.v}
                         className={
-                          'px-2 py-1.5 border rounded text-[11px] font-semibold cursor-pointer text-center ' +
+                          'px-2 py-1.5 border rounded text-[11px] font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
                           (o.conf === opt.v
                             ? 'border-navy bg-navy-pale text-navy dark:text-white'
                             : 'border-sand-border bg-white text-ink-mid')
@@ -749,6 +763,7 @@ export function CreateInterventionModal({
                           onChange={() => updateOccupant(i, { conf: opt.v })}
                           className="sr-only"
                         />
+                        <opt.icon size={12} />
                         {opt.label}
                       </label>
                     ))}
@@ -761,16 +776,16 @@ export function CreateInterventionModal({
                   <div className="grid grid-cols-4 gap-1.5">
                     {(
                       [
-                        { v: 'email', label: '✉ Email' },
-                        { v: 'sms', label: '📱 SMS' },
-                        { v: 'whatsapp', label: '💬 WhatsApp' },
-                        { v: 'both', label: '✉+📱 Les deux' },
+                        { v: 'email', icons: [Mail] as LucideIcon[], label: 'Email' },
+                        { v: 'sms', icons: [Smartphone] as LucideIcon[], label: 'SMS' },
+                        { v: 'whatsapp', icons: [MessageCircle] as LucideIcon[], label: 'WhatsApp' },
+                        { v: 'both', icons: [Mail, Smartphone] as LucideIcon[], label: 'Les deux' },
                       ] as const
                     ).map((opt) => (
                       <label
                         key={opt.v}
                         className={
-                          'px-1.5 py-1 border rounded text-[10px] font-semibold cursor-pointer text-center ' +
+                          'px-1.5 py-1 border rounded text-[10px] font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
                           (o.contact_preference === opt.v
                             ? 'border-navy bg-navy-pale text-navy dark:text-white'
                             : 'border-sand-border bg-white text-ink-mid')
@@ -782,6 +797,9 @@ export function CreateInterventionModal({
                           onChange={() => updateOccupant(i, { contact_preference: opt.v })}
                           className="sr-only"
                         />
+                        <span className="inline-flex items-center gap-0.5">
+                          {opt.icons.map((Ic, idx) => <Ic key={idx} size={10} />)}
+                        </span>
                         {opt.label}
                       </label>
                     ))}
@@ -831,9 +849,9 @@ export function CreateInterventionModal({
           type="button"
           onClick={submit}
           disabled={pending}
-          className="bg-navy text-white px-5 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50"
+          className="bg-navy text-white px-5 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
         >
-          {pending ? 'Création…' : '✓ Créer l\'intervention'}
+          {pending ? 'Création…' : (<><Check size={14} /> Créer l&apos;intervention</>)}
         </button>
       </ModalFooter>
     </ModalShell>
@@ -866,9 +884,9 @@ export function ModalShell({
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)]"
+            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] inline-flex items-center justify-center"
           >
-            ✕
+            <X size={16} />
           </button>
         </header>
         <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>

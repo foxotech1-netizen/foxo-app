@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { X, Save, Lock, Construction } from 'lucide-react';
 import type { Utilisateur } from '@/lib/types/database';
 import { FOXO_SLOTS, FOXO_DAYS, FOXO_DAYS_SHORT, type FoxoDay } from '@/lib/foxo-slots';
 
@@ -270,11 +271,11 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       const parts: string[] = [];
       if (createdCount > 0) parts.push(`+${createdCount} créé(s)`);
       if (deletedCount > 0) parts.push(`-${deletedCount} supprimé(s)`);
-      if (calendarSynced > 0) parts.push(`📅 ${calendarSynced} sync`);
-      if (calendarDeleted > 0) parts.push(`🗑 ${calendarDeleted} retiré(s) du Calendar`);
-      if (calendarFailed > 0) parts.push(`⚠️ ${calendarFailed} sync calendar échouée(s)`);
+      if (calendarSynced > 0) parts.push(`${calendarSynced} sync`);
+      if (calendarDeleted > 0) parts.push(`${calendarDeleted} retiré(s) du Calendar`);
+      if (calendarFailed > 0) parts.push(`${calendarFailed} sync calendar échouée(s)`);
       if (skippedReserved.length > 0) parts.push(`${skippedReserved.length} non supprimé(s) (réservés)`);
-      setMsg({ kind: 'ok', msg: `✅ ${techLabel} · ${parts.join(' · ')}` });
+      setMsg({ kind: 'ok', msg: `${techLabel} · ${parts.join(' · ')}` });
       setRefreshTick((t) => t + 1);
       router.refresh();
     } catch (e) {
@@ -342,9 +343,9 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         <button
           type="button"
           onClick={clearAll}
-          className="text-[11px] bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-bold"
+          className="text-[11px] bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-bold inline-flex items-center gap-1.5"
         >
-          ✕ Tout effacer
+          <X size={12} /> Tout effacer
         </button>
       </div>
 
@@ -433,9 +434,9 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
             type="button"
             onClick={save}
             disabled={saving || !techId || (diffCount.adds === 0 && diffCount.removes === 0)}
-            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            {saving ? 'Enregistrement…' : '💾 Enregistrer les dispos'}
+            {saving ? 'Enregistrement…' : (<><Save size={14} /> Enregistrer les dispos</>)}
           </button>
         </div>
       </div>
@@ -451,10 +452,10 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         </div>
       )}
 
-      <p className="text-[10px] text-ink-muted italic mt-2">
-        Astuce : les cases déjà cochées en navy sont les créneaux enregistrés en DB.
-        Décocher une case = suppression au prochain enregistrement (badge ambre ✕).
-        Les créneaux 🔒 réservés ou 🚫 bloqués ne peuvent pas être supprimés ici.
+      <p className="text-[10px] text-ink-muted italic mt-2 inline-flex flex-wrap items-center gap-1">
+        <span>Astuce : les cases déjà cochées en navy sont les créneaux enregistrés en DB.</span>
+        <span className="inline-flex items-center gap-1">Décocher une case = suppression au prochain enregistrement (badge ambre <X size={10} className="inline" />).</span>
+        <span className="inline-flex items-center gap-1">Les créneaux <Lock size={10} className="inline" /> réservés ou <Construction size={10} className="inline" /> bloqués ne peuvent pas être supprimés ici.</span>
       </p>
       <p className="text-[10px] text-ink-muted mt-1">
         <span className="text-[9px] uppercase font-bold tracking-wider">{totalForWeeks ? `${totalForWeeks} créneaux total après save` : ''}</span>
@@ -530,7 +531,9 @@ function Row({
                     : on ? 'Enregistré' : 'Vide'
             }
           >
-            {locked ? (existing?.statut === 'reserve' ? '🔒' : '🚫') : willDelete ? '✕' : ''}
+            {locked
+              ? (existing?.statut === 'reserve' ? <Lock size={12} /> : <Construction size={12} />)
+              : willDelete ? <X size={12} /> : null}
           </button>
         );
       })}

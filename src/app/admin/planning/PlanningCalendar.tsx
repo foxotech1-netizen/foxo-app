@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Calendar, CheckCircle2, Construction, Check, RefreshCw } from 'lucide-react';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
 import { CreateInterventionModal } from './CreateInterventionModal';
 import { ReservedSlotModal } from './ReservedSlotModal';
@@ -451,8 +452,8 @@ export function PlanningCalendar({
           )}
           {googleConnected && showGoogle && (
             <>
-              <LegendSwatch color={planningColors.google} label="📅 Google" />
-              <LegendSwatch color={planningColors.foxo_importe} label="✅ FoxO (importé)" />
+              <LegendSwatch color={planningColors.google} label={<span className="inline-flex items-center gap-1"><Calendar size={12} /> Google</span>} />
+              <LegendSwatch color={planningColors.foxo_importe} label={<span className="inline-flex items-center gap-1"><CheckCircle2 size={12} /> FoxO (importé)</span>} />
             </>
           )}
         </div>
@@ -467,13 +468,13 @@ export function PlanningCalendar({
                   onChange={(e) => setShowGoogle(e.target.checked)}
                   className="accent-[#4F46E5]"
                 />
-                <span>📅 Afficher Google Calendar{gcalLoading ? ' …' : gcalEvents.length > 0 ? ` (${gcalEvents.length})` : ''}</span>
+                <span className="inline-flex items-center gap-1.5"><Calendar size={14} /> Afficher Google Calendar{gcalLoading ? ' …' : gcalEvents.length > 0 ? ` (${gcalEvents.length})` : ''}</span>
               </label>
               <ResyncButton />
             </>
           ) : (
-            <span className="text-[11px] text-ink-muted italic">
-              📅 Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
+            <span className="text-[11px] text-ink-muted italic inline-flex items-center gap-1.5">
+              <Calendar size={12} /> Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
             </span>
           )}
         </div>
@@ -633,7 +634,7 @@ export function PlanningCalendar({
                               : { background: hexToSoft(planningColors.google), color: planningColors.google, borderLeft: `3px solid ${planningColors.google}` }
                             }
                           >
-                            <span className="text-[8px] flex-shrink-0">{ev.is_foxo_event ? '✅' : '📅'}</span>
+                            <span className="flex-shrink-0">{ev.is_foxo_event ? <CheckCircle2 size={10} /> : <Calendar size={10} />}</span>
                             <span className="truncate flex-1">{ev.title}</span>
                           </button>
                         );
@@ -680,7 +681,7 @@ export function PlanningCalendar({
                               title={`Cliquer pour modifier — ${clientLabel}`}
                               style={{ background: bg, color: '#FFFFFF', borderLeft: techColor ? `3px solid ${techColor.bg}` : undefined }}
                             >
-                              <span className="text-[8px]">✓</span>
+                              <Check size={10} />
                               <span className="text-[11px] font-bold flex-1 truncate">{clientLabel}</span>
                               {techBadge && techColor && (
                                 <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF', filter: 'brightness(1.1)' }}>
@@ -697,7 +698,7 @@ export function PlanningCalendar({
                             className="w-full rounded px-1.5 py-1 bg-sand-mid text-ink-muted text-[10px] font-bold flex items-center gap-1"
                             title="Créneau bloqué"
                           >
-                            <span className="text-[8px]">🚫</span>
+                            <Construction size={10} />
                             <span className="flex-1 truncate">Bloqué</span>
                             {techBadge && <span className="text-[9px] opacity-70">{techBadge}</span>}
                           </div>
@@ -770,7 +771,7 @@ export function PlanningCalendar({
                         : { background: hexToSoft(planningColors.google), color: planningColors.google, borderLeft: `3px solid ${planningColors.google}` }
                       }
                     >
-                      <span className="text-[8px] flex-shrink-0">{ev.is_foxo_event ? '✅' : '📅'}</span>
+                      <span className="flex-shrink-0">{ev.is_foxo_event ? <CheckCircle2 size={10} /> : <Calendar size={10} />}</span>
                       <span className="truncate flex-1">
                         {time === 'Journée' ? ev.title : `${time} ${ev.title}`}
                       </span>
@@ -812,11 +813,12 @@ export function PlanningCalendar({
                         key={cr.id}
                         type="button"
                         onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
-                        className="w-full text-left block text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                        className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer inline-flex items-center gap-1 w-full"
                         title="Cliquer pour modifier l'intervention"
                         style={reserveStyle}
                       >
-                        {time} ✓
+                        <span>{time}</span>
+                        <Check size={10} />
                       </button>
                     );
                   }
@@ -853,7 +855,7 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
 
 // Swatch coloré inline (vs Legend qui utilise des classes Tailwind).
 // Utilisé pour les couleurs dynamiques des paramètres planning.
-function LegendSwatch({ color, label }: { color: string; label: string }) {
+function LegendSwatch({ color, label }: { color: string; label: React.ReactNode }) {
   return (
     <span className="flex items-center gap-1.5 text-[11px] text-ink-mid">
       <span className="w-3 h-3 rounded-sm border" style={{ background: color, borderColor: color }} />
@@ -886,7 +888,7 @@ function ResyncButton() {
       if (data.failed > 0) parts.push(`${data.failed} échec(s)`);
       if (data.total === 0) parts.push('rien à resync');
       if (data.truncated) parts.push('100 max — relance pour continuer');
-      setMsg({ kind: 'ok', msg: `✅ ${parts.join(' · ')}` });
+      setMsg({ kind: 'ok', msg: parts.join(' · ') });
     } catch (e) {
       setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -900,10 +902,11 @@ function ResyncButton() {
         type="button"
         onClick={run}
         disabled={pending}
-        className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
+        className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] inline-flex items-center gap-1.5"
         title="Crée les events Google Calendar manquants pour les créneaux libres futurs"
       >
-        {pending ? '🔄 Resync en cours…' : '🔄 Resync Google Calendar'}
+        <RefreshCw size={12} className={pending ? 'animate-spin' : ''} />
+        {pending ? 'Resync en cours…' : 'Resync Google Calendar'}
       </button>
       {msg && (
         <span className={

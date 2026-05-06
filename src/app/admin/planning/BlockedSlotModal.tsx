@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check } from 'lucide-react';
 import { ModalShell, ModalFooter } from './CreateInterventionModal';
 import { deleteCreneau, blockCreneau } from './actions';
 
@@ -101,9 +102,9 @@ export function BlockedSlotModal({
             type="button"
             onClick={applyUnblock}
             disabled={pending}
-            className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            ✓ Débloquer le créneau
+            <Check size={14} /> Débloquer le créneau
           </button>
         </div>
       </div>
