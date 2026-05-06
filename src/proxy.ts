@@ -9,6 +9,9 @@ const SUBDOMAIN_PREFIX: Record<string, string> = {
   'portal.foxo.be': '/portal',
   'tech.foxo.be':   '/tech',
   'auth.foxo.be':   '/auth',
+  // app.foxo.be — landing publique (sans auth) avec tuiles syndic /
+  // expert / courtier / espace client / RDV. Sert /app-hub.
+  'app.foxo.be':    '/app-hub',
 };
 
 const KNOWN_GROUP_PATHS = Object.values(SUBDOMAIN_PREFIX);
