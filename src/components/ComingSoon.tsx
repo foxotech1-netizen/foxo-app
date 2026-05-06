@@ -1,18 +1,20 @@
 // Page placeholder pour les sections admin pas encore implémentées.
 // Réutilise les conventions du layout admin (topbar sand, body sand-bg).
 
+import { Construction, type LucideIcon } from 'lucide-react';
+
 export function ComingSoon({
   title,
   subtitle,
   description,
   features,
-  icon = '🚧',
+  icon: Icon = Construction,
 }: {
   title: string;
   subtitle?: string;
   description: string;
   features?: string[];
-  icon?: string;
+  icon?: LucideIcon;
 }) {
   return (
     <>
@@ -27,7 +29,7 @@ export function ComingSoon({
 
       <div className="flex-1 overflow-auto px-6 py-8">
         <div className="bg-cream border border-sand-border rounded-2xl p-8 sm:p-10 max-w-[640px] mx-auto text-center">
-          <div className="text-5xl mb-3">{icon}</div>
+          <div className="mb-3 flex justify-center text-ink-mid"><Icon size={48} /></div>
           <h2 className="text-lg font-extrabold text-ink mb-2">
             En cours de développement
           </h2>

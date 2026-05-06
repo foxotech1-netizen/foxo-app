@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { FileText, type LucideIcon } from 'lucide-react';
 
 // Bouton outline navy. Au clic : fetch + blob → déclenche le download
 // avec le nom de fichier voulu. Affiche un spinner pendant la génération.
@@ -8,13 +9,13 @@ export function DownloadButton({
   href,
   filename,
   label,
-  icon = '📄',
+  icon: Icon = FileText,
   className = '',
 }: {
   href: string;
   filename: string;
   label: string;
-  icon?: string;
+  icon?: LucideIcon;
   className?: string;
 }) {
   const [loading, setLoading] = useState(false);
@@ -74,7 +75,7 @@ export function DownloadButton({
           </>
         ) : (
           <>
-            <span>{icon}</span>
+            <Icon size={14} />
             <span>{label}</span>
           </>
         )}

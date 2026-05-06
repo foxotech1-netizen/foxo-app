@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { MessageCircle } from 'lucide-react';
 
 // Une bulle = un message. auteur_type 'admin' = côté FoxO, le reste
 // (syndic/courtier) = côté partenaire.
@@ -137,7 +138,7 @@ export function MessagesPanel({
       id="messages-block"
       className="bg-cream border border-sand-border rounded-2xl p-5 dark:bg-[#1C1A16] dark:border-[#2C2A24]"
     >
-      <h2 className="text-sm font-bold text-ink mb-3 dark:text-[#F0ECE4]">💬 Messages</h2>
+      <h2 className="text-sm font-bold text-ink mb-3 dark:text-[#F0ECE4] inline-flex items-center gap-1.5"><MessageCircle size={14} /> Messages</h2>
 
       {/* Liste des messages */}
       <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1 mb-3">

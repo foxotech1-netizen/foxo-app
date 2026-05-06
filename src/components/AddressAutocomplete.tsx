@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, X, AlertTriangle } from 'lucide-react';
 
 export interface AddressValue {
   adresse: string;          // rue + numéro composés en une ligne
@@ -207,21 +208,21 @@ export function AddressAutocomplete({
           )}
           {value.verified && !loading && (
             <span
-              className="inline-block text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]"
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]"
               title={`Lat ${value.lat ?? '—'}, Lng ${value.lng ?? '—'}`}
             >
-              ✅ vérifiée
+              <CheckCircle2 size={12} /> vérifiée
             </span>
           )}
           {query && (
             <button
               type="button"
               onClick={handleClear}
-              className="text-ink-muted hover:text-terra text-[14px] leading-none w-5 h-5 flex items-center justify-center"
+              className="text-ink-muted hover:text-terra leading-none w-5 h-5 flex items-center justify-center"
               aria-label="Effacer"
               tabIndex={-1}
             >
-              ✕
+              <X size={14} />
             </button>
           )}
         </div>
@@ -238,7 +239,7 @@ export function AddressAutocomplete({
       {open && (suggestions.length > 0 || loading || error || (query.trim().length >= 4 && !loading)) && (
         <div className="absolute z-30 mt-1 w-full bg-white border border-sand-border rounded-lg shadow-lg max-h-[280px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32]">
           {error && (
-            <div className="px-3 py-2 text-[11px] text-terra font-semibold">⚠️ {error}</div>
+            <div className="px-3 py-2 text-[11px] text-terra font-semibold inline-flex items-center gap-1.5"><AlertTriangle size={12} /> {error}</div>
           )}
           {!error && suggestions.length === 0 && !loading && query.trim().length >= 4 && (
             <div className="px-3 py-2 text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">

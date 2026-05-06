@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { MessageCircle, Smartphone, X, RefreshCw, Check } from 'lucide-react';
 import { sendSmsAction, buildSmsPreview } from '@/app/admin/sms/actions';
 import type { ContactPreference } from '@/lib/types/database';
 
@@ -88,7 +89,7 @@ export function SendSmsModal({
         setFeedback({ kind: 'err', msg: res.error });
         return;
       }
-      setFeedback({ kind: 'ok', msg: 'Envoyé ✓' });
+      setFeedback({ kind: 'ok', msg: 'Envoyé' });
       setTimeout(onClose, 800);
     });
   }
@@ -101,8 +102,12 @@ export function SendSmsModal({
       <div className="bg-cream w-full sm:max-w-[520px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <header className="px-5 py-4 border-b border-sand-border flex items-start justify-between gap-3 dark:border-[#2C2A24]">
           <div>
-            <h2 className="text-base font-extrabold text-ink dark:text-[#F0ECE4]">
-              {channel === 'whatsapp' ? '💬 Envoyer un WhatsApp' : '📱 Envoyer un SMS'}
+            <h2 className="text-base font-extrabold text-ink dark:text-[#F0ECE4] inline-flex items-center gap-1.5">
+              {channel === 'whatsapp' ? (
+                <><MessageCircle size={16} /> Envoyer un WhatsApp</>
+              ) : (
+                <><Smartphone size={16} /> Envoyer un SMS</>
+              )}
             </h2>
             <p className="text-[11px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
               Pour <strong>{recipientName}</strong> · <span className="font-mono">{recipientPhone}</span>
@@ -111,9 +116,9 @@ export function SendSmsModal({
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] inline-flex items-center justify-center"
           >
-            ✕
+            <X size={16} />
           </button>
         </header>
 
@@ -124,25 +129,25 @@ export function SendSmsModal({
               type="button"
               onClick={() => setChannel('sms')}
               className={
-                'px-3 py-2 rounded-lg text-[12px] font-bold border-2 ' +
+                'px-3 py-2 rounded-lg text-[12px] font-bold border-2 inline-flex items-center justify-center gap-1.5 ' +
                 (channel === 'sms'
                   ? 'bg-navy text-white border-navy'
                   : 'bg-white text-ink border-sand-border hover:border-navy-mid dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
               }
             >
-              📱 SMS
+              <Smartphone size={14} /> SMS
             </button>
             <button
               type="button"
               onClick={() => setChannel('whatsapp')}
               className={
-                'px-3 py-2 rounded-lg text-[12px] font-bold border-2 ' +
+                'px-3 py-2 rounded-lg text-[12px] font-bold border-2 inline-flex items-center justify-center gap-1.5 ' +
                 (channel === 'whatsapp'
                   ? 'bg-[#1F6B45] text-white border-[#1F6B45]'
                   : 'bg-white text-ink border-sand-border hover:border-[#1F6B45] dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
               }
             >
-              💬 WhatsApp
+              <MessageCircle size={14} /> WhatsApp
             </button>
           </div>
 
@@ -168,9 +173,9 @@ export function SendSmsModal({
               <button
                 type="button"
                 onClick={() => setMessage(defaultMessage)}
-                className="text-[11px] text-navy underline hover:no-underline mt-1 dark:text-[#A8C4F2]"
+                className="text-[11px] text-navy underline hover:no-underline mt-1 dark:text-[#A8C4F2] inline-flex items-center gap-1.5"
               >
-                ↺ Réinitialiser le message
+                <RefreshCw size={12} /> Réinitialiser le message
               </button>
             )}
           </div>
@@ -202,9 +207,9 @@ export function SendSmsModal({
             type="button"
             onClick={handleSend}
             disabled={pending || !message.trim() || !recipientPhone}
-            className="bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            className="bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
           >
-            {pending ? 'Envoi…' : 'Envoyer ✓'}
+            {pending ? 'Envoi…' : (<><Check size={14} /> Envoyer</>)}
           </button>
         </footer>
       </div>

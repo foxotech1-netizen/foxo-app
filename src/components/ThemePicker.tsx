@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Palette } from 'lucide-react';
 import { themes, type ThemeKey } from '@/lib/themes';
 import { setTheme as applyAndPersistLocal, useTheme } from './ThemeApplier';
 import { saveUserTheme } from '@/app/admin/parametres/theme-actions';
@@ -30,7 +31,7 @@ export function ThemePicker() {
     try {
       const res = await saveUserTheme(themeKey);
       if (res.ok) {
-        setFeedback({ kind: 'ok', msg: 'Préférence enregistrée ✓' });
+        setFeedback({ kind: 'ok', msg: 'Préférence enregistrée' });
       } else {
         // Échec serveur : on garde le thème local mais on signale que
         // la persistance multi-device a échoué (table manquante, etc.).
@@ -52,7 +53,7 @@ export function ThemePicker() {
       style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
     >
       <div>
-        <h2 className="text-[13px] font-extrabold text-ink">🎨 Apparence</h2>
+        <h2 className="text-[13px] font-extrabold text-ink inline-flex items-center gap-1.5"><Palette size={14} /> Apparence</h2>
         <p className="text-[11px] text-ink-muted mt-0.5">
           Thème de l&apos;interface — synchronisé entre tous tes appareils.
         </p>
