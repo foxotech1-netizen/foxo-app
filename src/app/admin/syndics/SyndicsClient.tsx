@@ -1,6 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import {
+  Building2, Scale, Shield, Search, Hammer, ShowerHead,
+  Zap, Home, Flame, Package, X, CheckCircle2,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Organisation, TypeOrganisation } from '@/lib/types/database';
 import { TypeBadge } from '@/components/TypeBadge';
 import { createOrganisation } from '../actions';
@@ -12,17 +17,17 @@ import { AddressAutocomplete, emptyAddress, type AddressValue } from '@/componen
 // Si tu en ajoutes/retires une, mets aussi à jour OrganisationDrawer.tsx
 // (même constante dupliquée localement, par choix de scope) et la
 // migration SQL `organisations_type_check` / `user_role`.
-const ORG_TYPES: { v: TypeOrganisation; l: string; emoji: string }[] = [
-  { v: 'syndic',       l: 'Syndic',       emoji: '🏢' },
-  { v: 'courtier',     l: 'Courtier',     emoji: '⚖️'  },
-  { v: 'assurance',    l: 'Assurance',    emoji: '🛡️'  },
-  { v: 'expert',       l: 'Expert',       emoji: '🔍' },
-  { v: 'entrepreneur', l: 'Entrepreneur', emoji: '🔨' },
-  { v: 'plombier',     l: 'Plombier',     emoji: '🚿' },
-  { v: 'electricien',  l: 'Électricien',  emoji: '⚡' },
-  { v: 'toiturier',    l: 'Toiturier',    emoji: '🏠' },
-  { v: 'chauffagiste', l: 'Chauffagiste', emoji: '🔥' },
-  { v: 'autre_metier', l: 'Autre métier', emoji: '📦' },
+const ORG_TYPES: { v: TypeOrganisation; l: string; icon: LucideIcon }[] = [
+  { v: 'syndic',       l: 'Syndic',       icon: Building2 },
+  { v: 'courtier',     l: 'Courtier',     icon: Scale },
+  { v: 'assurance',    l: 'Assurance',    icon: Shield },
+  { v: 'expert',       l: 'Expert',       icon: Search },
+  { v: 'entrepreneur', l: 'Entrepreneur', icon: Hammer },
+  { v: 'plombier',     l: 'Plombier',     icon: ShowerHead },
+  { v: 'electricien',  l: 'Électricien',  icon: Zap },
+  { v: 'toiturier',    l: 'Toiturier',    icon: Home },
+  { v: 'chauffagiste', l: 'Chauffagiste', icon: Flame },
+  { v: 'autre_metier', l: 'Autre métier', icon: Package },
 ];
 
 export function SyndicsClient({
@@ -135,9 +140,9 @@ export function SyndicsClient({
               <button
                 onClick={() => { if (!pending) { setOpen(false); setAddr(emptyAddress()); } }}
                 disabled={pending}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50"
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50 inline-flex items-center justify-center"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
@@ -145,23 +150,26 @@ export function SyndicsClient({
               <div>
                 <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {ORG_TYPES.map((t) => (
-                    <label
-                      key={t.v}
-                      className={`px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-1.5 text-xs ${
-                        type === t.v ? 'border-navy bg-navy-pale' : 'border-sand-border'
-                      }`}
-                    >
-                      <input
-                        type="radio" name="type" value={t.v}
-                        checked={type === t.v}
-                        onChange={() => setType(t.v)}
-                        className="accent-[#1B3A6B]"
-                      />
-                      <span>{t.emoji}</span>
-                      <span>{t.l}</span>
-                    </label>
-                  ))}
+                  {ORG_TYPES.map((t) => {
+                    const Icon = t.icon;
+                    return (
+                      <label
+                        key={t.v}
+                        className={`px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-1.5 text-xs ${
+                          type === t.v ? 'border-navy bg-navy-pale' : 'border-sand-border'
+                        }`}
+                      >
+                        <input
+                          type="radio" name="type" value={t.v}
+                          checked={type === t.v}
+                          onChange={() => setType(t.v)}
+                          className="accent-[#1B3A6B]"
+                        />
+                        <Icon size={14} />
+                        <span>{t.l}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -202,8 +210,9 @@ export function SyndicsClient({
                 </div>
               )}
               {success && (
-                <div className="bg-ok-light border border-ok-mid text-ok rounded-lg px-3.5 py-2.5 text-xs font-semibold text-center">
-                  ✅ {success}
+                <div className="bg-ok-light border border-ok-mid text-ok rounded-lg px-3.5 py-2.5 text-xs font-semibold text-center inline-flex items-center justify-center gap-1.5 w-full">
+                  <CheckCircle2 size={14} />
+                  <span>{success}</span>
                 </div>
               )}
 
