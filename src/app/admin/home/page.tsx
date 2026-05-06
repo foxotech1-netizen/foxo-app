@@ -52,17 +52,22 @@ export default async function HomePage() {
           style={{ objectFit: 'contain' }}
           priority
         />
-        <span className="foxo-home-logo-label">FoxO · Interface Admin</span>
+        <span className="section-label">FoxO · Interface Admin</span>
       </div>
 
       <div className="foxo-home-grid-wrap">
         <div className="foxo-home-grid">
           {tiles.map((t) => (
-            <Link key={t.href} href={t.href} className="foxo-home-tile" style={{ background: t.bg }}>
+            <Link key={t.href} href={t.href} className="foxo-home-tile">
               {t.badgeCount && t.badgeCount > 0 ? (
                 <span className="foxo-home-tile-badge">{t.badgeCount}</span>
               ) : null}
-              <span className="foxo-home-tile-icon"><t.Icon size={24} aria-hidden /></span>
+              <span
+                className="foxo-home-tile-icon-box"
+                style={{ background: `${t.bg}26` }}
+              >
+                <t.Icon size={22} color={t.bg} aria-hidden />
+              </span>
               <span className="foxo-home-tile-title">{t.title}</span>
               {t.subtitle && (
                 <span className="foxo-home-tile-subtitle">{t.subtitle}</span>
@@ -91,14 +96,6 @@ export default async function HomePage() {
           gap: 10px;
           border-bottom: 1px solid rgba(0,0,0,.12);
         }
-        .foxo-home-logo-label {
-          font-size: 11px;
-          color: #7A6A50;
-          text-transform: uppercase;
-          letter-spacing: .18em;
-          font-weight: 700;
-          font-family: var(--font-sans);
-        }
         .foxo-home-grid-wrap {
           flex: 1;
           display: flex;
@@ -122,31 +119,35 @@ export default async function HomePage() {
           align-items: center;
           justify-content: center;
           gap: 4px;
-          color: #FFFFFF;
           text-decoration: none;
           font-family: var(--font-sans);
-          box-shadow: 0 4px 12px rgba(0,0,0,.25);
-          transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
-          padding: 8px;
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          box-shadow: var(--card-shadow);
+          transition: transform .18s ease, box-shadow .18s ease;
+          padding: 10px;
           text-align: center;
         }
-        .foxo-home-tile-icon {
-          line-height: 1;
-          margin-bottom: 4px;
+        .foxo-home-tile-icon-box {
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          flex-shrink: 0;
         }
         .foxo-home-tile-title {
+          font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
           font-size: 13px;
           font-weight: 700;
-          color: #FFFFFF;
-          letter-spacing: .01em;
+          color: var(--text-primary);
+          letter-spacing: -0.01em;
           line-height: 1.15;
         }
         .foxo-home-tile-subtitle {
           font-size: 11px;
-          color: rgba(255,255,255,.7);
+          color: var(--text-secondary);
           line-height: 1.2;
           margin-top: 2px;
         }
@@ -171,13 +172,12 @@ export default async function HomePage() {
         @media (hover: hover) {
           .foxo-home-tile:hover {
             transform: translateY(-3px);
-            box-shadow: 0 12px 28px rgba(0,0,0,.4);
-            filter: brightness(1.1);
+            box-shadow: var(--card-shadow-hover);
           }
         }
         .foxo-home-tile:active {
           transform: scale(0.95);
-          box-shadow: 0 4px 10px rgba(0,0,0,.35);
+          box-shadow: var(--card-shadow);
         }
 
         @media (max-width: 640px) {
@@ -189,9 +189,8 @@ export default async function HomePage() {
             width: 100px;
             height: 100px;
             border-radius: 14px;
-            padding: 6px;
+            padding: 8px;
           }
-          /* size={24} sur Lucide reste constant en mobile (consigne) */
           .foxo-home-tile-title { font-size: 11px; }
           .foxo-home-tile-subtitle { font-size: 9px; }
           .foxo-home-grid-wrap { padding: 24px 12px 32px; }
