@@ -15,7 +15,7 @@ import { ThemeSelector } from '@/components/ThemeSelector'
 import { useTheme } from '@/components/ThemeApplier'
 import { themes } from '@/lib/themes'
 import {
-  LayoutGrid, BarChart3, Bell, Calendar, Wrench, Sparkles,
+  Home, LayoutGrid, BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
   type LucideIcon,
@@ -24,6 +24,7 @@ import {
 interface NavItem { href: string; Icon: LucideIcon; label: string; badge?: boolean }
 
 const NAV_MAIN: NavItem[] = [
+  { href: '/admin/hub',         Icon: Home,        label: 'Hub'             },
   { href: '/admin/home',        Icon: LayoutGrid,  label: 'Accueil'         },
   { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
