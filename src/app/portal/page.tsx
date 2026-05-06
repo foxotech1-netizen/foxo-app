@@ -126,13 +126,18 @@ export default async function PortalDashboard() {
           <h2 className="section-label mb-3">{v.interventionsCap} récent{orgType === 'syndic' ? 'es' : 's'}</h2>
           {recent.length === 0 ? (
             <div className="premium-card p-4">
-              <p className="text-xs text-ink-muted">
-                {v.emptyList} pour l&apos;instant.{' '}
-                <Link href="/portal/nouveau" className="text-[#60A5FA] underline">
-                  Créer le premier
-                </Link>
-                .
-              </p>
+              {v.newRequestVerb ? (
+                <p className="text-xs text-ink-muted">
+                  {v.emptyList} pour l&apos;instant.{' '}
+                  <Link href="/portal/nouveau" className="text-[#60A5FA] underline">
+                    Créer le premier
+                  </Link>.
+                </p>
+              ) : (
+                <p className="text-xs text-ink-muted">
+                  {v.emptyList} pour l&apos;instant.
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
