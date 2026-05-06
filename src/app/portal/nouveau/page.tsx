@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { NewRequestClient } from './NewRequestClient';
@@ -12,6 +13,13 @@ export default async function NewRequestPage({
   const sp = await searchParams;
   const session = await getCurrentSyndic();
   if (!session) return null;
+
+  // Defensive : les experts n'ont pas accès à la création de demande
+  // (le CTA est masqué dans la nav mais on protège l'URL en cas
+  // d'accès direct manuel).
+  if (session.org?.type === 'expert') {
+    redirect('/portal');
+  }
 
   if (!session.org) {
     return (

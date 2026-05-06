@@ -71,11 +71,16 @@ export default async function PortalDashboard() {
 
   const recent = interventions.slice(0, 4);
 
-  const orgType: OrgType = org.type === 'courtier' ? 'courtier' : 'syndic';
+  const orgType: OrgType =
+    org.type === 'courtier' ? 'courtier' :
+    org.type === 'expert'   ? 'expert'   :
+    'syndic';
   const v = vocabFor(orgType);
   const accentBg = orgType === 'courtier'
     ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
-    : 'bg-navy hover:bg-navy-mid';
+    : orgType === 'expert'
+      ? 'bg-[#F59E0B] hover:bg-[#D97706]'
+      : 'bg-navy hover:bg-navy-mid';
 
   return (
     <div className="space-y-6">
@@ -87,12 +92,14 @@ export default async function PortalDashboard() {
             <span className="font-semibold">{org.nom}</span> · {org.type}
           </p>
         </div>
-        <Link
-          href="/portal/nouveau"
-          className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
-        >
-          {v.newRequestVerb}
-        </Link>
+        {v.newRequestVerb && (
+          <Link
+            href="/portal/nouveau"
+            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
+          >
+            {v.newRequestVerb}
+          </Link>
+        )}
       </div>
 
       {/* Stats */}

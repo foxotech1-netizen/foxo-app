@@ -1,20 +1,20 @@
 // Vocabulaire portail — adapte les libellés selon le type d'organisation connectée.
 // Centralisé pour cohérence cross-écran. Importable depuis server et client.
 
-export type OrgType = 'syndic' | 'courtier';
+export type OrgType = 'syndic' | 'courtier' | 'expert';
 
 export type PortalVocab = {
-  portalLabel: string;          // sous-titre bannière
-  intervention: string;         // singulier minuscule
-  interventionCap: string;      // singulier capitalisé
-  interventions: string;        // pluriel
-  interventionsCap: string;     // pluriel capitalisé
-  myInterventions: string;      // "Mes interventions" / "Mes dossiers"
-  acpLabel: string;             // "ACP" / "Assuré"
-  newRequestVerb: string;       // "+ Nouvelle demande" / "+ Confier une mission"
-  emptyList: string;            // "Aucune intervention" / "Aucun dossier"
-  countSuffix: string;          // "intervention(s)" / "dossier(s)"
-  accent: string;               // hex couleur accent spécifique
+  portalLabel: string;            // sous-titre bannière
+  intervention: string;           // singulier minuscule
+  interventionCap: string;        // singulier capitalisé
+  interventions: string;          // pluriel
+  interventionsCap: string;       // pluriel capitalisé
+  myInterventions: string;        // "Mes interventions" / "Mes dossiers"
+  acpLabel: string;               // "ACP" / "Assuré"
+  newRequestVerb: string | null;  // null = portail en lecture seule (expert)
+  emptyList: string;              // "Aucune intervention" / "Aucun dossier"
+  countSuffix: string;            // "intervention(s)" / "dossier(s)"
+  accent: string;                 // hex couleur accent spécifique
 };
 
 export const VOCAB: Record<OrgType, PortalVocab> = {
@@ -43,6 +43,22 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     emptyList: 'Aucun dossier',
     countSuffix: 'dossier(s)',
     accent: '#1D6FA4',
+  },
+  expert: {
+    // L'expert consulte des dossiers sinistres existants — il ne crée
+    // pas de demande (newRequestVerb: null masque le CTA dans la nav,
+    // dans le dashboard et dans la liste des interventions).
+    portalLabel: 'Portail Expert',
+    intervention: 'dossier sinistre',
+    interventionCap: 'Dossier sinistre',
+    interventions: 'dossiers sinistres',
+    interventionsCap: 'Dossiers sinistres',
+    myInterventions: 'Mes dossiers',
+    acpLabel: 'Assuré',
+    newRequestVerb: null,
+    emptyList: 'Aucun dossier',
+    countSuffix: 'dossier(s)',
+    accent: '#F59E0B',
   },
 };
 

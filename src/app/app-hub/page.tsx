@@ -29,14 +29,14 @@ const TILES_BEFORE_CLIENT: Tile[] = [
     iconColor: '#60A5FA',
   },
   {
-    href: 'https://portal.foxo.be/expert',
+    href: 'https://portal.foxo.be',
     icon: Search,
     label: 'Expert',
     subtitle: 'Espace experts sinistres',
     iconColor: '#34D399',
   },
   {
-    href: 'https://portal.foxo.be/courtier',
+    href: 'https://portal.foxo.be',
     icon: Landmark,
     label: 'Courtier',
     subtitle: 'Suivi dossiers clients',

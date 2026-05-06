@@ -13,8 +13,12 @@ export default async function PortalLayout({
   if (!session) redirect('/auth/login');
   const { user, org } = session;
 
-  // Type d'organisation : par défaut syndic (rétro-compat avec org sans type)
-  const orgType: OrgType = org?.type === 'courtier' ? 'courtier' : 'syndic';
+  // Type d'organisation : par défaut syndic (rétro-compat avec org sans type).
+  // Étendu pour supporter expert (lecture seule, pas de création de demande).
+  const orgType: OrgType =
+    org?.type === 'courtier' ? 'courtier' :
+    org?.type === 'expert'   ? 'expert'   :
+    'syndic';
 
   return (
     <PortalProvider

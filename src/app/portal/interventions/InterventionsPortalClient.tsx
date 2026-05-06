@@ -52,7 +52,9 @@ export function InterventionsPortalClient({
   const isCourtier = orgType === 'courtier';
   const accentBg = isCourtier
     ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
-    : 'bg-navy hover:bg-navy-mid';
+    : orgType === 'expert'
+      ? 'bg-[#F59E0B] hover:bg-[#D97706]'
+      : 'bg-navy hover:bg-navy-mid';
 
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState<ChipId>(chipFromStatutParam(initialStatut));
@@ -107,12 +109,14 @@ export function InterventionsPortalClient({
           <h1 className="text-xl font-extrabold text-ink">{v.myInterventions}</h1>
           <p className="text-xs text-ink-muted mt-0.5">{items.length} au total</p>
         </div>
-        <Link
-          href="/portal/nouveau"
-          className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
-        >
-          {v.newRequestVerb}
-        </Link>
+        {v.newRequestVerb && (
+          <Link
+            href="/portal/nouveau"
+            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
+          >
+            {v.newRequestVerb}
+          </Link>
+        )}
       </div>
 
       {loadError && (

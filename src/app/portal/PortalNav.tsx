@@ -160,12 +160,15 @@ export function PortalNav() {
     { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
   ];
 
-  // Bottom nav iOS — 4 items fixes (libellés courts pour tenir sur petit écran)
+  // Bottom nav iOS — 3 ou 4 items selon orgType (l'item "Nouveau" est
+  // masqué pour les experts qui n'ont pas le droit de créer une demande).
   const BOTTOM_NAV: NavItem[] = [
     { href: '/portal',               icon: Home,            label: 'Accueil' },
     { href: '/portal/interventions', icon: ClipboardList,   label: 'Interventions' },
     { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
-    { href: '/portal/nouveau',       icon: Plus,            label: 'Nouveau' },
+    ...(vocab.newRequestVerb
+      ? [{ href: '/portal/nouveau', icon: Plus, label: 'Nouveau' } as NavItem]
+      : []),
   ];
 
   const isActive = (href: string) =>
@@ -203,13 +206,15 @@ export function PortalNav() {
               </Link>
             );
           })}
-          <Link
-            href="/portal/nouveau"
-            style={S.navItemAccent(isActive('/portal/nouveau'), accent)}
-          >
-            <Plus size={16} />
-            <span>{vocab.newRequestVerb.replace(/^\+\s*/, '')}</span>
-          </Link>
+          {vocab.newRequestVerb && (
+            <Link
+              href="/portal/nouveau"
+              style={S.navItemAccent(isActive('/portal/nouveau'), accent)}
+            >
+              <Plus size={16} />
+              <span>{vocab.newRequestVerb.replace(/^\+\s*/, '')}</span>
+            </Link>
+          )}
         </nav>
 
         <div style={S.footer}>
