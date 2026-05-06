@@ -99,35 +99,35 @@ export function Dashboard({
         <StatCard
           num={stats.nouvelles}
           label="Nouvelles demandes"
-          href="/admin?statut=nouvelle"
+          href="/admin/interventions?statut=nouvelle"
           active={statutFilter === 'nouvelle'}
         />
         <StatCard
           num={stats.enCours}
           label="En cours"
           accent
-          href="/admin?statut=en_cours"
+          href="/admin/interventions?statut=en_cours"
           active={statutFilter === 'en_cours'}
         />
         <StatCard
           num={stats.enSuspens}
           label="En suspens"
           warning={stats.enSuspens > 0}
-          href="/admin?statut=en_suspens"
+          href="/admin/interventions?statut=en_suspens"
           active={statutFilter === 'en_suspens'}
         />
         <StatCard
           num={stats.rapports}
           label="Rapports à envoyer"
           amber={stats.rapports > 0}
-          href="/admin?statut=rapport"
+          href="/admin/interventions?statut=rapport"
           active={statutFilter === 'rapport'}
         />
         <StatCard
           num={stats.closedThisMonth}
           label="Clôturées ce mois"
           muted
-          href="/admin?statut=cloturee"
+          href="/admin/interventions?statut=cloturee"
           active={statutFilter === 'cloturee'}
         />
       </div>
