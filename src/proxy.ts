@@ -12,6 +12,10 @@ const SUBDOMAIN_PREFIX: Record<string, string> = {
   // app.foxo.be — landing publique (sans auth) avec tuiles syndic /
   // expert / courtier / espace client / RDV. Sert /app-hub.
   'app.foxo.be':    '/app-hub',
+  // go.foxo.be — hub interne (auth requise) pour pivoter entre admin
+  // et tech. Le check user + redirection vers auth.foxo.be est fait
+  // dans /go-hub/page.tsx (pas dans isProtected du proxy).
+  'go.foxo.be':     '/go-hub',
 };
 
 const KNOWN_GROUP_PATHS = Object.values(SUBDOMAIN_PREFIX);
