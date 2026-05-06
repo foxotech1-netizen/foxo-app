@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ArrowLeft, Zap, MapPin, FileText, Receipt, Landmark } from 'lucide-react';
 import { StatutBadge } from '@/components/StatutBadge';
 import { DownloadButton } from '@/components/DownloadButton';
 import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
@@ -41,7 +42,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
         href="/portal/interventions"
         className="inline-flex items-center gap-1 text-xs text-navy hover:underline"
       >
-        ← {v.interventionsCap}
+        <ArrowLeft size={14} /> {v.interventionsCap}
       </Link>
 
       {/* En-tête : référence + statut + ACP + métadonnées */}
@@ -49,15 +50,15 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className="font-mono text-xs text-ink-muted">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-2 py-0.5">
-              ⚡ URGENT
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-2 py-0.5">
+              <Zap size={12} /> URGENT
             </span>
           )}
           <StatutBadge statut={iv.statut} big />
         </div>
         <h1 className="text-xl font-extrabold text-ink">{acp?.nom ?? '—'}</h1>
         {adresseFull && (
-          <div className="text-[13px] text-ink-mid mt-1">📍 {adresseFull}</div>
+          <div className="inline-flex items-center gap-1.5 text-[13px] text-ink-mid mt-1"><MapPin size={14} /> {adresseFull}</div>
         )}
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
           <Meta label="Créé le" value={fmtDate(iv.created_at)} />
@@ -138,13 +139,15 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
             <DownloadButton
               href={`/api/rapport/${iv.id}`}
               filename={`rapport-${iv.ref ?? iv.id}.pdf`}
-              label="📄 Télécharger le rapport"
+              label="Télécharger le rapport"
+              icon={FileText}
             />
             {iv.statut === 'cloturee' && (
               <DownloadButton
                 href={`/api/facture/${iv.id}`}
                 filename={`facture-${iv.ref ?? iv.id}.pdf`}
-                label="🧾 Télécharger la facture"
+                label="Télécharger la facture"
+                icon={Receipt}
               />
             )}
           </div>
@@ -168,8 +171,8 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           className="rounded-2xl p-4"
           style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}
         >
-          <h2 className="text-sm font-bold mb-3" style={{ color: '#1D6FA4' }}>
-            🏛️ Informations assurance
+          <h2 className="inline-flex items-center gap-1.5 text-sm font-bold mb-3" style={{ color: '#1D6FA4' }}>
+            <Landmark size={14} /> Informations assurance
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
             {iv.assureur?.nom && (

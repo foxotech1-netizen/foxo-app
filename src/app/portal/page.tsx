@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Hand, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { getMonthSlots } from '@/lib/portal/availability';
@@ -80,7 +81,7 @@ export default async function PortalDashboard() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold text-ink">Bonjour 👋</h1>
+          <h1 className="inline-flex items-center gap-2 text-2xl font-extrabold text-ink">Bonjour <Hand size={22} /></h1>
           <p className="text-xs text-ink-muted capitalize mt-1">{todayLong()}</p>
           <p className="text-xs text-ink-mid mt-0.5">
             <span className="font-semibold">{org.nom}</span> · {org.type}
@@ -106,9 +107,9 @@ export default async function PortalDashboard() {
       {stats.rapports > 0 && (
         <Link
           href="/portal/interventions?statut=rapport"
-          className="block bg-terra-light border border-terra-mid text-terra rounded-lg px-4 py-2.5 text-xs font-semibold hover:bg-[#F2DBC9]"
+          className="inline-flex items-center gap-1.5 bg-terra-light border border-terra-mid text-terra rounded-lg px-4 py-2.5 text-xs font-semibold hover:bg-[#F2DBC9]"
         >
-          📄 {stats.rapports} rapport(s) disponible(s) — consulter
+          <FileText size={14} /> {stats.rapports} rapport(s) disponible(s) — consulter
         </Link>
       )}
 

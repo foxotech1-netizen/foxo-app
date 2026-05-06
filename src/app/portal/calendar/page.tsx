@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import {
   formatMonthParam,
@@ -96,11 +97,11 @@ export default async function CalendarPage({
             <Link
               href={`/portal/calendar?m=${formatMonthParam(prev.year, prev.month)}`}
               className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
-            >‹</Link>
+            ><ChevronLeft size={16} /></Link>
             <Link
               href={`/portal/calendar?m=${formatMonthParam(next.year, next.month)}`}
               className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
-            >›</Link>
+            ><ChevronRight size={16} /></Link>
           </div>
         </div>
 
@@ -138,9 +139,9 @@ export default async function CalendarPage({
                       <Link
                         key={s.iso}
                         href={`/portal/nouveau?date=${s.date}&heure=${s.hour}`}
-                        className="block text-[10px] font-semibold rounded px-1.5 py-0.5 bg-ok-light text-ok hover:bg-[#C8E5D5] truncate"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold rounded px-1.5 py-0.5 bg-ok-light text-ok hover:bg-[#C8E5D5] truncate"
                       >
-                        {time} ✓
+                        {time} <Check size={12} />
                       </Link>
                     );
                   }
@@ -148,9 +149,9 @@ export default async function CalendarPage({
                     return (
                       <div
                         key={s.iso}
-                        className="text-[10px] font-semibold rounded px-1.5 py-0.5 bg-navy-light text-navy truncate"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold rounded px-1.5 py-0.5 bg-navy-light text-navy truncate"
                       >
-                        {time} ✗
+                        {time} <X size={12} />
                       </div>
                     );
                   }

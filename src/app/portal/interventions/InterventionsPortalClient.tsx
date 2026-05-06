@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { Zap, FileText, MapPin, Wrench } from 'lucide-react';
 import type { StatutIntervention } from '@/lib/types/database';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
@@ -173,16 +174,16 @@ export function InterventionsPortalClient({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-mono text-[11px] font-semibold text-navy">{iv.ref ?? '—'}</span>
                   {iv.priorite === 'urgente' && (
-                    <span className="text-[9px] font-bold text-terra">⚡ URGENT</span>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra"><Zap size={12} /> URGENT</span>
                   )}
                   {iv.has_rapport && (
-                    <span className="text-[9px] font-bold text-ok">📄 Rapport</span>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-ok"><FileText size={12} /> Rapport</span>
                   )}
                 </div>
                 <div className="font-bold text-[13px] mt-0.5 truncate">{iv.acp_nom ?? '—'}</div>
                 {(iv.acp_adresse || iv.adresse) && (
-                  <div className="text-[11px] text-ink-mid mt-0.5 truncate">
-                    📍 {iv.acp_adresse ?? iv.adresse}
+                  <div className="inline-flex items-center gap-1.5 text-[11px] text-ink-mid mt-0.5 truncate">
+                    <MapPin size={12} /> {iv.acp_adresse ?? iv.adresse}
                   </div>
                 )}
                 <div className="text-[10px] text-ink-muted mt-1 flex items-center gap-2 flex-wrap">
@@ -190,7 +191,7 @@ export function InterventionsPortalClient({
                   {iv.technicien_nom && (
                     <>
                       <span>·</span>
-                      <span>🔧 {iv.technicien_nom}</span>
+                      <span className="inline-flex items-center gap-1"><Wrench size={12} /> {iv.technicien_nom}</span>
                     </>
                   )}
                 </div>
@@ -211,12 +212,20 @@ export function InterventionsPortalClient({
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-sand">
-              {['Réf.', v.acpLabel, 'Adresse', 'Statut', 'Créé le', 'Technicien', '📄'].map((h) => (
+              {[
+                { key: 'ref', node: 'Réf.' },
+                { key: 'acp', node: v.acpLabel },
+                { key: 'adresse', node: 'Adresse' },
+                { key: 'statut', node: 'Statut' },
+                { key: 'cree', node: 'Créé le' },
+                { key: 'tech', node: 'Technicien' },
+                { key: 'rapport', node: <FileText size={14} /> },
+              ].map((h) => (
                 <th
-                  key={h}
+                  key={h.key}
                   className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
                 >
-                  {h}
+                  {h.node}
                 </th>
               ))}
             </tr>
@@ -237,7 +246,7 @@ export function InterventionsPortalClient({
                 <td className="px-3.5 py-3 whitespace-nowrap">
                   <span className="font-mono text-xs font-semibold text-navy">{iv.ref ?? '—'}</span>
                   {iv.priorite === 'urgente' && (
-                    <span className="block mt-1 text-[9px] font-bold text-terra">⚡ URGENT</span>
+                    <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-terra"><Zap size={12} /> URGENT</span>
                   )}
                 </td>
                 <td className="px-3.5 py-3">
@@ -259,7 +268,7 @@ export function InterventionsPortalClient({
                 </td>
                 <td className="px-3.5 py-3 text-center">
                   {iv.has_rapport && (
-                    <span className="text-[14px]" title="Rapport disponible">📄</span>
+                    <span className="inline-flex" title="Rapport disponible"><FileText size={14} /></span>
                   )}
                 </td>
               </tr>

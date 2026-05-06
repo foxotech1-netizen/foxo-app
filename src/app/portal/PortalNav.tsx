@@ -7,6 +7,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Home, ClipboardList, Calendar, Plus, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { usePortalContext } from './PortalContext';
@@ -125,11 +126,19 @@ const S = {
     transition: 'color .15s',
   }),
   bottomNavIcon: (active: boolean): React.CSSProperties => ({
-    fontSize: 18,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     opacity: active ? 1 : 0.7,
     transition: 'opacity .15s',
   }),
 };
+
+interface NavItem {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+}
 
 export function PortalNav() {
   const pathname = usePathname();
@@ -141,18 +150,18 @@ export function PortalNav() {
 
   // 4 items principaux. Le dernier (Nouvelle demande) est rendu en bouton
   // accent ; les 3 autres en items neutres avec état actif.
-  const NAV = [
-    { href: '/portal',               icon: '🏠', label: 'Tableau de bord' },
-    { href: '/portal/interventions', icon: '📋', label: vocab.interventionsCap },
-    { href: '/portal/calendar',      icon: '📅', label: 'Planning' },
+  const NAV: NavItem[] = [
+    { href: '/portal',               icon: Home,            label: 'Tableau de bord' },
+    { href: '/portal/interventions', icon: ClipboardList,   label: vocab.interventionsCap },
+    { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
   ];
 
   // Bottom nav iOS — 4 items fixes (libellés courts pour tenir sur petit écran)
-  const BOTTOM_NAV = [
-    { href: '/portal',               icon: '🏠', label: 'Accueil' },
-    { href: '/portal/interventions', icon: '📋', label: 'Interventions' },
-    { href: '/portal/calendar',      icon: '📅', label: 'Planning' },
-    { href: '/portal/nouveau',       icon: '➕', label: 'Nouveau' },
+  const BOTTOM_NAV: NavItem[] = [
+    { href: '/portal',               icon: Home,            label: 'Accueil' },
+    { href: '/portal/interventions', icon: ClipboardList,   label: 'Interventions' },
+    { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
+    { href: '/portal/nouveau',       icon: Plus,            label: 'Nouveau' },
   ];
 
   const isActive = (href: string) =>
@@ -180,17 +189,20 @@ export function PortalNav() {
         </div>
 
         <nav style={S.nav}>
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} style={S.navItem(isActive(item.href))}>
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          ))}
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href} style={S.navItem(isActive(item.href))}>
+                <Icon size={16} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
           <Link
             href="/portal/nouveau"
             style={S.navItemAccent(isActive('/portal/nouveau'), accent)}
           >
-            <span>➕</span>
+            <Plus size={16} />
             <span>{vocab.newRequestVerb.replace(/^\+\s*/, '')}</span>
           </Link>
         </nav>
@@ -234,9 +246,10 @@ export function PortalNav() {
       <nav style={S.bottomNav} className="foxo-portal-mobile">
         {BOTTOM_NAV.map((item) => {
           const active = isActive(item.href);
+          const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href} style={S.bottomNavItem(active)}>
-              <span style={S.bottomNavIcon(active)}>{item.icon}</span>
+              <span style={S.bottomNavIcon(active)}><Icon size={18} /></span>
               <span>{item.label}</span>
             </Link>
           );

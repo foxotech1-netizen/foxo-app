@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, ArrowLeft, ArrowRight, Plus, Zap, CheckCircle2, Landmark } from 'lucide-react';
 import type { Acp, PrioriteIntervention, TypeIntervention } from '@/lib/types/database';
 import { useOrgType, useVocab } from '../PortalContext';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
@@ -313,27 +314,32 @@ export function NewRequestClient({
         <button
           onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
           disabled={step === 1 || submitting}
-          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
         >
-          ← Précédent
+          <ArrowLeft size={14} /> Précédent
         </button>
         {step < 5 ? (
           <button
             onClick={() => setStep((s) => Math.min(5, s + 1) as Step)}
             disabled={!canProceed()}
-            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
+            className={`inline-flex items-center gap-1.5 text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
-            Suivant →
+            Suivant <ArrowRight size={14} />
           </button>
         ) : (
           <button
             onClick={handleSubmit}
             disabled={submitting || (!isCourtier && !selectedAcp)}
-            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
+            className={`inline-flex items-center gap-1.5 text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
-            {submitting
-              ? 'Envoi…'
-              : isCourtier ? 'Confier la mission ✓' : 'Soumettre la demande ✓'}
+            {submitting ? (
+              'Envoi…'
+            ) : (
+              <>
+                {isCourtier ? 'Confier la mission' : 'Soumettre la demande'}
+                <Check size={14} />
+              </>
+            )}
           </button>
         )}
       </div>
@@ -357,7 +363,7 @@ function StepIndicator({ step, labels }: { step: Step; labels: string[] }) {
                   'bg-sand-mid text-ink-muted')
               }
             >
-              {state === 'done' ? '✓' : n}
+              {state === 'done' ? <Check size={14} /> : n}
             </div>
             <span className={
               'text-[11px] font-semibold truncate hidden sm:inline ' +
@@ -461,9 +467,9 @@ function Step1({
               {!showCreate ? (
                 <button
                   onClick={() => { setShowCreate(true); setNewAcp({ ...newAcp, nom: query }); }}
-                  className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold"
+                  className="inline-flex items-center gap-1.5 bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold"
                 >
-                  + Créer une nouvelle ACP
+                  <Plus size={14} /> Créer une nouvelle ACP
                 </button>
               ) : null}
             </div>
@@ -576,7 +582,9 @@ function Step2({
                 onChange={() => setPriorite(p)}
                 className="accent-[#1B3A6B]"
               />
-              {p === 'urgente' ? '⚡ Urgente' : 'Normale'}
+              {p === 'urgente' ? (
+                <span className="inline-flex items-center gap-1.5"><Zap size={14} /> Urgente</span>
+              ) : 'Normale'}
             </label>
           ))}
         </div>
@@ -630,8 +638,8 @@ function Step3({
           </div>
         ))}
       </div>
-      <button onClick={onAdd} className="bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-xs font-semibold">
-        + Ajouter un occupant
+      <button onClick={onAdd} className="inline-flex items-center gap-1.5 bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-xs font-semibold">
+        <Plus size={14} /> Ajouter un occupant
       </button>
     </div>
   );
@@ -653,8 +661,8 @@ function Step4({
         Non contractuel — FoxO confirmera sous 24h ouvrables.
       </p>
       {preselected && (
-        <div className="bg-ok-light border border-ok-mid rounded-lg px-3.5 py-2.5 text-[13px] text-ok">
-          ✅ Créneau pré-sélectionné depuis le calendrier
+        <div className="inline-flex items-center gap-1.5 bg-ok-light border border-ok-mid rounded-lg px-3.5 py-2.5 text-[13px] text-ok">
+          <CheckCircle2 size={14} /> Créneau pré-sélectionné depuis le calendrier
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
@@ -762,8 +770,8 @@ function Step1Courtier({
       />
 
       <div className="rounded-lg p-3" style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}>
-        <div className="text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: '#1D6FA4' }}>
-          🏛️ Informations assurance
+        <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: '#1D6FA4' }}>
+          <Landmark size={12} /> Informations assurance
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field
