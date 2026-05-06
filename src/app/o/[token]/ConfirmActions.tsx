@@ -132,13 +132,13 @@ export function ConfirmActions({
           <button
             onClick={() => { setError(null); setMode('counter'); }}
             disabled={pending}
-            className="bg-navy text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80 inline-flex items-center justify-center gap-2"
+            className="bg-[var(--btn-bg)] text-[var(--btn-color)] py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80 inline-flex items-center justify-center gap-2"
           >
             <RefreshCw size={16} /> Proposer un autre créneau
           </button>
         </div>
         {pending && (
-          <p className="text-[11px] text-ink-muted text-center mt-2">Enregistrement…</p>
+          <p className="text-[11px] text-[var(--text-3)] text-center mt-2">Enregistrement…</p>
         )}
         {error && (
           <div className="text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 mt-2">
@@ -152,12 +152,12 @@ export function ConfirmActions({
   // Vue decline — textarea + envoi
   if (mode === 'decline') {
     return (
-      <div className="bg-sand-mid border border-sand-border rounded-xl p-3.5 space-y-2.5">
-        <div className="text-[12px] font-bold text-ink inline-flex items-center gap-1.5">
+      <div className="bg-[var(--card-border-2)] border border-[var(--card-border)] rounded-xl p-3.5 space-y-2.5">
+        <div className="text-[12px] font-bold text-[var(--text)] inline-flex items-center gap-1.5">
           <XCircle size={14} /> Vous ne pourrez pas être présent
         </div>
         <label className="block">
-          <span className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">
+          <span className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold">
             Raison (optionnelle)
           </span>
           <textarea
@@ -166,9 +166,9 @@ export function ConfirmActions({
             disabled={pending}
             rows={3}
             placeholder="Ex. absent ce jour-là, en télétravail, etc."
-            className="mt-1 w-full text-[13px] rounded-lg border border-sand-border bg-cream px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy/30"
+            className="mt-1 w-full text-[13px] rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
           />
-          <span className="text-[10px] text-ink-muted block text-right mt-0.5">
+          <span className="text-[10px] text-[var(--text-3)] block text-right mt-0.5">
             {declineNote.length}/500
           </span>
         </label>
@@ -177,7 +177,7 @@ export function ConfirmActions({
             type="button"
             onClick={resetAll}
             disabled={pending}
-            className="flex-1 bg-cream border border-sand-border text-ink-mid py-2.5 rounded-xl font-bold text-[13px] disabled:opacity-50"
+            className="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-2)] py-2.5 rounded-xl font-bold text-[13px] disabled:opacity-50"
           >
             Annuler
           </button>
@@ -201,13 +201,13 @@ export function ConfirmActions({
 
   // Vue counter — datetime-local x2 + textarea + envoi
   return (
-    <div className="bg-sand-mid border border-sand-border rounded-xl p-3.5 space-y-2.5">
-      <div className="text-[12px] font-bold text-ink inline-flex items-center gap-1.5">
+    <div className="bg-[var(--card-border-2)] border border-[var(--card-border)] rounded-xl p-3.5 space-y-2.5">
+      <div className="text-[12px] font-bold text-[var(--text)] inline-flex items-center gap-1.5">
         <RefreshCw size={14} /> Proposer un autre créneau
       </div>
 
       <label className="block">
-        <span className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">
+        <span className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold">
           Début
         </span>
         <input
@@ -224,12 +224,12 @@ export function ConfirmActions({
           }}
           required
           disabled={pending}
-          className="mt-1 w-full text-[13px] rounded-lg border border-sand-border bg-cream px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy/30"
+          className="mt-1 w-full text-[13px] rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
         />
       </label>
 
       <label className="block">
-        <span className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">
+        <span className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold">
           Fin
         </span>
         <input
@@ -238,12 +238,12 @@ export function ConfirmActions({
           onChange={(e) => setCounterFin(e.target.value)}
           required
           disabled={pending}
-          className="mt-1 w-full text-[13px] rounded-lg border border-sand-border bg-cream px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy/30"
+          className="mt-1 w-full text-[13px] rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
         />
       </label>
 
       <label className="block">
-        <span className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">
+        <span className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold">
           Commentaire (optionnel)
         </span>
         <textarea
@@ -252,9 +252,9 @@ export function ConfirmActions({
           disabled={pending}
           rows={3}
           placeholder="Ex. je suis disponible toute la matinée…"
-          className="mt-1 w-full text-[13px] rounded-lg border border-sand-border bg-cream px-3 py-2 focus:outline-none focus:ring-2 focus:ring-navy/30"
+          className="mt-1 w-full text-[13px] rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
         />
-        <span className="text-[10px] text-ink-muted block text-right mt-0.5">
+        <span className="text-[10px] text-[var(--text-3)] block text-right mt-0.5">
           {counterNote.length}/500
         </span>
       </label>
@@ -264,7 +264,7 @@ export function ConfirmActions({
           type="button"
           onClick={resetAll}
           disabled={pending}
-          className="flex-1 bg-cream border border-sand-border text-ink-mid py-2.5 rounded-xl font-bold text-[13px] disabled:opacity-50"
+          className="flex-1 bg-[var(--card-bg)] border border-[var(--card-border)] text-[var(--text-2)] py-2.5 rounded-xl font-bold text-[13px] disabled:opacity-50"
         >
           Annuler
         </button>
@@ -272,7 +272,7 @@ export function ConfirmActions({
           type="button"
           onClick={submitCounter}
           disabled={pending}
-          className="flex-1 bg-navy text-white py-2.5 rounded-xl font-bold text-[13px] disabled:opacity-50"
+          className="flex-1 bg-[var(--btn-bg)] text-[var(--btn-color)] py-2.5 rounded-xl font-bold text-[13px] disabled:opacity-50"
         >
           {pending ? 'Envoi…' : 'Envoyer ma proposition'}
         </button>

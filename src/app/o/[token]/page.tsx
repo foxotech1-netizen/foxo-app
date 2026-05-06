@@ -65,16 +65,16 @@ export default async function OccupantPortal({
   const rapportPublie = ['rapport', 'cloturee'].includes(iv.statut);
 
   return (
-    <div className="min-h-screen bg-sand py-8 px-4 flex items-start justify-center">
+    <div className="min-h-screen bg-[var(--main-bg)] py-8 px-4 flex items-start justify-center">
       <div className="w-full max-w-[480px]">
         <div className="flex flex-col items-center mb-6">
           <Logo size={64} />
-          <div className="text-[10px] text-ink-muted uppercase tracking-[.15em] font-semibold mt-2">
+          <div className="text-[10px] text-[var(--text-3)] uppercase tracking-[.15em] font-semibold mt-2">
             Confirmation de présence
           </div>
         </div>
 
-        <div className="bg-cream rounded-2xl border border-sand-border p-5 sm:p-6 space-y-4">
+        <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] p-5 sm:p-6 space-y-4">
           {/* Statut courant */}
           <StatusBanner
             conf={currentConf}
@@ -82,21 +82,21 @@ export default async function OccupantPortal({
             proposedDebut={occupant.proposed_creneau_debut}
           />
 
-          <header className="border-b border-sand-border pb-4">
-            <div className="text-[11px] text-ink-muted font-mono">
+          <header className="border-b border-[var(--card-border)] pb-4">
+            <div className="text-[11px] text-[var(--text-3)] font-mono">
               Réf. {iv.ref ?? '—'}
             </div>
-            <h1 className="text-lg font-extrabold text-ink mt-1">
+            <h1 className="text-lg font-extrabold text-[var(--text)] mt-1">
               {acp?.nom ?? '—'}
             </h1>
-            <div className="text-xs text-ink-mid mt-0.5">
+            <div className="text-xs text-[var(--text-2)] mt-0.5">
               {[acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—'}
             </div>
           </header>
 
           <Field label="Votre appartement">
             <span className="font-bold text-base">{occupant.appartement ?? '—'}</span>
-            {occupant.nom && <span className="text-ink-mid"> · {occupant.nom}</span>}
+            {occupant.nom && <span className="text-[var(--text-2)]"> · {occupant.nom}</span>}
           </Field>
 
           <Field label="Date d'intervention">
@@ -126,14 +126,14 @@ export default async function OccupantPortal({
           {acceptsResponse ? (
             <ConfirmActions token={token} currentConf={currentConf} />
           ) : (
-            <div className="bg-sand-mid border border-sand-border rounded-lg px-3.5 py-2.5 text-xs text-ink-mid">
+            <div className="bg-[var(--card-border-2)] border border-[var(--card-border)] rounded-lg px-3.5 py-2.5 text-xs text-[var(--text-2)]">
               Cette intervention n&apos;accepte plus de modifications de présence.
             </div>
           )}
 
           {/* Documents */}
-          <div className="pt-3 border-t border-sand-border">
-            <div className="text-[10px] text-ink-muted uppercase tracking-wider font-bold mb-2">
+          <div className="pt-3 border-t border-[var(--card-border)]">
+            <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold mb-2">
               Documents
             </div>
             {rapportPublie ? (
@@ -143,20 +143,20 @@ export default async function OccupantPortal({
                 label="Télécharger le rapport"
               />
             ) : (
-              <p className="text-[12px] text-ink-mid">
+              <p className="text-[12px] text-[var(--text-2)]">
                 Le rapport sera disponible après l&apos;intervention.
               </p>
             )}
           </div>
 
-          <p className="text-[10px] text-ink-muted leading-relaxed pt-2 border-t border-sand-border">
+          <p className="text-[10px] text-[var(--text-3)] leading-relaxed pt-2 border-t border-[var(--card-border)]">
             Ce lien vous est strictement personnel. Pour toute question, contactez votre
             syndic{syndic?.nom ? ` (${syndic.nom})` : ''} ou{' '}
-            <a href="mailto:info@foxo.be" className="text-navy underline">info@foxo.be</a>.
+            <a href="mailto:info@foxo.be" className="text-[var(--accent)] underline">info@foxo.be</a>.
           </p>
         </div>
 
-        <p className="text-center text-[10px] text-ink-muted mt-4">
+        <p className="text-center text-[10px] text-[var(--text-3)] mt-4">
           Fox Group SRL — Détection de fuites non destructive
         </p>
       </div>
@@ -205,7 +205,7 @@ function StatusBanner({
   // (counter est stocké en attente côté DB, le syndic doit valider).
   if (proposedDebut) {
     return (
-      <div className="bg-[#D6E4F7] border border-[#A8C4F2] text-navy rounded-lg px-3.5 py-2.5 text-sm font-semibold">
+      <div className="bg-[var(--accent-dim)] border border-[var(--card-border)] text-[var(--accent)] rounded-lg px-3.5 py-2.5 text-sm font-semibold">
         <span className="inline-flex items-center gap-1.5">
           <RefreshCw size={14} /> Vous avez proposé un autre créneau ({fmtDateTime(proposedDebut, true)}). Le syndic vous reviendra.
         </span>
@@ -227,28 +227,28 @@ function StatusBanner({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] text-ink-muted uppercase tracking-wider font-bold mb-0.5">
+      <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold mb-0.5">
         {label}
       </div>
-      <div className="text-[13px] text-ink">{children}</div>
+      <div className="text-[13px] text-[var(--text)]">{children}</div>
     </div>
   );
 }
 
 function NotFoundCard() {
   return (
-    <div className="min-h-screen bg-sand py-8 px-4 flex items-start justify-center">
+    <div className="min-h-screen bg-[var(--main-bg)] py-8 px-4 flex items-start justify-center">
       <div className="w-full max-w-[420px] mt-12">
         <div className="flex flex-col items-center mb-6">
           <Logo size={56} />
         </div>
-        <div className="bg-cream rounded-2xl border border-sand-border p-6 text-center">
-          <h1 className="text-lg font-extrabold text-ink mb-2">Lien invalide</h1>
-          <p className="text-sm text-ink-mid leading-relaxed">
+        <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] p-6 text-center">
+          <h1 className="text-lg font-extrabold text-[var(--text)] mb-2">Lien invalide</h1>
+          <p className="text-sm text-[var(--text-2)] leading-relaxed">
             Ce lien de confirmation n&apos;est plus valide ou n&apos;existe pas.
             <br />
             Pour toute question, contactez{' '}
-            <a href="mailto:info@foxo.be" className="text-navy underline">info@foxo.be</a>.
+            <a href="mailto:info@foxo.be" className="text-[var(--accent)] underline">info@foxo.be</a>.
           </p>
         </div>
       </div>
