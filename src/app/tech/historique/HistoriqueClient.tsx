@@ -70,8 +70,8 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
   return (
     <div className="space-y-3">
       <header>
-        <h1 className="text-xl font-extrabold text-ink inline-flex items-center gap-2"><ClipboardList size={18} />Historique</h1>
-        <p className="text-[11px] text-ink-muted mt-1">{rows.length} intervention{rows.length !== 1 ? 's' : ''} au total</p>
+        <h1 className="text-xl font-display font-extrabold text-[var(--text-primary)] inline-flex items-center gap-2"><ClipboardList size={18} />Historique</h1>
+        <p className="text-[11px] text-[var(--text-3)] mt-1">{rows.length} intervention{rows.length !== 1 ? 's' : ''} au total</p>
       </header>
 
       {/* Recherche */}
@@ -80,7 +80,7 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Rechercher (référence, client, ACP…)"
-        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+        className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
       />
 
       {/* Filtres */}
@@ -98,8 +98,8 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
             className={
               'flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ' +
               (filter === opt.v
-                ? 'bg-navy text-white'
-                : 'bg-cream text-ink-mid border border-sand-border hover:border-navy-mid dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
+                ? 'bg-[#34D399] text-white'
+                : 'bg-[var(--card-bg)] text-[var(--text-2)] border border-[var(--card-border)] hover:border-[#34D399]')
             }
           >
             {opt.label} <span className="opacity-70">{opt.n}</span>
@@ -109,7 +109,7 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
 
       {/* Liste */}
       {filtered.length === 0 ? (
-        <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center text-[13px] text-ink-mid dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
+        <div className="premium-card p-6 text-center text-[13px] text-[var(--text-2)]">
           Aucune intervention ne correspond aux critères.
         </div>
       ) : (
@@ -125,14 +125,14 @@ function MissionCard({ m }: { m: MissionRow }) {
   return (
     <Link
       href={`/tech/interventions/${m.id}`}
-      className="block bg-cream border border-sand-border rounded-xl p-3 hover:bg-sand-hover active:bg-sand-hover transition-colors dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:hover:bg-[#2A2520]"
+      className="block premium-card p-3"
     >
       <div className="flex items-start justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono text-[11px] font-semibold text-navy dark:text-[#A8C4F2]">
+          <span className="font-mono text-[11px] font-semibold" style={{ color: '#34D399' }}>
             {m.ref ?? '—'}
           </span>
-          <span className="text-[10px] font-mono text-ink-muted dark:text-[#C8C2B8]">
+          <span className="text-[10px] font-mono text-[var(--text-3)]">
             {fmtDate(m.creneau_debut ?? m.updated_at)}
           </span>
           {m.priorite === 'urgente' && (
@@ -143,19 +143,19 @@ function MissionCard({ m }: { m: MissionRow }) {
         </div>
         <StatutBadge statut={m.statut} />
       </div>
-      <div className="font-bold text-[13px] text-ink dark:text-[#F0ECE4]">{m.client_label}</div>
+      <div className="font-bold text-[13px] text-[var(--text-primary)]">{m.client_label}</div>
       {(m.acp_ville || m.adresse) && (
-        <div className="text-[11px] text-ink-mid dark:text-[#C8C2B8] mt-0.5">
+        <div className="text-[11px] text-[var(--text-2)] mt-0.5">
           {[m.adresse, m.acp_ville].filter(Boolean).join(' · ')}
         </div>
       )}
-      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-3)]">
         {m.type && <span>{m.type}</span>}
         {m.photo_count > 0 && (
           <span className="font-bold inline-flex items-center gap-1"><Camera size={12} />{m.photo_count}</span>
         )}
         {m.has_rapport && (
-          <span className="font-bold text-ok dark:text-[#7AC9A0] inline-flex items-center gap-1"><FileEdit size={12} />rapport</span>
+          <span className="font-bold text-ok inline-flex items-center gap-1"><FileEdit size={12} />rapport</span>
         )}
       </div>
     </Link>

@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Phone, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { fmtDateTime } from '@/lib/format';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
 import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
@@ -62,39 +61,46 @@ export default async function TechInterventionPage({
 
   return (
     <div className="space-y-4">
-      <Link href="/tech" className="text-xs text-navy hover:underline font-semibold">
+      <Link href="/tech" className="text-xs hover:underline font-semibold" style={{ color: '#34D399' }}>
         ← Mes missions
       </Link>
 
       {/* En-tête */}
-      <header className="bg-cream border border-sand-border rounded-2xl p-4">
+      <header className="premium-card p-4">
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
-          <span className="font-mono text-[11px] text-ink-muted">{iv.ref ?? '—'}</span>
+          <span className="font-mono text-[11px] text-[var(--text-3)]">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
             <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 inline-flex items-center gap-1">
               <Zap size={10} />URGENT
             </span>
           )}
         </div>
-        <h1 className="text-lg font-extrabold text-ink">{acp?.nom ?? '—'}</h1>
-        <div className="text-xs text-ink-mid mt-1">
+        <h1 className="text-lg font-extrabold text-[var(--text-primary)]">{acp?.nom ?? '—'}</h1>
+        <div className="text-xs text-[var(--text-2)] mt-1">
           {[acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—'}
         </div>
         {iv.adresse && (
-          <div className="text-xs text-navy font-semibold mt-1 inline-flex items-center gap-1.5"><MapPin size={12} />{iv.adresse}</div>
+          <div className="text-xs font-semibold mt-1 inline-flex items-center gap-1.5" style={{ color: '#34D399' }}><MapPin size={12} />{iv.adresse}</div>
         )}
-        {iv.creneau_debut && (
-          <div className="text-[11px] text-ink-muted mt-2 font-mono capitalize">
-            {fmtDateTime(iv.creneau_debut, true)}
-          </div>
-        )}
+        {iv.creneau_debut && (() => {
+          const d = new Date(iv.creneau_debut);
+          const time = d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+          const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+          return (
+            <div className="text-[11px] text-[var(--text-3)] mt-2 font-mono flex items-center gap-2">
+              <span className="font-bold" style={{ color: '#34D399' }}>{time}</span>
+              <span>·</span>
+              <span className="capitalize">{dateLabel}</span>
+            </div>
+          );
+        })()}
       </header>
 
       {/* Problème déclaré */}
       <Block title="Problème déclaré">
-        <strong className="text-ink">{iv.type ?? '—'}</strong>
+        <strong className="text-[var(--text-primary)]">{iv.type ?? '—'}</strong>
         {iv.description && (
-          <p className="text-ink-mid mt-1.5 whitespace-pre-wrap text-[13px]">{iv.description}</p>
+          <p className="text-[var(--text-2)] mt-1.5 whitespace-pre-wrap text-[13px]">{iv.description}</p>
         )}
       </Block>
 
@@ -103,9 +109,9 @@ export default async function TechInterventionPage({
         <Block title="Demandeur">
           <div className="flex justify-between items-center gap-2">
             <div>
-              <div className="font-semibold text-ink text-[13px]">{syndic.nom}</div>
+              <div className="font-semibold text-[var(--text-primary)] text-[13px]">{syndic.nom}</div>
               {syndic.telephone && (
-                <div className="text-[11px] text-ink-mid font-mono">{syndic.telephone}</div>
+                <div className="text-[11px] text-[var(--text-2)] font-mono">{syndic.telephone}</div>
               )}
             </div>
             {syndic.telephone && (
@@ -127,8 +133,8 @@ export default async function TechInterventionPage({
             {occupants.map((o) => (
               <div key={o.id} className="py-2 first:pt-0 last:pb-0 flex justify-between items-center gap-2">
                 <div>
-                  <div className="text-[13px] font-semibold text-ink">{o.nom ?? '—'}</div>
-                  <div className="text-[11px] text-ink-mid">
+                  <div className="text-[13px] font-semibold text-[var(--text-primary)]">{o.nom ?? '—'}</div>
+                  <div className="text-[11px] text-[var(--text-2)]">
                     Apt. {o.appartement ?? '—'}
                     {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
                   </div>
@@ -136,7 +142,7 @@ export default async function TechInterventionPage({
                 {o.telephone && (
                   <a
                     href={`tel:${o.telephone}`}
-                    className="bg-sand-mid text-navy px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-sand-border inline-flex items-center"
+                    className="bg-sand-mid text-[#34D399] px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-sand-border inline-flex items-center"
                     aria-label="Appeler"
                   >
                     <Phone size={14} />
@@ -195,8 +201,8 @@ export default async function TechInterventionPage({
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+    <section className="premium-card p-4">
+      <div className="section-label mb-2">
         {title}
       </div>
       {children}

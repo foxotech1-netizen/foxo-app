@@ -18,7 +18,7 @@ export default async function TechHistoriquePage() {
     .maybeSingle();
   if (!u) {
     return (
-      <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center">
+      <div className="premium-card p-6 text-center">
         <h1 className="text-lg font-extrabold text-ink mb-2">Compte non trouvé</h1>
         <p className="text-sm text-ink-mid">Contacte l&apos;administrateur.</p>
       </div>
