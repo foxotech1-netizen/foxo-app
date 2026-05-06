@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import { Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export type UtilisateurRow = {
@@ -130,7 +131,7 @@ export function UtilisateursClient({
       setUsers((arr) => [data.utilisateur as UtilisateurRow, ...arr]);
       resetForm();
       setFormOpen(false);
-      setFeedback({ kind: 'ok', msg: '✓ Utilisateur créé.' });
+      setFeedback({ kind: 'ok', msg: 'Utilisateur créé.' });
     });
   }
 
@@ -351,10 +352,11 @@ export function UtilisateursClient({
                         type="button"
                         onClick={() => setConfirmDelete(u)}
                         disabled={pending}
-                        className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50"
+                        className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center justify-center"
                         title="Supprimer"
+                        aria-label="Supprimer"
                       >
-                        🗑
+                        <Trash2 size={14} />
                       </button>
                     </td>
                   </tr>

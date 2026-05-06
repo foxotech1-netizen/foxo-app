@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Pencil, Trash2 } from 'lucide-react';
 import { TYPE_CLIENT_LABEL, type Client, type TypeClient } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { deleteClient } from '../facturation/actions';
@@ -132,9 +133,9 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
                   <td className="px-3.5 py-2.5 whitespace-nowrap">
                     <RowMenu
                       items={[
-                        { icon: '✏️', label: 'Modifier', href: `/admin/clients/${c.id}` },
+                        { icon: Pencil, label: 'Modifier', href: `/admin/clients/${c.id}` },
                         {
-                          icon: '🗑️',
+                          icon: Trash2,
                           label: 'Désactiver',
                           destructive: true,
                           disabled: pending,

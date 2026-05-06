@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import type { Article } from '@/lib/types/database';
 import { saveArticle, deleteArticle, type ArticleInput } from '../facturation/actions';
 import { RowMenu } from '@/components/RowMenu';
@@ -196,9 +197,9 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                     <RowMenu
                       direction="up"
                       items={[
-                        { icon: '✏️', label: 'Modifier', onClick: () => setEditing(a) },
+                        { icon: Pencil, label: 'Modifier', onClick: () => setEditing(a) },
                         {
-                          icon: '🗑️',
+                          icon: Trash2,
                           label: 'Supprimer',
                           destructive: true,
                           disabled: pending,
@@ -225,8 +226,9 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
   );
 }
 
-// Header de colonne triable. Affiche un indicateur ↑ ou ↓ quand la
-// colonne est active, "↕" en dimmed sinon pour signaler la cliquabilité.
+// Header de colonne triable. Affiche un indicateur ArrowUp ou ArrowDown
+// quand la colonne est active, ArrowUpDown en dimmed sinon pour signaler
+// la cliquabilité.
 function SortableTh({
   label, sortKey, currentKey, dir, onClick,
 }: {
@@ -237,7 +239,7 @@ function SortableTh({
   onClick: (k: SortKey) => void;
 }) {
   const active = sortKey === currentKey;
-  const indicator = active ? (dir === 'asc' ? '↑' : '↓') : '↕';
+  const Indicator = active ? (dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
   return (
     <th
       onClick={() => onClick(sortKey)}
@@ -251,7 +253,9 @@ function SortableTh({
     >
       <span className="inline-flex items-center gap-1">
         {label}
-        <span className={active ? 'opacity-100' : 'opacity-40'}>{indicator}</span>
+        <span className={active ? 'opacity-100' : 'opacity-40'}>
+          <Indicator size={12} />
+        </span>
       </span>
     </th>
   );

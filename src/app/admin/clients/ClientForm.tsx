@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Building2, X, Plus, Mail } from 'lucide-react';
 import { saveClient, type ClientInput } from '../facturation/actions';
 import { TYPE_CLIENT_LABEL, type Client, type Organisation, type RemiseType, type TypeClient } from '@/lib/types/database';
 import { AddressAutocomplete, type AddressValue } from '@/components/AddressAutocomplete';
@@ -256,8 +257,9 @@ export function ClientForm({
             <div className="bg-navy-pale border border-navy-light rounded-lg p-3 mb-2 dark:bg-[#1A2540] dark:border-[#2C4878]">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-bold text-[13px] text-navy dark:text-[#A8C4F2]">
-                    🏢 {selectedSyndic.nom}
+                  <div className="font-bold text-[13px] text-navy dark:text-[#A8C4F2] inline-flex items-center gap-1.5">
+                    <Building2 size={14} />
+                    {selectedSyndic.nom}
                   </div>
                   <div className="text-[11px] font-mono text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
                     {selectedSyndic.email}
@@ -266,9 +268,10 @@ export function ClientForm({
                 <button
                   type="button"
                   onClick={() => setSyndicIdRef(null)}
-                  className="text-[10px] text-terra hover:underline flex-shrink-0"
+                  className="text-[10px] text-terra hover:underline flex-shrink-0 inline-flex items-center gap-1"
                 >
-                  ✕ Retirer
+                  <X size={12} />
+                  Retirer
                 </button>
               </div>
             </div>
@@ -299,9 +302,19 @@ export function ClientForm({
               <button
                 type="button"
                 onClick={() => setShowCreateSyndic((v) => !v)}
-                className="text-[11px] text-navy hover:underline font-bold dark:text-[#A8C4F2]"
+                className="text-[11px] text-navy hover:underline font-bold dark:text-[#A8C4F2] inline-flex items-center gap-1"
               >
-                {showCreateSyndic ? '✕ Annuler' : '➕ Nouveau syndic'}
+                {showCreateSyndic ? (
+                  <>
+                    <X size={12} />
+                    Annuler
+                  </>
+                ) : (
+                  <>
+                    <Plus size={12} />
+                    Nouveau syndic
+                  </>
+                )}
               </button>
               {showCreateSyndic && (
                 <NewSyndicInline
@@ -323,7 +336,14 @@ export function ClientForm({
       )}
 
       {type === 'acp' && (
-        <Section title="📧 Emails dédiés">
+        <Section
+          title={
+            <span className="inline-flex items-center gap-1.5">
+              <Mail size={12} />
+              Emails dédiés
+            </span>
+          }
+        >
           <div className="space-y-2">
             <DedicatedEmailField
               label="Email factures"
@@ -432,7 +452,7 @@ export function ClientForm({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
       <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-3 dark:text-[#C8C2B8]">
