@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Check, Circle, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { StatutBadge } from '@/components/StatutBadge';
-import { fmtDateTime, todayLong } from '@/lib/format';
+import { todayLong } from '@/lib/format';
 import type { Acp, Intervention, Organisation } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,7 @@ export default async function TechHome() {
 
   if (!u) {
     return (
-      <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center">
+      <div className="premium-card p-6 text-center">
         <h1 className="text-lg font-extrabold text-ink mb-2">Compte non encodé</h1>
         <p className="text-sm text-ink-mid">
           {user?.email} n&apos;existe pas dans la table utilisateurs.<br />
@@ -107,12 +107,15 @@ export default async function TechHome() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-xl font-extrabold text-ink">
+      <header
+        className="-mx-4 px-6 py-6 mb-1"
+        style={{ background: 'linear-gradient(180deg, #0d2318 0%, #1a3d2a 100%)' }}
+      >
+        <h1 className="font-display font-extrabold text-[20px] text-white">
           Bonjour {u.prenom ?? ''}
         </h1>
-        <p className="text-[11px] text-ink-muted capitalize mt-1">{todayLong()}</p>
-        <p className="text-xs text-ink-mid mt-1">
+        <p className="text-[12px] text-white/70 capitalize mt-1">{todayLong()}</p>
+        <p className="text-[12px] text-white/60 mt-2">
           {aujourdhui.length} mission(s) aujourd&apos;hui · {aVenir.length} à venir
           {enCoursCount > 0 ? ` · ${enCoursCount} en cours` : ''}
         </p>
@@ -127,13 +130,13 @@ export default async function TechHome() {
 function Section({ title, missions, empty }: { title: string; missions: Mission[]; empty: string }) {
   return (
     <section>
-      <h2 className="text-[11px] uppercase tracking-widest text-ink-muted font-bold mb-2.5">
+      <h2 className="section-label mb-2.5">
         {title}
       </h2>
       {missions.length === 0 ? (
-        <p className="text-xs text-ink-mid bg-cream border border-sand-border rounded-xl p-4">
-          {empty}
-        </p>
+        <div className="premium-card p-4">
+          <p className="text-xs text-ink-mid">{empty}</p>
+        </div>
       ) : (
         <div className="space-y-2.5">
           {missions.map((m) => (
@@ -148,14 +151,20 @@ function Section({ title, missions, empty }: { title: string; missions: Mission[
 function MissionCard({ m }: { m: Mission }) {
   const inProgress = Boolean(m.started_at && !m.ended_at);
   const done = Boolean(m.ended_at);
+  // Split date / heure pour mettre l'heure en accent vert tech (#34D399).
+  const dt = m.creneau_debut ? new Date(m.creneau_debut) : null;
+  const time = dt ? dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : null;
+  const dateLabel = dt
+    ? dt.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' })
+    : null;
   return (
     <Link
       href={`/tech/interventions/${m.id}`}
-      className="block bg-cream border border-sand-border rounded-xl p-3.5 hover:bg-sand-hover active:bg-sand-hover transition-colors"
+      className="block premium-card p-3.5"
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono text-[11px] font-semibold text-navy">
+          <span className="font-mono text-[11px] font-semibold" style={{ color: '#34D399' }}>
             {m.ref ?? '—'}
           </span>
           {m.priorite === 'urgente' && (
@@ -179,10 +188,15 @@ function MissionCard({ m }: { m: Mission }) {
       <div className="font-bold text-[14px] text-ink">{m.acp_nom ?? '—'}</div>
       <div className="text-[11px] text-ink-mid mt-0.5">
         {[m.acp_adresse, m.acp_ville].filter(Boolean).join(', ') || '—'}
-        {m.adresse ? <> · <span className="text-navy font-semibold">{m.adresse}</span></> : null}
+        {m.adresse ? <> · <span className="text-ink font-semibold">{m.adresse}</span></> : null}
       </div>
       <div className="text-[11px] text-ink-muted mt-1.5 flex items-center gap-2 font-mono">
-        <span>{fmtDateTime(m.creneau_debut)}</span>
+        {time && (
+          <span className="font-bold" style={{ color: '#34D399' }}>{time}</span>
+        )}
+        {time && dateLabel && <span>·</span>}
+        {dateLabel && <span>{dateLabel}</span>}
+        {!time && !dateLabel && <span>—</span>}
         {m.type && <><span>·</span><span className="font-sans">{m.type}</span></>}
       </div>
       {m.syndic_nom && (

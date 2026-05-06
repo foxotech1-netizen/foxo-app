@@ -19,8 +19,12 @@ export function TechBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-cream border-t border-sand-border z-40 dark:bg-[#1C1A16] dark:border-[#2C2A24]"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="fixed bottom-0 left-0 right-0 z-40"
+      style={{
+        background: '#FFFFFF',
+        borderTop: '1px solid #E6E2DC',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
     >
       <div className="max-w-[640px] mx-auto flex">
         {ITEMS.map((item) => {
@@ -31,14 +35,20 @@ export function TechBottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={
-                'flex-1 flex flex-col items-center justify-center py-2.5 min-h-[58px] gap-0.5 transition-colors ' +
-                (active
-                  ? 'text-navy dark:text-[#A8C4F2]'
-                  : 'text-ink-muted hover:text-ink dark:text-[#C8C2B8] dark:hover:text-[#F0ECE4]')
-              }
+              className="relative flex-1 flex flex-col items-center justify-center py-2.5 min-h-[58px] gap-0.5"
+              style={{
+                color: active ? '#34D399' : '#9A9690',
+                transition: 'color 0.15s ease',
+              }}
             >
-              <item.Icon size={18} aria-hidden />
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
+                  style={{ background: '#34D399' }}
+                />
+              )}
+              <item.Icon size={22} aria-hidden />
               <span className="text-[10px] font-bold uppercase tracking-wider">{item.label}</span>
             </Link>
           );
