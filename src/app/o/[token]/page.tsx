@@ -1,3 +1,4 @@
+import { CheckCircle2, Hourglass, RefreshCw, X } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { Logo } from '@/components/Logo';
 import { DownloadButton } from '@/components/DownloadButton';
@@ -175,7 +176,9 @@ function StatusBanner({
   if (conf === 'confirme') {
     return (
       <div className="bg-ok-light border border-ok-mid text-ok rounded-lg px-3.5 py-2.5 text-sm font-semibold">
-        ✅ Présence confirmée — merci !
+        <span className="inline-flex items-center gap-1.5">
+          <CheckCircle2 size={14} /> Présence confirmée — merci !
+        </span>
         {acceptsResponse && (
           <p className="text-[11px] font-normal mt-1 opacity-80">
             Vous pouvez modifier votre réponse ci-dessous.
@@ -187,7 +190,9 @@ function StatusBanner({
   if (conf === 'decline') {
     return (
       <div className="bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5 text-sm font-semibold">
-        ✗ Vous avez décliné cette intervention.
+        <span className="inline-flex items-center gap-1.5">
+          <X size={14} /> Vous avez décliné cette intervention.
+        </span>
         {acceptsResponse && (
           <p className="text-[11px] font-normal mt-1 opacity-80">
             Vous pouvez encore changer d&apos;avis ci-dessous.
@@ -201,7 +206,9 @@ function StatusBanner({
   if (proposedDebut) {
     return (
       <div className="bg-[#D6E4F7] border border-[#A8C4F2] text-navy rounded-lg px-3.5 py-2.5 text-sm font-semibold">
-        🔄 Vous avez proposé un autre créneau ({fmtDateTime(proposedDebut, true)}). Le syndic vous reviendra.
+        <span className="inline-flex items-center gap-1.5">
+          <RefreshCw size={14} /> Vous avez proposé un autre créneau ({fmtDateTime(proposedDebut, true)}). Le syndic vous reviendra.
+        </span>
         {acceptsResponse && (
           <p className="text-[11px] font-normal mt-1 opacity-80">
             Vous pouvez encore changer votre réponse ci-dessous.
@@ -211,8 +218,8 @@ function StatusBanner({
     );
   }
   return (
-    <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3.5 py-2.5 text-sm font-semibold">
-      ⏳ En attente de votre réponse
+    <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3.5 py-2.5 text-sm font-semibold inline-flex items-center gap-1.5">
+      <Hourglass size={14} /> En attente de votre réponse
     </div>
   );
 }

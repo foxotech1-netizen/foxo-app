@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { respondAsOccupant, type RespondPayload } from '../actions';
 
 type Mode = 'idle' | 'decline' | 'counter';
@@ -109,23 +110,31 @@ export function ConfirmActions({
           <button
             onClick={submitConfirme}
             disabled={pending || currentConf === 'confirme'}
-            className="bg-ok text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80"
+            className="bg-ok text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80 inline-flex items-center justify-center gap-2"
           >
-            {currentConf === 'confirme' ? '✓ Confirmé' : '✅ Je serai présent'}
+            {currentConf === 'confirme' ? (
+              <>
+                <Check size={16} /> Confirmé
+              </>
+            ) : (
+              <>
+                <CheckCircle2 size={16} /> Je serai présent
+              </>
+            )}
           </button>
           <button
             onClick={() => { setError(null); setMode('decline'); }}
             disabled={pending}
-            className="bg-terra text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80"
+            className="bg-terra text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80 inline-flex items-center justify-center gap-2"
           >
-            ❌ Je ne peux pas
+            <XCircle size={16} /> Je ne peux pas
           </button>
           <button
             onClick={() => { setError(null); setMode('counter'); }}
             disabled={pending}
-            className="bg-navy text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80"
+            className="bg-navy text-white py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-50 active:opacity-80 inline-flex items-center justify-center gap-2"
           >
-            🔄 Proposer un autre créneau
+            <RefreshCw size={16} /> Proposer un autre créneau
           </button>
         </div>
         {pending && (
@@ -144,7 +153,9 @@ export function ConfirmActions({
   if (mode === 'decline') {
     return (
       <div className="bg-sand-mid border border-sand-border rounded-xl p-3.5 space-y-2.5">
-        <div className="text-[12px] font-bold text-ink">❌ Vous ne pourrez pas être présent</div>
+        <div className="text-[12px] font-bold text-ink inline-flex items-center gap-1.5">
+          <XCircle size={14} /> Vous ne pourrez pas être présent
+        </div>
         <label className="block">
           <span className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">
             Raison (optionnelle)
@@ -191,7 +202,9 @@ export function ConfirmActions({
   // Vue counter — datetime-local x2 + textarea + envoi
   return (
     <div className="bg-sand-mid border border-sand-border rounded-xl p-3.5 space-y-2.5">
-      <div className="text-[12px] font-bold text-ink">🔄 Proposer un autre créneau</div>
+      <div className="text-[12px] font-bold text-ink inline-flex items-center gap-1.5">
+        <RefreshCw size={14} /> Proposer un autre créneau
+      </div>
 
       <label className="block">
         <span className="text-[10px] text-ink-muted uppercase tracking-wider font-bold">

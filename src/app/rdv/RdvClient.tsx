@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition } from 'react';
+import { Camera, Check, CheckCircle2, PartyPopper, Zap } from 'lucide-react';
 import type { Slot } from '@/lib/portal/availability';
 import { submitRdv } from './actions';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
@@ -197,7 +198,9 @@ export function RdvClient({ months }: { months: MonthData[] }) {
   if (success) {
     return (
       <div className="bg-cream border border-sand-border rounded-2xl p-8 text-center max-w-[560px] mx-auto mt-4">
-        <div className="text-5xl mb-3">🎉</div>
+        <div className="flex justify-center mb-3">
+          <PartyPopper size={48} className="text-ok" />
+        </div>
         <h1 className="text-2xl font-extrabold text-ok">Demande reçue !</h1>
         <p className="text-sm text-ink-mid mt-2 leading-relaxed">
           Un email de confirmation vous a été envoyé.<br />
@@ -404,13 +407,14 @@ function CalendarWidget({
                       type="button"
                       onClick={() => onPick(s)}
                       className={
-                        'block w-full text-[10px] font-semibold rounded px-1.5 py-0.5 truncate transition-colors ' +
+                        'flex items-center justify-center gap-1 w-full text-[10px] font-semibold rounded px-1.5 py-0.5 truncate transition-colors ' +
                         (isSelected
                           ? 'bg-navy text-white'
                           : 'bg-ok-light text-ok hover:bg-[#C8E5D5]')
                       }
                     >
-                      {time}{isSelected ? ' ✓' : ''}
+                      <span>{time}</span>
+                      {isSelected && <Check size={12} />}
                     </button>
                   );
                 }
@@ -500,7 +504,7 @@ function StepIndicator({ step }: { step: Step }) {
                     'bg-sand-mid text-ink-muted')
                 }
               >
-                {state === 'done' ? '✓' : n}
+                {state === 'done' ? <Check size={14} /> : n}
               </div>
               <span className={
                 'text-[11px] font-semibold truncate hidden sm:inline ' +
@@ -754,7 +758,11 @@ function Step2(props: {
                 onChange={() => props.setPriorite(p)}
                 className="accent-[#1B3A6B]"
               />
-              {p === 'urgente' ? '⚡ Urgente' : 'Normale'}
+              {p === 'urgente' ? (
+                <span className="inline-flex items-center gap-1">
+                  <Zap size={14} /> Urgente
+                </span>
+              ) : 'Normale'}
             </label>
           ))}
         </div>
@@ -774,13 +782,14 @@ function Step2(props: {
         <label
           htmlFor="rdv-photos"
           className={
-            'inline-block px-4 py-2.5 rounded-lg text-xs font-semibold cursor-pointer ' +
+            'inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold cursor-pointer ' +
             (props.photos.length >= 3
               ? 'bg-sand-mid text-ink-muted cursor-not-allowed'
               : 'bg-sand-mid text-ink-mid hover:bg-sand-border')
           }
         >
-          📷 {props.photos.length >= 3 ? 'Maximum atteint' : 'Ajouter des photos'}
+          <Camera size={14} />
+          {props.photos.length >= 3 ? 'Maximum atteint' : 'Ajouter des photos'}
         </label>
         {props.photos.length > 0 && (
           <div className="mt-2 space-y-1.5">
@@ -814,7 +823,9 @@ function Step3(props: {
       <p className="text-xs text-ink-mid">Non contractuel — FoxO confirmera sous 24h ouvrables.</p>
       {props.preSelected && (
         <div className="bg-ok-light border border-ok-mid rounded-lg px-3.5 py-2.5 text-[13px] text-ok flex justify-between items-center">
-          <span>✅ Créneau pré-sélectionné depuis le calendrier</span>
+          <span className="inline-flex items-center gap-1.5">
+            <CheckCircle2 size={14} /> Créneau pré-sélectionné depuis le calendrier
+          </span>
           <button
             type="button"
             onClick={props.onClear}
@@ -873,7 +884,16 @@ function Step4(props: {
         <Row label="Téléphone" value={props.telephone} mono />
         <Row label="Adresse" value={adresse} />
         <Row label="Type" value={props.type} />
-        <Row label="Priorité" value={props.priorite === 'urgente' ? '⚡ Urgente' : 'Normale'} />
+        <Row
+          label="Priorité"
+          value={
+            props.priorite === 'urgente' ? (
+              <span className="inline-flex items-center gap-1">
+                <Zap size={14} /> Urgente
+              </span>
+            ) : 'Normale'
+          }
+        />
         <Row label="Créneau" value={creneau} />
         {props.photoCount > 0 && <Row label="Photos" value={`${props.photoCount} jointe(s)`} />}
       </div>
@@ -898,7 +918,7 @@ function Step4(props: {
   );
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       <span className="text-[11px] text-ink-muted uppercase tracking-wider font-bold col-span-1">{label}</span>

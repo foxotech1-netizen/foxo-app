@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef } from 'react';
+import { Mail } from 'lucide-react';
 import { sendOtp, verifyOtp, type AuthState } from './actions';
 
 const initialState: AuthState = {};
@@ -42,7 +43,9 @@ export function LoginForm() {
     return (
       <form action={verifyAction} className="text-center">
         <input type="hidden" name="email" value={sentTo} />
-        <div className="text-3xl mb-2">✉️</div>
+        <div className="flex justify-center mb-2">
+          <Mail size={32} style={{ color: '#1B3A6B' }} />
+        </div>
         <h2 className="text-[15px] font-bold mb-1.5" style={{ color: '#1B3A6B' }}>
           Code envoyé
         </h2>
