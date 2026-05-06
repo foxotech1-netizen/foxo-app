@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { AlertTriangle, Bell, Check, CheckCircle2, Link2, RefreshCw, Save, X, XCircle } from 'lucide-react';
 import { setParametre } from '../facturation/actions';
 import { testSmsAction } from '../sms/actions';
 import {
@@ -103,7 +104,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
     if (typeof window !== 'undefined') {
       const sp = new URLSearchParams(window.location.search);
       const g = sp.get('google');
-      if (g === 'ok') setGoogleTestMsg({ kind: 'ok', msg: 'Compte Google connecté ✓' });
+      if (g === 'ok') setGoogleTestMsg({ kind: 'ok', msg: 'Compte Google connecté' });
       if (g === 'err') setGoogleTestMsg({ kind: 'err', msg: sp.get('msg') ?? 'Échec connexion Google' });
     }
     return () => { mounted = false; };
@@ -156,7 +157,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
       )}
 
       {/* Planning — couleurs */}
-      <Section title="🗓️ Couleurs du planning" desc="Couleurs des créneaux par type et par technicien. S'appliquent dans /admin/planning et sur les events Google Calendar (mappés sur le colorId le plus proche).">
+      <Section title="Couleurs du planning" desc="Couleurs des créneaux par type et par technicien. S'appliquent dans /admin/planning et sur les events Google Calendar (mappés sur le colorId le plus proche).">
         <PlanningCouleursPanel />
       </Section>
 
@@ -258,8 +259,9 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         </Row>
 
         {smsMode === 'auto' && (
-          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A]">
-            ⚠ Mode automatique actif — les SMS partent sans confirmation manuelle. Active uniquement les toggles ci-dessous quand tu es sûr du contenu.
+          <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3 text-[12px] text-[#8A5A1A] inline-flex items-start gap-1.5">
+            <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+            <span>Mode automatique actif — les SMS partent sans confirmation manuelle. Active uniquement les toggles ci-dessous quand tu es sûr du contenu.</span>
           </div>
         )}
 
@@ -370,7 +372,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                     }
                     startTransition(async () => {
                       const res = await testSmsAction({ to: testNumber, channel: testChannel });
-                      if (res.ok) setFeedback({ kind: 'ok', msg: 'Test envoyé ✓' });
+                      if (res.ok) setFeedback({ kind: 'ok', msg: 'Test envoyé' });
                       else setFeedback({ kind: 'err', msg: res.error });
                     });
                   }}
@@ -436,7 +438,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           <div className="text-[12px] text-ink-muted">Chargement du statut…</div>
         ) : googleStatus.connected ? (
           <div className="bg-ok-light border border-ok-mid rounded-lg p-3 text-[12px] text-ok">
-            ✓ Connecté en tant que <strong className="font-mono">{googleStatus.email ?? '—'}</strong>
+            <span className="inline-flex items-center gap-1.5"><Check size={14} />Connecté en tant que <strong className="font-mono">{googleStatus.email ?? '—'}</strong></span>
             {googleStatus.expiry && (
               <span className="block text-[10px] text-ink-muted mt-1">
                 Token expire : {new Date(googleStatus.expiry).toLocaleString('fr-BE')}
@@ -472,9 +474,9 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           ) : (
             <a
               href="/api/google/auth"
-              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center min-h-[44px]"
+              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[44px]"
             >
-              🔗 Connecter Google
+              <Link2 size={14} />Connecter Google
             </a>
           )}
 
@@ -498,7 +500,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                       const scopeIssue = data.scopes?.has_drive_file_only || (data.scopes?.missing?.length ?? 0) > 0;
                       setGoogleTestMsg(
                         allOk
-                          ? { kind: 'ok', msg: 'Drive : les 2 dossiers racines sont accessibles ✓' }
+                          ? { kind: 'ok', msg: 'Drive : les 2 dossiers racines sont accessibles' }
                           : scopeIssue
                             ? { kind: 'err', msg: 'Scopes OAuth insuffisants — déconnecte puis reconnecte Google pour ré-accorder les permissions complètes.' }
                             : { kind: 'err', msg: 'Drive : un ou plusieurs dossiers inaccessibles — voir détails ci-dessous.' },
@@ -518,7 +520,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                   setGoogleTestMsg(null);
                   startTransition(async () => {
                     const res = await testGmail();
-                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: `Gmail : ${res.data?.count ?? 0} messages récents accessibles ✓` });
+                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: `Gmail : ${res.data?.count ?? 0} messages récents accessibles` });
                     else setGoogleTestMsg({ kind: 'err', msg: res.error });
                   });
                 }}
@@ -532,7 +534,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                   setGoogleTestMsg(null);
                   startTransition(async () => {
                     const res = await testGoogleCalendar();
-                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: `Calendar : ${res.data?.count ?? 0} événements aujourd'hui ✓` });
+                    if (res.ok) setGoogleTestMsg({ kind: 'ok', msg: `Calendar : ${res.data?.count ?? 0} événements aujourd'hui` });
                     else setGoogleTestMsg({ kind: 'err', msg: res.error });
                   });
                 }}
@@ -557,7 +559,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
 
         {driveTest?.scopes && driveTest.scopes.has_drive_file_only && (
           <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg p-3 text-[12px]">
-            <div className="font-bold mb-1">⚠ Scope Drive insuffisant : <code>drive.file</code> au lieu de <code>drive</code></div>
+            <div className="font-bold mb-1 inline-flex items-center gap-1.5"><AlertTriangle size={14} />Scope Drive insuffisant : <code>drive.file</code> au lieu de <code>drive</code></div>
             <p className="leading-relaxed">
               Ton token Google n&apos;a accès qu&apos;aux fichiers créés par l&apos;app — pas aux dossiers existants.
               Clique <strong>Déconnecter</strong> puis <strong>Connecter Google</strong> à nouveau et accepte
@@ -568,7 +570,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
 
         {driveTest?.scopes && driveTest.scopes.missing.length > 0 && (
           <div className="mt-3 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg p-3 text-[12px]">
-            <div className="font-bold mb-1">⚠ Scopes manquants ({driveTest.scopes.missing.length})</div>
+            <div className="font-bold mb-1 inline-flex items-center gap-1.5"><AlertTriangle size={14} />Scopes manquants ({driveTest.scopes.missing.length})</div>
             <ul className="list-disc list-inside font-mono text-[11px]">
               {driveTest.scopes.missing.map((s) => <li key={s}>{s}</li>)}
             </ul>
@@ -602,7 +604,10 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         />
         {mailAutoAnalyse && (
           <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px]">
-            ⚠ Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (scope <code>gmail.readonly</code>) et fais un test à blanc :
+            <div className="inline-flex items-start gap-1.5">
+              <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+              <span>Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (scope <code>gmail.readonly</code>) et fais un test à blanc :</span>
+            </div>
             <code className="block mt-1 font-mono text-[10px] break-all">
               GET /api/cron/check-mails/preview?secret={'<CRON_SECRET>'}
             </code>
@@ -670,7 +675,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
               const res = await subscribeCalendarWatchAction();
               if (!res.ok) { setWatchMsg({ kind: 'err', msg: res.error }); return; }
               setWatch(res.data ?? null);
-              setWatchMsg({ kind: 'ok', msg: 'Subscription créée ✓' });
+              setWatchMsg({ kind: 'ok', msg: 'Subscription créée' });
             });
           }}
           onRenew={() => {
@@ -679,7 +684,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
               const res = await renewCalendarWatchAction();
               if (!res.ok) { setWatchMsg({ kind: 'err', msg: res.error }); return; }
               setWatch(res.data ?? null);
-              setWatchMsg({ kind: 'ok', msg: 'Subscription renouvelée ✓' });
+              setWatchMsg({ kind: 'ok', msg: 'Subscription renouvelée' });
             });
           }}
           onUnsubscribe={() => {
@@ -689,7 +694,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
               const res = await unsubscribeCalendarWatchAction();
               if (!res.ok) { setWatchMsg({ kind: 'err', msg: res.error }); return; }
               setWatch(res.data ?? null);
-              setWatchMsg({ kind: 'ok', msg: 'Subscription désactivée ✓' });
+              setWatchMsg({ kind: 'ok', msg: 'Subscription désactivée' });
             });
           }}
         />
@@ -727,24 +732,24 @@ function CalendarWatchPanel({
     if (watch.status === 'active') {
       return {
         cls: 'bg-ok-light border-ok-mid text-ok',
-        text: <>✅ Active — expire le <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong></>,
+        text: <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} />Active — expire le <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong></span>,
       };
     }
     if (watch.status === 'expiring_soon') {
       return {
         cls: 'bg-amber-light border-[#E8C896] text-[#8A5A1A]',
-        text: <>⚠️ Expire dans moins de 24h — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Le cron quotidien renouvellera automatiquement.</>,
+        text: <span className="inline-flex items-center gap-1.5"><AlertTriangle size={14} />Expire dans moins de 24h — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Le cron quotidien renouvellera automatiquement.</span>,
       };
     }
     if (watch.status === 'expired') {
       return {
         cls: 'bg-terra-light border-terra-mid text-terra',
-        text: <>❌ Expirée — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</>,
+        text: <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Expirée — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</span>,
       };
     }
     return {
       cls: 'bg-sand-mid border-sand-border text-ink-mid dark:bg-[rgba(255,255,255,.04)]',
-      text: <>❌ Inactive — aucun push Calendar ne sera reçu tant qu&apos;une subscription n&apos;est pas créée.</>,
+      text: <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Inactive — aucun push Calendar ne sera reçu tant qu&apos;une subscription n&apos;est pas créée.</span>,
     };
   })();
 
@@ -760,9 +765,9 @@ function CalendarWatchPanel({
             type="button"
             onClick={onSubscribe}
             disabled={pending}
-            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
           >
-            🔔 Activer la subscription push
+            <Bell size={14} />Activer la subscription push
           </button>
         ) : (
           <>
@@ -770,17 +775,17 @@ function CalendarWatchPanel({
               type="button"
               onClick={onRenew}
               disabled={pending}
-              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
             >
-              ↻ Renouveler maintenant
+              <RefreshCw size={14} />Renouveler maintenant
             </button>
             <button
               type="button"
               onClick={onUnsubscribe}
               disabled={pending}
-              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+              className="bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
             >
-              ✕ Désactiver
+              <X size={14} />Désactiver
             </button>
           </>
         )}
@@ -877,7 +882,7 @@ function PlanningCouleursPanel() {
         setMsg({ kind: 'err', msg: data.error ?? 'Échec sauvegarde.' });
         return;
       }
-      setMsg({ kind: 'ok', msg: '✓ Couleurs enregistrées.' });
+      setMsg({ kind: 'ok', msg: 'Couleurs enregistrées.' });
     } catch (e) {
       setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -996,9 +1001,9 @@ function PlanningCouleursPanel() {
           type="button"
           onClick={saveAll}
           disabled={saving}
-          className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
+          className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
         >
-          {saving ? 'Enregistrement…' : '💾 Sauvegarder tout'}
+          {saving ? 'Enregistrement…' : <><Save size={14} />Sauvegarder tout</>}
         </button>
         <button
           type="button"
@@ -1058,14 +1063,14 @@ function DriveFolderCard({
 }) {
   const ok = status.ok;
   const headline = ok
-    ? `✅ Dossier accessible : ${status.name ?? '(sans nom)'}`
+    ? <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} />Dossier accessible : {status.name ?? '(sans nom)'}</span>
     : status.status === 404
-      ? '❌ Dossier introuvable (404)'
+      ? <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Dossier introuvable (404)</span>
       : status.status === 403
-        ? '❌ Erreur d\'accès (403)'
+        ? <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Erreur d&apos;accès (403)</span>
         : status.trashed
-          ? `❌ Dossier dans la corbeille : ${status.name ?? ''}`
-          : `❌ ${status.error ?? 'Inaccessible'}`;
+          ? <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Dossier dans la corbeille : {status.name ?? ''}</span>
+          : <span className="inline-flex items-center gap-1.5"><XCircle size={14} />{status.error ?? 'Inaccessible'}</span>;
   return (
     <div className={
       'rounded-lg border p-3 text-[12px] ' +
