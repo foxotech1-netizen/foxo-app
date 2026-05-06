@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
 import { categorieComptable } from '@/lib/types/database';
 import { NoteFraisDrawer } from './NoteFraisDrawer';
@@ -93,9 +94,10 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
         <button
           type="button"
           onClick={() => alert('Drawer de création à implémenter dans le prochain sprint.')}
-          className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90"
+          className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90 inline-flex items-center gap-1.5"
         >
-          ➕ Nouvelle note
+          <Plus size={14} />
+          Nouvelle note
         </button>
       </header>
 

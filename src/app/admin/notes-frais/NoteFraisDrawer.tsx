@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Send, CheckCircle2, XCircle, Banknote, RefreshCw, X, Search, Trash2, type LucideIcon } from 'lucide-react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
 import { deleteNoteFrais, updateStatutNoteFrais } from './actions';
 
@@ -46,19 +47,26 @@ function fmtMoney(n: number | null | undefined): string {
 
 // Ordre des transitions disponibles selon le statut courant. Une note
 // remboursée n'a plus de transition → bouton "fermé" affiché.
-function nextTransitions(s: StatutNoteFrais): { to: StatutNoteFrais; label: string; color: string }[] {
+type TransitionDef = {
+  to: StatutNoteFrais;
+  label: string;
+  color: string;
+  Icon: LucideIcon;
+};
+
+function nextTransitions(s: StatutNoteFrais): TransitionDef[] {
   switch (s) {
     case 'brouillon':
-      return [{ to: 'soumise', label: '📤 Soumettre', color: 'navy' }];
+      return [{ to: 'soumise', label: 'Soumettre', color: 'navy', Icon: Send }];
     case 'soumise':
       return [
-        { to: 'approuvee', label: '✅ Approuver', color: 'ok' },
-        { to: 'rejetee',   label: '❌ Rejeter',   color: 'terra' },
+        { to: 'approuvee', label: 'Approuver', color: 'ok',    Icon: CheckCircle2 },
+        { to: 'rejetee',   label: 'Rejeter',   color: 'terra', Icon: XCircle },
       ];
     case 'approuvee':
-      return [{ to: 'remboursee', label: '💸 Rembourser', color: 'navy' }];
+      return [{ to: 'remboursee', label: 'Rembourser', color: 'navy', Icon: Banknote }];
     case 'rejetee':
-      return [{ to: 'brouillon', label: '🔄 Remettre en brouillon', color: 'navy' }];
+      return [{ to: 'brouillon', label: 'Remettre en brouillon', color: 'navy', Icon: RefreshCw }];
     case 'remboursee':
       return [];
   }
@@ -149,7 +157,7 @@ export function NoteFraisDrawer({
         date_depense:  updated.date_depense,
         description:   updated.description,
       });
-      setFeedback({ kind: 'ok', msg: `Extraction réussie ✓ (confiance ${Math.round((updated.ia_confiance ?? 0) * 100)}%)` });
+      setFeedback({ kind: 'ok', msg: `Extraction réussie (confiance ${Math.round((updated.ia_confiance ?? 0) * 100)}%)` });
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -181,10 +189,10 @@ export function NoteFraisDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="text-ink-muted hover:text-ink text-[18px] leading-none px-2"
+            className="text-ink-muted hover:text-ink leading-none px-2"
             aria-label="Fermer"
           >
-            ✕
+            <X size={16} />
           </button>
         </header>
 
@@ -301,9 +309,16 @@ export function NoteFraisDrawer({
                   type="button"
                   onClick={handleExtract}
                   disabled={extracting || !note.photo_url}
-                  className="w-full mt-3 bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                  className="w-full mt-3 bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                 >
-                  {extracting ? 'Extraction en cours…' : note.ia_raw ? '🔍 Re-extraire' : '🔍 Extraire'}
+                  {extracting ? (
+                    'Extraction en cours…'
+                  ) : (
+                    <>
+                      <Search size={14} />
+                      {note.ia_raw ? 'Re-extraire' : 'Extraire'}
+                    </>
+                  )}
                 </button>
               </div>
             </>
@@ -351,24 +366,32 @@ export function NoteFraisDrawer({
                     Aucune transition disponible — note remboursée.
                   </p>
                 ) : (
-                  nextTransitions(note.statut).map((t) => (
-                    <button
-                      key={t.to}
-                      type="button"
-                      onClick={() => transitionStatut(t.to)}
-                      disabled={saving}
-                      className={
-                        'w-full px-3 py-2 rounded-md text-[12px] font-bold text-white hover:opacity-90 disabled:opacity-50 ' +
-                        (t.color === 'ok'
-                          ? 'bg-ok'
-                          : t.color === 'terra'
-                            ? 'bg-terra'
-                            : 'bg-navy')
-                      }
-                    >
-                      {saving ? '…' : t.label}
-                    </button>
-                  ))
+                  nextTransitions(note.statut).map((t) => {
+                    const Icon = t.Icon;
+                    return (
+                      <button
+                        key={t.to}
+                        type="button"
+                        onClick={() => transitionStatut(t.to)}
+                        disabled={saving}
+                        className={
+                          'w-full px-3 py-2 rounded-md text-[12px] font-bold text-white hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5 ' +
+                          (t.color === 'ok'
+                            ? 'bg-ok'
+                            : t.color === 'terra'
+                              ? 'bg-terra'
+                              : 'bg-navy')
+                        }
+                      >
+                        {saving ? '…' : (
+                          <>
+                            <Icon size={14} />
+                            {t.label}
+                          </>
+                        )}
+                      </button>
+                    );
+                  })
                 )}
               </div>
 
@@ -377,9 +400,10 @@ export function NoteFraisDrawer({
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="w-full px-3 py-2 rounded-md text-[12px] font-bold text-terra border border-terra-mid bg-terra-light hover:opacity-80 disabled:opacity-50"
+                  className="w-full px-3 py-2 rounded-md text-[12px] font-bold text-terra border border-terra-mid bg-terra-light hover:opacity-80 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                 >
-                  🗑 Supprimer (soft-delete)
+                  <Trash2 size={14} />
+                  Supprimer (soft-delete)
                 </button>
               </div>
             </>
