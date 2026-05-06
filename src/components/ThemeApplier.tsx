@@ -27,9 +27,11 @@ function toCssVar(k: string): string {
 function detectPortal(pathname: string): keyof typeof portalDefaults {
   if (pathname.startsWith('/tech')) return 'tech';
   if (pathname.startsWith('/portal')) return 'portal';
-  // /rdv est une page publique servie sur portal.foxo.be (cf. proxy.ts)
-  // — hérite du thème portal (foxo-blue), pas du défaut admin.
+  // /rdv (landing RDV publique) et /o/[token] (confirmation occupant via
+  // lien email) sont servies sur portal.foxo.be (cf. proxy.ts) — héritent
+  // du thème portal (foxo-blue), pas du défaut admin.
   if (pathname.startsWith('/rdv')) return 'portal';
+  if (pathname.startsWith('/o/')) return 'portal';
   return 'admin';
 }
 
@@ -169,6 +171,7 @@ export const THEME_INIT_SCRIPT = `(function(){
     var portal = path.indexOf('/tech') === 0 ? 'tech'
                : path.indexOf('/portal') === 0 ? 'portal'
                : path.indexOf('/rdv') === 0 ? 'portal'
+               : path.indexOf('/o/') === 0 ? 'portal'
                : 'admin';
     var stored = null;
     try { stored = localStorage.getItem('${STORAGE_KEY}'); } catch (e) {}
