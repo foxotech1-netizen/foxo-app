@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { CreditCard } from 'lucide-react';
 import { QrPaiement } from '@/components/QrPaiement';
 
 type FactureLite = {
@@ -51,9 +52,9 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
           type="button"
           onClick={loadFacture}
           disabled={loading}
-          className="w-full bg-navy text-white px-4 py-3 rounded-md text-[13px] font-bold hover:bg-navy-mid disabled:opacity-60 disabled:cursor-wait transition"
+          className="w-full bg-navy text-white px-4 py-3 rounded-md text-[13px] font-bold hover:bg-navy-mid disabled:opacity-60 disabled:cursor-wait transition inline-flex items-center justify-center gap-1.5"
         >
-          {loading ? 'Génération en cours…' : '💳 Paiement sur place'}
+          {loading ? 'Génération en cours…' : <><CreditCard size={14} />Paiement sur place</>}
         </button>
       )}
 

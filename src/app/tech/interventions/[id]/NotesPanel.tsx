@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Check, MessageCircle, Save } from 'lucide-react';
 
 const STORE_KEY = (id: string) => `foxo_tech_notes_${id}`;
 
@@ -102,23 +103,23 @@ export function NotesPanel({
   }, [interventionId]);
 
   const dirty = text !== lastSentRef.current;
-  const status = pendingSync
-    ? '💾 Sauvegarde…'
+  const status: React.ReactNode = pendingSync
+    ? <span className="inline-flex items-center gap-1"><Save size={10} />Sauvegarde…</span>
     : error
-      ? `⚠️ ${error} (sauvegardé localement)`
+      ? <span className="inline-flex items-center gap-1"><AlertTriangle size={10} />{error} (sauvegardé localement)</span>
       : dirty
         ? '… modifications en attente'
         : savedAt
-          ? `✓ Sauvegardé ${new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}`
+          ? <span className="inline-flex items-center gap-1"><Check size={10} />Sauvegardé {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
           : initial
-            ? '✓ Synchronisé'
+            ? <span className="inline-flex items-center gap-1"><Check size={10} />Synchronisé</span>
             : '';
 
   return (
     <section className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
-          💬 Notes technicien
+        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8] inline-flex items-center gap-1.5">
+          <MessageCircle size={12} />Notes technicien
         </div>
         <span className={
           'text-[10px] font-semibold ' +

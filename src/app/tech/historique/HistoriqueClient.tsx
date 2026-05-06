@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { Camera, ClipboardList, FileEdit, Zap } from 'lucide-react';
 import { StatutBadge } from '@/components/StatutBadge';
 import type { PrioriteIntervention, StatutIntervention } from '@/lib/types/database';
 
@@ -69,7 +70,7 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
   return (
     <div className="space-y-3">
       <header>
-        <h1 className="text-xl font-extrabold text-ink">📋 Historique</h1>
+        <h1 className="text-xl font-extrabold text-ink inline-flex items-center gap-2"><ClipboardList size={18} />Historique</h1>
         <p className="text-[11px] text-ink-muted mt-1">{rows.length} intervention{rows.length !== 1 ? 's' : ''} au total</p>
       </header>
 
@@ -135,8 +136,8 @@ function MissionCard({ m }: { m: MissionRow }) {
             {fmtDate(m.creneau_debut ?? m.updated_at)}
           </span>
           {m.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-              ⚡
+            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 inline-flex items-center">
+              <Zap size={10} />
             </span>
           )}
         </div>
@@ -151,10 +152,10 @@ function MissionCard({ m }: { m: MissionRow }) {
       <div className="flex items-center gap-3 mt-1.5 text-[10px] text-ink-muted dark:text-[#C8C2B8]">
         {m.type && <span>{m.type}</span>}
         {m.photo_count > 0 && (
-          <span className="font-bold">📸 {m.photo_count}</span>
+          <span className="font-bold inline-flex items-center gap-1"><Camera size={12} />{m.photo_count}</span>
         )}
         {m.has_rapport && (
-          <span className="font-bold text-ok dark:text-[#7AC9A0]">📝 rapport</span>
+          <span className="font-bold text-ok dark:text-[#7AC9A0] inline-flex items-center gap-1"><FileEdit size={12} />rapport</span>
         )}
       </div>
     </Link>

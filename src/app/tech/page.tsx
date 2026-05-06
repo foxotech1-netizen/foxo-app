@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Check, Circle, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDateTime, todayLong } from '@/lib/format';
@@ -108,7 +109,7 @@ export default async function TechHome() {
     <div className="space-y-5">
       <header>
         <h1 className="text-xl font-extrabold text-ink">
-          Bonjour {u.prenom ?? ''} 👋
+          Bonjour {u.prenom ?? ''}
         </h1>
         <p className="text-[11px] text-ink-muted capitalize mt-1">{todayLong()}</p>
         <p className="text-xs text-ink-mid mt-1">
@@ -158,18 +159,18 @@ function MissionCard({ m }: { m: Mission }) {
             {m.ref ?? '—'}
           </span>
           {m.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-              ⚡ URGENT
+            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 inline-flex items-center gap-1">
+              <Zap size={10} />URGENT
             </span>
           )}
           {inProgress && (
-            <span className="text-[9px] font-bold text-ok bg-ok-light border border-ok-mid rounded-full px-1.5 py-0.5">
-              ● EN COURS
+            <span className="text-[9px] font-bold text-ok bg-ok-light border border-ok-mid rounded-full px-1.5 py-0.5 inline-flex items-center gap-1">
+              <Circle size={8} fill="currentColor" />EN COURS
             </span>
           )}
           {done && (
-            <span className="text-[9px] font-bold text-navy bg-navy-pale border border-navy-light rounded-full px-1.5 py-0.5">
-              ✓ TERMINÉE
+            <span className="text-[9px] font-bold text-navy bg-navy-pale border border-navy-light rounded-full px-1.5 py-0.5 inline-flex items-center gap-1">
+              <Check size={10} />TERMINÉE
             </span>
           )}
         </div>

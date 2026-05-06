@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { MapPin, Phone, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fmtDateTime } from '@/lib/format';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
@@ -70,8 +71,8 @@ export default async function TechInterventionPage({
         <div className="flex items-center gap-2 flex-wrap mb-1.5">
           <span className="font-mono text-[11px] text-ink-muted">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-              ⚡ URGENT
+            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 inline-flex items-center gap-1">
+              <Zap size={10} />URGENT
             </span>
           )}
         </div>
@@ -80,7 +81,7 @@ export default async function TechInterventionPage({
           {[acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—'}
         </div>
         {iv.adresse && (
-          <div className="text-xs text-navy font-semibold mt-1">📍 {iv.adresse}</div>
+          <div className="text-xs text-navy font-semibold mt-1 inline-flex items-center gap-1.5"><MapPin size={12} />{iv.adresse}</div>
         )}
         {iv.creneau_debut && (
           <div className="text-[11px] text-ink-muted mt-2 font-mono capitalize">
@@ -135,9 +136,10 @@ export default async function TechInterventionPage({
                 {o.telephone && (
                   <a
                     href={`tel:${o.telephone}`}
-                    className="bg-sand-mid text-navy px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-sand-border"
+                    className="bg-sand-mid text-navy px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-sand-border inline-flex items-center"
+                    aria-label="Appeler"
                   >
-                    📞
+                    <Phone size={14} />
                   </a>
                 )}
               </div>

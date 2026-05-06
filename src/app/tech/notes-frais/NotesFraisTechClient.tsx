@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Camera, Plus, Save, Send } from 'lucide-react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
 import { categorieComptable } from '@/lib/types/database';
 
@@ -157,7 +158,7 @@ export function NotesFraisTechClient({
       setNotes((prev) => [created, ...prev]);
       resetForm();
       setShowForm(false);
-      setFeedback({ kind: 'ok', msg: 'Note enregistrée en brouillon ✓' });
+      setFeedback({ kind: 'ok', msg: 'Note enregistrée en brouillon' });
       router.refresh();
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
@@ -177,7 +178,7 @@ export function NotesFraisTechClient({
         return;
       }
       setNotes((prev) => prev.map((n) => n.id === id ? { ...n, statut: 'soumise' as StatutNoteFrais } : n));
-      setFeedback({ kind: 'ok', msg: 'Note soumise pour validation ✓' });
+      setFeedback({ kind: 'ok', msg: 'Note soumise pour validation' });
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -200,9 +201,9 @@ export function NotesFraisTechClient({
           <button
             type="button"
             onClick={() => { resetForm(); setShowForm(true); }}
-            className="bg-navy text-white px-3 py-2.5 rounded-lg text-[12px] font-bold hover:opacity-90"
+            className="bg-navy text-white px-3 py-2.5 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5"
           >
-            ➕ Nouvelle
+            <Plus size={14} />Nouvelle
           </button>
         )}
       </header>
@@ -319,7 +320,7 @@ export function NotesFraisTechClient({
               />
             ) : (
               <label className="flex flex-col items-center justify-center w-full py-6 border-2 border-dashed border-sand-border rounded-lg bg-white text-center cursor-pointer hover:bg-sand-hover dark:bg-[#221E1A] dark:border-[#2C2A24]">
-                <span className="text-[24px]">📷</span>
+                <Camera size={24} className="text-ink-mid dark:text-[#C8C2B8]" />
                 <span className="text-[12px] text-ink-mid mt-1 dark:text-[#C8C2B8]">
                   {uploading ? 'Upload en cours…' : 'Toucher pour ajouter une photo'}
                 </span>
@@ -361,9 +362,9 @@ export function NotesFraisTechClient({
               type="button"
               onClick={handleCreate}
               disabled={submitting || uploading}
-              className="flex-[2] px-3 py-3 rounded-lg text-[13px] font-bold bg-navy text-white disabled:opacity-50"
+              className="flex-[2] px-3 py-3 rounded-lg text-[13px] font-bold bg-navy text-white disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
-              {submitting ? '…' : '💾 Enregistrer en brouillon'}
+              {submitting ? '…' : <><Save size={14} />Enregistrer en brouillon</>}
             </button>
           </div>
         </section>
@@ -372,7 +373,7 @@ export function NotesFraisTechClient({
       {/* Liste des notes */}
       {notes.length === 0 && !showForm ? (
         <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center text-[13px] text-ink-muted dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
-          Aucune note pour l&apos;instant. Touche « ➕ Nouvelle » pour ajouter une dépense.
+          Aucune note pour l&apos;instant. Touche « Nouvelle » pour ajouter une dépense.
         </div>
       ) : (
         <div className="space-y-2">
@@ -419,9 +420,9 @@ export function NotesFraisTechClient({
                       type="button"
                       onClick={() => handleSubmitOne(n.id)}
                       disabled={isSubmitting}
-                      className="bg-navy text-white px-3 py-1.5 rounded-md text-[11px] font-bold hover:opacity-90 disabled:opacity-50"
+                      className="bg-navy text-white px-3 py-1.5 rounded-md text-[11px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
                     >
-                      {isSubmitting ? '…' : '📤 Soumettre'}
+                      {isSubmitting ? '…' : <><Send size={12} />Soumettre</>}
                     </button>
                   )}
                 </div>

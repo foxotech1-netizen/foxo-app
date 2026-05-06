@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Camera, Send, WifiOff } from 'lucide-react';
 
 export type Photo = { name: string; url: string; createdAt: string | null };
 
@@ -216,14 +217,14 @@ export function PhotosPanel({
       </div>
 
       {!online && (
-        <div className="text-[11px] bg-amber-light text-[#8A5A1A] border border-[#E8C896] rounded-md px-3 py-2 mb-2 font-semibold">
-          📵 Hors ligne — les photos seront uploadées automatiquement au retour du réseau.
+        <div className="text-[11px] bg-amber-light text-[#8A5A1A] border border-[#E8C896] rounded-md px-3 py-2 mb-2 font-semibold inline-flex items-center gap-1.5">
+          <WifiOff size={12} />Hors ligne — les photos seront uploadées automatiquement au retour du réseau.
         </div>
       )}
 
       {queueCount > 0 && (
         <div className="text-[11px] bg-navy-pale text-navy border border-navy-light rounded-md px-3 py-2 mb-2 font-semibold flex items-center justify-between">
-          <span>📤 {queueCount} photo{queueCount > 1 ? 's' : ''} en attente d&apos;envoi</span>
+          <span className="inline-flex items-center gap-1.5"><Send size={12} />{queueCount} photo{queueCount > 1 ? 's' : ''} en attente d&apos;envoi</span>
           {online && (
             <button
               type="button"
@@ -257,7 +258,7 @@ export function PhotosPanel({
       >
         {uploading
           ? `Upload ${progress.done}/${progress.total}…`
-          : '📸 Prendre des photos'}
+          : <span className="inline-flex items-center justify-center gap-1.5"><Camera size={18} />Prendre des photos</span>}
       </label>
 
       {error && (
