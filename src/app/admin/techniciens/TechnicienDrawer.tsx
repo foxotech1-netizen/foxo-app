@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { Ban, Check, Clock, Save, X } from 'lucide-react';
 import type { StatutIntervention, Utilisateur } from '@/lib/types/database';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDateTime } from '@/lib/format';
@@ -46,7 +47,7 @@ export function TechnicienDrawer({
       }
       const updated = res.data as Utilisateur;
       onUpdated(updated);
-      setFeedback({ kind: 'ok', msg: 'Modifications enregistrées ✓' });
+      setFeedback({ kind: 'ok', msg: 'Modifications enregistrées' });
     });
   }
 
@@ -68,7 +69,7 @@ export function TechnicienDrawer({
       const updated = res.data as Utilisateur;
       setActif(updated.actif);
       onUpdated(updated);
-      setFeedback({ kind: 'ok', msg: next ? 'Technicien réactivé ✓' : 'Technicien désactivé ✓' });
+      setFeedback({ kind: 'ok', msg: next ? 'Technicien réactivé' : 'Technicien désactivé' });
     });
   }
 
@@ -99,8 +100,9 @@ export function TechnicienDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
-            >✕</button>
+              className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] inline-flex items-center justify-center"
+              aria-label="Fermer"
+            ><X size={16} /></button>
           </div>
         </header>
 
@@ -116,7 +118,9 @@ export function TechnicienDrawer({
                   : 'text-ink-muted border-transparent hover:text-ink-mid dark:text-[#C8C2B8]'
               }`}
             >
-              {t === 'profil' ? 'Profil' : '🕘 Historique'}
+              {t === 'profil' ? 'Profil' : (
+                <span className="inline-flex items-center gap-1.5"><Clock size={12} />Historique</span>
+              )}
             </button>
           ))}
         </nav>
@@ -201,7 +205,11 @@ export function TechnicienDrawer({
                       : 'bg-ok-light text-ok border border-ok-mid')
                   }
                 >
-                  {actif ? '🚫 Désactiver' : '✓ Réactiver'}
+                  {actif ? (
+                    <span className="inline-flex items-center gap-1.5"><Ban size={12} />Désactiver</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5"><Check size={12} />Réactiver</span>
+                  )}
                 </button>
                 <div className="flex gap-2">
                   <button
@@ -218,7 +226,9 @@ export function TechnicienDrawer({
                     disabled={pending}
                     className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-50"
                   >
-                    {pending ? '…' : '💾 Enregistrer'}
+                    {pending ? '…' : (
+                      <span className="inline-flex items-center gap-1.5"><Save size={12} />Enregistrer</span>
+                    )}
                   </button>
                 </div>
               </div>

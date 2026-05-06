@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
+import { Ban, Circle, Plus, X } from 'lucide-react';
 import type { Utilisateur } from '@/lib/types/database';
 import { createTech } from './actions';
 import { TechnicienDrawer } from './TechnicienDrawer';
@@ -113,7 +114,7 @@ export function TechniciensClient({
       setOpen(false);
       setColor(DEFAULT_COLOR);
       setInviteBanner(
-        `✅ ${created.prenom ?? ''} ${created.nom ?? ''} créé. ⚠️ Pense à l'inviter via Supabase Auth (Authentication → Users → Invite user) sinon il ne pourra pas se connecter sur tech.foxo.be.`
+        `${created.prenom ?? ''} ${created.nom ?? ''} créé. Pense à l'inviter via Supabase Auth (Authentication → Users → Invite user) sinon il ne pourra pas se connecter sur tech.foxo.be.`
       );
     });
   }
@@ -132,9 +133,9 @@ export function TechniciensClient({
         </div>
         <button
           onClick={() => { setOpen(true); setError(null); }}
-          className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold tracking-wider hover:bg-navy-mid"
+          className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold tracking-wider hover:bg-navy-mid inline-flex items-center gap-1.5"
         >
-          + Ajouter un technicien
+          <Plus size={14} />Ajouter un technicien
         </button>
       </header>
 
@@ -238,9 +239,10 @@ export function TechniciensClient({
               <button
                 onClick={() => { if (!pending) { setOpen(false); setColor(DEFAULT_COLOR); } }}
                 disabled={pending}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50"
+                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50 inline-flex items-center justify-center"
+                aria-label="Fermer"
               >
-                ✕
+                <X size={16} />
               </button>
             </div>
 
@@ -314,19 +316,31 @@ export function TechniciensClient({
 
 function StatusCell({ status, now }: { status: TechStatus; now: number }) {
   if (status.kind === 'disabled') {
-    return <span className="text-ink-muted line-through">🚫 Désactivé</span>;
-  }
-  if (status.kind === 'online') {
-    return <span className="text-ok font-semibold">🟢 En ligne</span>;
-  }
-  if (status.kind === 'offline') {
     return (
-      <span className="text-ink-muted">
-        ⚫ Hors ligne <span className="text-ink-muted/80">({formatRelative(status.lastSeenAt, now)})</span>
+      <span className="text-ink-muted line-through inline-flex items-center gap-1.5">
+        <Ban size={12} />Désactivé
       </span>
     );
   }
-  return <span className="text-ink-muted">⚫ Jamais connecté</span>;
+  if (status.kind === 'online') {
+    return (
+      <span className="text-ok font-semibold inline-flex items-center gap-1.5">
+        <Circle size={12} className="fill-ok text-ok" />En ligne
+      </span>
+    );
+  }
+  if (status.kind === 'offline') {
+    return (
+      <span className="text-ink-muted inline-flex items-center gap-1.5">
+        <Circle size={12} className="fill-ink-muted text-ink-muted" />Hors ligne <span className="text-ink-muted/80">({formatRelative(status.lastSeenAt, now)})</span>
+      </span>
+    );
+  }
+  return (
+    <span className="text-ink-muted inline-flex items-center gap-1.5">
+      <Circle size={12} className="fill-ink-muted text-ink-muted" />Jamais connecté
+    </span>
+  );
 }
 
 function Field({
