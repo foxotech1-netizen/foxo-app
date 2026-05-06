@@ -23,7 +23,7 @@ export default async function PortalDashboard() {
         <h1 className="text-xl font-extrabold text-ink mb-2">Compte non lié</h1>
         <p className="text-sm text-ink-mid leading-relaxed max-w-md mx-auto">
           L&apos;adresse <strong>{user.email}</strong> n&apos;est pas encore associée
-          à un syndic ou un courtier dans nos fichiers. Contactez{' '}
+          à un syndic, un courtier ou un expert dans nos fichiers. Contactez{' '}
           <a href="mailto:info@foxo.be" className="text-[#60A5FA] underline">info@foxo.be</a>{' '}
           pour finaliser l&apos;ouverture de votre compte.
         </p>
