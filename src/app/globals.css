@@ -139,6 +139,75 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Premium UI tokens — design tokens partagés admin / tech / portal
+   pour le langage visuel "premium B2B" (cards à élévation, KPI Syne,
+   row-hover discret). Certaines clés (--card-bg, --card-border) sont
+   ré-injectées dynamiquement par ThemeApplier sur <html> selon le
+   thème actif ; les valeurs :root ci-dessous servent de fallback
+   avant l'application du thème (évite le FOUC) et restent utilisables
+   via var(--card-bg, fallback).
+   ───────────────────────────────────────────────────────────────────── */
+:root {
+  --page-bg:           #F0EDE8;
+  --card-radius:       12px;
+  --card-shadow:       0 1px 4px rgba(26, 25, 22, 0.06);
+  --card-shadow-hover: 0 8px 24px rgba(26, 25, 22, 0.10);
+  --text-primary:      #1A1916;
+  --text-secondary:    #6B6760;
+  --text-muted:        #9A9690;
+  /* Accents stables par portail — distincts de --accent (dynamique
+     selon le thème). Sert pour les barres en haut des KPI cards et
+     les badges contextualisés (mail/syndic/tech). */
+  --accent-admin:      #C8924A;
+  --accent-tech:       #34D399;
+  --accent-portal:     #60A5FA;
+}
+
+.premium-card {
+  background: var(--card-bg, #FFFFFF);
+  border: 1px solid var(--card-border, #E6E2DC);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.premium-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.section-title {
+  font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+}
+
+.kpi-value {
+  font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.row-hover {
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+.row-hover:hover {
+  background: #F7F5F2;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Hub tiles — partagé entre /app-hub (landing publique) et /go-hub
    (accès interne). Glassmorphism premium sur fond navy : tuile semi-
    transparente avec backdrop-filter blur, hover lumineux + élévation,
