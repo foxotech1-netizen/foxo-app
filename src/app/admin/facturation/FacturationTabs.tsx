@@ -2,22 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { LucideIcon } from 'lucide-react';
+import {
+  FileText,
+  ClipboardList,
+  FileEdit,
+  Receipt,
+  CreditCard,
+  Bell,
+  Package,
+  BarChart3,
+} from 'lucide-react';
 
 interface Tab {
   href: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
   exact?: boolean;     // si true, n'active que sur match exact (sinon prefix)
 }
 const TABS: readonly Tab[] = [
-  { href: '/admin/facturation',              icon: '📄', label: 'Factures',         exact: true },
-  { href: '/admin/facturation/devis',        icon: '📋', label: 'Devis'            },
-  { href: '/admin/facturation/notes-credit', icon: '📝', label: 'Notes de crédit'  },
-  { href: '/admin/notes-frais',              icon: '🧾', label: 'Notes de frais'   },
-  { href: '/admin/facturation/paiements',    icon: '💳', label: 'Paiements'        },
-  { href: '/admin/facturation/rappels',      icon: '🔔', label: 'Rappels'          },
-  { href: '/admin/articles',                 icon: '📦', label: 'Catalogue'        },
-  { href: '/admin/facturation/export',       icon: '📊', label: 'Export comptable' },
+  { href: '/admin/facturation',              icon: FileText,        label: 'Factures',         exact: true },
+  { href: '/admin/facturation/devis',        icon: ClipboardList,   label: 'Devis'            },
+  { href: '/admin/facturation/notes-credit', icon: FileEdit,        label: 'Notes de crédit'  },
+  { href: '/admin/notes-frais',              icon: Receipt,         label: 'Notes de frais'   },
+  { href: '/admin/facturation/paiements',    icon: CreditCard,      label: 'Paiements'        },
+  { href: '/admin/facturation/rappels',      icon: Bell,            label: 'Rappels'          },
+  { href: '/admin/articles',                 icon: Package,         label: 'Catalogue'        },
+  { href: '/admin/facturation/export',       icon: BarChart3,       label: 'Export comptable' },
 ];
 
 // Sous-navigation horizontale du module facturation. Affichée comme bandeau
@@ -34,6 +45,7 @@ export function FacturationTabs() {
           const active = t.exact === true
             ? pathname === t.href
             : pathname === t.href || pathname.startsWith(t.href + '/');
+          const Icon = t.icon;
           return (
             <Link
               key={t.href}
@@ -45,7 +57,7 @@ export function FacturationTabs() {
                   : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)] dark:hover:border-[rgba(255,255,255,.2)]')
               }
             >
-              <span aria-hidden>{t.icon}</span>
+              <Icon size={14} aria-hidden />
               {t.label}
             </Link>
           );

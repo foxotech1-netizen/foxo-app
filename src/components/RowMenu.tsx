@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
 export interface RowMenuItem {
   label: string;
-  icon?: string;
+  icon?: LucideIcon | string;
   onClick?: () => void;
   href?: string;
   destructive?: boolean;
@@ -90,9 +91,17 @@ export function RowMenu({
                 : item.destructive
                 ? 'text-terra hover:bg-terra-light dark:hover:bg-[#5A2E18]'
                 : 'text-ink hover:bg-sand-mid dark:text-[#F0ECE4] dark:hover:bg-[rgba(255,255,255,.06)]');
+            const iconNode = (() => {
+              if (!item.icon) return null;
+              if (typeof item.icon === 'string') {
+                return <span className="text-[15px] leading-none">{item.icon}</span>;
+              }
+              const Icon = item.icon;
+              return <Icon size={14} aria-hidden />;
+            })();
             const inner = (
               <>
-                {item.icon && <span className="text-[15px] leading-none">{item.icon}</span>}
+                {iconNode}
                 <span className="flex-1">{item.label}</span>
               </>
             );

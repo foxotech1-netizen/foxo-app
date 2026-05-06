@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { Calendar, Download, Send, AlertTriangle, Archive, Check, X } from 'lucide-react';
 import { buildComptableCsvForRange, sendComptableEmail } from '../actions';
 
 type Periode = 'mois' | 'trimestre' | 'annee' | 'custom';
@@ -105,7 +106,7 @@ export function ExportClient({
     <div className="space-y-6">
       <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-3">
         <div>
-          <h2 className="text-[13px] font-extrabold text-ink">📅 Période</h2>
+          <h2 className="text-[13px] font-extrabold text-ink inline-flex items-center gap-1.5"><Calendar size={14} aria-hidden /> Période</h2>
           <p className="text-[11px] text-ink-muted mt-0.5">
             Range actuel : <strong className="font-mono">{range.from}</strong> → <strong className="font-mono">{range.to}</strong>
           </p>
@@ -162,22 +163,22 @@ export function ExportClient({
             type="button"
             onClick={handleDownload}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
+            className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] inline-flex items-center gap-1.5"
           >
-            📥 Télécharger CSV
+            <Download size={14} aria-hidden /> Télécharger CSV
           </button>
           <button
             type="button"
             onClick={handleSendComptable}
             disabled={pending || !emailComptable}
-            className="bg-ok text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
+            className="bg-ok text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
             title={!emailComptable ? 'Email comptable non configuré' : undefined}
           >
-            📤 Envoyer au comptable
+            <Send size={14} aria-hidden /> Envoyer au comptable
           </button>
           {!emailComptable && (
-            <span className="text-[11px] text-terra italic self-center">
-              ⚠️ Configure d&apos;abord l&apos;email comptable dans <Link href="/admin/parametres" className="underline">Paramètres</Link>.
+            <span className="text-[11px] text-terra italic self-center inline-flex items-center gap-1.5">
+              <AlertTriangle size={12} aria-hidden /> Configure d&apos;abord l&apos;email comptable dans <Link href="/admin/parametres" className="underline">Paramètres</Link>.
             </span>
           )}
         </div>
@@ -194,7 +195,7 @@ export function ExportClient({
 
       <section>
         <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
-          🗄️ Historique des exports
+          <Archive size={14} aria-hidden /> Historique des exports
         </h2>
         {history.length === 0 ? (
           <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
@@ -218,12 +219,14 @@ export function ExportClient({
                     <td className="px-3 py-2 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDateTime(h.sent_at)}</td>
                     <td className="px-3 py-2">
                       <span className={
-                        'inline-block text-[10px] font-bold rounded-full px-2 py-0.5 ' +
+                        'inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-2 py-0.5 ' +
                         (h.status === 'sent'
                           ? 'bg-ok-light text-ok border border-ok-mid'
                           : 'bg-terra-light text-terra border border-terra-mid')
                       }>
-                        {h.status === 'sent' ? '✓ Envoyé' : '✗ ' + (h.status ?? 'inconnu')}
+                        {h.status === 'sent'
+                          ? (<><Check size={12} aria-hidden /> Envoyé</>)
+                          : (<><X size={12} aria-hidden /> {h.status ?? 'inconnu'}</>)}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-[11px] text-ink">{h.message ?? '—'}</td>

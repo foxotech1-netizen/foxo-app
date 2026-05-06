@@ -36,7 +36,7 @@ export function PaymentRefBadge({ reference }: { reference: string | null }) {
         type="button"
         onClick={copy}
         className="ml-1 p-1 rounded hover:bg-navy/10 transition-colors"
-        title={copied ? 'Copié ✓' : 'Copier la référence'}
+        title={copied ? 'Copié' : 'Copier la référence'}
         aria-label="Copier la référence de paiement"
       >
         {copied ? <Check size={12} className="text-ok" /> : <Copy size={12} />}

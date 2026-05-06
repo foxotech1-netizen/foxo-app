@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
+import { FileEdit } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
@@ -99,8 +100,8 @@ export default async function EditFacturePage({
           <div className="mb-4 bg-amber-light border border-[#E8C896] rounded-2xl px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold text-[#8A5A1A] uppercase tracking-wider mb-1">
-                  📝 {avoirs.length} avoir(s) lié(s) — solde réel
+                <div className="text-[10px] font-bold text-[#8A5A1A] uppercase tracking-wider mb-1 inline-flex items-center gap-1.5">
+                  <FileEdit size={12} aria-hidden /> {avoirs.length} avoir(s) lié(s) — solde réel
                 </div>
                 <div className="flex flex-wrap items-baseline gap-3 text-[13px]">
                   <span className="text-ink-mid">

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
+import { Pencil, FileText, Undo2, Trash2 } from 'lucide-react';
 import type { Facture, StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -166,16 +167,16 @@ export function NotesCreditListClient({
                     <RowMenu
                       direction="up"
                       items={[
-                        { icon: '✏️', label: 'Modifier', href: `/admin/facturation/notes-credit/${a.id}` },
-                        { icon: '📄', label: 'Voir le PDF', href: `/api/admin/facture/${a.id}` },
+                        { icon: Pencil, label: 'Modifier', href: `/admin/facturation/notes-credit/${a.id}` },
+                        { icon: FileText, label: 'Voir le PDF', href: `/api/admin/facture/${a.id}` },
                         {
-                          icon: '↩',
+                          icon: Undo2,
                           label: 'Remettre en brouillon',
                           onClick: () => setConfirmState({ kind: 'revert', avoir: a }),
                           hidden: a.statut !== 'envoyee',
                         },
                         {
-                          icon: '🗑️',
+                          icon: Trash2,
                           label: 'Supprimer',
                           onClick: () => setConfirmState({ kind: 'delete', avoir: a }),
                           hidden: a.statut !== 'brouillon',

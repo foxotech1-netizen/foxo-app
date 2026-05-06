@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, XCircle, FileEdit, Pencil, FileText, Trash2, Undo2 } from 'lucide-react';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -438,14 +438,14 @@ export function FacturationListClient({
                           const fullyCovered = ttc > 0 && a.totalEmis + 0.005 >= ttc;
                           if (f.statut === 'annulee' && fullyCovered) {
                             return (
-                              <span className="inline-block self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white" title={`Annulée par avoir (${a.totalEmis.toFixed(2)} €)`}>
-                                ❌ Annulée par avoir
+                              <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white" title={`Annulée par avoir (${a.totalEmis.toFixed(2)} €)`}>
+                                <XCircle size={12} aria-hidden /> Annulée par avoir
                               </span>
                             );
                           }
                           return (
-                            <span className="inline-block self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
-                              📝 Avoir partiel
+                            <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
+                              <FileEdit size={12} aria-hidden /> Avoir partiel
                             </span>
                           );
                         })()}
@@ -455,23 +455,23 @@ export function FacturationListClient({
                       <RowMenu
                         direction="up"
                         items={[
-                          { icon: '✏️', label: 'Modifier', href: `/admin/facturation/${f.id}` },
-                          { icon: '📄', label: 'Voir le PDF', href: `/api/admin/facture/${f.id}` },
+                          { icon: Pencil, label: 'Modifier', href: `/admin/facturation/${f.id}` },
+                          { icon: FileText, label: 'Voir le PDF', href: `/api/admin/facture/${f.id}` },
                           {
-                            icon: '📝',
+                            icon: FileEdit,
                             label: 'Créer un avoir',
                             onClick: () => handleCreateAvoir(f),
                             hidden: f.statut === 'annulee',
                             disabled: pending,
                           },
                           {
-                            icon: '↩',
+                            icon: Undo2,
                             label: 'Remettre en brouillon',
                             onClick: () => setConfirmState({ kind: 'revert', facture: f }),
                             hidden: f.statut !== 'envoyee',
                           },
                           {
-                            icon: '🗑️',
+                            icon: Trash2,
                             label: 'Supprimer',
                             onClick: () => setConfirmState({ kind: 'delete', facture: f }),
                             hidden: f.statut !== 'brouillon',
@@ -535,12 +535,12 @@ export function FacturationListClient({
                 {a && a.totalEmis > 0 && (
                   <div className="mt-1.5">
                     {f.statut === 'annulee' && fullyCovered ? (
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white">
-                        ❌ Annulée par avoir
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white">
+                        <XCircle size={12} aria-hidden /> Annulée par avoir
                       </span>
                     ) : (
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid">
-                        📝 Avoir partiel ({a.totalEmis.toFixed(2)} €)
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid">
+                        <FileEdit size={12} aria-hidden /> Avoir partiel ({a.totalEmis.toFixed(2)} €)
                       </span>
                     )}
                   </div>

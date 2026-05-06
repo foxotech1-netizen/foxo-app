@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Settings, Save, Bell, PartyPopper, Inbox, Send } from 'lucide-react';
 import type { Facture } from '@/lib/types/database';
 import { setParametre } from '../actions';
 
@@ -105,7 +106,7 @@ export function RappelsClient({
       kind: errors > 0 ? 'err' : 'ok',
       msg: errors > 0
         ? `${ids.length - errors}/${ids.length} rappel${ids.length > 1 ? 's' : ''} envoyé${ids.length > 1 ? 's' : ''} — ${errors} erreur${errors > 1 ? 's' : ''}.`
-        : `✓ ${ids.length} rappel${ids.length > 1 ? 's' : ''} envoyé${ids.length > 1 ? 's' : ''}.`,
+        : `${ids.length} rappel${ids.length > 1 ? 's' : ''} envoyé${ids.length > 1 ? 's' : ''}.`,
     });
     router.refresh();
   }
@@ -137,7 +138,7 @@ export function RappelsClient({
     }
     setParamsSaving(false);
     setParamSaveMsg(ok
-      ? { kind: 'ok', msg: '✓ Paramètres enregistrés.' }
+      ? { kind: 'ok', msg: 'Paramètres enregistrés.' }
       : { kind: 'err', msg: firstErr || 'Erreur de sauvegarde.' },
     );
     if (ok) router.refresh();
@@ -169,7 +170,7 @@ export function RappelsClient({
       {/* Paramètres */}
       <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-4">
         <div>
-          <h2 className="text-[13px] font-extrabold text-ink">⚙️ Paramètres rappels</h2>
+          <h2 className="text-[13px] font-extrabold text-ink inline-flex items-center gap-1.5"><Settings size={14} aria-hidden /> Paramètres rappels</h2>
           <p className="text-[11px] text-ink-muted mt-0.5">
             Variables disponibles dans le template : <code className="font-mono">{'{ref}'}</code>{' '}
             <code className="font-mono">{'{montant}'}</code>{' '}
@@ -237,7 +238,7 @@ export function RappelsClient({
             disabled={paramsSaving}
             className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
           >
-            {paramsSaving ? 'Enregistrement…' : '💾 Enregistrer les paramètres'}
+            {paramsSaving ? 'Enregistrement…' : (<span className="inline-flex items-center gap-1.5"><Save size={14} aria-hidden /> Enregistrer les paramètres</span>)}
           </button>
           {paramSaveMsg && (
             <span className={
@@ -254,7 +255,7 @@ export function RappelsClient({
       <section>
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
           <h2 className="text-[13px] font-extrabold text-ink flex items-center gap-2">
-            🔔 Factures en retard
+            <Bell size={14} aria-hidden /> Factures en retard
             <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
               {enRetard.length}
             </span>
@@ -267,7 +268,7 @@ export function RappelsClient({
           >
             {batch
               ? `Envoi ${batch.current}/${batch.total}…`
-              : `📨 Envoyer les rappels sélectionnés (${selected.size})`}
+              : (<span className="inline-flex items-center gap-1.5"><Inbox size={12} aria-hidden /> Envoyer les rappels sélectionnés ({selected.size})</span>)}
           </button>
         </div>
 
@@ -299,8 +300,8 @@ export function RappelsClient({
           </div>
         )}
         {enRetard.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
-            Aucune facture en retard. 🎉
+          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted inline-flex items-center justify-center gap-1.5 w-full">
+            Aucune facture en retard. <PartyPopper size={14} aria-hidden />
           </div>
         ) : (
           <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
@@ -374,7 +375,7 @@ export function RappelsClient({
                             disabled={state?.sending || Boolean(batch)}
                             className="bg-[#A17244] text-white px-2.5 py-1 rounded text-[10px] font-bold hover:opacity-90 disabled:opacity-50"
                           >
-                            {state?.sending ? '…' : '📤 Envoyer rappel'}
+                            {state?.sending ? '…' : (<span className="inline-flex items-center gap-1"><Send size={12} aria-hidden /> Envoyer rappel</span>)}
                           </button>
                           {state?.msg && (
                             <div className={'mt-1 text-[10px] font-semibold ' + (state.kind === 'ok' ? 'text-ok' : 'text-terra')}>

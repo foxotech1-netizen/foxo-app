@@ -2,6 +2,7 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { FileText, Mail, CheckCircle2, Undo2, FileEdit, Trash2 } from 'lucide-react';
 import { RowMenu } from '@/components/RowMenu';
 import { setFactureStatut, deleteFacture, createAvoirFromFacture } from '../actions';
 import type { Facture } from '@/lib/types/database';
@@ -28,36 +29,36 @@ export function FactureActions({ facture }: { facture: Facture }) {
         href={`/api/admin/facture/${facture.id}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center"
+        className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center gap-1.5"
       >
-        📄 PDF
+        <FileText size={14} aria-hidden /> PDF
       </a>
       <RowMenu
         ariaLabel="Actions facture"
         items={[
           {
-            icon: '✉️',
+            icon: Mail,
             label: 'Marquer envoyée',
             onClick: () => call(() => setFactureStatut(facture.id, 'envoyee')),
             hidden: facture.statut !== 'brouillon',
             disabled: pending,
           },
           {
-            icon: '✅',
+            icon: CheckCircle2,
             label: 'Marquer payée',
             onClick: () => call(() => setFactureStatut(facture.id, 'payee')),
             hidden: facture.statut === 'payee' || facture.statut === 'annulee',
             disabled: pending,
           },
           {
-            icon: '↩',
+            icon: Undo2,
             label: 'Repasser en brouillon',
             onClick: () => call(() => setFactureStatut(facture.id, 'brouillon')),
             hidden: facture.statut === 'brouillon' || facture.statut === 'payee',
             disabled: pending,
           },
           {
-            icon: '📝',
+            icon: FileEdit,
             label: 'Créer un avoir',
             disabled: pending,
             // Pas d'avoir sur un avoir, ni sur une facture déjà annulée.
@@ -76,7 +77,7 @@ export function FactureActions({ facture }: { facture: Facture }) {
             },
           },
           {
-            icon: '🗑️',
+            icon: Trash2,
             label: facture.statut === 'brouillon' ? 'Supprimer' : 'Annuler la facture',
             destructive: true,
             disabled: pending,

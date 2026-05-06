@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Link2, Pencil, Check } from 'lucide-react';
 import {
   saveFacture,
   setFactureStatut,
@@ -378,25 +379,25 @@ export function FactureEditor({
             type="button"
             onClick={() => setLinked(true)}
             className={
-              'px-4 py-2.5 rounded-lg text-[13px] font-bold border-2 ' +
+              'px-4 py-2.5 rounded-lg text-[13px] font-bold border-2 inline-flex items-center justify-center gap-1.5 ' +
               (linked
                 ? 'bg-navy text-white border-navy'
                 : 'bg-white text-ink border-sand-border hover:border-navy-mid')
             }
           >
-            🔗 Liée à une intervention
+            <Link2 size={14} aria-hidden /> Liée à une intervention
           </button>
           <button
             type="button"
             onClick={() => { setLinked(false); clearIntervention(); }}
             className={
-              'px-4 py-2.5 rounded-lg text-[13px] font-bold border-2 ' +
+              'px-4 py-2.5 rounded-lg text-[13px] font-bold border-2 inline-flex items-center justify-center gap-1.5 ' +
               (!linked
                 ? 'bg-[#A17244] text-white border-[#A17244]'
                 : 'bg-white text-ink border-sand-border hover:border-[#A17244]')
             }
           >
-            ✏ Hors intervention
+            <Pencil size={14} aria-hidden /> Hors intervention
           </button>
         </div>
       </div>
@@ -607,8 +608,8 @@ export function FactureEditor({
           )}
 
           {clientId && (
-            <div className="mt-2 text-[11px] text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1.5 font-semibold dark:text-white">
-              ✓ Client lié à la base — modifications sur ce formulaire restent locales à la facture
+            <div className="mt-2 text-[11px] text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1.5 font-semibold dark:text-white inline-flex items-center gap-1.5">
+              <Check size={12} aria-hidden /> Client lié à la base — modifications sur ce formulaire restent locales à la facture
             </div>
           )}
         </div>
@@ -884,9 +885,9 @@ export function FactureEditor({
           type="button"
           onClick={() => handleSave(true)}
           disabled={pending}
-          className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50 min-h-[52px] sm:min-h-0"
+          className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50 min-h-[52px] sm:min-h-0 inline-flex items-center justify-center gap-1.5"
         >
-          ✓ Émettre la facture
+          <Check size={14} aria-hidden /> Émettre la facture
         </button>
       </div>
     </div>

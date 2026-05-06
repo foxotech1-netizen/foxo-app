@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Mail } from 'lucide-react';
 import type { Facture } from '@/lib/types/database';
 import { sendDocumentEmail } from './actions';
 
@@ -96,9 +97,9 @@ export function SendByEmailButton({
         onClick={() => setOpen(true)}
         disabled={Boolean(disabledReason)}
         title={disabledReason ?? 'Envoyer par email'}
-        className="bg-ok text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+        className="bg-ok text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        📧 Envoyer par email
+        <Mail size={14} aria-hidden /> Envoyer par email
       </button>
 
       {open && (
@@ -187,9 +188,9 @@ export function SendByEmailButton({
               <button
                 type="submit"
                 disabled={pending}
-                className="px-3.5 py-2 rounded-lg text-xs font-bold bg-ok text-white hover:opacity-90 disabled:opacity-50"
+                className="px-3.5 py-2 rounded-lg text-xs font-bold bg-ok text-white hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
               >
-                {pending ? 'Envoi…' : '📧 Envoyer'}
+                {pending ? 'Envoi…' : (<><Mail size={14} aria-hidden /> Envoyer</>)}
               </button>
             </div>
           </form>

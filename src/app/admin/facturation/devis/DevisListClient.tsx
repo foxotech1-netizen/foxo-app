@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Pencil, FileText, ArrowRight, CheckCircle2, XCircle, Undo2, Trash2 } from 'lucide-react';
 import type { Facture, StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -260,34 +261,34 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
                     <RowMenu
                       direction="up"
                       items={[
-                        { icon: '✏️', label: 'Modifier', href: `/admin/facturation/devis/${d.id}` },
-                        { icon: '📄', label: 'Voir le PDF', href: `/api/admin/facture/${d.id}` },
+                        { icon: Pencil, label: 'Modifier', href: `/admin/facturation/devis/${d.id}` },
+                        { icon: FileText, label: 'Voir le PDF', href: `/api/admin/facture/${d.id}` },
                         {
-                          icon: '↪',
+                          icon: ArrowRight,
                           label: 'Convertir en facture',
                           onClick: () => setConfirmState({ kind: 'convert', devis: d }),
                           hidden: d.statut !== 'accepte' || dejaConverti,
                         },
                         {
-                          icon: '✅',
+                          icon: CheckCircle2,
                           label: 'Marquer accepté',
                           onClick: () => setConfirmState({ kind: 'accept', devis: d }),
                           hidden: d.statut !== 'envoyee',
                         },
                         {
-                          icon: '❌',
+                          icon: XCircle,
                           label: 'Marquer refusé',
                           onClick: () => setConfirmState({ kind: 'refuse', devis: d }),
                           hidden: d.statut !== 'envoyee',
                         },
                         {
-                          icon: '↩',
+                          icon: Undo2,
                           label: 'Remettre en brouillon',
                           onClick: () => setConfirmState({ kind: 'revert', devis: d }),
                           hidden: d.statut !== 'envoyee',
                         },
                         {
-                          icon: '🗑️',
+                          icon: Trash2,
                           label: 'Supprimer',
                           onClick: () => setConfirmState({ kind: 'delete', devis: d }),
                           hidden: d.statut !== 'brouillon',

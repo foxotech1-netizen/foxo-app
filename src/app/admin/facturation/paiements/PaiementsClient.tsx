@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Download, FolderOpen, Hourglass, ThumbsUp, CheckCircle2 } from 'lucide-react';
 import type { Facture } from '@/lib/types/database';
 import { importBeobankCsv } from '../actions';
 
@@ -64,8 +65,8 @@ export function PaiementsClient({
     <div className="space-y-6">
       {/* Import Beobank */}
       <section className="bg-cream rounded-xl border border-sand-border p-4">
-        <h2 className="text-[13px] font-extrabold text-ink mb-1">
-          ⬇ Import Beobank CSV
+        <h2 className="text-[13px] font-extrabold text-ink mb-1 inline-flex items-center gap-1.5">
+          <Download size={14} aria-hidden /> Import Beobank CSV
         </h2>
         <p className="text-[11px] text-ink-muted mb-3">
           Charge l&apos;export CSV de ton compte Beobank — les transactions
@@ -83,11 +84,11 @@ export function PaiementsClient({
         <label
           htmlFor="csv-import"
           className={
-            'inline-block bg-[#A17244] text-white px-3.5 py-2.5 rounded-lg text-xs font-bold cursor-pointer ' +
+            'inline-flex items-center gap-1.5 bg-[#A17244] text-white px-3.5 py-2.5 rounded-lg text-xs font-bold cursor-pointer ' +
             (pending ? 'opacity-50 pointer-events-none' : 'hover:opacity-90')
           }
         >
-          {pending ? 'Import en cours…' : '📂 Choisir un fichier CSV'}
+          {pending ? 'Import en cours…' : (<><FolderOpen size={14} aria-hidden /> Choisir un fichier CSV</>)}
         </label>
         {feedback && (
           <div
@@ -106,14 +107,14 @@ export function PaiementsClient({
       {/* En attente */}
       <section>
         <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
-          ⏳ En attente de paiement
+          <Hourglass size={14} aria-hidden /> En attente de paiement
           <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
             {enAttente.length}
           </span>
         </h2>
         {enAttente.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
-            Aucune facture en attente — tout est payé. 👍
+          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted inline-flex items-center justify-center gap-1.5 w-full">
+            Aucune facture en attente — tout est payé. <ThumbsUp size={14} aria-hidden />
           </div>
         ) : (
           <FactureTable rows={enAttente} todayIso={todayIso} showRetard />
@@ -123,7 +124,7 @@ export function PaiementsClient({
       {/* Récents paiements */}
       <section>
         <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
-          ✅ Paiements récents
+          <CheckCircle2 size={14} aria-hidden /> Paiements récents
           <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
             {recentes.length}
           </span>
