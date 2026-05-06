@@ -24,7 +24,7 @@ export default async function ParametresPage() {
         </p>
       </header>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div id="parametres-scroll" className="flex-1 overflow-auto px-6 py-5">
         <ParametresClient initial={map} />
       </div>
     </>
