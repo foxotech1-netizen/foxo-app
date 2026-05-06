@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { X, type LucideIcon } from 'lucide-react';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -10,7 +11,7 @@ export interface ChatMessage {
 export interface QuickAction {
   label: string;
   prompt: string;
-  icon?: string;
+  icon?: LucideIcon;
 }
 
 export interface AssistantChatProps {
@@ -126,24 +127,29 @@ export function AssistantChat({
     <div className={className ?? 'flex flex-col h-full'}>
       {/* Actions rapides */}
       <div className="flex flex-wrap gap-1.5 mb-3 flex-shrink-0">
-        {quickActions.map((qa) => (
-          <button
-            key={qa.label}
-            type="button"
-            onClick={() => handleQuickAction(qa)}
-            disabled={pending}
-            className="bg-white border border-sand-border hover:border-navy-mid hover:bg-navy-pale text-ink-mid hover:text-navy text-[11px] font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-50 transition-colors dark:bg-[rgba(255,255,255,.08)] dark:border-[rgba(255,255,255,.15)] dark:hover:bg-[rgba(255,255,255,.15)] dark:hover:border-[rgba(255,255,255,.25)] dark:hover:text-white"
-          >
-            {qa.icon ? `${qa.icon} ` : ''}{qa.label}
-          </button>
-        ))}
+        {quickActions.map((qa) => {
+          const Icon = qa.icon;
+          return (
+            <button
+              key={qa.label}
+              type="button"
+              onClick={() => handleQuickAction(qa)}
+              disabled={pending}
+              className="bg-white border border-sand-border hover:border-navy-mid hover:bg-navy-pale text-ink-mid hover:text-navy text-[11px] font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-50 transition-colors inline-flex items-center gap-1.5 dark:bg-[rgba(255,255,255,.08)] dark:border-[rgba(255,255,255,.15)] dark:hover:bg-[rgba(255,255,255,.15)] dark:hover:border-[rgba(255,255,255,.25)] dark:hover:text-white"
+            >
+              {Icon ? <Icon size={14} /> : null}
+              {qa.label}
+            </button>
+          );
+        })}
         {messages.length > 0 && (
           <button
             type="button"
             onClick={clearChat}
-            className="ml-auto bg-sand-mid text-ink-muted hover:text-terra text-[11px] font-semibold px-2.5 py-1.5 rounded-md dark:bg-[rgba(255,255,255,.06)]"
+            className="ml-auto bg-sand-mid text-ink-muted hover:text-terra text-[11px] font-semibold px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5 dark:bg-[rgba(255,255,255,.06)]"
           >
-            ✕ Effacer
+            <X size={14} />
+            Effacer
           </button>
         )}
       </div>

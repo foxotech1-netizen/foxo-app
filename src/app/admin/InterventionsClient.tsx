@@ -3,6 +3,43 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  AlertTriangle,
+  Banknote,
+  BarChart3,
+  Building2,
+  Calendar,
+  Check,
+  CheckCircle2,
+  ClipboardList,
+  FileEdit,
+  FileText,
+  HelpCircle,
+  Home,
+  Inbox,
+  Lightbulb,
+  Link2,
+  Mail,
+  MapPin,
+  Megaphone,
+  MessageCircle,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Send,
+  Shield,
+  Smartphone,
+  Sparkles,
+  Trash2,
+  User,
+  Users,
+  X,
+  XCircle,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import type { DashboardData } from './page';
 import { Dashboard, DashboardTechs } from './Dashboard';
 import {
@@ -32,10 +69,10 @@ import { MailStepper } from './MailStepper';
 import { MessagesPanel } from '@/components/MessagesPanel';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
-  { icon: '📝', label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
-  { icon: '✉️', label: 'Email au syndic', prompt: 'Rédige un email professionnel au syndic adapté au statut actuel du dossier. Inclus l\'objet et le corps, prêt à copier-coller. Référence la ref FoxO et l\'ACP.' },
-  { icon: '👥', label: 'Email aux occupants', prompt: 'Rédige un message court, clair et bienveillant à envoyer aux occupants pour les informer (intervention prévue / replanifiée / clôturée selon le statut). Inclus l\'heure si elle est connue.' },
-  { icon: '🔎', label: 'Résumé du dossier', prompt: 'Donne-moi un résumé synthétique du dossier en 3 lignes maximum : la situation, où on en est, ce qui reste à faire.' },
+  { icon: FileEdit, label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
+  { icon: Mail, label: 'Email au syndic', prompt: 'Rédige un email professionnel au syndic adapté au statut actuel du dossier. Inclus l\'objet et le corps, prêt à copier-coller. Référence la ref FoxO et l\'ACP.' },
+  { icon: Users, label: 'Email aux occupants', prompt: 'Rédige un message court, clair et bienveillant à envoyer aux occupants pour les informer (intervention prévue / replanifiée / clôturée selon le statut). Inclus l\'heure si elle est connue.' },
+  { icon: Search, label: 'Résumé du dossier', prompt: 'Donne-moi un résumé synthétique du dossier en 3 lignes maximum : la situation, où on en est, ce qui reste à faire.' },
 ];
 
 const STATUTS_FILTRE: ('tous' | StatutIntervention)[] = [
@@ -460,7 +497,7 @@ export function InterventionsClient({
       if (res.error) {
         setIaSaveMessage({ kind: 'err', msg: res.error });
       } else {
-        setIaSaveMessage({ kind: 'ok', msg: '✓ Brouillon sauvegardé. Le tech le verra dans son onglet Rapport.' });
+        setIaSaveMessage({ kind: 'ok', msg: 'Brouillon sauvegardé. Le tech le verra dans son onglet Rapport.' });
       }
     });
   }
@@ -486,7 +523,7 @@ export function InterventionsClient({
       );
       setAssignMessage({
         kind: 'ok',
-        msg: newTech ? `✓ Assigné à ${newTech.prenom ?? ''} ${newTech.nom ?? ''}`.trim() : '✓ Désassigné',
+        msg: newTech ? `Assigné à ${newTech.prenom ?? ''} ${newTech.nom ?? ''}`.trim() : 'Désassigné',
       });
     });
   }
@@ -497,7 +534,7 @@ export function InterventionsClient({
     startEmailTransition(async () => {
       const res = await resendRapportToSyndic(selected.id);
       if (res.error) setEmailMessage({ kind: 'err', msg: res.error });
-      else setEmailMessage({ kind: 'ok', msg: 'Rapport envoyé au syndic ✓' });
+      else setEmailMessage({ kind: 'ok', msg: 'Rapport envoyé au syndic' });
     });
   }
 
@@ -527,7 +564,7 @@ export function InterventionsClient({
             : r,
         ),
       );
-      setStatusMessage('✓ Statut mis à jour');
+      setStatusMessage('Statut mis à jour');
     });
   }
 
@@ -589,7 +626,7 @@ export function InterventionsClient({
             updated_at: new Date().toISOString(),
           };
         }));
-        setFormMsg({ kind: 'ok', msg: '✓ Sauvegardé' });
+        setFormMsg({ kind: 'ok', msg: 'Sauvegardé' });
       } catch (e) {
         setFormMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
       }
@@ -625,7 +662,7 @@ export function InterventionsClient({
             ? { ...rw, creneau_debut: iso, statut: 'attente', updated_at: new Date().toISOString() }
             : rw,
         ));
-        setScheduleMsg({ kind: 'ok', msg: '✓ Créneau planifié — statut "attente"' });
+        setScheduleMsg({ kind: 'ok', msg: 'Créneau planifié — statut "attente"' });
       } catch (e) {
         setScheduleMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
       }
@@ -653,7 +690,7 @@ export function InterventionsClient({
         }
         setNotifyMsg({
           kind: 'ok',
-          msg: `✓ ${data.sent} envoi(s) OK${data.failed ? ` · ${data.failed} échec(s)` : ''}`,
+          msg: `${data.sent} envoi(s) OK${data.failed ? ` · ${data.failed} échec(s)` : ''}`,
         });
       } catch (e) {
         setNotifyMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
@@ -700,7 +737,7 @@ export function InterventionsClient({
       ? { ...rw, creneau_debut: newCreneau, statut: 'confirmee' as const }
       : rw,
     ));
-    setStatusMessage('⏳ Acceptation en cours…');
+    setStatusMessage('Acceptation en cours…');
 
     try {
       const res = await fetch(`/api/admin/interventions/${selected.id}/accept-counter-proposal`, {
@@ -718,7 +755,7 @@ export function InterventionsClient({
       const calOk = data.calendarSync?.ok;
       const notifsOk = Array.isArray(data.notifs) ? data.notifs.filter((n: { ok: boolean }) => n.ok).length : 0;
       setStatusMessage(
-        `✓ Proposition acceptée${calOk ? ' (Google Calendar synchronisé)' : ''}${notifsOk > 0 ? ` · ${notifsOk} notif(s) envoyée(s)` : ''}.`,
+        `Proposition acceptée${calOk ? ' (Google Calendar synchronisé)' : ''}${notifsOk > 0 ? ` · ${notifsOk} notif(s) envoyée(s)` : ''}.`,
       );
     } catch (e) {
       await refreshOccupants();
@@ -928,7 +965,7 @@ export function InterventionsClient({
         } else {
           setReanalyzeMsg({
             kind: 'ok',
-            msg: `Analyse appliquée ✓${data.new_occupants_count ? ` · ${data.new_occupants_count} nouveau(x) occupant(s)` : ''}`,
+            msg: `Analyse appliquée${data.new_occupants_count ? ` · ${data.new_occupants_count} nouveau(x) occupant(s)` : ''}`,
           });
         }
         // Refresh occupants + intervention via reload occupants + router.refresh
@@ -959,7 +996,7 @@ export function InterventionsClient({
         setRows((rs) => rs.map((rw) =>
           rw.id === selected.id ? { ...rw, statut: 'confirmee', updated_at: new Date().toISOString() } : rw,
         ));
-        setConfirmMailMsg({ kind: 'ok', msg: '✓ Confirmation envoyée — statut "confirmée"' });
+        setConfirmMailMsg({ kind: 'ok', msg: 'Confirmation envoyée — statut "confirmée"' });
       } catch (e) {
         setConfirmMailMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
       }
@@ -1016,27 +1053,27 @@ export function InterventionsClient({
         <div className="flex items-center gap-2 flex-wrap">
           {techFilterName && (
             <div className="bg-[#A17244] text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
-              <span>🔎 Filtré : {techFilterName}</span>
+              <span className="inline-flex items-center gap-1.5"><Search size={12} />Filtré : {techFilterName}</span>
               <button
                 type="button"
                 onClick={() => router.push('/admin')}
                 className="hover:opacity-70 leading-none"
                 title="Retirer le filtre"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
           )}
           {recentResponsesFilter && (
             <div className="bg-terra text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
-              <span>📬 Réponses occupants &lt; 48 h ({recentResponseIvIds.size})</span>
+              <span className="inline-flex items-center gap-1.5"><Inbox size={12} />Réponses occupants &lt; 48 h ({recentResponseIvIds.size})</span>
               <button
                 type="button"
                 onClick={() => router.push('/admin')}
                 className="hover:opacity-70 leading-none"
                 title="Retirer le filtre"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
           )}
@@ -1071,9 +1108,9 @@ export function InterventionsClient({
           {statutFilterLabel && (
             <a
               href={techFilter ? `/admin?tech=${techFilter}` : '/admin'}
-              className="text-[11px] text-navy underline hover:no-underline dark:text-[#A8C4F2]"
+              className="text-[11px] text-navy underline hover:no-underline inline-flex items-center gap-1 dark:text-[#A8C4F2]"
             >
-              ✕ Effacer le filtre
+              <X size={12} />Effacer le filtre
             </a>
           )}
         </div>
@@ -1185,35 +1222,35 @@ export function InterventionsClient({
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {iv.priorite === 'urgente' && (
-                            <span className="inline-block text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-                              ⚡ URGENT
+                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                              <Zap size={12} />URGENT
                             </span>
                           )}
                           {iv.source === 'mail' && (
                             <span
-                              className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
+                              className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
                               style={{ background: '#A17244' }}
                               title="Demande créée automatiquement depuis un mail entrant"
                             >
-                              📧 Mail
+                              <Mail size={12} />Mail
                             </span>
                           )}
                           {(iv.recidive_count ?? 0) > 0 && (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); openDrawer(iv.id, 'historique'); }}
-                              className="inline-block text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 hover:bg-[#F2DBC9] cursor-pointer"
+                              className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 hover:bg-[#F2DBC9] cursor-pointer"
                               title={`${iv.recidive_count} intervention(s) similaire(s) sur cette ACP dans les 12 mois — voir Historique`}
                             >
-                              🔄 Récidive ({iv.recidive_count})
+                              <RefreshCw size={12} />Récidive ({iv.recidive_count})
                             </button>
                           )}
                           {(iv.unread_messages_count ?? 0) > 0 && (
                             <span
-                              className="inline-block text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5"
+                              className="inline-flex items-center gap-1 text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5"
                               title={`${iv.unread_messages_count} message(s) non lu(s) du partenaire`}
                             >
-                              💬 {iv.unread_messages_count}
+                              <MessageCircle size={12} />{iv.unread_messages_count}
                             </span>
                           )}
                         </div>
@@ -1227,9 +1264,9 @@ export function InterventionsClient({
                             </div>
                           </>
                         ) : iv.source === 'mail' ? (
-                          <span className="inline-block text-[9px] font-bold text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-1.5 py-0.5"
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-1.5 py-0.5"
                                 title="ACP non identifiée — associer manuellement dans le drawer">
-                            ⚠️ à associer
+                            <AlertTriangle size={12} />à associer
                           </span>
                         ) : (
                           <span className="text-ink-muted text-[12px]">—</span>
@@ -1267,11 +1304,11 @@ export function InterventionsClient({
                             setRowDeleteErr(null);
                             setDeletingRow({ id: iv.id, ref: iv.ref });
                           }}
-                          className="text-[14px] text-ink-muted/40 hover:text-terra transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-terra-light"
+                          className="text-ink-muted/40 hover:text-terra transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-terra-light"
                           title="Supprimer cette intervention"
                           aria-label="Supprimer cette intervention"
                         >
-                          🗑️
+                          <Trash2 size={16} />
                         </button>
                       </td>
                     </tr>
@@ -1325,33 +1362,33 @@ export function InterventionsClient({
                     || (iv.unread_messages_count ?? 0) > 0) && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {iv.priorite === 'urgente' && (
-                        <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-                          ⚡ URGENT
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                          <Zap size={12} />URGENT
                         </span>
                       )}
                       {iv.source === 'mail' && (
                         <span
-                          className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
+                          className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
                           style={{ background: '#A17244' }}
                         >
-                          📧 Mail
+                          <Mail size={12} />Mail
                         </span>
                       )}
                       {(iv.recidive_count ?? 0) > 0 && (
-                        <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
-                          🔄 Récidive ({iv.recidive_count})
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                          <RefreshCw size={12} />Récidive ({iv.recidive_count})
                         </span>
                       )}
                       {(iv.unread_messages_count ?? 0) > 0 && (
-                        <span className="text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5">
-                          💬 {iv.unread_messages_count}
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5">
+                          <MessageCircle size={12} />{iv.unread_messages_count}
                         </span>
                       )}
                     </div>
                   )}
 
-                  <div className="text-[13px] font-bold text-ink truncate">
-                    {iv.acp?.nom ?? (iv.source === 'mail' ? '⚠️ ACP à associer' : '—')}
+                  <div className="text-[13px] font-bold text-ink truncate inline-flex items-center gap-1">
+                    {iv.acp?.nom ?? (iv.source === 'mail' ? (<><AlertTriangle size={12} />ACP à associer</>) : '—')}
                   </div>
                   {adresse && (
                     <div className="text-[10px] text-ink-muted truncate">{adresse}</div>
@@ -1421,8 +1458,8 @@ export function InterventionsClient({
                   <div className="flex gap-2 items-center flex-wrap mb-0.5">
                     <span className="font-mono text-xs text-ink-muted">{selected.ref ?? '—'}</span>
                     {selected.priorite === 'urgente' && (
-                      <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-2 py-0.5">
-                        ⚡ URGENT
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-2 py-0.5">
+                        <Zap size={12} />URGENT
                       </span>
                     )}
                   </div>
@@ -1445,10 +1482,10 @@ export function InterventionsClient({
                   )}
                   <button
                     onClick={closeDrawer}
-                    className="bg-sand-mid h-8 px-2.5 rounded-md text-ink-mid hover:bg-sand-border text-[12px] font-bold"
+                    className="bg-sand-mid h-8 px-2.5 rounded-md text-ink-mid hover:bg-sand-border text-[12px] font-bold inline-flex items-center justify-center"
                     title={fullPage ? 'Retour à la liste' : 'Fermer'}
                   >
-                    {fullPage ? '← Retour' : '✕'}
+                    {fullPage ? '← Retour' : <X size={14} />}
                   </button>
                 </div>
               </div>
@@ -1464,11 +1501,11 @@ export function InterventionsClient({
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`py-2.5 px-4 text-xs font-medium capitalize border-b-2 transition-colors whitespace-nowrap ${
+                  className={`py-2.5 px-4 text-xs font-medium capitalize border-b-2 transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
                     tab === t ? 'text-navy border-navy font-bold' : 'text-ink-muted border-transparent hover:text-ink-mid'
                   }`}
                 >
-                  {t === 'ia' ? '✨ Assistant IA' : t === 'historique' ? '📋 Historique' : t}
+                  {t === 'ia' ? (<><Sparkles size={14} />Assistant IA</>) : t === 'historique' ? (<><ClipboardList size={14} />Historique</>) : t}
                 </button>
               ))}
             </nav>
@@ -1489,7 +1526,7 @@ export function InterventionsClient({
                       {/* Bandeau bleu : seulement statut='nouvelle' (intervention non encore traitée) */}
                       {selected.statut === 'nouvelle' && (
                         <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
-                          <div className="font-bold mb-1">📧 Demande reçue par mail — à traiter</div>
+                          <div className="font-bold mb-1 inline-flex items-center gap-1.5"><Mail size={14} />Demande reçue par mail — à traiter</div>
                           <DemandeurBadge
                             organisationId={selected.organisation_id}
                             clientId={selected.client_id}
@@ -1517,8 +1554,8 @@ export function InterventionsClient({
                         if (!text) return null;
                         return (
                           <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-                            <div className="font-bold mb-1 text-[#8A5A1A] dark:text-[#F0D896]">
-                              📋 Action requise
+                            <div className="font-bold mb-1 text-[#8A5A1A] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
+                              <ClipboardList size={14} />Action requise
                             </div>
                             <div className="text-[#5A3F15] dark:text-[#F0D896]">{text}</div>
                           </div>
@@ -1537,9 +1574,10 @@ export function InterventionsClient({
                             type="button"
                             onClick={reanalyzeMail}
                             disabled={reanalyzePending}
-                            className="text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50"
+                            className="text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
                           >
-                            {reanalyzePending ? '🔄 Analyse…' : '🔄 Réanalyser le mail'}
+                            <RefreshCw size={14} />
+                            {reanalyzePending ? 'Analyse…' : 'Réanalyser le mail'}
                           </button>
                           {selected.statut !== 'nouvelle' && reanalyzeMsg && (
                             <span className={
@@ -1648,7 +1686,7 @@ export function InterventionsClient({
                             className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
                           >
                             <option value="normale">Normale</option>
-                            <option value="urgente">⚡ Urgente</option>
+                            <option value="urgente">Urgente</option>
                           </select>
                         </div>
                       </div>
@@ -1666,9 +1704,9 @@ export function InterventionsClient({
                           type="button"
                           onClick={saveForm}
                           disabled={formPending}
-                          className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50"
+                          className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
                         >
-                          {formPending ? '…' : '💾 Sauvegarder'}
+                          {formPending ? '…' : (<><Save size={14} />Sauvegarder</>)}
                         </button>
                         {formMsg && (
                           <span className={'text-[11px] font-semibold ' + (formMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
@@ -1681,7 +1719,7 @@ export function InterventionsClient({
 
                   {/* 👤 Demandeur — syndic/courtier + délégué (humain qui a envoyé le mail) */}
                   {(selected.syndic || selected.delegue) && (
-                    <Block title="👤 Demandeur">
+                    <Block title={<span className="inline-flex items-center gap-1.5"><User size={12}/>Demandeur</span>}>
                       {selected.syndic && (
                         <div className="mb-2">
                           <Link
@@ -1700,22 +1738,22 @@ export function InterventionsClient({
                               {[selected.delegue.prenom, selected.delegue.nom].filter(Boolean).join(' ') || selected.delegue.email}
                             </span>
                             {selected.source === 'mail' && (
-                              <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
+                              <span className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
                                     title="Délégué identifié automatiquement depuis le mail">
-                                📧 mail
+                                <Mail size={10} />mail
                               </span>
                             )}
                           </div>
                           {(selected.delegue.email || selected.delegue.telephone) && (
                             <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
                               {selected.delegue.email && (
-                                <a href={`mailto:${selected.delegue.email}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
-                                  ✉ {selected.delegue.email}
+                                <a href={`mailto:${selected.delegue.email}`} className="hover:text-navy inline-flex items-center gap-1 dark:hover:text-[#A8C4F2]">
+                                  <Mail size={12} />{selected.delegue.email}
                                 </a>
                               )}
                               {selected.delegue.telephone && (
                                 <a href={`tel:${selected.delegue.telephone}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
-                                  📞 {selected.delegue.telephone}
+                                  {selected.delegue.telephone}
                                 </a>
                               )}
                             </div>
@@ -1726,7 +1764,7 @@ export function InterventionsClient({
                   )}
 
                   {/* 🏢 ACP / Immeuble — éditable */}
-                  <Block title="🏢 ACP / Immeuble">
+                  <Block title={<span className="inline-flex items-center gap-1.5"><Building2 size={12}/>ACP / Immeuble</span>}>
                     {/* Suggestion automatique du pipeline mail (cf. migration
                         2026-05-26_acp_suggestion). Ne s'affiche que tant qu'aucune
                         ACP n'est associée ET qu'une suggestion est en attente. */}
@@ -1799,7 +1837,7 @@ export function InterventionsClient({
                     const nom = ass.nom ?? ass.nom_contact ?? null;
                     if (!nom && !ass.email && !ass.telephone && !ass.reference_police && !ass.reference_sinistre) return null;
                     return (
-                      <Block title="🛡️ Assurance">
+                      <Block title={<span className="inline-flex items-center gap-1.5"><Shield size={12}/>Assurance</span>}>
                         <div className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
                           {nom && (
                             <div className="font-bold text-ink dark:text-[#F0ECE4]">{nom}</div>
@@ -1807,13 +1845,13 @@ export function InterventionsClient({
                           {(ass.email || ass.telephone) && (
                             <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
                               {ass.email && (
-                                <a href={`mailto:${ass.email}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
-                                  ✉ {ass.email}
+                                <a href={`mailto:${ass.email}`} className="hover:text-navy inline-flex items-center gap-1 dark:hover:text-[#A8C4F2]">
+                                  <Mail size={12} />{ass.email}
                                 </a>
                               )}
                               {ass.telephone && (
                                 <a href={`tel:${ass.telephone}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
-                                  📞 {ass.telephone}
+                                  {ass.telephone}
                                 </a>
                               )}
                             </div>
@@ -1925,9 +1963,9 @@ export function InterventionsClient({
                       type="button"
                       onClick={applySchedule}
                       disabled={schedulePending || !scheduleDate || !scheduleHeure}
-                      className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50"
+                      className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
                     >
-                      {schedulePending ? '…' : '📅 Planifier'}
+                      {schedulePending ? '…' : (<><Calendar size={14} />Planifier</>)}
                     </button>
                     {scheduleMsg && (
                       <p className={'text-[11px] mt-1.5 font-semibold ' + (scheduleMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
@@ -1985,9 +2023,9 @@ export function InterventionsClient({
                               />
                             );
                           }
-                          const confLabel = o.conf === 'confirme' ? '✅ Confirmé'
-                            : o.conf === 'decline' ? '❌ Pas d\'accès'
-                            : '⏳ En attente';
+                          const confLabel = o.conf === 'confirme' ? (<span className="inline-flex items-center gap-1"><CheckCircle2 size={12}/>Confirmé</span>)
+                            : o.conf === 'decline' ? (<span className="inline-flex items-center gap-1"><XCircle size={12}/>Pas d&apos;accès</span>)
+                            : (<span>En attente</span>);
                           const confColor = o.conf === 'confirme' ? 'text-ok dark:text-[#7AC9A0]'
                             : o.conf === 'decline' ? 'text-terra'
                             : 'text-[#8A5A1A] dark:text-[#E8C896]';
@@ -2001,10 +2039,10 @@ export function InterventionsClient({
                                   {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">· {o.etage}</span> : null}
                                   {o.proposed_creneau_debut && (
                                     <span
-                                      className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[#D6E4F7] text-[#1B3A6B] border border-[#A8C4F2] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
+                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[#D6E4F7] text-[#1B3A6B] border border-[#A8C4F2] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
                                       title="L'occupant a proposé un autre créneau"
                                     >
-                                      🔄 Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                      <RefreshCw size={10} />Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                   )}
                                   {o.type_occupant && (
@@ -2017,10 +2055,10 @@ export function InterventionsClient({
                                   )}
                                   {fromMail && (
                                     <span
-                                      className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
+                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
                                       title="Occupant extrait automatiquement depuis les CC du mail"
                                     >
-                                      📧 mail
+                                      <Mail size={10} />mail
                                     </span>
                                   )}
                                 </span>
@@ -2048,18 +2086,18 @@ export function InterventionsClient({
                                   <button
                                     type="button"
                                     onClick={() => acceptCounterProposal(o)}
-                                    className="text-[10px] bg-ok text-white px-2 py-1 rounded font-bold hover:opacity-90"
+                                    className="text-[10px] bg-ok text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
                                     title="Reprogrammer l'intervention sur le créneau proposé par l'occupant"
                                   >
-                                    ✅ Accepter la proposition
+                                    <CheckCircle2 size={12} />Accepter la proposition
                                   </button>
                                 )}
                                 <button
                                   type="button"
                                   onClick={() => startEditOccupant(o)}
-                                  className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold hover:opacity-90 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                                  className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
                                 >
-                                  ✏️ Modifier
+                                  <Pencil size={12} />Modifier
                                 </button>
                                 {o.telephone && (
                                   <button
@@ -2071,9 +2109,9 @@ export function InterventionsClient({
                                       templateKey: 'sms_template_lien_occupant',
                                       preferredChannel: o.contact_preference ?? null,
                                     })}
-                                    className="text-[10px] bg-[#A17244] text-white px-2 py-1 rounded font-bold hover:opacity-90"
+                                    className="text-[10px] bg-[#A17244] text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
                                   >
-                                    📱 SMS lien
+                                    <Smartphone size={12} />SMS lien
                                   </button>
                                 )}
                               </div>
@@ -2095,9 +2133,9 @@ export function InterventionsClient({
                           <button
                             type="button"
                             onClick={startAddOccupant}
-                            className="w-full text-[12px] bg-sand-mid text-navy border border-sand-border border-dashed rounded-md px-2.5 py-2 font-bold hover:bg-sand-hover dark:bg-[rgba(255,255,255,.04)] dark:border-[#3D3A32] dark:text-[#A8C4F2]"
+                            className="w-full text-[12px] bg-sand-mid text-navy border border-sand-border border-dashed rounded-md px-2.5 py-2 font-bold hover:bg-sand-hover inline-flex items-center justify-center gap-1.5 dark:bg-[rgba(255,255,255,.04)] dark:border-[#3D3A32] dark:text-[#A8C4F2]"
                           >
-                            ➕ Ajouter un occupant
+                            <Plus size={14} />Ajouter un occupant
                           </button>
                         )}
                       </div>
@@ -2106,7 +2144,7 @@ export function InterventionsClient({
 
                   {/* ④ Notifier les occupants — multicanal */}
                   {selected.creneau_debut && drawerOccupants.length > 0 && (
-                    <Block title="📨 Notifier les occupants">
+                    <Block title={<span className="inline-flex items-center gap-1.5"><Inbox size={12}/>Notifier les occupants</span>}>
                       <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
                         Envoie un lien de confirmation à chaque occupant via le canal préféré
                         (email / SMS / WhatsApp). Décoche pour exclure.
@@ -2115,7 +2153,9 @@ export function InterventionsClient({
                         {drawerOccupants.map((o) => {
                           const checked = notifySelectedIds.has(o.id);
                           const pref = o.contact_preference ?? 'email';
-                          const icon = pref === 'whatsapp' ? '💬' : pref === 'sms' ? '📱' : pref === 'both' ? '📧📱' : '📧';
+                          const PrefIcon = pref === 'whatsapp' ? MessageCircle
+                            : pref === 'sms' ? Smartphone
+                            : Mail;
                           const sentAt = o.token_sent_at;
                           return (
                             <label key={o.id} className="flex items-center gap-2 bg-white border border-sand-border rounded-md px-2 py-1.5 text-[12px] cursor-pointer dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]">
@@ -2131,14 +2171,14 @@ export function InterventionsClient({
                                 }}
                                 className="w-4 h-4 accent-[#1B3A6B]"
                               />
-                              <span className="text-[14px] flex-shrink-0">{icon}</span>
+                              <PrefIcon size={14} className="flex-shrink-0" />
                               <span className="font-bold flex-1 truncate">
                                 {[o.prenom, o.nom].filter(Boolean).join(' ') || 'Occupant'}
                                 {o.appartement && <span className="text-ink-muted font-normal ml-1.5">· {o.appartement}</span>}
                               </span>
                               {sentAt && (
-                                <span className="text-[9px] text-ok font-bold whitespace-nowrap" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE')}`}>
-                                  ✓ envoyé
+                                <span className="text-[9px] text-ok font-bold whitespace-nowrap inline-flex items-center gap-0.5" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE')}`}>
+                                  <Check size={10} />envoyé
                                 </span>
                               )}
                             </label>
@@ -2149,9 +2189,9 @@ export function InterventionsClient({
                         type="button"
                         onClick={notifyOccupants}
                         disabled={notifyPending || notifySelectedIds.size === 0}
-                        className="bg-navy text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50"
+                        className="bg-navy text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
                       >
-                        {notifyPending ? '…' : `📤 Envoyer (${notifySelectedIds.size})`}
+                        {notifyPending ? '…' : (<><Send size={14} />Envoyer ({notifySelectedIds.size})</>)}
                       </button>
                       {notifyMsg && (
                         <p className={'text-[11px] mt-1.5 font-semibold ' + (notifyMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
@@ -2163,7 +2203,7 @@ export function InterventionsClient({
 
                   {/* ⑤ Confirmation client */}
                   {selected.creneau_debut && (selected.particulier_contact?.email || selected.particulier_contact?.mandant?.email) && (
-                    <Block id="section-confirmation" title="📤 Confirmation client">
+                    <Block id="section-confirmation" title={<span className="inline-flex items-center gap-1.5"><Send size={12}/>Confirmation client</span>}>
                       <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
                         Envoie un récapitulatif (date, heure, adresse, technicien) au demandeur via Gmail.
                       </p>
@@ -2171,9 +2211,9 @@ export function InterventionsClient({
                         type="button"
                         onClick={sendConfirmMail}
                         disabled={confirmMailPending}
-                        className="bg-[#1F6B45] text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50"
+                        className="bg-[#1F6B45] text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
                       >
-                        {confirmMailPending ? 'Envoi…' : '📤 Envoyer confirmation au client'}
+                        {confirmMailPending ? 'Envoi…' : (<><Send size={14} />Envoyer confirmation au client</>)}
                       </button>
                       {confirmMailMsg && (
                         <p className={'text-[11px] mt-1.5 font-semibold ' + (confirmMailMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
@@ -2198,10 +2238,10 @@ export function InterventionsClient({
                       <button
                         type="button"
                         onClick={() => { setDeleteConfirmOpen(true); setDeleteMsg(null); }}
-                        className="w-full bg-terra text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                        className="w-full bg-terra text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                         style={{ background: '#C4622D' }}
                       >
-                        🗑 Supprimer cette intervention
+                        <Trash2 size={14} />Supprimer cette intervention
                       </button>
                       {deleteMsg && (
                         <p className={'text-[11px] mt-1.5 font-semibold ' + (deleteMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
@@ -2230,8 +2270,8 @@ export function InterventionsClient({
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-[12px] text-terra font-semibold mb-3">
-                        ⚠ Aucun technicien assigné
+                      <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-[12px] text-terra font-semibold mb-3 inline-flex items-center gap-1.5">
+                        <AlertTriangle size={14} />Aucun technicien assigné
                       </div>
                     )}
 
@@ -2309,9 +2349,9 @@ export function InterventionsClient({
                       <button
                         onClick={resendRapport}
                         disabled={emailPending}
-                        className="w-full bg-[#A17244] text-white py-2.5 rounded-lg text-xs font-bold hover:bg-[#8A613B] disabled:opacity-50"
+                        className="w-full bg-[#A17244] text-white py-2.5 rounded-lg text-xs font-bold hover:bg-[#8A613B] disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                       >
-                        {emailPending ? 'Envoi…' : '✉ Envoyer le rapport au syndic'}
+                        {emailPending ? 'Envoi…' : (<><Mail size={14} />Envoyer le rapport au syndic</>)}
                       </button>
                       {emailMessage && (
                         <p className={
@@ -2359,8 +2399,8 @@ export function InterventionsClient({
                             })}
                             className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-2 text-[12px] flex items-center justify-between gap-2 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
                           >
-                            <span>
-                              📱 {[o.prenom, o.nom].filter(Boolean).join(' ') || o.appartement}
+                            <span className="inline-flex items-center gap-1.5">
+                              <Smartphone size={14} />{[o.prenom, o.nom].filter(Boolean).join(' ') || o.appartement}
                               <span className="text-ink-muted dark:text-[#C8C2B8] ml-1.5 font-mono text-[10px]">{o.telephone}</span>
                             </span>
                             <span className="text-[10px] font-bold text-navy dark:text-[#A8C4F2]">
@@ -2469,10 +2509,10 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
 
   if (!data) return null;
 
-  const ICONS: Record<Recipient['doc'], string> = {
-    facture: '💶 Facture',
-    rapport: '📄 Rapport',
-    communication: '📣 Communication',
+  const ICONS: Record<Recipient['doc'], { icon: LucideIcon; label: string }> = {
+    facture: { icon: Banknote, label: 'Facture' },
+    rapport: { icon: FileText, label: 'Rapport' },
+    communication: { icon: Megaphone, label: 'Communication' },
   };
   const sourceLabel = (s: Recipient['source']) => {
     if (s === 'acp') return 'ACP';
@@ -2499,17 +2539,19 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
         {editHref && (
           <a
             href={editHref}
-            className="text-[10px] text-navy hover:underline dark:text-[#A8C4F2]"
+            className="text-[10px] text-navy hover:underline inline-flex items-center gap-1 dark:text-[#A8C4F2]"
           >
-            ✏️ Modifier
+            <Pencil size={12} />Modifier
           </a>
         )}
       </div>
       <div className="space-y-1">
-        {data.recipients.map((r) => (
+        {data.recipients.map((r) => {
+          const RowIcon = ICONS[r.doc].icon;
+          return (
           <div key={r.doc} className="flex items-center gap-2 text-[12px]">
-            <span className="font-bold text-ink dark:text-[#F0ECE4] w-[140px] flex-shrink-0">
-              {ICONS[r.doc]}
+            <span className="font-bold text-ink dark:text-[#F0ECE4] w-[140px] flex-shrink-0 inline-flex items-center gap-1.5">
+              <RowIcon size={14} />{ICONS[r.doc].label}
             </span>
             <span className="text-ink-mid dark:text-[#C8C2B8]">→</span>
             {r.email ? (
@@ -2530,7 +2572,8 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
               <span className="italic text-terra text-[11px]">Aucun email configuré</span>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -2556,8 +2599,8 @@ function SoftDeleteRowModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-        <h2 className="text-[14px] font-extrabold text-ink mb-2 dark:text-[#F0ECE4]">
-          🗑️ Supprimer cette intervention ?
+        <h2 className="text-[14px] font-extrabold text-ink mb-2 inline-flex items-center gap-1.5 dark:text-[#F0ECE4]">
+          <Trash2 size={16} />Supprimer cette intervention ?
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
           L&apos;intervention <strong className="font-mono text-ink dark:text-[#F0ECE4]">{ref ?? '?'}</strong> sera retirée de la liste.
@@ -2608,8 +2651,8 @@ function DeleteInterventionModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[460px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
-        <h2 className="text-[14px] font-extrabold text-terra mb-2 dark:text-[#FFB897]">
-          🗑 Supprimer l&apos;intervention
+        <h2 className="text-[14px] font-extrabold text-terra mb-2 inline-flex items-center gap-1.5 dark:text-[#FFB897]">
+          <Trash2 size={16} />Supprimer l&apos;intervention
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
           Êtes-vous sûr de vouloir supprimer l&apos;intervention <strong className="font-mono text-ink dark:text-[#F0ECE4]">{ref ?? '?'}</strong> ?
@@ -2671,15 +2714,18 @@ function ReanalysisPanel({
   onIgnore: () => void;
   pending: boolean;
 }) {
-  const typeIcon = data.type_demandeur === 'syndic' ? '🏢' : data.type_demandeur === 'courtier' ? '🛡️' : data.type_demandeur === 'particulier' ? '👤' : '❓';
+  const TypeIcon = data.type_demandeur === 'syndic' ? Building2
+    : data.type_demandeur === 'courtier' ? Shield
+    : data.type_demandeur === 'particulier' ? User
+    : HelpCircle;
   const typeLabel = data.type_demandeur === 'syndic' ? 'Syndic' : data.type_demandeur === 'courtier' ? 'Courtier' : data.type_demandeur === 'particulier' ? 'Particulier' : 'Inconnu';
   return (
     <div className="bg-cream border-2 border-navy-mid rounded-xl p-3 mb-3 dark:bg-[#1C1A16] dark:border-[#A8C4F2]">
-      <div className="text-[12px] font-bold text-navy mb-2 dark:text-[#A8C4F2]">
-        📊 Résultat de l&apos;analyse IA
+      <div className="text-[12px] font-bold text-navy mb-2 inline-flex items-center gap-1.5 dark:text-[#A8C4F2]">
+        <BarChart3 size={14} />Résultat de l&apos;analyse IA
       </div>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[12px] mb-3">
-        <ReanalysisRow label="Type demandeur" value={`${typeIcon} ${typeLabel}`} />
+        <ReanalysisRow label="Type demandeur" value={<span className="inline-flex items-center gap-1.5"><TypeIcon size={12}/>{typeLabel}</span>} />
         {data.nom_societe && <ReanalysisRow label="Société" value={data.nom_societe} />}
         {data.nom_immeuble && <ReanalysisRow label="Immeuble" value={data.nom_immeuble} />}
         <ReanalysisRow label="Nom client" value={data.nom_client} />
@@ -2688,7 +2734,7 @@ function ReanalysisPanel({
         <ReanalysisRow label="Type problème" value={data.type_probleme} />
         <ReanalysisRow
           label="Priorité"
-          value={data.priorite ? (data.priorite === 'urgente' ? '⚡ Urgente' : 'Normale') : null}
+          value={data.priorite ? (data.priorite === 'urgente' ? (<span className="inline-flex items-center gap-1"><Zap size={12}/>Urgente</span>) : 'Normale') : null}
         />
         {data.reference_externe && (
           <ReanalysisRow label="Réf. externe" value={data.reference_externe} mono />
@@ -2710,25 +2756,25 @@ function ReanalysisPanel({
           type="button"
           onClick={onApply}
           disabled={pending}
-          className="bg-ok text-white px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50"
+          className="bg-ok text-white px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
           style={{ background: '#1F6B45' }}
         >
-          {pending ? '…' : '✅ Appliquer les modifications'}
+          {pending ? '…' : (<><CheckCircle2 size={14} />Appliquer les modifications</>)}
         </button>
         <button
           type="button"
           onClick={onIgnore}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+          className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
         >
-          ❌ Ignorer
+          <XCircle size={14} />Ignorer
         </button>
       </div>
     </div>
   );
 }
 
-function ReanalysisRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+function ReanalysisRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <>
       <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
@@ -2793,20 +2839,23 @@ function DemandeurBadge({
   }, [organisationId, clientId]);
 
   if (!info) return <span className="text-[10px] opacity-50">…</span>;
-  const icon = info.kind === 'syndic' ? '🏢' : info.kind === 'courtier' ? '🛡️' : info.kind === 'particulier' ? '👤' : '⚠️';
+  const Icon = info.kind === 'syndic' ? Building2
+    : info.kind === 'courtier' ? Shield
+    : info.kind === 'particulier' ? User
+    : AlertTriangle;
   const label = info.kind === 'syndic' ? 'Syndic' : info.kind === 'courtier' ? 'Courtier' : info.kind === 'particulier' ? 'Particulier' : 'Demandeur non identifié';
   return (
     <div className="text-[11px] flex flex-wrap items-center gap-1.5 mt-0.5">
-      <span>{icon} <strong>{label}</strong></span>
+      <span className="inline-flex items-center gap-1"><Icon size={12} /> <strong>{label}</strong></span>
       {info.nom && <span className="font-mono text-[10px] opacity-90">· {info.nom}</span>}
       {info.isNew && organisationId && (
         <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]">
-          🆕 Nouvelle org
+          Nouvelle org
         </span>
       )}
       {info.isNew && clientId && (
         <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]">
-          🆕 Nouveau client
+          Nouveau client
         </span>
       )}
       {info.kind === 'unknown' && !organisationId && !clientId && (
@@ -2841,9 +2890,9 @@ function RefEditor({
         <button
           type="button"
           onClick={() => { setDraft(currentRef ?? ''); setEditing(true); setErr(null); }}
-          className="text-[10px] text-ink-muted hover:text-navy underline dark:text-[#C8C2B8]"
+          className="text-[10px] text-ink-muted hover:text-navy underline inline-flex items-center gap-1 dark:text-[#C8C2B8]"
         >
-          ✏️ Modifier
+          <Pencil size={12} />Modifier
         </button>
       </div>
     );
@@ -2882,9 +2931,9 @@ function RefEditor({
               setSaving(false);
             }
           }}
-          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center"
         >
-          {saving ? '…' : '💾'}
+          {saving ? '…' : <Save size={12} />}
         </button>
         <button
           type="button"
@@ -2951,10 +3000,10 @@ function OccupantEditCard({
           onChange={(e) => onChange({ ...form, contact_preference: e.target.value as OccupantEditForm['contact_preference'] })}
           className={cls}
         >
-          <option value="email">📧 Email</option>
-          <option value="sms">📱 SMS</option>
-          <option value="whatsapp">💬 WhatsApp</option>
-          <option value="both">📧+📱 Email & SMS</option>
+          <option value="email">Email</option>
+          <option value="sms">SMS</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="both">Email & SMS</option>
         </select>
         <input
           value={form.appartement}
@@ -2985,9 +3034,9 @@ function OccupantEditCard({
             type="button"
             onClick={onDelete}
             disabled={saving}
-            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
           >
-            🗑 Supprimer
+            <Trash2 size={12} />Supprimer
           </button>
         )}
         <button
@@ -3002,9 +3051,9 @@ function OccupantEditCard({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
         >
-          {saving ? '…' : '💾 Sauvegarder'}
+          {saving ? '…' : (<><Save size={12} />Sauvegarder</>)}
         </button>
       </div>
     </div>
@@ -3111,7 +3160,7 @@ function AcpSuggestionBanner({
     <div className="mb-2 bg-amber-light border border-[#E8C896] rounded-md px-3 py-2 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[12px] text-[#8A5A1A] dark:text-[#F0D896] flex-1 min-w-[200px]">
-          <span className="font-bold">💡 ACP suggérée :</span>{' '}
+          <span className="font-bold inline-flex items-center gap-1"><Lightbulb size={12} />ACP suggérée :</span>{' '}
           <span className="font-semibold">{labelAcp}</span>
           <span className="text-[11px] opacity-80"> (score {scorePct} %)</span>
           {acpName && acpName.trim().toLowerCase() !== suggestion.nom_extrait.trim().toLowerCase() && (
@@ -3125,19 +3174,19 @@ function AcpSuggestionBanner({
             type="button"
             disabled={pending}
             onClick={() => startTransition(async () => { await onConfirm(); })}
-            className="text-[11px] font-bold bg-ok text-white px-2.5 py-1 rounded hover:opacity-90 disabled:opacity-50"
+            className="text-[11px] font-bold bg-ok text-white px-2.5 py-1 rounded hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
             title="Associer cette ACP à l'intervention"
           >
-            ✅ Confirmer
+            <CheckCircle2 size={12} />Confirmer
           </button>
           <button
             type="button"
             disabled={pending}
             onClick={() => startTransition(async () => { await onIgnore(); })}
-            className="text-[11px] font-bold bg-white text-terra border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 dark:bg-[#221E1A] dark:hover:bg-[#3A2A14]"
+            className="text-[11px] font-bold bg-white text-terra border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 inline-flex items-center gap-1 dark:bg-[#221E1A] dark:hover:bg-[#3A2A14]"
             title="Effacer la suggestion (l'ACP restera non associée)"
           >
-            ❌ Ignorer
+            <XCircle size={12} />Ignorer
           </button>
         </div>
       </div>
@@ -3194,7 +3243,7 @@ function AcpPicker({
       }
       onSaved(acp);
       setEditing(false);
-      setMsg({ kind: 'ok', msg: '✓ ACP associée.' });
+      setMsg({ kind: 'ok', msg: 'ACP associée.' });
     } catch (e) {
       setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -3217,7 +3266,7 @@ function AcpPicker({
         return;
       }
       onSaved(null);
-      setMsg({ kind: 'ok', msg: '✓ ACP retirée.' });
+      setMsg({ kind: 'ok', msg: 'ACP retirée.' });
     } catch (e) {
       setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
@@ -3238,17 +3287,17 @@ function AcpPicker({
           <button
             type="button"
             onClick={() => { setEditing(true); setQuery(''); setResults([]); }}
-            className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold"
+            className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold inline-flex items-center gap-1"
           >
-            ✏️ Changer
+            <Pencil size={12} />Changer
           </button>
           <button
             type="button"
             onClick={clearAcp}
             disabled={saving}
-            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50"
+            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
           >
-            ✕ Retirer
+            <X size={12} />Retirer
           </button>
         </div>
         {msg && (
@@ -3271,16 +3320,16 @@ function AcpPicker({
             <button
               type="button"
               onClick={() => { setEditing(true); setQuery(''); setResults([]); }}
-              className="text-[10px] bg-navy text-white px-2.5 py-1.5 rounded font-bold"
+              className="text-[10px] bg-navy text-white px-2.5 py-1.5 rounded font-bold inline-flex items-center gap-1"
             >
-              🔍 Associer une ACP
+              <Search size={12} />Associer une ACP
             </button>
             <Link
               href="/admin/syndics?new=acp"
               target="_blank"
-              className="text-[10px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1.5 rounded font-bold"
+              className="text-[10px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1.5 rounded font-bold inline-flex items-center gap-1"
             >
-              ➕ Nouvelle ACP
+              <Plus size={12} />Nouvelle ACP
             </Link>
           </div>
           {msg && (
@@ -3328,8 +3377,8 @@ function AcpPicker({
               Annuler
             </button>
             {!organisationId && (
-              <span className="text-[10px] text-ink-muted italic">
-                ⚠️ Aucun syndic défini sur cette intervention — recherche élargie à toutes les ACPs.
+              <span className="text-[10px] text-ink-muted italic inline-flex items-center gap-1">
+                <AlertTriangle size={12} />Aucun syndic défini sur cette intervention — recherche élargie à toutes les ACPs.
               </span>
             )}
           </div>
@@ -3411,8 +3460,8 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
     <div className="space-y-4">
       {data.recidives_detectees > 0 && (
         <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-          <div className="font-bold text-[#8A5A1A] dark:text-[#F0D896]">
-            🔄 {data.recidives_detectees} récidive{data.recidives_detectees > 1 ? 's' : ''} détectée{data.recidives_detectees > 1 ? 's' : ''}
+          <div className="font-bold text-[#8A5A1A] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
+            <RefreshCw size={14} />{data.recidives_detectees} récidive{data.recidives_detectees > 1 ? 's' : ''} détectée{data.recidives_detectees > 1 ? 's' : ''}
           </div>
           <div className="text-[11px] text-[#5A3F15] dark:text-[#F0D896]">
             Même type de problème dans les 12 derniers mois sur les mêmes apparts.
@@ -3421,7 +3470,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
       )}
 
       {/* Par appartement */}
-      <Block title={`🏠 Historique par appartement (${data.par_appartement.length})`}>
+      <Block title={<span className="inline-flex items-center gap-1.5"><Home size={12}/>Historique par appartement ({data.par_appartement.length})</span>}>
         {data.par_appartement.length === 0 ? (
           <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
             Aucun historique pour les apparts de ce dossier.
@@ -3439,8 +3488,8 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
                       </span>
                     )}
                   </div>
-                  <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
-                    📋 {group.interventions.length} intervention{group.interventions.length !== 1 ? 's' : ''} précédente{group.interventions.length !== 1 ? 's' : ''}
+                  <div className="text-[10px] text-ink-muted inline-flex items-center gap-1 dark:text-[#C8C2B8]">
+                    <ClipboardList size={10} />{group.interventions.length} intervention{group.interventions.length !== 1 ? 's' : ''} précédente{group.interventions.length !== 1 ? 's' : ''}
                   </div>
                 </div>
                 <div className="divide-y divide-sand-mid dark:divide-[#3D3A32]">
@@ -3453,7 +3502,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
       </Block>
 
       {/* Par ACP */}
-      <Block title={`🏢 Historique ACP (${data.par_acp.length})`}>
+      <Block title={<span className="inline-flex items-center gap-1.5"><Building2 size={12}/>Historique ACP ({data.par_acp.length})</span>}>
         {data.par_acp.length === 0 ? (
           <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
             Aucun historique sur cette ACP.
@@ -3493,8 +3542,8 @@ function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: st
           <span className="font-mono text-[11px] font-bold text-navy dark:text-[#A8C4F2]">{iv.ref ?? '?'}</span>
           <span className="text-[10px] font-mono text-ink-muted dark:text-[#C8C2B8]">{date}</span>
           {iv.is_recidive && (
-            <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]">
-              🔄 Récidive
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]">
+              <RefreshCw size={10} />Récidive
             </span>
           )}
         </div>
@@ -3505,8 +3554,8 @@ function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: st
         <div className="text-[10px] text-ink-mid mt-0.5 line-clamp-2 dark:text-[#C8C2B8]">{iv.description}</div>
       )}
       {iv.appartements.length > 0 && (
-        <div className="text-[10px] text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
-          📍 Apt {iv.appartements.join(', ')}
+        <div className="text-[10px] text-ink-muted mt-0.5 inline-flex items-center gap-1 dark:text-[#C8C2B8]">
+          <MapPin size={10} />Apt {iv.appartements.join(', ')}
         </div>
       )}
     </Link>
@@ -3602,7 +3651,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
         setMsg({ kind: 'err', msg: data.error ?? 'Échec création lien.' });
         return;
       }
-      setMsg({ kind: 'ok', msg: '✓ Lien créé.' });
+      setMsg({ kind: 'ok', msg: 'Lien créé.' });
       setShowLier(false);
       setLierTarget(null); setLierNote(''); setSearchQ('');
       // Recharge
@@ -3634,7 +3683,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
     <>
       {doublonLink && (
         <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-          <div className="font-bold mb-0.5 text-[#8A5A1A] dark:text-[#F0D896]">⚠️ Doublon possible</div>
+          <div className="font-bold mb-0.5 text-[#8A5A1A] inline-flex items-center gap-1.5 dark:text-[#F0D896]"><AlertTriangle size={12} />Doublon possible</div>
           <div className="text-[#5A3F15] dark:text-[#F0D896]">
             Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="font-mono font-bold underline">{doublonLink.liee_ref ?? '?'}</Link>
             {doublonLink.note && <> · <span className="italic">{doublonLink.note}</span></>}
@@ -3644,8 +3693,8 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
 
       {unresolvedLinks.length > 0 && (
         <div className="bg-terra-light border border-terra-mid rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A1F14] dark:border-[#7A3F2A] dark:text-[#F0AE96]">
-          <div className="font-bold mb-1 text-terra dark:text-[#F0AE96]">
-            ⚠️ Dossier antérieur non résolu possible — voir historique
+          <div className="font-bold mb-1 text-terra inline-flex items-center gap-1.5 dark:text-[#F0AE96]">
+            <AlertTriangle size={14} />Dossier antérieur non résolu possible — voir historique
           </div>
           <div className="text-[#7A2F15] dark:text-[#F0AE96] flex flex-wrap items-center gap-x-2 gap-y-1">
             {unresolvedLinks.length === 1 ? (
@@ -3684,7 +3733,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
       )}
 
       {/* Dossiers liés */}
-      <Block title={`🔗 Dossiers liés (${liens.length})`}>
+      <Block title={<span className="inline-flex items-center gap-1.5"><Link2 size={12}/>Dossiers liés ({liens.length})</span>}>
         {liens.length === 0 ? (
           <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
             Aucun lien pour ce dossier.
@@ -3708,9 +3757,9 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
         <button
           type="button"
           onClick={() => setShowLier(!showLier)}
-          className="mt-2 text-[10px] bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#A8C4F2] dark:border-[#3D3A32]"
+          className="mt-2 text-[10px] bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-bold inline-flex items-center gap-1 dark:bg-[rgba(255,255,255,.06)] dark:text-[#A8C4F2] dark:border-[#3D3A32]"
         >
-          🔗 Lier manuellement
+          <Link2 size={12} />Lier manuellement
         </button>
         {showLier && (
           <div className="mt-2 bg-sand border border-sand-border rounded-md p-2.5 space-y-2 dark:bg-[#141210] dark:border-[#2C2A24]">
@@ -3773,9 +3822,9 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
                     type="button"
                     onClick={lierManually}
                     disabled={saving}
-                    className="text-[10px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50"
+                    className="text-[10px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
                   >
-                    {saving ? '…' : '💾 Créer le lien'}
+                    {saving ? '…' : (<><Save size={12} />Créer le lien</>)}
                   </button>
                   <button
                     type="button"
@@ -3797,7 +3846,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
       </Block>
 
       {/* Mails liés */}
-      <Block title={`📧 Mails liés (${mails.length})`}>
+      <Block title={<span className="inline-flex items-center gap-1.5"><Mail size={12}/>Mails liés ({mails.length})</span>}>
         {mails.length === 0 ? (
           <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
             Aucun mail rattaché.
@@ -3860,7 +3909,7 @@ function MailTypeBadge({ type }: { type: string }) {
   );
 }
 
-function Block({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
+function Block({ title, children, id }: { title: React.ReactNode; children: React.ReactNode; id?: string }) {
   return (
     <div id={id} className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border mb-3 scroll-mt-4">
       <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
