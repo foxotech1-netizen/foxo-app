@@ -134,7 +134,10 @@ export function Dashboard({
 
       {/* ── 2. Alertes prioritaires ──────────────────────────────────────── */}
       {stats.urgent > 0 && (
-        <div className="px-4 py-2.5 bg-terra-light border border-terra-mid text-terra rounded-lg text-xs font-semibold flex items-center gap-2">
+        <div
+          className="px-4 py-2.5 border rounded-lg text-xs font-semibold flex items-center gap-2"
+          style={{ background: '#FFF5F5', borderColor: '#FCA5A5', color: '#DC2626' }}
+        >
           <Zap size={18} aria-hidden />
           {stats.urgent} intervention(s) urgente(s) en attente de traitement
         </div>
@@ -159,7 +162,7 @@ export function Dashboard({
 
       {/* ── 4. À faire aujourd'hui ───────────────────────────────────────── */}
       <section>
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+        <h3 className="section-label mb-2">
           À faire aujourd&apos;hui
         </h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
@@ -292,7 +295,7 @@ export function DashboardTechs({
         />
       )}
 
-      <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+      <h3 className="section-label mb-2">
         Vue par technicien
       </h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -411,23 +414,41 @@ function StatCard({
   accent?: boolean; muted?: boolean; warning?: boolean; amber?: boolean;
   href?: string; active?: boolean;
 }) {
-  let bg = 'bg-cream';
-  let border = 'border-sand-border';
-  let numColor = 'text-ink';
-  if (accent) { bg = 'bg-navy-pale'; border = 'border-navy-light'; numColor = 'text-navy'; }
-  if (amber)  { bg = 'bg-amber-light'; border = 'border-[#E8C896]'; numColor = 'text-[#8A5A1A]'; }
-  if (muted) numColor = 'text-ink-mid';
-  if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra'; }
-  const useStatNum = !accent && !amber && !warning;
+  // Couleur de la barre 3px en haut de la card, par type de KPI.
+  // default + accent (en cours) → navy ; warning (suspens) → red ;
+  // amber (rapports) → ambre ; muted (clôturées) → gris.
+  let barColor = '#1B3A6B';
+  if (warning) barColor = '#DC2626';
+  else if (amber) barColor = '#B8830A';
+  else if (muted) barColor = '#9A9690';
 
-  // Filtre actif : bordure ambre #E2C9A1, bordure 2px pour effet visible
-  const activeRing = active ? 'border-2 border-[#E2C9A1] shadow-sm' : '';
-  const interactive = href ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:translate-y-0' : '';
+  // Filtre actif : override la border 1px de .premium-card en 2px ambre.
+  // L'inline style l'emporte sur la règle CSS de .premium-card.
+  const activeStyle: React.CSSProperties = active
+    ? { borderColor: '#E2C9A1', borderWidth: 2, borderStyle: 'solid' }
+    : {};
 
   const content = (
-    <div className={`${bg} ${active ? '' : border} ${active ? '' : 'border'} ${activeRing} ${interactive} rounded-xl px-4 py-3.5`}>
-      <div className={`text-[26px] font-extrabold leading-none ${useStatNum ? 'stat-num' : numColor}`}>{num}</div>
-      <div className="text-[10px] text-ink-muted mt-1 font-semibold">{label}</div>
+    <div className="premium-card px-4 py-3.5" style={activeStyle}>
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, height: 3,
+          background: barColor,
+          borderTopLeftRadius: 'inherit',
+          borderTopRightRadius: 'inherit',
+        }}
+      />
+      <div className="kpi-value">{num}</div>
+      <div className="text-[12px] font-semibold text-[var(--text-secondary)] mt-2">
+        {label}
+      </div>
+      {href && (
+        <div className="text-[10px] font-bold mt-2" style={{ color: '#C8924A' }}>
+          Voir tout →
+        </div>
+      )}
     </div>
   );
 
@@ -461,19 +482,22 @@ function TodoCard({
   empty: string;
   children: React.ReactNode;
 }) {
-  // Mode clair : pastille pâle assortie. Mode sombre : on bascule sur un
-  // fond plus opaque + texte blanc pour atteindre le ratio AA WCAG.
-  const headerStyle = {
-    navy:  'bg-navy-pale text-navy border-navy-light',
-    ok:    'bg-ok-light text-ok border-ok-mid',
-    amber: 'bg-amber-light text-[#8A5A1A] border-[#E8C896]',
+  // Palettes premium par colonne — Tailwind v3 hex passés inline (pas
+  // exposés comme classes en Tailwind v4 par défaut).
+  const headerColor: React.CSSProperties = {
+    navy:  { background: '#EFF6FF', color: '#1D4ED8', borderColor: '#BFDBFE' },
+    ok:    { background: '#F0FDF4', color: '#15803D', borderColor: '#BBF7D0' },
+    amber: { background: '#FFFBEB', color: '#92400E', borderColor: '#FED7AA' },
   }[color];
   return (
     <div
       className="border rounded-2xl overflow-hidden"
       style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
     >
-      <div className={'px-4 py-2.5 flex items-center justify-between border-b ' + headerStyle}>
+      <div
+        className="px-4 py-2.5 flex items-center justify-between border-b"
+        style={headerColor}
+      >
         <span className="text-[11px] font-bold uppercase tracking-wider">{title}</span>
         <span className="text-[12px] font-extrabold">{count}</span>
       </div>
@@ -524,7 +548,7 @@ function RecentResponsesCard({
 
   return (
     <section>
-      <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2 flex items-center gap-1.5">
+      <h3 className="section-label mb-2 flex items-center gap-1.5">
         <Inbox size={14} aria-hidden /> Réponses occupants reçues (&lt; 48 h)
         <span className="ml-2 inline-block px-2 py-0.5 bg-terra text-white rounded-full text-[10px] font-extrabold">
           {responses.length}
@@ -765,7 +789,7 @@ function NewMailSection({
   return (
     <section>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest flex items-center gap-1.5">
+        <h3 className="section-label flex items-center gap-1.5">
           <Mail size={14} aria-hidden /> Nouvelles demandes mail ({mails.length})
         </h3>
         {mails.length > 1 && (
@@ -829,17 +853,17 @@ function NewMailSection({
             return (
               <div
                 key={iv.id}
-                className="relative bg-[var(--main-bg)] border border-[var(--card-border-2)] rounded-md transition-colors flex items-center gap-2 px-2.5 py-2 text-[12px] hover:bg-navy-pale"
+                className="row-hover relative bg-[var(--card-bg)] border border-[var(--card-border)] rounded-md flex items-center gap-2 px-2.5 py-2 text-[12px]"
               >
                 <button
                   type="button"
                   onClick={() => onOpenIntervention(iv.id)}
                   className="flex-1 flex items-center gap-2 text-left min-w-0"
                 >
-                  <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#A17244] text-white font-bold flex-shrink-0">
+                  <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#C8924A] text-white font-bold flex-shrink-0">
                     <Mail size={11} aria-hidden /> Mail
                   </span>
-                  <span className="font-mono text-[11px] text-navy font-bold flex-shrink-0">
+                  <span className="text-[12px] font-display font-bold flex-shrink-0" style={{ color: '#C8924A' }}>
                     {iv.ref ?? '?'}
                   </span>
                   <span className="font-bold text-ink truncate flex-1">

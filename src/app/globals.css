@@ -164,6 +164,7 @@ body {
 }
 
 .premium-card {
+  position: relative;
   background: var(--card-bg, #FFFFFF);
   border: 1px solid var(--card-border, #E6E2DC);
   border-radius: var(--card-radius);
