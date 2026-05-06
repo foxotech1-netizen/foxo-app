@@ -20,6 +20,12 @@ export const themes = {
     sidebarHover: '#2E2C28',
     accent: '#C8924A',
     accentDim: 'rgba(200,146,74,0.15)',
+    // --info-bg / --info-fg : couleur sémantique "information / pending"
+    // (ex. banner "vous avez proposé un autre créneau"). Découplée de
+    // l'accent du thème pour rester un bleu doux quel que soit le
+    // thème — un orange "info" perturberait la lecture.
+    infoBg: 'rgba(59,130,196,0.10)',
+    infoFg: '#3B82C4',
     mainBg: '#F7F5F2',
     topBg: '#FFFFFF',
     topBorder: '#E6E2DC',
@@ -46,6 +52,8 @@ export const themes = {
     sidebarHover: '#3A2B1F',
     accent: '#D4862A',
     accentDim: 'rgba(212,134,42,0.12)',
+    infoBg: 'rgba(59,130,196,0.10)',
+    infoFg: '#3B82C4',
     mainBg: '#FAF7F2',
     topBg: '#FFFDF9',
     topBorder: '#EDE5D8',
@@ -72,6 +80,8 @@ export const themes = {
     sidebarHover: 'rgba(255,255,255,0.06)',
     accent: '#E8A020',
     accentDim: 'rgba(232,160,32,0.12)',
+    infoBg: 'rgba(59,114,176,0.10)',
+    infoFg: '#3B72B0',
     mainBg: '#F4F7FB',
     topBg: '#FFFFFF',
     topBorder: '#D0DFF0',

@@ -205,7 +205,7 @@ function StatusBanner({
   // (counter est stocké en attente côté DB, le syndic doit valider).
   if (proposedDebut) {
     return (
-      <div className="bg-[var(--accent-dim)] border border-[var(--card-border)] text-[var(--accent)] rounded-lg px-3.5 py-2.5 text-sm font-semibold">
+      <div className="bg-[var(--info-bg)] border border-[var(--info-fg)]/30 text-[var(--info-fg)] rounded-lg px-3.5 py-2.5 text-sm font-semibold">
         <span className="inline-flex items-center gap-1.5">
           <RefreshCw size={14} /> Vous avez proposé un autre créneau ({fmtDateTime(proposedDebut, true)}). Le syndic vous reviendra.
         </span>
