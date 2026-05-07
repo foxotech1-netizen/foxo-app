@@ -148,7 +148,8 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
   if (!input.type) return { ok: false, error: 'Type d\'intervention manquant.' };
   if (!input.description.trim()) return { ok: false, error: 'Description manquante.' };
 
-  const isCourtier = session.org.type === 'courtier';
+  const isPartner = session.org.type === 'courtier' || session.org.type === 'expert';
+  const isExpert = session.org.type === 'expert';
 
   // Validation et préparation selon le type
   let acpId: string | null = null;
@@ -162,16 +163,25 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
     reference_police: string | null;
   } | null = null;
 
-  if (isCourtier) {
+  if (isPartner) {
     if (!input.courtier) return { ok: false, error: 'Données dossier sinistre manquantes.' };
     const c = input.courtier;
     if (!c.assure_nom.trim()) return { ok: false, error: 'Nom de l\'assuré requis.' };
     if (!c.sinistre_rue.trim() || !c.sinistre_code_postal.trim() || !c.sinistre_ville.trim()) {
       return { ok: false, error: 'Adresse du sinistre complète requise.' };
     }
-    if (!c.ref_compagnie.trim()) return { ok: false, error: 'Référence compagnie requise.' };
+    if (!isExpert && !c.ref_compagnie.trim()) {
+      return { ok: false, error: 'Référence compagnie requise.' };
+    }
     adresseLigne = `${c.sinistre_rue.trim()}, ${c.sinistre_code_postal.trim()} ${c.sinistre_ville.trim()}`;
-    dossierFields = { assure: c.assure_nom.trim(), ref_courtier: c.ref_compagnie.trim() };
+    // Si la référence compagnie est vide (cas expert), on ne crée pas
+    // de dossier_sinistres — l'intervention seule suffit. assureNom est
+    // perdu côté DB (TODO : capturer dans particulier_contact ou un
+    // champ dédié si besoin métier).
+    const refCourtier = c.ref_compagnie?.trim() || null;
+    if (refCourtier !== null) {
+      dossierFields = { assure: c.assure_nom.trim(), ref_courtier: refCourtier };
+    }
 
     // Si l'un des deux champs assurance est rempli, on alimente le JSONB
     // interventions.assureur (sinon on laisse à null pour ne pas créer de
@@ -214,7 +224,7 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       bce_facturation: input.facturation.bce.trim() || null,
       ref_bon_commande: input.facturation.ref_bon_commande.trim() || null,
       date_demande: new Date().toISOString().slice(0, 10),
-      demandeur_type: isCourtier ? 'courtier' : 'syndic',
+      demandeur_type: isPartner ? 'courtier' : 'syndic',
       lat: input.lat ? parseFloat(input.lat) : null,
       lng: input.lng ? parseFloat(input.lng) : null,
       ...(assureurJson ? { assureur: assureurJson } : {}),

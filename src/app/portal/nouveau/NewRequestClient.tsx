@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, ArrowLeft, ArrowRight, Plus, Zap, CheckCircle2, Landmark } from 'lucide-react';
 import type { Acp, PrioriteIntervention, TypeIntervention } from '@/lib/types/database';
+import type { OrgType } from '@/lib/portal/vocab';
 import { useOrgType, useVocab } from '../PortalContext';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
 import {
@@ -245,6 +246,7 @@ export function NewRequestClient({
         {step === 1 && (
           isPartner ? (
             <Step1Courtier
+              orgType={orgType}
               assureNom={assureNom} setAssureNom={setAssureNom}
               rue={sinistreRue} setRue={setSinistreRue}
               codePostal={sinistreCP} setCodePostal={setSinistreCP}
@@ -718,6 +720,7 @@ function Step5({
 // ── Step 1 COURTIER : sinistre ──────────────────────────────────────────
 
 function Step1Courtier({
+  orgType,
   assureNom, setAssureNom,
   rue, setRue,
   codePostal, setCodePostal,
@@ -727,6 +730,7 @@ function Step1Courtier({
   referenceSinistre, setReferenceSinistre,
   compagnieAssurance, setCompagnieAssurance,
 }: {
+  orgType: OrgType;
   assureNom: string; setAssureNom: (v: string) => void;
   rue: string; setRue: (v: string) => void;
   codePostal: string; setCodePostal: (v: string) => void;
@@ -766,7 +770,7 @@ function Step1Courtier({
       />
 
       <Field
-        label="Référence compagnie *"
+        label={orgType === 'expert' ? 'Référence compagnie (optionnel)' : 'Référence compagnie *'}
         value={refCompagnie}
         onChange={setRefCompagnie}
         placeholder="Numéro de dossier interne (ex : SIN-2026-1234)"
