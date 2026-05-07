@@ -39,9 +39,12 @@ export function NewRequestClient({
   const orgType = useOrgType();
   const vocab = useVocab();
   const isPartner = orgType === 'courtier' || orgType === 'expert';
-  const accentBg = isPartner
-    ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
-    : 'bg-navy hover:bg-navy-mid';
+  const accentBg =
+    orgType === 'expert'
+      ? 'bg-[#F59E0B] hover:bg-[#D97706]'
+      : isPartner
+        ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
+        : 'bg-navy hover:bg-navy-mid';
 
   const STEP_LABELS = isPartner
     ? ['Sinistre', 'Problème', 'Occupants', 'Créneau', 'Facturation']
@@ -172,7 +175,7 @@ export function NewRequestClient({
           return Boolean(
             assureNom.trim() &&
             sinistreRue.trim() && sinistreCP.trim() && sinistreVille.trim() &&
-            refCompagnie.trim()
+            (orgType === 'expert' || refCompagnie.trim() !== '')
           );
         }
         return Boolean(selectedAcp);
