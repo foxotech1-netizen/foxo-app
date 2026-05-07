@@ -1,17 +1,32 @@
 'use client';
 
 import { ArrowRight, User } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const ICON_COLOR = '#FBBF24';
 
 // Tuile "Espace Client" — pas un lien direct : on ouvre un mini-form
 // inline où le client saisit sa référence, puis on redirige vers le
-// tracker statique foxo-track.netlify.app. Form positionné en absolu
-// sous la tuile, glassmorphism cohérent avec le reste du hub.
+// tracker statique foxo-track.netlify.app. Form rendu dans le flux
+// normal (push les tuiles suivantes vers le bas plutôt que de
+// chevaucher). Click extérieur referme via listener mousedown.
 export function EspaceClientTile({ delayMs }: { delayMs: number }) {
   const [expanded, setExpanded] = useState(false);
   const [refDossier, setRefDossier] = useState('');
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss au clic extérieur — pas d'écouteur quand le form est fermé
+  // pour limiter le bruit. Cleanup au unmount + à chaque toggle.
+  useEffect(() => {
+    if (!expanded) return;
+    function onMouseDown(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setExpanded(false);
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [expanded]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +37,7 @@ export function EspaceClientTile({ delayMs }: { delayMs: number }) {
   }
 
   return (
-    <div className="relative">
+    <div ref={wrapperRef}>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -53,7 +68,7 @@ export function EspaceClientTile({ delayMs }: { delayMs: number }) {
       {expanded && (
         <form
           onSubmit={submit}
-          className="absolute left-0 right-0 top-full mt-2 z-10 rounded-xl p-2.5 flex items-center gap-2"
+          className="mt-2 rounded-xl p-2.5 flex items-center gap-2"
           style={{
             background: 'rgba(15,30,53,0.92)',
             border: '1px solid rgba(255,255,255,0.18)',
