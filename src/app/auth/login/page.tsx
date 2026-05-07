@@ -5,17 +5,28 @@ import { roleForEmail, pathForRole } from '@/lib/auth/roles';
 import { Logo } from '@/components/Logo';
 import { LoginForm } from './LoginForm';
 
-// Label adaptatif selon le sous-domaine. La page est physiquement la même
-// pour les 3 apps — le proxy ne réécrit pas /auth/login (KNOWN_GROUP_PATHS).
-function labelForHost(host: string): string {
+// Label adaptatif selon le sous-domaine et le path d'origine (`next`).
+// La page est physiquement la même pour les 3 apps — le proxy ne réécrit
+// pas /auth/login (KNOWN_GROUP_PATHS). Sur portal.foxo.be / auth.foxo.be,
+// le `next` query param permet de distinguer syndic / courtier / expert.
+function labelForContext(host: string, next?: string): string {
   const h = host.toLowerCase().split(':')[0];
   if (h.startsWith('admin.')) return 'Interface Admin';
-  if (h.startsWith('portal.')) return 'Portail Syndic';
-  if (h.startsWith('tech.')) return 'App Technicien';
+  if (h.startsWith('tech.'))  return 'App Technicien';
+  if (h.startsWith('portal.') || h.startsWith('auth.')) {
+    if (next?.includes('/courtier')) return 'Portail Courtier';
+    if (next?.includes('/expert'))   return 'Portail Expert';
+    if (next?.includes('/portal'))   return 'Portail Syndic';
+    return 'Portail Partenaires';
+  }
   return 'Connexion';
 }
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
@@ -25,7 +36,8 @@ export default async function LoginPage() {
 
   const hdrs = await headers();
   const host = hdrs.get('host') ?? '';
-  const label = labelForHost(host);
+  const sp = await searchParams;
+  const label = labelForContext(host, sp.next);
 
   return (
     <div
