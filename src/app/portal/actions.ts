@@ -230,7 +230,7 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       ...(assureurJson ? { assureur: assureurJson } : {}),
       ...(assureurJson?.reference_sinistre ? { reference_externe: assureurJson.reference_sinistre } : {}),
     })
-    .select('id')
+    .select('id, ref')
     .single();
 
   if (error) return { ok: false, error: error.message };
@@ -244,9 +244,10 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
         courtier_id: session.org.id,
         assure: dossierFields.assure,
         ref_courtier: dossierFields.ref_courtier,
+        numero: iv.ref,
         date_ouverture: new Date().toISOString().slice(0, 10),
       });
-    if (dossierErr) console.warn('[portal] dossier_sinistre insert failed:', dossierErr.message);
+    if (dossierErr) console.error('[portal] dossier_sinistre insert failed:', JSON.stringify(dossierErr));
   }
 
   // Insert occupants liés (si fournis)
