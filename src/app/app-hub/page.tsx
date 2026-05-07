@@ -22,21 +22,21 @@ type Tile = {
 
 const TILES_BEFORE_CLIENT: Tile[] = [
   {
-    href: 'https://portal.foxo.be',
+    href: 'https://portal.foxo.be/syndic',
     icon: Building2,
     label: 'Syndic',
     subtitle: 'Accédez à vos dossiers',
     iconColor: '#60A5FA',
   },
   {
-    href: 'https://portal.foxo.be',
+    href: 'https://portal.foxo.be/expert',
     icon: Search,
     label: 'Expert',
     subtitle: 'Espace experts sinistres',
     iconColor: '#34D399',
   },
   {
-    href: 'https://portal.foxo.be',
+    href: 'https://portal.foxo.be/courtier',
     icon: Landmark,
     label: 'Courtier',
     subtitle: 'Suivi dossiers clients',
