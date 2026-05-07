@@ -45,9 +45,9 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     accent: '#1D6FA4',
   },
   expert: {
-    // L'expert consulte des dossiers sinistres existants — il ne crée
-    // pas de demande (newRequestVerb: null masque le CTA dans la nav,
-    // dans le dashboard et dans la liste des interventions).
+    // L'expert peut créer une demande d'intervention pour le compte de
+    // ses clients (cabinet d'expertise mandaté pour diligenter une
+    // mission de constat / chiffrage).
     portalLabel: 'Portail Expert',
     intervention: 'dossier sinistre',
     interventionCap: 'Dossier sinistre',
@@ -55,7 +55,7 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     interventionsCap: 'Dossiers sinistres',
     myInterventions: 'Mes dossiers',
     acpLabel: 'Assuré',
-    newRequestVerb: null,
+    newRequestVerb: '+ Confier une mission',
     emptyList: 'Aucun dossier',
     countSuffix: 'dossier(s)',
     accent: '#F59E0B',
