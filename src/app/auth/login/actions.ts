@@ -69,6 +69,7 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
         .select('email')
         .eq('email', email)
         .eq('actif', true)
+        .limit(1)
         .maybeSingle();
       if (!d) {
         return { error: 'Accès non autorisé. Contactez info@foxo.be.' };
