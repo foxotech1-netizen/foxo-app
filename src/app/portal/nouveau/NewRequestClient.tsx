@@ -38,12 +38,12 @@ export function NewRequestClient({
   const router = useRouter();
   const orgType = useOrgType();
   const vocab = useVocab();
-  const isCourtier = orgType === 'courtier';
-  const accentBg = isCourtier
+  const isPartner = orgType === 'courtier' || orgType === 'expert';
+  const accentBg = isPartner
     ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
     : 'bg-navy hover:bg-navy-mid';
 
-  const STEP_LABELS = isCourtier
+  const STEP_LABELS = isPartner
     ? ['Sinistre', 'Problème', 'Occupants', 'Créneau', 'Facturation']
     : ['ACP', 'Problème', 'Occupants', 'Créneau', 'Facturation'];
 
@@ -168,7 +168,7 @@ export function NewRequestClient({
   function canProceed(): boolean {
     switch (step) {
       case 1:
-        if (isCourtier) {
+        if (isPartner) {
           return Boolean(
             assureNom.trim() &&
             sinistreRue.trim() && sinistreCP.trim() && sinistreVille.trim() &&
@@ -184,7 +184,7 @@ export function NewRequestClient({
   }
 
   async function handleSubmit() {
-    if (!isCourtier && !selectedAcp) return;
+    if (!isPartner && !selectedAcp) return;
     setSubmitting(true);
     setSubmitError(null);
     let creneauIso: string | null = null;
@@ -193,9 +193,9 @@ export function NewRequestClient({
       creneauIso = new Date(`${creneauDate}T${heure}:00`).toISOString();
     }
     const res = await submitRequest({
-      acp_id: isCourtier ? null : selectedAcp!.id,
-      adresse_precise: isCourtier ? '' : adressePrecise,
-      courtier: isCourtier
+      acp_id: isPartner ? null : selectedAcp!.id,
+      adresse_precise: isPartner ? '' : adressePrecise,
+      courtier: isPartner
         ? {
             assure_nom: assureNom,
             sinistre_rue: sinistreRue,
@@ -214,8 +214,8 @@ export function NewRequestClient({
       occupants,
       // Coords du sinistre (mode courtier). En mode syndic les coords
       // sont déjà sur l'ACP — on n'écrase pas l'intervention avec.
-      lat: isCourtier ? sinisterCoords.lat : null,
-      lng: isCourtier ? sinisterCoords.lng : null,
+      lat: isPartner ? sinisterCoords.lat : null,
+      lng: isPartner ? sinisterCoords.lng : null,
     });
     setSubmitting(false);
     if (res.ok && res.data) {
@@ -229,7 +229,7 @@ export function NewRequestClient({
     <div className="space-y-5 max-w-[760px] mx-auto">
       <div>
         <h1 className="text-xl font-extrabold text-ink">
-          {isCourtier ? 'Confier une mission' : 'Nouvelle demande d\'intervention'}
+          {isPartner ? 'Confier une mission' : 'Nouvelle demande d\'intervention'}
         </h1>
         <p className="text-xs text-ink-mid mt-1">
           5 étapes — vous pouvez revenir en arrière à tout moment.
@@ -240,7 +240,7 @@ export function NewRequestClient({
 
       <div className="bg-cream border border-sand-border rounded-2xl p-5">
         {step === 1 && (
-          isCourtier ? (
+          isPartner ? (
             <Step1Courtier
               assureNom={assureNom} setAssureNom={setAssureNom}
               rue={sinistreRue} setRue={setSinistreRue}
@@ -329,14 +329,14 @@ export function NewRequestClient({
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={submitting || (!isCourtier && !selectedAcp)}
+            disabled={submitting || (!isPartner && !selectedAcp)}
             className={`inline-flex items-center gap-1.5 text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
             {submitting ? (
               'Envoi…'
             ) : (
               <>
-                {isCourtier ? 'Confier la mission' : 'Soumettre la demande'}
+                {isPartner ? 'Confier la mission' : 'Soumettre la demande'}
                 <Check size={14} />
               </>
             )}
