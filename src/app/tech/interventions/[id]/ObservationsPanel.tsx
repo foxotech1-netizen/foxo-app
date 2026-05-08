@@ -9,30 +9,30 @@ import type { LucideIcon } from 'lucide-react';
 
 type TestType =
   | 'Test colorant'
-  | 'Mise en pression'
+  | 'Test de pression'
   | 'Thermographie'
   | 'Inspection visuelle'
   | 'Caméra endoscopique'
-  | 'Humidimètre'
+  | "Capteur d'humidité"
   | 'Autre';
 
 const TEST_TYPES: TestType[] = [
   'Test colorant',
-  'Mise en pression',
+  'Test de pression',
   'Thermographie',
   'Inspection visuelle',
   'Caméra endoscopique',
-  'Humidimètre',
+  "Capteur d'humidité",
   'Autre',
 ];
 
 const ICON_BY_TYPE: Record<TestType, LucideIcon> = {
   'Test colorant':       Beaker,
-  'Mise en pression':    Gauge,
+  'Test de pression':    Gauge,
   'Thermographie':       Thermometer,
   'Inspection visuelle': Eye,
   'Caméra endoscopique': Camera,
-  'Humidimètre':         Droplet,
+  "Capteur d'humidité":  Droplet,
   'Autre':               HelpCircle,
 };
 

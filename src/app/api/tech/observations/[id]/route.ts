@@ -7,11 +7,11 @@ export const dynamic = 'force-dynamic';
 
 const ALLOWED_TEST_TYPES = new Set([
   'Test colorant',
-  'Mise en pression',
+  'Test de pression',
   'Thermographie',
   'Inspection visuelle',
   'Caméra endoscopique',
-  'Humidimètre',
+  "Capteur d'humidité",
   'Autre',
 ]);
 
