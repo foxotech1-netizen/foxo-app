@@ -23,6 +23,7 @@ import {
   AlignmentType,
   BorderStyle,
   HeightRule,
+  VerticalAlign,
   WidthType,
   ShadingType,
 } from 'docx';
@@ -45,9 +46,26 @@ const ACCENT_LINE = '4A9FD4';
 const LIGHT_BLUE  = 'EAF4FB';
 const BODY_TEXT   = '1A1A1A';
 const MUTED       = '6B6B6B';
-// const DIVIDER     = 'C0D4E8'; // réservé pour bordures futures
+const DIVIDER     = 'C0D4E8';
 
 const FONT = 'Calibri';
+
+// ─── Styling des cellules du tableau d'identification (FOXO_BASE.js) ──
+// Bordures fines bleu pâle sur les 4 côtés, marges intérieures généreuses,
+// alignement vertical centré. Spreadable via `...CELL_SHARED` dans toutes
+// les TableCell du tableau d'identification pour cohérence visuelle.
+const thinBorder = { style: BorderStyle.SINGLE, size: 4, color: DIVIDER };
+const thinBorders = {
+  top: thinBorder,
+  bottom: thinBorder,
+  left: thinBorder,
+  right: thinBorder,
+};
+const CELL_SHARED = {
+  borders: thinBorders,
+  margins: { top: 110, bottom: 110, left: 140, right: 100 },
+  verticalAlign: VerticalAlign.CENTER,
+};
 
 // Photos — hauteur fixe 302px, largeur calculée au ratio réel + clamp
 // largeur ≤ moitié de TW (layout 2-cols).
@@ -171,9 +189,10 @@ function textToParas(text: string): Paragraph[] {
 
 function labelCell(width: number, label: string, columnSpan?: number): TableCell {
   return new TableCell({
+    ...CELL_SHARED,
     width: { size: width, type: WidthType.DXA },
     columnSpan,
-    shading: { type: ShadingType.SOLID, color: LIGHT_BLUE, fill: LIGHT_BLUE },
+    shading: { type: ShadingType.CLEAR, fill: LIGHT_BLUE, color: 'auto' },
     children: [new Paragraph({
       children: [t(label, { bold: true, color: DARK_BLUE, size: 19 })],
     })],
@@ -182,6 +201,7 @@ function labelCell(width: number, label: string, columnSpan?: number): TableCell
 
 function valueCell(width: number, value: string, columnSpan?: number): TableCell {
   return new TableCell({
+    ...CELL_SHARED,
     width: { size: width, type: WidthType.DXA },
     columnSpan,
     children: [new Paragraph({
@@ -199,6 +219,7 @@ function buildIdentificationTable(data: ReportData): Table {
 
   // L3 (gauche) : objet (1 paragraphe simple)
   const objetCell = new TableCell({
+    ...CELL_SHARED,
     width: { size: C1 + C2, type: WidthType.DXA },
     columnSpan: 2,
     children: [new Paragraph({
@@ -218,6 +239,7 @@ function buildIdentificationTable(data: ReportData): Table {
       children: [t(line, { size: 20 })],
     }));
   const facturationCell = new TableCell({
+    ...CELL_SHARED,
     width: { size: C3 + C4, type: WidthType.DXA },
     columnSpan: 2,
     children: facturationParas.length > 0
@@ -246,6 +268,7 @@ function buildIdentificationTable(data: ReportData): Table {
     adresseParas.push(new Paragraph({ children: [t('—', { size: 20 })] }));
   }
   const adresseCell = new TableCell({
+    ...CELL_SHARED,
     width: { size: C2 + C3 + C4, type: WidthType.DXA },
     columnSpan: 3,
     children: adresseParas,
@@ -253,6 +276,7 @@ function buildIdentificationTable(data: ReportData): Table {
 
   // L5 : Techniques — col gauche 4 checkboxes (span 2), col droite 4 (C4)
   const techniquesLeft = new TableCell({
+    ...CELL_SHARED,
     width: { size: C2 + C3, type: WidthType.DXA },
     columnSpan: 2,
     children: [
@@ -263,6 +287,7 @@ function buildIdentificationTable(data: ReportData): Table {
     ],
   });
   const techniquesRight = new TableCell({
+    ...CELL_SHARED,
     width: { size: C4, type: WidthType.DXA },
     children: [
       checkItem('Détection acoustique',     data.techniques.acoustique),
