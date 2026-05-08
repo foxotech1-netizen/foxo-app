@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
 import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
+import { ObservationsPanel } from './ObservationsPanel';
 import { RapportPanel } from './RapportPanel';
 import { NotesPanel } from './NotesPanel';
 import { PaiementPanel } from './PaiementPanel';
@@ -166,6 +167,12 @@ export default async function TechInterventionPage({
       <PhotosPanel
         interventionId={iv.id}
         initialPhotos={photos}
+      />
+
+      {/* Observations terrain */}
+      <ObservationsPanel
+        interventionId={iv.id}
+        disabled={iv.statut === 'rapport' || iv.statut === 'cloturee'}
       />
 
       {/* Rapport */}
