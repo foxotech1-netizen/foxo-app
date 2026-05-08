@@ -7,7 +7,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -212,25 +212,26 @@ export default function Sidebar({
     return () => { cancelled = true }
   }, [])
 
-  // Re-applique un delta sur le compteur quand MailsClient émet un
-  // CustomEvent foxo:mails-updated (lu/non lu/marquage traité/etc.).
-  // Si detail.delta est numérique, update local instantané ; sinon
-  // fallback re-fetch GET /unread-count (badge éventuellement stale
-  // mais resync dans la seconde).
+  // Re-fetch debounced du compteur quand MailsClient émet un event
+  // foxo:mails-updated. Le debounce 800ms coalesce les bursts (5 mails
+  // sélectionnés + bulk action = 1 seul fetch). Plus fiable qu'une
+  // approche delta : la source de vérité reste Gmail.
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    function onMailsUpdated(e: Event) {
-      const delta = (e as CustomEvent<{ delta: number }>).detail?.delta;
-      if (typeof delta === 'number') {
-        setUnreadMails((prev) => Math.max(0, prev + delta));
-      } else {
+    function onMailsUpdated() {
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+      refetchTimerRef.current = setTimeout(() => {
         fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
           .then((r) => r.ok ? r.json() : null)
           .then((data) => { if (data?.ok) setUnreadMails(data.count ?? 0) })
           .catch(() => {})
-      }
+      }, 800)
     }
     window.addEventListener('foxo:mails-updated', onMailsUpdated)
-    return () => window.removeEventListener('foxo:mails-updated', onMailsUpdated)
+    return () => {
+      window.removeEventListener('foxo:mails-updated', onMailsUpdated)
+      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current)
+    }
   }, [])
 
   async function handleLogout() {

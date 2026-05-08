@@ -63,14 +63,6 @@ function hasInterventionRef(m: MailListItem): boolean {
   return /\b\d{4}-\d{3,5}\b/.test(`${m.subject} ${m.snippet}`);
 }
 
-// Émet un CustomEvent vers la Sidebar avec un delta sur le compteur
-// "non lus". La Sidebar applique prev + delta (clamp >= 0) pour update
-// instantané. Si on ne connaît pas le delta exact, ne pas appeler ;
-// le listener fait un fallback re-fetch quand detail.delta est absent.
-function dispatchMailsUpdate(delta: number) {
-  window.dispatchEvent(new CustomEvent('foxo:mails-updated', { detail: { delta } }));
-}
-
 export function MailsClient({ initialConnected }: { initialConnected: boolean }) {
   const router = useRouter();
   const [mails, setMails] = useState<MailListItem[]>([]);
@@ -154,8 +146,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   // Charge le détail quand selectedId change.
   // L'API serveur marque le mail comme lu (retire UNREAD côté Gmail).
-  // On capture l'état unread AVANT la mutation pour notifier la Sidebar
-  // d'un -1 si le mail venait juste de passer en lu (sinon 0).
   useEffect(() => {
     if (!selectedId) { setDetail(null); setAnalysis(null); setReplyOpen(false); return; }
     let mounted = true;
@@ -163,7 +153,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setAnalysis(null);
     setReplyOpen(false);
     setReplyBody('');
-    const wasUnread = mails.find((m) => m.id === selectedId)?.unread === true;
     fetch(`/api/admin/mails/${selectedId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -173,7 +162,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           setMails((arr) => arr.map((m) => m.id === selectedId
             ? { ...m, unread: false, label_ids: m.label_ids.filter((l) => l !== 'UNREAD') }
             : m));
-          if (wasUnread) dispatchMailsUpdate(-1);
+          window.dispatchEvent(new Event('foxo:mails-updated'));
         } else {
           setError(data.error ?? 'Erreur détail');
         }
@@ -181,7 +170,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setDetailLoading(false); });
     return () => { mounted = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   const filtered = useMemo(() => {
@@ -247,17 +235,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Action en masse échouée.' });
         return;
       }
-      // Delta exact pour la Sidebar (badge "non lus") :
-      //   - read   = -[nb mails sélectionnés actuellement unread]
-      //   - unread = +ids.length (tous deviennent unread)
-      //   - autres actions = 0 (n'affecte pas le label UNREAD)
-      let delta = 0;
-      if (action === 'read') {
-        delta = -ids.filter((id) => mails.find((m) => m.id === id)?.unread).length;
-      } else if (action === 'unread') {
-        delta = ids.length;
-      }
-      dispatchMailsUpdate(delta);
+      // Notifie la Sidebar — re-fetch debounced (cf. components/Sidebar.tsx).
+      window.dispatchEvent(new Event('foxo:mails-updated'));
       // Update optimiste
       setMails((arr) => {
         if (action === 'archive' || action === 'traite' || action === 'trash' || action === 'delete-permanent') {
@@ -341,10 +320,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'ok', msg: 'Mail marqué FOXO_TRAITE' });
         setMails((arr) => arr.filter((m) => m.id !== detail.id));
         setSelectedId(null);
-        // Marquer traité retire le label UNREAD côté Gmail. Si le mail
-        // était déjà lu, le clamp Math.max(0, ...) côté Sidebar évite un
-        // badge négatif.
-        dispatchMailsUpdate(-1);
+        window.dispatchEvent(new Event('foxo:mails-updated'));
       }
     } finally {
       setTraiteLoading(false);
@@ -434,10 +410,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
         return;
       }
-      // Supprimer définitivement retire les mails de Gmail. On décrémente
-      // le badge du nombre de mails parmi ids qui étaient unread.
-      const unreadCount = ids.filter((id) => mails.find((m) => m.id === id)?.unread).length;
-      dispatchMailsUpdate(-unreadCount);
+      window.dispatchEvent(new Event('foxo:mails-updated'));
       setMails((arr) => arr.filter((m) => !ids.includes(m.id)));
       setSelectedIds(new Set());
       if (selectedId && ids.includes(selectedId)) setSelectedId(null);
@@ -1036,8 +1009,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       }
       setMails((arr) => arr.filter((m) => m.id !== id));
       setSelectedId(null);
-      // restore ne change pas le label UNREAD. Delta 0 = no-op côté Sidebar.
-      dispatchMailsUpdate(0);
+      window.dispatchEvent(new Event('foxo:mails-updated'));
       setFeedback({ kind: 'ok', msg: action === 'restore' ? 'Mail restauré' : 'Action appliquée' });
     } finally {
       setBulkLoading(false);
