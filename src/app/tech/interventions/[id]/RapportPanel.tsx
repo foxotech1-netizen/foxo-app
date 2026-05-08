@@ -14,36 +14,6 @@ const SECTIONS: { key: keyof RapportInput; label: string; placeholder: string }[
   { key: 'recommandations', label: 'Recommandations', placeholder: 'Actions à mener, urgence, devis estimatif…' },
 ];
 
-// Types minimaux pour SpeechRecognition (non inclus dans lib.dom.d.ts)
-type SpeechResultEvent = {
-  resultIndex: number;
-  results: ArrayLike<{
-    isFinal: boolean;
-    0: { transcript: string };
-  }>;
-};
-type SpeechErrorEvent = { error: string; message?: string };
-interface SpeechRecognitionInstance {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start(): void;
-  stop(): void;
-  onresult: ((e: SpeechResultEvent) => void) | null;
-  onerror: ((e: SpeechErrorEvent) => void) | null;
-  onend: (() => void) | null;
-}
-type SpeechRecognitionCtor = new () => SpeechRecognitionInstance;
-
-function getRecognitionCtor(): SpeechRecognitionCtor | null {
-  if (typeof window === 'undefined') return null;
-  const w = window as unknown as {
-    SpeechRecognition?: SpeechRecognitionCtor;
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
 // Photo retournée par /api/tech/photos
 interface SectionPhoto {
   id: string;
@@ -81,20 +51,9 @@ export function RapportPanel({
   });
   const [savedAt, setSavedAt] = useState<string | null>(initial.updated_at || null);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
-  // 'brief' = clé virtuelle pour la dictée brute envoyée à Claude
-  const [activeDictation, setActiveDictation] = useState<keyof RapportInput | 'brief' | null>(null);
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  // Reflète activeDictation pour pouvoir relire l'état dans onend (closure
-  // capturée au moment du startDictation, donc on ne peut pas lire le
-  // setState directement). Synchronisé via useEffect plus bas.
-  const activeDictationRef = useRef<keyof RapportInput | 'brief' | null>(null);
-  const valuesRef = useRef(values);
-  valuesRef.current = values;
 
-  // Brief / dictée brute envoyée à l'IA pour générer les 4 sections
+  // Brief envoyé à l'IA pour générer les 4 sections
   const [brief, setBrief] = useState('');
-  const briefRef = useRef(brief);
-  briefRef.current = brief;
   const [generating, startGenerateTransition] = useTransition();
   const [generateMessage, setGenerateMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
@@ -112,12 +71,6 @@ export function RapportPanel({
   // Export Word : génère le .docx (template FoxO Rapport v3) et l'upload
   // sur Drive. State séparé de `pending` car ne passe pas par useTransition.
   const [exportingWord, setExportingWord] = useState(false);
-
-  // Mirror activeDictation → ref pour le handler onend (qui doit savoir
-  // si on doit redémarrer la reconnaissance après un silence).
-  useEffect(() => {
-    activeDictationRef.current = activeDictation;
-  }, [activeDictation]);
 
   // Fetch photos liées au rapport au mount.
   useEffect(() => {
@@ -239,69 +192,8 @@ export function RapportPanel({
     void patchPhoto(photoId, { section: null });
   }
 
-  const supportsSpeech = typeof window !== 'undefined' && Boolean(getRecognitionCtor());
-
   function update(key: keyof RapportInput, val: string) {
     setValues((v) => ({ ...v, [key]: val }));
-  }
-
-  function startDictation(key: keyof RapportInput | 'brief') {
-    const Ctor = getRecognitionCtor();
-    if (!Ctor) {
-      setFeedback({ kind: 'err', msg: 'Dictée non supportée par ce navigateur.' });
-      return;
-    }
-    // Stoppe une dictée en cours sur une autre section
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    const rec = new Ctor();
-    rec.lang = 'fr-FR';
-    rec.continuous = true;
-    rec.interimResults = false;
-    rec.onresult = (ev) => {
-      let added = '';
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const r = ev.results[i];
-        if (r.isFinal) added += r[0].transcript;
-      }
-      if (!added) return;
-      if (key === 'brief') {
-        const cur = briefRef.current ?? '';
-        const sep = cur && !cur.endsWith(' ') && !cur.endsWith('\n') ? ' ' : '';
-        setBrief(cur + sep + added.trim());
-      } else {
-        const cur = valuesRef.current[key] ?? '';
-        const sep = cur && !cur.endsWith(' ') && !cur.endsWith('\n') ? ' ' : '';
-        update(key, cur + sep + added.trim());
-      }
-    };
-    rec.onerror = (e) => {
-      setFeedback({ kind: 'err', msg: `Dictée : ${e.error}` });
-      setActiveDictation(null);
-    };
-    // SpeechRecognition s'arrête sur silence. Si l'utilisateur n'a pas
-    // arrêté manuellement (ref encore set), on relance automatiquement
-    // pour permettre une dictée longue sans recliquer le bouton.
-    rec.onend = () => {
-      if (activeDictationRef.current) {
-        try { rec.start(); } catch { /* déjà en cours / instance morte */ }
-      } else {
-        setActiveDictation(null);
-      }
-    };
-    recognitionRef.current = rec;
-    rec.start();
-    setActiveDictation(key);
-    setFeedback(null);
-  }
-
-  function stopDictation() {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    setActiveDictation(null);
   }
 
   // Auto-save toutes les 30s si modifs
@@ -482,7 +374,6 @@ export function RapportPanel({
 
       <div className="space-y-3">
         {SECTIONS.map(({ key, label, placeholder }) => {
-          const isActive = activeDictation === key;
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
@@ -593,12 +484,6 @@ export function RapportPanel({
       >
         <span className="inline-flex items-center justify-center gap-1.5"><Cloud size={14} />Synchroniser vers Google Drive</span>
       </button>
-
-      {!supportsSpeech && (
-        <p className="text-[10px] text-ink-muted mt-2 leading-relaxed">
-          Dictée vocale indisponible sur ce navigateur. Chrome/Edge sur Android ou Safari iOS recommandé.
-        </p>
-      )}
 
       {/* Modal Aperçu — overlay plein écran, fond cream, sections en
           prose formatée. Affichage HTML simple (pas de PDF). */}
