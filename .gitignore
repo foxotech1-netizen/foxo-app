@@ -42,5 +42,3 @@ next-env.d.ts
 
 .vercel
 
-# auto-generated session state doc (regenerated each session)
-ETAT_PROJET.md
