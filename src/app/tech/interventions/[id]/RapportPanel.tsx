@@ -83,6 +83,10 @@ export function RapportPanel({
   // 'brief' = clé virtuelle pour la dictée brute envoyée à Claude
   const [activeDictation, setActiveDictation] = useState<keyof RapportInput | 'brief' | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  // Reflète activeDictation pour pouvoir relire l'état dans onend (closure
+  // capturée au moment du startDictation, donc on ne peut pas lire le
+  // setState directement). Synchronisé via useEffect plus bas.
+  const activeDictationRef = useRef<keyof RapportInput | 'brief' | null>(null);
   const valuesRef = useRef(values);
   valuesRef.current = values;
 
@@ -107,6 +111,12 @@ export function RapportPanel({
   // Export Word : génère le .docx (template FoxO Rapport v3) et l'upload
   // sur Drive. State séparé de `pending` car ne passe pas par useTransition.
   const [exportingWord, setExportingWord] = useState(false);
+
+  // Mirror activeDictation → ref pour le handler onend (qui doit savoir
+  // si on doit redémarrer la reconnaissance après un silence).
+  useEffect(() => {
+    activeDictationRef.current = activeDictation;
+  }, [activeDictation]);
 
   // Fetch photos liées au rapport au mount.
   useEffect(() => {
@@ -244,7 +254,16 @@ export function RapportPanel({
       setFeedback({ kind: 'err', msg: `Dictée : ${e.error}` });
       setActiveDictation(null);
     };
-    rec.onend = () => setActiveDictation(null);
+    // SpeechRecognition s'arrête sur silence. Si l'utilisateur n'a pas
+    // arrêté manuellement (ref encore set), on relance automatiquement
+    // pour permettre une dictée longue sans recliquer le bouton.
+    rec.onend = () => {
+      if (activeDictationRef.current) {
+        try { rec.start(); } catch { /* déjà en cours / instance morte */ }
+      } else {
+        setActiveDictation(null);
+      }
+    };
     recognitionRef.current = rec;
     rec.start();
     setActiveDictation(key);
@@ -406,16 +425,16 @@ export function RapportPanel({
                   activeDictation === 'brief' ? stopDictation() : startDictation('brief')
                 }
                 className={
-                  'text-[10px] font-bold px-2 py-1 rounded-md ' +
+                  'text-[10px] font-bold px-4 py-3 rounded-md min-w-[120px] active:scale-95 transition-transform ' +
                   (activeDictation === 'brief'
                     ? 'bg-terra text-white animate-pulse'
                     : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
                 }
               >
                 {activeDictation === 'brief' ? (
-                  <span className="inline-flex items-center gap-1.5">● Arrêter</span>
+                  <span className="inline-flex items-center justify-center gap-1.5">● Arrêter</span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5"><Mic size={14} />Dicter</span>
+                  <span className="inline-flex items-center justify-center gap-1.5"><Mic size={18} />Dicter</span>
                 )}
               </button>
             )}
@@ -467,16 +486,16 @@ export function RapportPanel({
                     type="button"
                     onClick={() => (isActive ? stopDictation() : startDictation(key))}
                     className={
-                      'text-[10px] font-bold px-2 py-1 rounded-md ' +
+                      'text-[10px] font-bold px-4 py-3 rounded-md min-w-[120px] active:scale-95 transition-transform ' +
                       (isActive
                         ? 'bg-terra text-white animate-pulse'
                         : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
                     }
                   >
                     {isActive ? (
-                      <span className="inline-flex items-center gap-1.5">● Arrêter</span>
+                      <span className="inline-flex items-center justify-center gap-1.5">● Arrêter</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5"><Mic size={14} />Dicter</span>
+                      <span className="inline-flex items-center justify-center gap-1.5"><Mic size={18} />Dicter</span>
                     )}
                   </button>
                 )}
@@ -632,12 +651,14 @@ function SectionPhotos({
             type="file"
             accept="image/*"
             capture="environment"
+            multiple
             className="hidden"
             disabled={uploading}
             onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUpload(f);
-              e.currentTarget.value = '';
+              const input = e.currentTarget;
+              const files = Array.from(input.files ?? []);
+              for (const f of files) onUpload(f);
+              input.value = '';
             }}
           />
           <label
