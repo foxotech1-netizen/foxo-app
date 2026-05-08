@@ -88,6 +88,9 @@ export function ObservationsPanel({
   const [error, setError] = useState<string | null>(null);
   // Affiche le picker de photos libres pour cette observation (id) ou null.
   const [linkingForObs, setLinkingForObs] = useState<string | null>(null);
+  // Indique quelle observation est en cours d'upload de nouvelles photos
+  // (séquentiel sur la liste de fichiers sélectionnés). null = idle.
+  const [uploadingForObs, setUploadingForObs] = useState<string | null>(null);
 
   // Load observations + photos en parallèle au mount.
   useEffect(() => {
@@ -251,6 +254,53 @@ export function ObservationsPanel({
       setUnlinkedPhotos((prev) => [...prev, photo]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur réseau.');
+    }
+  }
+
+  // Upload séquentiel d'une liste de fichiers + lien immédiat à l'observation.
+  // Pour chaque fichier : POST /api/tech/upload-photo (FormData : file +
+  // intervention_id sans section, la photo n'appartient à aucune section
+  // du rapport mais à l'observation), puis POST sur la sub-route photos.
+  // En cas d'échec d'un fichier, on continue avec les suivants — chaque
+  // photo est indépendante du point de vue persistance.
+  async function uploadPhotosForObs(obsId: string, files: File[]) {
+    setError(null);
+    setUploadingForObs(obsId);
+    try {
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('intervention_id', interventionId);
+        const uploadRes = await fetch('/api/tech/upload-photo', {
+          method: 'POST',
+          body: fd,
+        }).then((r) => r.json());
+        if (!uploadRes.ok || !uploadRes.id) {
+          setError(uploadRes.error ?? 'Upload échoué.');
+          continue;
+        }
+        const newPhoto: ObsPhoto = {
+          id: uploadRes.id,
+          drive_url: uploadRes.drive_url,
+          filename: uploadRes.filename ?? null,
+        };
+        const linkRes = await fetch(`/api/tech/observations/${obsId}/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photo_id: newPhoto.id }),
+        }).then((r) => r.json());
+        if (!linkRes.ok) {
+          setError(linkRes.error ?? 'Liaison échouée.');
+          continue;
+        }
+        setObservations((prev) =>
+          prev.map((o) => (o.id === obsId ? { ...o, photos: [...o.photos, newPhoto] } : o)),
+        );
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setUploadingForObs(null);
     }
   }
 
@@ -440,22 +490,48 @@ export function ObservationsPanel({
                   </div>
                 )}
 
-                {/* Lier une photo */}
+                {/* Actions photos : upload direct + lier une existante */}
                 {!disabled && (
                   <>
-                    <button
-                      type="button"
-                      onClick={() => setLinkingForObs(isLinking ? null : obs.id)}
-                      disabled={unlinkedPhotos.length === 0}
-                      className="text-[11px] text-navy underline disabled:text-ink-muted disabled:no-underline disabled:cursor-not-allowed inline-flex items-center gap-1"
-                    >
-                      <ImagePlus size={12} />
-                      {unlinkedPhotos.length === 0
-                        ? 'Aucune photo libre à lier'
-                        : isLinking
-                          ? 'Fermer'
-                          : `Lier une photo (${unlinkedPhotos.length} libre${unlinkedPhotos.length > 1 ? 's' : ''})`}
-                    </button>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <input
+                        id={`obs-upload-${obs.id}`}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        disabled={uploadingForObs === obs.id}
+                        onChange={(e) => {
+                          const input = e.currentTarget;
+                          const files = Array.from(input.files ?? []);
+                          if (files.length > 0) void uploadPhotosForObs(obs.id, files);
+                          input.value = '';
+                        }}
+                      />
+                      <label
+                        htmlFor={`obs-upload-${obs.id}`}
+                        className={
+                          'text-[11px] text-navy underline inline-flex items-center gap-1 ' +
+                          (uploadingForObs === obs.id ? 'cursor-wait opacity-70' : 'cursor-pointer')
+                        }
+                      >
+                        <Camera size={12} />
+                        {uploadingForObs === obs.id ? 'Upload…' : 'Ajouter photos'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setLinkingForObs(isLinking ? null : obs.id)}
+                        disabled={unlinkedPhotos.length === 0}
+                        className="text-[11px] text-navy underline disabled:text-ink-muted disabled:no-underline disabled:cursor-not-allowed inline-flex items-center gap-1"
+                      >
+                        <ImagePlus size={12} />
+                        {unlinkedPhotos.length === 0
+                          ? 'Aucune photo libre à lier'
+                          : isLinking
+                            ? 'Fermer'
+                            : `Lier une photo (${unlinkedPhotos.length} libre${unlinkedPhotos.length > 1 ? 's' : ''})`}
+                      </button>
+                    </div>
                     {isLinking && unlinkedPhotos.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {unlinkedPhotos.map((p) => (
