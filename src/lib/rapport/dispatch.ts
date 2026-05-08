@@ -3,7 +3,29 @@ import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
 import { uploadRapport } from '@/lib/google-drive';
 import { getEmailForDoc } from '@/lib/notifications';
-import type { Acp, Intervention, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
+import type { ReportData, ReportTechniques } from '@/lib/rapport/build-docx';
+import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
+
+function fmtDateShort(d: Date): string {
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+// Cf. route.ts pour la même logique. Mappe les test_type observations →
+// 8 booleans techniques. Accepte les 2 vocabulaires (avant/après commit
+// 7514a08) pour rétro-compat avec les rows historiques.
+function buildTechniques(observations: Array<{ test_type: string }>): ReportTechniques {
+  const types = new Set(observations.map((o) => o.test_type));
+  return {
+    capteur:    types.has("Capteur d'humidité") || types.has('Humidimètre'),
+    thermique:  types.has('Thermographie'),
+    camera:     types.has('Caméra endoscopique'),
+    traceur:    types.has('Test colorant'),
+    acoustique: types.has('Détection acoustique'),
+    pression:   types.has('Test de pression') || types.has('Mise en pression'),
+    gaz:        types.has('Gaz traceur'),
+    visuelle:   types.has('Inspection visuelle'),
+  };
+}
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
 export type BuildResult =
@@ -20,17 +42,8 @@ export type BuildResult =
         conclusion: string;
         recommandations: string;
       };
-      // ↓ Champs pour buildRapportDocx (template FoxO 2026-104)
-      refSyndic: string | null;
-      description: string;
-      adresseFacturation: string;
-      adresseIntervention: string;
-      observations: Array<{
-        test_type: string;
-        etage: string | null;
-        localisation: string | null;
-        notes: string | null;
-      }>;
+      // ReportData prêt pour buildRapportDocx (template FOXO_BASE).
+      reportData: ReportData;
       syndicEmail: string | null;
       syndicNom: string | null;
       technicienNom: string | null;
@@ -63,23 +76,19 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
       ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('rapports').select('*').eq('intervention_id', iv.id).maybeSingle(),
-    supabase.from('occupants').select('appartement').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
-    supabase.from('observations_terrain').select('test_type, etage, localisation, notes').eq('intervention_id', iv.id).order('created_at', { ascending: true }),
+    supabase.from('occupants').select('appartement, nom').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
+    supabase.from('observations_terrain').select('test_type').eq('intervention_id', iv.id).order('created_at', { ascending: true }),
   ]);
 
   const acp = acpRes.data as Acp | null;
   const syndic = syndicRes.data as Pick<Organisation, 'id' | 'nom' | 'adresse' | 'email' | 'type' | 'email_factures' | 'email_rapports' | 'email_communications'> | null;
   const tech = techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
   const rapport = rapRes.data as Rapport | null;
-  const appartements = ((occRes.data ?? []) as { appartement: string | null }[])
+  const occupants = (occRes.data ?? []) as Pick<Occupant, 'appartement' | 'nom'>[];
+  const appartements = occupants
     .map((o) => o.appartement)
     .filter((a): a is string => Boolean(a && a.trim()));
-  const observations = (obsRes.data ?? []) as Array<{
-    test_type: string;
-    etage: string | null;
-    localisation: string | null;
-    notes: string | null;
-  }>;
+  const observations = (obsRes.data ?? []) as Array<{ test_type: string }>;
 
   if (!rapport) return { ok: false, error: 'Aucun rapport rédigé pour cette intervention.' };
 
@@ -119,33 +128,50 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     particulier_contact: iv.particulier_contact as ParticulierContact | null,
   }, 'rapport');
 
-  // ─── Composition des champs du tableau d'identification (FoxO 2026-104) ──
-  const refSyndic = (iv.reference_externe ?? '').trim() || null;
-  const description = iv.description?.trim()
-    || rapport.degats?.split(/\r?\n/)[0]?.slice(0, 200)
-    || '—';
+  // ─── Composition ReportData (template FOXO_BASE) ────────────────────
+  const today = new Date();
+  const refExterne = (iv.reference_externe ?? '').trim();
 
-  const factuLines: string[] = [];
-  const factuName = iv.nom_facturation || syndic?.nom;
-  if (factuName) factuLines.push(factuName);
-  if (syndic?.adresse) factuLines.push(syndic.adresse);
-  const factuEmail = iv.email_facturation || syndic?.email;
-  if (factuEmail) factuLines.push(factuEmail);
-  if (iv.bce_facturation) factuLines.push(`BCE : ${iv.bce_facturation}`);
-  const adresseFacturation = factuLines.length > 0 ? factuLines.join('\n') : '—';
+  // Le builder splitte sur '||PARA||' pour produire un Paragraph par bloc
+  // (cf. textToParas dans build-docx.ts). Les doubles sauts de ligne
+  // saisis par le tech (ou Claude) deviennent des séparateurs.
+  const toParaFmt = (s: string) => (s ?? '').replace(/\n\n/g, '||PARA||');
 
-  const intervLines: string[] = [];
-  if (acp?.nom) intervLines.push(acp.nom);
-  if (acpAdresse) intervLines.push(acpAdresse);
-  const etagesSet = new Set(
-    observations.map((o) => o.etage).filter((e): e is string => Boolean(e)),
-  );
-  if (etagesSet.size > 0) {
-    intervLines.push(`Étages : ${[...etagesSet].sort().join(', ')}`);
-  }
-  const adresseIntervention = intervLines.length > 0
-    ? intervLines.join('\n')
-    : (iv.adresse ?? '—');
+  const adresseLigne1 = [acp?.nom, acpAdresse]
+    .filter((v): v is string => Boolean(v && v.trim()))
+    .join('  –  ') || (iv.adresse ?? '');
+
+  const adresseLigne2 = occupants
+    .map((o) => {
+      const apt = o.appartement?.trim();
+      const nm = o.nom?.trim();
+      if (apt && nm) return `Apt ${apt} – ${nm}`;
+      if (apt) return `Apt ${apt}`;
+      if (nm) return nm;
+      return null;
+    })
+    .filter((s): s is string => s !== null)
+    .join('  –  ');
+
+  const reportData: ReportData = {
+    numero: ref,
+    ref_label: refExterne ? 'Réf. syndic :' : 'Date intervention :',
+    ref_value: refExterne || fmtDateShort(today),
+    objet: iv.description || '—',
+    facturation_ligne1: iv.nom_facturation || syndic?.nom || '',
+    facturation_ligne2: syndic?.adresse || '',
+    facturation_ligne3: iv.email_facturation || syndic?.email || '',
+    facturation_ligne4: iv.bce_facturation ? `BCE : ${iv.bce_facturation}` : '',
+    adresse_ligne1: adresseLigne1,
+    adresse_ligne2: adresseLigne2,
+    adresse_ligne3: '',
+    techniques: buildTechniques(observations),
+    degats: toParaFmt(rapport.degats ?? ''),
+    inspection: toParaFmt(rapport.inspection ?? ''),
+    conclusion: toParaFmt(rapport.conclusion ?? ''),
+    recommandation: toParaFmt(rapport.recommandations ?? ''),
+    fait_a_date: fmtDateShort(today),
+  };
 
   return {
     ok: true,
@@ -160,11 +186,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
       conclusion: rapport.conclusion ?? '',
       recommandations: rapport.recommandations ?? '',
     },
-    refSyndic,
-    description,
-    adresseFacturation,
-    adresseIntervention,
-    observations,
+    reportData,
     syndicEmail: recipient.email ?? syndic?.email ?? null,
     syndicNom: syndic?.nom ?? null,
     technicienNom: techNom,
@@ -209,14 +231,8 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
     const { buildRapportDocx } = await import('@/lib/rapport/build-docx');
     const docxBytes = await buildRapportDocx({
       interventionId: built.interventionId,
-      ref: built.ref,
-      refSyndic: built.refSyndic,
-      description: built.description,
-      adresseFacturation: built.adresseFacturation,
-      adresseIntervention: built.adresseIntervention,
+      data: built.reportData,
       date: new Date(),
-      sections: built.sections,
-      observations: built.observations,
     });
     await uploadRapport({
       ref: built.ref,

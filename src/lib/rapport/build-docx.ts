@@ -1,15 +1,13 @@
-// Génération du rapport au format Microsoft Word (.docx) selon le
-// template FoxO Rapport v3. Le .docx est uploadé sur Drive à côté du
-// PDF (cf. lib/rapport/dispatch.ts) — il sert de base éditable pour
-// les retouches manuelles avant envoi définitif.
+// Génération du rapport au format Microsoft Word (.docx) — port fidèle de
+// FOXO_BASE.js (template propriétaire FoxO).
 //
 // Photos : récupérées depuis photos_interventions (lien section + ordre,
 // cf. migration 2026-05-28_photos_section.sql) ; bytes téléchargés via
-// l'API Drive avec le drive_file_id et le token OAuth FoxO.
+// l'API Drive avec drive_file_id et le token OAuth FoxO. Les légendes
+// (label) apparaissent sous chaque image en italique muted.
 //
-// Règles rédactionnelles FoxO conservées : prose uniquement (pas de
-// listes à puces), formulation prudente pour les causes incertaines,
-// terminologie « capteur d'humidité » plutôt que « hygromètre ».
+// Conventions FoxO : Calibri partout, palette navy/accent, prose
+// uniquement (pas de listes), formulations prudentes pour les causes.
 
 import {
   Document,
@@ -24,6 +22,7 @@ import {
   TableCell,
   AlignmentType,
   BorderStyle,
+  HeightRule,
   WidthType,
   ShadingType,
 } from 'docx';
@@ -33,34 +32,292 @@ import { imageSize } from 'image-size';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/google-auth';
 
-// ─── Constantes du template ────────────────────────────────────────────
+// ─── Constantes du template (FOXO_BASE.js) ────────────────────────────
 
 const PAGE_W = 11906;
 const PAGE_H = 16838;
 const MARGIN = 720;
 const TW = 10466;
 
-const DARK_BLUE = '1B3A5C';
-const MID_BLUE = '2E75B6';
+const DARK_BLUE   = '1B3A5C';
+const MID_BLUE    = '2E75B6';
 const ACCENT_LINE = '4A9FD4';
-const LIGHT_BLUE = 'EAF4FB';
-const BODY_TEXT = '1A1A1A';
-const MUTED = '6B6B6B';
-const DIVIDER = 'C0D4E8';
+const LIGHT_BLUE  = 'EAF4FB';
+const BODY_TEXT   = '1A1A1A';
+const MUTED       = '6B6B6B';
+// const DIVIDER     = 'C0D4E8'; // réservé pour bordures futures
 
 const FONT = 'Calibri';
 
-// Hauteur fixe 302 px ; largeur calculée proportionnellement à partir
-// des dimensions réelles de chaque image (lib `image-size`). On clampe
-// la largeur à la moitié de la zone tappable pour conserver le layout
-// 2-cols. Si `image-size` échoue (format inconnu, fichier corrompu),
-// on retombe sur un ratio 4:3 par défaut.
+// Photos — hauteur fixe 302px, largeur calculée au ratio réel + clamp
+// largeur ≤ moitié de TW (layout 2-cols).
 const PHOTO_HEIGHT_PX = 302;
 const PHOTO_FALLBACK_WIDTH_PX = 403; // 302 * 4/3
-// Largeur max d'une cellule photo en pixels (TW twips → px @ 96 dpi).
 const PHOTO_MAX_WIDTH_PX = Math.floor(((TW - 160) / 2) * 96 / 1440);
 
-// ─── Helpers ───────────────────────────────────────────────────────────
+// ─── ReportData — input contrat du builder ────────────────────────────
+
+export interface ReportTechniques {
+  capteur: boolean;
+  thermique: boolean;
+  camera: boolean;
+  traceur: boolean;
+  acoustique: boolean;
+  pression: boolean;
+  gaz: boolean;
+  visuelle: boolean;
+}
+
+export interface ReportData {
+  numero: string;
+  ref_label: string;
+  ref_value: string;
+  objet: string;
+  facturation_ligne1: string;
+  facturation_ligne2: string;
+  facturation_ligne3: string;
+  facturation_ligne4: string;
+  adresse_ligne1: string;
+  adresse_ligne2: string;
+  adresse_ligne3: string;
+  techniques: ReportTechniques;
+  degats: string;
+  inspection: string;
+  conclusion: string;
+  recommandation: string;
+  fait_a_date: string;
+}
+
+// ─── Helpers atomiques (port FOXO_BASE) ───────────────────────────────
+
+interface TextOpts {
+  size?: number;
+  bold?: boolean;
+  italic?: boolean;
+  color?: string;
+  allCaps?: boolean;
+}
+
+function t(text: string, opts: TextOpts = {}): TextRun {
+  return new TextRun({
+    text,
+    font: FONT,
+    size: opts.size ?? 20,
+    bold: opts.bold ?? false,
+    italics: opts.italic ?? false,
+    color: opts.color ?? BODY_TEXT,
+    allCaps: opts.allCaps ?? false,
+  });
+}
+
+function gap(before = 160, after = 0): Paragraph {
+  return new Paragraph({ spacing: { before, after }, children: [] });
+}
+
+function sectionTitle(label: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 340, after: 200 },
+    children: [t(label, { bold: true, allCaps: true, size: 32, color: DARK_BLUE })],
+    border: {
+      bottom: { style: BorderStyle.SINGLE, size: 10, color: ACCENT_LINE, space: 6 },
+    },
+  });
+}
+
+function bodyText(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 100, after: 100, line: 360 },
+    children: [t(text, { size: 21 })],
+  });
+}
+
+function bodyTextMuted(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 100, after: 100, line: 360 },
+    children: [t(text, { size: 21, italic: true, color: MUTED })],
+  });
+}
+
+// Checkbox + libellé pour la section Techniques. Cochée = ☑ bold dark_blue,
+// non cochée = ☐ mid_blue + texte body italic. Indent 80 pour aérer.
+function checkItem(text: string, checked: boolean): Paragraph {
+  return new Paragraph({
+    spacing: { before: 55, after: 55 },
+    indent: { left: 80 },
+    children: [
+      t(checked ? '☑  ' : '☐  ', {
+        size: 18,
+        color: checked ? DARK_BLUE : MID_BLUE,
+        bold: checked,
+      }),
+      t(text, {
+        size: 18,
+        italic: true,
+        bold: checked,
+        color: checked ? DARK_BLUE : BODY_TEXT,
+      }),
+    ],
+  });
+}
+
+// Split texte sur '||PARA||' pour générer un Paragraph par bloc. Si vide,
+// affiche '—' italic muted (placeholder pour brouillon).
+function textToParas(text: string): Paragraph[] {
+  if (!text || !text.trim()) return [bodyTextMuted('—')];
+  return text.split(/\|\|PARA\|\|/g).map((para) => bodyText(para.trim()));
+}
+
+// ─── Helpers cellules tableau identification ──────────────────────────
+
+function labelCell(width: number, label: string, columnSpan?: number): TableCell {
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    columnSpan,
+    shading: { type: ShadingType.SOLID, color: LIGHT_BLUE, fill: LIGHT_BLUE },
+    children: [new Paragraph({
+      children: [t(label, { bold: true, color: DARK_BLUE, size: 19 })],
+    })],
+  });
+}
+
+function valueCell(width: number, value: string, columnSpan?: number): TableCell {
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    columnSpan,
+    children: [new Paragraph({
+      children: [t(value || '—', { size: 20 })],
+    })],
+  });
+}
+
+// Construit le tableau d'identification 5 lignes selon FOXO_BASE.js.
+function buildIdentificationTable(data: ReportData): Table {
+  const C1 = 1900;
+  const C2 = 3333;
+  const C3 = 1900;
+  const C4 = 3333;
+
+  // L3 (gauche) : objet (1 paragraphe simple)
+  const objetCell = new TableCell({
+    width: { size: C1 + C2, type: WidthType.DXA },
+    columnSpan: 2,
+    children: [new Paragraph({
+      children: [t(data.objet || '—', { size: 20 })],
+    })],
+  });
+
+  // L3 (droite) : facturation 4 lignes (un Paragraph par ligne non vide)
+  const facturationParas = [
+    data.facturation_ligne1,
+    data.facturation_ligne2,
+    data.facturation_ligne3,
+    data.facturation_ligne4,
+  ]
+    .filter((line) => line && line.trim())
+    .map((line) => new Paragraph({
+      children: [t(line, { size: 20 })],
+    }));
+  const facturationCell = new TableCell({
+    width: { size: C3 + C4, type: WidthType.DXA },
+    columnSpan: 2,
+    children: facturationParas.length > 0
+      ? facturationParas
+      : [new Paragraph({ children: [t('—', { size: 20 })] })],
+  });
+
+  // L4 : adresse intervention — ligne1 normal, ligne2 + ligne3 italic muted
+  const adresseParas: Paragraph[] = [];
+  if (data.adresse_ligne1) {
+    adresseParas.push(new Paragraph({
+      children: [t(data.adresse_ligne1, { size: 20 })],
+    }));
+  }
+  if (data.adresse_ligne2) {
+    adresseParas.push(new Paragraph({
+      children: [t(data.adresse_ligne2, { size: 19, italic: true, color: MUTED })],
+    }));
+  }
+  if (data.adresse_ligne3) {
+    adresseParas.push(new Paragraph({
+      children: [t(data.adresse_ligne3, { size: 19, italic: true, color: MUTED })],
+    }));
+  }
+  if (adresseParas.length === 0) {
+    adresseParas.push(new Paragraph({ children: [t('—', { size: 20 })] }));
+  }
+  const adresseCell = new TableCell({
+    width: { size: C2 + C3 + C4, type: WidthType.DXA },
+    columnSpan: 3,
+    children: adresseParas,
+  });
+
+  // L5 : Techniques — col gauche 4 checkboxes (span 2), col droite 4 (C4)
+  const techniquesLeft = new TableCell({
+    width: { size: C2 + C3, type: WidthType.DXA },
+    columnSpan: 2,
+    children: [
+      checkItem("Capteur d'humidité",       data.techniques.capteur),
+      checkItem('Thermographie infrarouge', data.techniques.thermique),
+      checkItem('Caméra endoscopique',      data.techniques.camera),
+      checkItem('Liquide traceur',          data.techniques.traceur),
+    ],
+  });
+  const techniquesRight = new TableCell({
+    width: { size: C4, type: WidthType.DXA },
+    children: [
+      checkItem('Détection acoustique',     data.techniques.acoustique),
+      checkItem('Test pression / Compteur', data.techniques.pression),
+      checkItem('Gaz traceur',              data.techniques.gaz),
+      checkItem('Inspection visuelle',      data.techniques.visuelle),
+    ],
+  });
+
+  return new Table({
+    width: { size: TW, type: WidthType.DXA },
+    columnWidths: [C1, C2, C3, C4],
+    rows: [
+      // L1 : N° Intervention | numero | ref_label | ref_value
+      new TableRow({
+        children: [
+          labelCell(C1, 'N° Intervention'),
+          valueCell(C2, data.numero),
+          labelCell(C3, data.ref_label),
+          valueCell(C4, data.ref_value),
+        ],
+      }),
+      // L2 : "Objet intervention :" (span 2) | "Adresse Facturation :" (span 2)
+      new TableRow({
+        children: [
+          labelCell(C1 + C2, 'Objet intervention :', 2),
+          labelCell(C3 + C4, 'Adresse Facturation :', 2),
+        ],
+      }),
+      // L3 : objet contenu (span 2) | facturation 4 lignes (span 2) — h ≥ 1000
+      new TableRow({
+        height: { value: 1000, rule: HeightRule.ATLEAST },
+        children: [objetCell, facturationCell],
+      }),
+      // L4 : "Adresse d'intervention :" | adresse 3 lignes (span 3) — h ≥ 820
+      new TableRow({
+        height: { value: 820, rule: HeightRule.ATLEAST },
+        children: [
+          labelCell(C1, "Adresse d'intervention :"),
+          adresseCell,
+        ],
+      }),
+      // L5 : "Techniques d'inspection :" | col gauche (span 2) | col droite
+      new TableRow({
+        children: [
+          labelCell(C1, "Techniques d'inspection :"),
+          techniquesLeft,
+          techniquesRight,
+        ],
+      }),
+    ],
+  });
+}
+
+// ─── Photos par section (inchangé) ────────────────────────────────────
 
 function fmtDate(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -95,18 +352,11 @@ interface SectionPhoto {
   bytes: Buffer;
   type: 'jpg' | 'png' | 'gif' | 'bmp';
   filename: string;
-  width: number;  // px — déjà clampé à PHOTO_MAX_WIDTH_PX
-  height: number; // px — toujours PHOTO_HEIGHT_PX (sauf si dimensions plus
-                  //   petites que ça après clamp largeur, auquel cas on
-                  //   réduit aussi la hauteur pour conserver le ratio).
-  label: string | null; // légende affichée sous l'image (italique muted)
+  width: number;
+  height: number;
+  label: string | null;
 }
 
-// Calcule (width, height) en pixels pour une photo donnée :
-//   - hauteur cible PHOTO_HEIGHT_PX
-//   - largeur calculée au ratio réel de l'image
-//   - clamp largeur ≤ PHOTO_MAX_WIDTH_PX (avec ajustement hauteur)
-// Retombe sur (PHOTO_FALLBACK_WIDTH_PX, PHOTO_HEIGHT_PX) si lecture KO.
 function computePhotoDimensions(bytes: Buffer): { width: number; height: number } {
   let realW = 0;
   let realH = 0;
@@ -177,303 +427,10 @@ async function fetchPhotosBySection(
   return empty;
 }
 
-// ─── Builders de blocs Word ────────────────────────────────────────────
-
-function labelRun(text: string): TextRun {
-  return new TextRun({ text, bold: true, color: DARK_BLUE, size: 20, font: FONT });
-}
-
-function valueRun(text: string): TextRun {
-  return new TextRun({ text: text || '—', size: 20, color: BODY_TEXT, font: FONT });
-}
-
-function labelCell(width: number, text: string): TableCell {
-  return new TableCell({
-    width: { size: width, type: WidthType.DXA },
-    shading: { type: ShadingType.SOLID, color: LIGHT_BLUE, fill: LIGHT_BLUE },
-    children: [new Paragraph({ children: [labelRun(text)] })],
-  });
-}
-
-function valueCell(width: number, text: string, columnSpan?: number): TableCell {
-  return new TableCell({
-    width: { size: width, type: WidthType.DXA },
-    columnSpan,
-    children: [new Paragraph({ children: [valueRun(text)] })],
-  });
-}
-
-// Comme valueCell, mais préserve les retours-ligne en créant un Paragraph
-// par ligne. Utilisé pour les cellules multi-lignes du tableau d'identification
-// (Adresse Facturation, Adresse d'intervention, description longue).
-function multiLineCell(width: number, text: string, columnSpan?: number): TableCell {
-  const lines = (text || '—').split(/\r?\n/);
-  return new TableCell({
-    width: { size: width, type: WidthType.DXA },
-    columnSpan,
-    children: lines.map((line) => new Paragraph({
-      children: [new TextRun({
-        text: line,
-        size: 20,
-        color: BODY_TEXT,
-        font: FONT,
-      })],
-    })),
-  });
-}
-
-// Layout 2 colonnes du template FoxO 2026-104 : 4 techniques à gauche,
-// 4 à droite. Chaque label peut être coché à partir d'un ou plusieurs
-// test_type provenant des observations terrain (alias loose).
-const TECHNIQUE_LEFT: readonly string[] = [
-  "Capteur d'humidité",
-  'Thermographie infrarouge',
-  'Caméra endoscopique',
-  'Liquide traceur',
-];
-const TECHNIQUE_RIGHT: readonly string[] = [
-  'Détection acoustique',
-  'Test pression / Compteur',
-  'Gaz traceur',
-  'Inspection visuelle',
-];
-
-// Mapping label Word → test_types observations. Quand une observation
-// matche un alias, la checkbox correspondante est cochée. Une entrée
-// vide signifie qu'aucun test_type courant ne déclenche cette case
-// (Détection acoustique et Gaz traceur ne sont pas dans TEST_TYPES UI).
-const TECHNIQUE_TRIGGERS: Record<string, readonly string[]> = {
-  "Capteur d'humidité":       ["Capteur d'humidité"],
-  'Thermographie infrarouge': ['Thermographie'],
-  'Caméra endoscopique':      ['Caméra endoscopique'],
-  'Liquide traceur':          ['Test colorant'],
-  'Détection acoustique':     [],
-  'Test pression / Compteur': ['Test de pression'],
-  'Gaz traceur':              [],
-  'Inspection visuelle':      ['Inspection visuelle'],
-};
-
-function isTechniqueChecked(label: string, testedSet: Set<string>): boolean {
-  const triggers = TECHNIQUE_TRIGGERS[label] ?? [];
-  return triggers.some((t) => testedSet.has(t));
-}
-
-// Génère un Paragraph par technique avec ☑ si test mené, ☐ sinon.
-function techniqueParagraphs(labels: readonly string[], testedSet: Set<string>): Paragraph[] {
-  return labels.map((label) => {
-    const checked = isTechniqueChecked(label, testedSet);
-    return new Paragraph({
-      spacing: { before: 40, after: 40 },
-      children: [
-        new TextRun({
-          text: `${checked ? '☑' : '☐'} ${label}`,
-          size: 18,
-          color: checked ? DARK_BLUE : BODY_TEXT,
-          bold: checked,
-          font: FONT,
-        }),
-      ],
-    });
-  });
-}
-
-function buildIdentificationTable(args: {
-  ref: string;
-  refSyndic: string | null;
-  description: string;
-  adresseFacturation: string;
-  adresseIntervention: string;
-  testedSet: Set<string>;
-}): Table {
-  const C1 = 1900;
-  const C2 = 3333;
-  const C3 = 1900;
-  const C4 = 3333;
-  const VALUE_FULL = C2 + C3 + C4;
-  const LEFT_TECHS = C2 + C3; // span 2
-
-  return new Table({
-    width: { size: TW, type: WidthType.DXA },
-    columnWidths: [C1, C2, C3, C4],
-    rows: [
-      // Row 1 : N° Intervention | ref | Réf. syndic | refSyndic ou —
-      new TableRow({
-        children: [
-          labelCell(C1, 'N° Intervention'),
-          valueCell(C2, args.ref),
-          labelCell(C3, 'Réf. syndic'),
-          valueCell(C4, args.refSyndic || '—'),
-        ],
-      }),
-      // Row 2 : Objet intervention | description | Adresse Facturation | facturation
-      new TableRow({
-        children: [
-          labelCell(C1, 'Objet intervention'),
-          multiLineCell(C2, args.description),
-          labelCell(C3, 'Adresse Facturation'),
-          multiLineCell(C4, args.adresseFacturation),
-        ],
-      }),
-      // Row 3 : Adresse d'intervention | adresse multi-lignes (span 3)
-      new TableRow({
-        children: [
-          labelCell(C1, "Adresse d'intervention"),
-          multiLineCell(VALUE_FULL, args.adresseIntervention, 3),
-        ],
-      }),
-      // Row 4 : Techniques d'inspection | col gauche (C2+C3) | col droite (C4)
-      new TableRow({
-        children: [
-          labelCell(C1, "Techniques d'inspection"),
-          new TableCell({
-            width: { size: LEFT_TECHS, type: WidthType.DXA },
-            columnSpan: 2,
-            children: techniqueParagraphs(TECHNIQUE_LEFT, args.testedSet),
-          }),
-          new TableCell({
-            width: { size: C4, type: WidthType.DXA },
-            children: techniqueParagraphs(TECHNIQUE_RIGHT, args.testedSet),
-          }),
-        ],
-      }),
-    ],
-  });
-}
-
-// Tableau 3 colonnes (test_type / loc / notes) sans bordure pour la
-// section Observations terrain. Aligné sur la largeur tappable TW.
-function buildObservationsTable(observations: Array<{
-  test_type: string;
-  etage: string | null;
-  localisation: string | null;
-  notes: string | null;
-}>): Table {
-  const C1 = 3140;  // 30 %
-  const C2 = 2617;  // 25 %
-  const C3 = 4709;  // 45 %
-  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
-  const rows = observations.map((o) => {
-    const loc = [o.etage ? `Étage ${o.etage}` : null, o.localisation]
-      .filter(Boolean)
-      .join(' — ');
-    return new TableRow({
-      children: [
-        new TableCell({
-          width: { size: C1, type: WidthType.DXA },
-          children: [new Paragraph({
-            spacing: { before: 80, after: 80 },
-            children: [new TextRun({
-              text: o.test_type,
-              bold: true,
-              size: 20,
-              color: BODY_TEXT,
-              font: FONT,
-            })],
-          })],
-        }),
-        new TableCell({
-          width: { size: C2, type: WidthType.DXA },
-          children: [new Paragraph({
-            spacing: { before: 80, after: 80 },
-            children: [new TextRun({
-              text: loc || '—',
-              size: 20,
-              color: BODY_TEXT,
-              font: FONT,
-            })],
-          })],
-        }),
-        new TableCell({
-          width: { size: C3, type: WidthType.DXA },
-          children: [new Paragraph({
-            spacing: { before: 80, after: 80 },
-            children: [new TextRun({
-              text: o.notes || '—',
-              italics: true,
-              size: 20,
-              color: MUTED,
-              font: FONT,
-            })],
-          })],
-        }),
-      ],
-    });
-  });
-  return new Table({
-    width: { size: TW, type: WidthType.DXA },
-    borders: {
-      top: noBorder, bottom: noBorder, left: noBorder, right: noBorder,
-      insideHorizontal: noBorder, insideVertical: noBorder,
-    },
-    rows,
-  });
-}
-
-function sectionTitle(title: string): Paragraph[] {
-  return [
-    new Paragraph({
-      spacing: { before: 320, after: 60 },
-      children: [
-        new TextRun({
-          text: title,
-          bold: true,
-          allCaps: true,
-          color: DARK_BLUE,
-          size: 32,
-          font: FONT,
-        }),
-      ],
-      border: {
-        bottom: {
-          style: BorderStyle.SINGLE,
-          color: ACCENT_LINE,
-          size: 12,
-          space: 4,
-        },
-      },
-    }),
-  ];
-}
-
-function sectionBody(text: string): Paragraph[] {
-  const trimmed = text?.trim() ?? '';
-  if (!trimmed) {
-    return [
-      new Paragraph({
-        spacing: { before: 100, after: 100, line: 360 },
-        children: [
-          new TextRun({
-            text: '—',
-            italics: true,
-            color: MUTED,
-            size: 21,
-            font: FONT,
-          }),
-        ],
-      }),
-    ];
-  }
-  // Préserve les retours-ligne en créant un Paragraph par bloc.
-  return trimmed.split(/\r?\n\r?\n/).map((para) =>
-    new Paragraph({
-      spacing: { before: 100, after: 100, line: 360 },
-      children: [
-        new TextRun({
-          text: para.replace(/\r?\n/g, ' '),
-          size: 21,
-          color: BODY_TEXT,
-          font: FONT,
-        }),
-      ],
-    }),
-  );
-}
-
 function photosTable(photos: SectionPhoto[]): Table | null {
   if (photos.length === 0) return null;
   const cellW = Math.floor((TW - 160) / 2);
 
-  // Construit les lignes par paires de 2 photos.
   const rows: TableRow[] = [];
   for (let i = 0; i < photos.length; i += 2) {
     const left = photos[i];
@@ -533,7 +490,6 @@ function photosTable(photos: SectionPhoto[]): Table | null {
         }),
       );
     } else {
-      // Cellule vide pour conserver le layout 2-cols
       cells.push(
         new TableCell({
           width: { size: cellW, type: WidthType.DXA },
@@ -544,7 +500,6 @@ function photosTable(photos: SectionPhoto[]): Table | null {
     rows.push(new TableRow({ children: cells }));
   }
 
-  // Pas de bordures (table invisible — sert juste au layout).
   const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
   return new Table({
     width: { size: TW, type: WidthType.DXA },
@@ -556,30 +511,16 @@ function photosTable(photos: SectionPhoto[]): Table | null {
   });
 }
 
-// ─── Fonction publique ─────────────────────────────────────────────────
+// ─── Builder principal ────────────────────────────────────────────────
 
 export async function buildRapportDocx(args: {
   interventionId: string;
-  ref: string;
-  refSyndic: string | null;
-  description: string;            // multi-lignes autorisées
-  adresseFacturation: string;     // multi-lignes (nom, adresse, email, BCE)
-  adresseIntervention: string;    // multi-lignes (ACP, adresse, étages)
+  data: ReportData;
   date: Date;
-  sections: {
-    degats: string;
-    inspection: string;
-    conclusion: string;
-    recommandations: string;
-  };
-  observations?: Array<{
-    test_type: string;
-    etage: string | null;
-    localisation: string | null;
-    notes: string | null;
-  }>;
 }): Promise<Uint8Array> {
-  // Logo header — best-effort (si manquant, on rend juste "FoxO" texte).
+  const { data } = args;
+
+  // Logo header — best-effort (si manquant, fallback texte "FoxO").
   let logoBytes: Buffer | null = null;
   try {
     const logoPath = path.join(
@@ -591,11 +532,13 @@ export async function buildRapportDocx(args: {
   } catch (e) {
     console.warn('[build-docx] logo introuvable:', e);
   }
+  // fmtDate accessible aux callers ; ici utilisé uniquement si data.fait_a_date vide
+  void fmtDate;
 
-  // Photos par section (download Drive en parallèle implicite via le for).
+  // Photos par section (download Drive séquentiel pour préserver l'ordre).
   const photosBySection = await fetchPhotosBySection(args.interventionId);
 
-  // ─── Header ───────────────────────────────────────────────────────────
+  // ─── Header ─────────────────────────────────────────────────────────
   const header = new Header({
     children: [
       new Paragraph({
@@ -608,64 +551,56 @@ export async function buildRapportDocx(args: {
                 type: 'png',
               }),
             ]
-          : [new TextRun({ text: 'FoxO', bold: true, size: 36, color: DARK_BLUE, font: FONT })],
+          : [t('FoxO', { bold: true, size: 36, color: DARK_BLUE })],
       }),
-      // Ligne séparatrice sous le logo
       new Paragraph({
         border: {
-          bottom: { style: BorderStyle.SINGLE, color: DARK_BLUE, size: 8, space: 1 },
+          bottom: { style: BorderStyle.SINGLE, color: DARK_BLUE, size: 12, space: 1 },
         },
         children: [],
       }),
     ],
   });
 
-  // ─── Footer ───────────────────────────────────────────────────────────
+  // ─── Footer (3 lignes obligatoires FoxO) ────────────────────────────
   const footer = new Footer({
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({
-            text: 'Fox Group srl · Stationstraat 55, 3070 Kortenberg · info@foxo.be · +32 488 700 007',
-            size: 16,
-            color: MUTED,
-            font: FONT,
-          }),
+          t(
+            'Fox Group srl · Stationstraat 55, 3070 Kortenberg · info@foxo.be · +32 488 700 007',
+            { size: 16, color: MUTED },
+          ),
         ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({
-            text: 'TVA : BE1030.109.019 · BEOBANK : BE62 9502 6652 9861',
-            size: 16,
-            color: MUTED,
-            font: FONT,
-          }),
+          t(
+            'TVA : BE1030.109.019 · BEOBANK : BE62 9502 6652 9861',
+            { size: 16, color: MUTED },
+          ),
         ],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
-          new TextRun({
-            text: '© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite',
-            size: 14,
-            color: MUTED,
-            italics: true,
-            font: FONT,
-          }),
+          t(
+            '© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite',
+            { size: 14, color: MUTED, italic: true },
+          ),
         ],
       }),
     ],
   });
 
-  // ─── Children du body ────────────────────────────────────────────────
+  // ─── Body ───────────────────────────────────────────────────────────
   const sectionsConfig: { key: SectionKey; title: string; text: string }[] = [
-    { key: 'degats',          title: 'Dégâts',         text: args.sections.degats },
-    { key: 'inspection',      title: 'Inspection',     text: args.sections.inspection },
-    { key: 'conclusion',      title: 'Conclusion',     text: args.sections.conclusion },
-    { key: 'recommandations', title: 'Recommandation', text: args.sections.recommandations },
+    { key: 'degats',          title: 'Dégâts',         text: data.degats },
+    { key: 'inspection',      title: 'Inspection',     text: data.inspection },
+    { key: 'conclusion',      title: 'Conclusion',     text: data.conclusion },
+    { key: 'recommandations', title: 'Recommandation', text: data.recommandation },
   ];
 
   const bodyChildren: (Paragraph | Table)[] = [
@@ -674,42 +609,24 @@ export async function buildRapportDocx(args: {
       alignment: AlignmentType.CENTER,
       spacing: { before: 200, after: 400 },
       children: [
-        new TextRun({
-          text: "RAPPORT D'INTERVENTION",
-          bold: true,
-          allCaps: true,
-          color: DARK_BLUE,
-          size: 48,
-          font: FONT,
+        t("RAPPORT D'INTERVENTION", {
+          bold: true, allCaps: true, size: 48, color: DARK_BLUE,
         }),
       ],
     }),
 
-    // Tableau identification 4 lignes (template FoxO 2026-104) : ref+ref_syndic,
-    // objet+factu, adresse intervention, techniques en 2 colonnes.
-    buildIdentificationTable({
-      ref: args.ref,
-      refSyndic: args.refSyndic,
-      description: args.description,
-      adresseFacturation: args.adresseFacturation,
-      adresseIntervention: args.adresseIntervention,
-      testedSet: new Set((args.observations ?? []).map((o) => o.test_type)),
-    }),
+    // Tableau identification 5 lignes
+    buildIdentificationTable(data),
 
-    new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
+    gap(200, 200),
   ];
 
-  // 4 sections + photos. Insertion d'« Observations terrain » entre
-  // Inspection et Conclusion si des observations existent.
+  // 4 sections : titre + corps (split sur ||PARA||) + photos rattachées
   for (const s of sectionsConfig) {
-    bodyChildren.push(...sectionTitle(s.title));
-    bodyChildren.push(...sectionBody(s.text));
+    bodyChildren.push(sectionTitle(s.title));
+    bodyChildren.push(...textToParas(s.text));
     const tbl = photosTable(photosBySection[s.key]);
     if (tbl) bodyChildren.push(tbl);
-    if (s.key === 'inspection' && args.observations && args.observations.length > 0) {
-      bodyChildren.push(...sectionTitle('Observations terrain'));
-      bodyChildren.push(buildObservationsTable(args.observations));
-    }
   }
 
   // Clôture (alignée droite)
@@ -718,21 +635,16 @@ export async function buildRapportDocx(args: {
       alignment: AlignmentType.RIGHT,
       spacing: { before: 600 },
       children: [
-        new TextRun({
-          text: `Fait à Bruxelles le, ${fmtDate(args.date)}`,
-          size: 22,
-          italics: true,
-          color: MUTED,
-          font: FONT,
-        }),
+        t('Fait à Bruxelles le,  ', { size: 22, italic: true, color: MUTED }),
+        t(data.fait_a_date, { size: 22, italic: true, bold: true, color: DARK_BLUE }),
       ],
     }),
   );
 
-  // ─── Document ─────────────────────────────────────────────────────────
+  // ─── Document ───────────────────────────────────────────────────────
   const doc = new Document({
     creator: 'FoxO',
-    title: `Rapport ${args.ref}`,
+    title: `Rapport ${data.numero}`,
     styles: {
       default: {
         document: {
@@ -746,7 +658,7 @@ export async function buildRapportDocx(args: {
           page: {
             size: { width: PAGE_W, height: PAGE_H },
             margin: {
-              top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN,
+              top: MARGIN, right: MARGIN, bottom: 1300, left: MARGIN,
               header: 360, footer: 360,
             },
             borders: {
@@ -767,8 +679,3 @@ export async function buildRapportDocx(args: {
   const buf = await Packer.toBuffer(doc);
   return new Uint8Array(buf);
 }
-
-// Couleurs et constantes utilitaires conservées au cas où elles seraient
-// utilisées plus tard (legend, sub-section, etc.)
-void MID_BLUE;
-void DIVIDER;

@@ -233,6 +233,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Action en masse échouée.' });
         return;
       }
+      // Notifie la Sidebar pour qu'elle re-fetch le compteur "non lus"
+      // (cf. listener dans components/Sidebar.tsx). Évite un badge figé
+      // tant que la page n'est pas rechargée.
+      window.dispatchEvent(new Event('foxo:mails-updated'));
       // Update optimiste
       setMails((arr) => {
         if (action === 'archive' || action === 'traite' || action === 'trash' || action === 'delete-permanent') {

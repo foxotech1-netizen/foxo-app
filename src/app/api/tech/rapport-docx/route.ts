@@ -1,9 +1,30 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
-import { buildRapportDocx } from '@/lib/rapport/build-docx';
+import { buildRapportDocx, type ReportData, type ReportTechniques } from '@/lib/rapport/build-docx';
 import { uploadRapport } from '@/lib/google-drive';
-import type { Acp, Intervention, Organisation, Rapport } from '@/lib/types/database';
+import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
+
+function fmtDate(d: Date): string {
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+// Mappe les test_type observations → 8 booleans techniques du template.
+// Accepte les anciennes valeurs ('Mise en pression', 'Humidimètre') ET les
+// nouvelles (post-vocab alignment commit 7514a08) pour rétro-compat.
+function buildTechniques(observations: Array<{ test_type: string }>): ReportTechniques {
+  const types = new Set(observations.map((o) => o.test_type));
+  return {
+    capteur:    types.has("Capteur d'humidité") || types.has('Humidimètre'),
+    thermique:  types.has('Thermographie'),
+    camera:     types.has('Caméra endoscopique'),
+    traceur:    types.has('Test colorant'),
+    acoustique: types.has('Détection acoustique'),
+    pression:   types.has('Test de pression') || types.has('Mise en pression'),
+    gaz:        types.has('Gaz traceur'),
+    visuelle:   types.has('Inspection visuelle'),
+  };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -72,8 +93,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // Charge ACP + rapport + syndic en parallèle
-  const [acpRes, rapRes, orgRes] = await Promise.all([
+  // Charge ACP + rapport + syndic + occupants + observations en parallèle
+  const [acpRes, rapRes, orgRes, occRes, obsRes] = await Promise.all([
     iv.acp_id
       ? supabase.from('acps').select('*').eq('id', iv.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
@@ -81,23 +102,20 @@ export async function POST(request: Request) {
     iv.syndic_id
       ? supabase.from('organisations').select('nom, adresse, email').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    supabase.from('occupants')
+      .select('appartement, nom')
+      .eq('intervention_id', iv.id)
+      .order('appartement', { ascending: true }),
+    supabase.from('observations_terrain')
+      .select('test_type')
+      .eq('intervention_id', iv.id)
+      .order('created_at', { ascending: true }),
   ]);
   const acp = acpRes.data as Acp | null;
   const rapport = rapRes.data as Rapport | null;
   const syndic = orgRes.data as Pick<Organisation, 'nom' | 'adresse' | 'email'> | null;
-
-  // Charge les observations terrain (techniques + tests menés sur site)
-  const obsRes = await supabase
-    .from('observations_terrain')
-    .select('test_type, etage, localisation, notes')
-    .eq('intervention_id', iv.id)
-    .order('created_at', { ascending: true });
-  const observations = (obsRes.data ?? []) as Array<{
-    test_type: string;
-    etage: string | null;
-    localisation: string | null;
-    notes: string | null;
-  }>;
+  const occupants = (occRes.data ?? []) as Pick<Occupant, 'appartement' | 'nom'>[];
+  const observations = (obsRes.data ?? []) as Array<{ test_type: string }>;
 
   // Au moins une section non vide pour exporter (sinon le .docx est creux)
   const sections = {
@@ -113,58 +131,62 @@ export async function POST(request: Request) {
 
   const ref = iv.ref ?? '—';
   const acpNom = acp?.nom ?? '—';
-  const acpAdresse = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—';
+  const acpAdresse = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ');
 
-  // ─── Composition des champs du tableau d'identification ──────────────
+  // ─── Composition ReportData (template FOXO_BASE) ────────────────────
 
-  const refSyndic = (iv.reference_externe ?? '').trim() || null;
+  const today = new Date();
+  const refExterne = (iv.reference_externe ?? '').trim();
 
-  // Description : préfère interventions.description complète, sinon 1ère
-  // ligne de la section Dégâts (200 chars max) en fallback.
-  const description = iv.description?.trim()
-    || sections.degats?.split(/\r?\n/)[0]?.slice(0, 200)
-    || '—';
+  // Le builder splitte sur '||PARA||' pour produire un Paragraph par bloc
+  // (cf. textToParas dans build-docx.ts). On convertit les double-saut-
+  // ligne (convention de l'IA + saisie clavier) en ce séparateur.
+  const toParaFmt = (s: string) => (s ?? '').replace(/\n\n/g, '||PARA||');
 
-  // Adresse Facturation : nom (iv.nom_facturation prioritaire, sinon
-  // syndic.nom), adresse syndic, email (iv.email_facturation prioritaire,
-  // sinon syndic.email), BCE intervention si présent.
-  const factuLines: string[] = [];
-  const factuName = iv.nom_facturation || syndic?.nom;
-  if (factuName) factuLines.push(factuName);
-  if (syndic?.adresse) factuLines.push(syndic.adresse);
-  const factuEmail = iv.email_facturation || syndic?.email;
-  if (factuEmail) factuLines.push(factuEmail);
-  if (iv.bce_facturation) factuLines.push(`BCE : ${iv.bce_facturation}`);
-  const adresseFacturation = factuLines.length > 0 ? factuLines.join('\n') : '—';
+  // adresse_ligne1 : ACP nom + adresse séparés par '  –  '. Fallback iv.adresse.
+  const adresseLigne1 = [acp?.nom, acpAdresse]
+    .filter((v): v is string => Boolean(v && v.trim()))
+    .join('  –  ') || (iv.adresse ?? '');
 
-  // Adresse d'intervention : ACP nom + adresse complète + étages distincts
-  // collectés depuis les observations_terrain. Fallback sur iv.adresse si
-  // pas d'ACP rattachée.
-  const intervLines: string[] = [];
-  if (acp?.nom) intervLines.push(acp.nom);
-  if (acpAdresse !== '—') intervLines.push(acpAdresse);
-  const etagesSet = new Set(
-    observations.map((o) => o.etage).filter((e): e is string => Boolean(e)),
-  );
-  if (etagesSet.size > 0) {
-    intervLines.push(`Étages : ${[...etagesSet].sort().join(', ')}`);
-  }
-  const adresseIntervention = intervLines.length > 0
-    ? intervLines.join('\n')
-    : (iv.adresse ?? '—');
+  // adresse_ligne2 : occupants formatés "Apt X – Nom" séparés par '  –  '.
+  const adresseLigne2 = occupants
+    .map((o) => {
+      const apt = o.appartement?.trim();
+      const nm = o.nom?.trim();
+      if (apt && nm) return `Apt ${apt} – ${nm}`;
+      if (apt) return `Apt ${apt}`;
+      if (nm) return nm;
+      return null;
+    })
+    .filter((s): s is string => s !== null)
+    .join('  –  ');
 
-  // Génération du .docx (template FoxO complet : photos par section,
-  // header logo, encadré 4 côtés, etc. cf. lib/rapport/build-docx.ts)
+  const reportData: ReportData = {
+    numero: ref,
+    ref_label: refExterne ? 'Réf. syndic :' : 'Date intervention :',
+    ref_value: refExterne || fmtDate(today),
+    objet: iv.description || '—',
+    facturation_ligne1: iv.nom_facturation || syndic?.nom || '',
+    facturation_ligne2: syndic?.adresse || '',
+    facturation_ligne3: iv.email_facturation || syndic?.email || '',
+    facturation_ligne4: iv.bce_facturation ? `BCE : ${iv.bce_facturation}` : '',
+    adresse_ligne1: adresseLigne1,
+    adresse_ligne2: adresseLigne2,
+    adresse_ligne3: '',
+    techniques: buildTechniques(observations),
+    degats: toParaFmt(sections.degats),
+    inspection: toParaFmt(sections.inspection),
+    conclusion: toParaFmt(sections.conclusion),
+    recommandation: toParaFmt(sections.recommandations),
+    fait_a_date: fmtDate(today),
+  };
+
+  // Génération du .docx selon le template FoxO complet (photos par section,
+  // header logo, encadré 4 côtés, footer 3 lignes — cf. build-docx.ts).
   const docxBytes = await buildRapportDocx({
     interventionId: iv.id,
-    ref,
-    refSyndic,
-    description,
-    adresseFacturation,
-    adresseIntervention,
-    date: new Date(),
-    sections,
-    observations,
+    data: reportData,
+    date: today,
   });
 
   // Upload sur Drive en best-effort (archivage). On `await` pour rester

@@ -212,6 +212,20 @@ export default function Sidebar({
     return () => { cancelled = true }
   }, [])
 
+  // Re-fetch quand MailsClient signale une action lu/non lu/archivage.
+  // Custom event simple — pas de Context global, pas de store. Émis
+  // depuis applyBulkAction de MailsClient après chaque succès API.
+  useEffect(() => {
+    function onMailsUpdated() {
+      fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => { if (data?.ok) setUnreadMails(data.count ?? 0) })
+        .catch(() => {})
+    }
+    window.addEventListener('foxo:mails-updated', onMailsUpdated)
+    return () => window.removeEventListener('foxo:mails-updated', onMailsUpdated)
+  }, [])
+
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/auth/login')
