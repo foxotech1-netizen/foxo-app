@@ -42,8 +42,8 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
   }
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+    <section className="premium-card">
+      <div className="section-label mb-2">
         Paiement sur place
       </div>
 
@@ -52,7 +52,7 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
           type="button"
           onClick={loadFacture}
           disabled={loading}
-          className="w-full bg-navy text-white px-4 py-3 rounded-md text-[13px] font-bold hover:bg-navy-mid disabled:opacity-60 disabled:cursor-wait transition inline-flex items-center justify-center gap-1.5"
+          className="w-full bg-navy text-white px-4 py-3 rounded-md text-[13px] font-bold hover:bg-navy-mid disabled:opacity-60 disabled:cursor-wait transition-opacity hover:opacity-90 inline-flex items-center justify-center gap-1.5"
         >
           {loading ? 'Génération en cours…' : <><CreditCard size={14} />Paiement sur place</>}
         </button>

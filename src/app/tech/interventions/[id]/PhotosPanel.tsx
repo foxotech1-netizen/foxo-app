@@ -208,9 +208,9 @@ export function PhotosPanel({
   }
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4">
+    <section className="premium-card">
       <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+        <div className="section-label">
           Photos terrain
         </div>
         <span className="text-[11px] text-ink-mid">{photos.length}</span>
@@ -252,7 +252,7 @@ export function PhotosPanel({
       <label
         htmlFor="photo-input"
         className={
-          'block w-full text-center py-3.5 rounded-xl font-bold text-[14px] cursor-pointer ' +
+          'block w-full text-center py-3.5 rounded-xl font-bold text-[14px] cursor-pointer transition-opacity hover:opacity-90 ' +
           (uploading ? 'bg-sand-mid text-ink-muted' : 'bg-navy text-white hover:bg-navy-mid active:bg-navy-mid')
         }
       >

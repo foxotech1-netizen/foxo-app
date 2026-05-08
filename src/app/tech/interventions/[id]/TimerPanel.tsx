@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Play, Square } from 'lucide-react';
 import { startIntervention, endIntervention } from '../../actions';
 import type { StatutIntervention } from '@/lib/types/database';
 
@@ -65,8 +66,8 @@ export function TimerPanel({
   }
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-3">
+    <section className="premium-card">
+      <div className="section-label mb-3">
         Suivi temps
       </div>
 
@@ -74,16 +75,16 @@ export function TimerPanel({
         <button
           onClick={onStart}
           disabled={pending}
-          className="w-full bg-ok text-white py-3.5 rounded-xl font-bold text-[15px] disabled:opacity-50 active:opacity-80"
+          className="w-full bg-ok text-white py-3.5 rounded-xl font-bold text-[15px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90"
         >
-          {pending ? 'Démarrage…' : '▶ Démarrer l\'intervention'}
+          {pending ? 'Démarrage…' : <><Play size={15} className="inline mr-1" />Démarrer l&apos;intervention</>}
         </button>
       )}
 
       {startedAt && !endedAt && (
         <>
           <div className="text-center mb-3">
-            <div className="text-[10px] text-ink-muted uppercase tracking-widest mb-1">
+            <div className="section-label mb-1">
               En cours
             </div>
             <div className="text-3xl font-extrabold text-navy font-mono tabular-nums">
@@ -96,16 +97,16 @@ export function TimerPanel({
           <button
             onClick={onEnd}
             disabled={pending}
-            className="w-full bg-terra text-white py-3.5 rounded-xl font-bold text-[15px] disabled:opacity-50 active:opacity-80"
+            className="w-full bg-terra text-white py-3.5 rounded-xl font-bold text-[15px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90"
           >
-            {pending ? 'Clôture…' : '■ Clôturer l\'intervention'}
+            {pending ? 'Clôture…' : <><Square size={15} className="inline mr-1" />Clôturer l&apos;intervention</>}
           </button>
         </>
       )}
 
       {endedAt && (
         <div className="bg-navy-pale border border-navy-light rounded-xl p-3.5 text-center">
-          <div className="text-[10px] text-ink-muted uppercase tracking-widest mb-1">
+          <div className="section-label mb-1">
             Terminée
           </div>
           <div className="text-2xl font-extrabold text-navy font-mono tabular-nums">

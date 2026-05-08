@@ -116,14 +116,14 @@ export function NotesPanel({
             : '';
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+    <section className="premium-card">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8] inline-flex items-center gap-1.5">
+        <div className="section-label inline-flex items-center gap-1.5">
           <MessageCircle size={12} />Notes technicien
         </div>
         <span className={
           'text-[10px] font-semibold ' +
-          (error ? 'text-terra' : pendingSync ? 'text-navy dark:text-[#A8C4F2]' : 'text-ok dark:text-[#7AC9A0]')
+          (error ? 'text-terra' : pendingSync ? 'text-navy' : 'text-ok')
         }>
           {status}
         </span>
@@ -133,9 +133,9 @@ export function NotesPanel({
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Notes internes (digicode, accès difficile, prochaine inspection…). Non visibles par le client."
         rows={5}
-        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
       />
-      <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+      <p className="text-[10px] text-ink-muted mt-2 italic">
         Sauvegarde automatique 2s après la dernière frappe. Persistance locale en cas de coupure réseau.
       </p>
     </section>
