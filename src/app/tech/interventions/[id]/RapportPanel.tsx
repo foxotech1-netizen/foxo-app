@@ -52,6 +52,7 @@ interface SectionPhoto {
   section: string | null;
   ordre: number;
   uploaded_at: string | null;
+  label: string | null;
 }
 type SectionKey = keyof RapportInput;
 
@@ -166,6 +167,7 @@ export function RapportPanel({
           section,
           ordre: list.length,
           uploaded_at: new Date().toISOString(),
+          label: null,
         };
         return { ...cur, [section]: [...list, newPhoto] };
       });
@@ -174,7 +176,10 @@ export function RapportPanel({
     }
   }
 
-  async function patchPhoto(photoId: string, patch: { section?: SectionKey | null; ordre?: number }) {
+  async function patchPhoto(
+    photoId: string,
+    patch: { section?: SectionKey | null; ordre?: number; label?: string | null },
+  ) {
     try {
       await fetch(`/api/tech/photos/${photoId}`, {
         method: 'PATCH',
@@ -182,6 +187,27 @@ export function RapportPanel({
         body: JSON.stringify(patch),
       });
     } catch { /* noop, optimistic state reste */ }
+  }
+
+  // Debounce 800ms par photo pour l'auto-save du label. Stocke un timer
+  // par photo dans une Map ; chaque keystroke clear+reset le timer.
+  const labelTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  function setPhotoLabel(section: SectionKey, photoId: string, label: string) {
+    // Optimistic local : reflète immédiatement dans l'input contrôlé.
+    setPhotosBySection((cur) => ({
+      ...cur,
+      [section]: cur[section].map((p) =>
+        p.id === photoId ? { ...p, label } : p,
+      ),
+    }));
+    const timers = labelTimersRef.current;
+    const existing = timers.get(photoId);
+    if (existing) clearTimeout(existing);
+    const t = setTimeout(() => {
+      void patchPhoto(photoId, { label: label.trim() || null });
+      timers.delete(photoId);
+    }, 800);
+    timers.set(photoId, t);
   }
 
   // Réordonnage : déplace la photo de delta positions dans sa section,
@@ -518,6 +544,7 @@ export function RapportPanel({
                 onUpload={(file) => uploadPhotoToSection(key, file)}
                 onMove={(photoId, delta) => movePhoto(key, photoId, delta)}
                 onUnlink={(photoId) => unlinkPhoto(key, photoId)}
+                onLabelChange={(photoId, label) => setPhotoLabel(key, photoId, label)}
               />
             </div>
           );
@@ -630,7 +657,7 @@ export function RapportPanel({
 // ─── Sous-composant : zone photos d'une section ────────────────────────
 
 function SectionPhotos({
-  section, photos, uploading, disabled, onUpload, onMove, onUnlink,
+  section, photos, uploading, disabled, onUpload, onMove, onUnlink, onLabelChange,
 }: {
   section: SectionKey;
   photos: SectionPhoto[];
@@ -639,6 +666,7 @@ function SectionPhotos({
   onUpload: (f: File) => void;
   onMove: (photoId: string, delta: -1 | 1) => void;
   onUnlink: (photoId: string) => void;
+  onLabelChange: (photoId: string, label: string) => void;
 }) {
   const inputId = `photo-input-${section}`;
   return (
@@ -677,47 +705,58 @@ function SectionPhotos({
         </>
       )}
 
-      {/* Miniatures */}
+      {/* Miniatures + légende */}
       {photos.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {photos.map((p, idx) => (
-            <div key={p.id} className="relative w-20 h-20 rounded-md overflow-hidden border border-sand-border bg-sand-mid group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.drive_url} alt={p.filename ?? 'photo'} className="w-full h-full object-cover" />
-              {!disabled && (
-                <div className="absolute inset-0 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => onUnlink(p.id)}
-                      className="text-[12px] bg-terra text-white w-5 h-5 leading-none rounded-bl-md"
-                      title="Retirer de la section"
-                    >
-                      ×
-                    </button>
+            <div key={p.id} className="w-20">
+              <div className="relative w-20 h-20 rounded-md overflow-hidden border border-sand-border bg-sand-mid group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.drive_url} alt={p.filename ?? 'photo'} className="w-full h-full object-cover" />
+                {!disabled && (
+                  <div className="absolute inset-0 flex flex-col justify-between opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => onUnlink(p.id)}
+                        className="text-[12px] bg-terra text-white w-5 h-5 leading-none rounded-bl-md"
+                        title="Retirer de la section"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="flex justify-between">
+                      <button
+                        type="button"
+                        onClick={() => onMove(p.id, -1)}
+                        disabled={idx === 0}
+                        className="text-white text-[12px] w-5 h-5 leading-none bg-navy/80 rounded-tr-md disabled:opacity-30"
+                        title="Reculer"
+                      >
+                        ←
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onMove(p.id, +1)}
+                        disabled={idx === photos.length - 1}
+                        className="text-white text-[12px] w-5 h-5 leading-none bg-navy/80 rounded-tl-md disabled:opacity-30"
+                        title="Avancer"
+                      >
+                        →
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => onMove(p.id, -1)}
-                      disabled={idx === 0}
-                      className="text-white text-[12px] w-5 h-5 leading-none bg-navy/80 rounded-tr-md disabled:opacity-30"
-                      title="Reculer"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onMove(p.id, +1)}
-                      disabled={idx === photos.length - 1}
-                      className="text-white text-[12px] w-5 h-5 leading-none bg-navy/80 rounded-tl-md disabled:opacity-30"
-                      title="Avancer"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
+              <input
+                type="text"
+                value={p.label ?? ''}
+                onChange={(e) => onLabelChange(p.id, e.target.value)}
+                disabled={disabled}
+                placeholder="Légende (ex: Test colorant — Étage 1)"
+                maxLength={200}
+                className="text-[11px] px-2 py-1 border border-sand-border rounded w-full mt-1 bg-white outline-none focus:border-navy-mid disabled:opacity-60"
+              />
             </div>
           ))}
         </div>
@@ -803,9 +842,16 @@ function PreviewModal({
               {photos.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mt-3">
                   {photos.map((p) => (
-                    <div key={p.id} className="aspect-square rounded-md overflow-hidden border border-sand-border bg-sand-mid">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.drive_url} alt={p.filename ?? 'photo'} className="w-full h-full object-cover" />
+                    <div key={p.id}>
+                      <div className="aspect-square rounded-md overflow-hidden border border-sand-border bg-sand-mid">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={p.drive_url} alt={p.filename ?? 'photo'} className="w-full h-full object-cover" />
+                      </div>
+                      {p.label && (
+                        <p className="text-[10px] text-ink-muted italic mt-0.5 text-center">
+                          {p.label}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

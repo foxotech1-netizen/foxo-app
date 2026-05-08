@@ -43,7 +43,7 @@ export async function PATCH(
 
   const { id } = await params;
 
-  let body: { section?: unknown; ordre?: unknown };
+  let body: { section?: unknown; ordre?: unknown; label?: unknown };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -96,6 +96,15 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: 'ordre doit être un entier >= 0.' }, { status: 400 });
     }
   }
+  if ('label' in body) {
+    if (body.label === null) {
+      patch.label = null;
+    } else if (typeof body.label === 'string') {
+      patch.label = body.label.trim().slice(0, 200) || null;
+    } else {
+      return NextResponse.json({ ok: false, error: 'label doit être string ou null.' }, { status: 400 });
+    }
+  }
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ ok: false, error: 'Rien à mettre à jour.' }, { status: 400 });
   }
@@ -107,7 +116,7 @@ export async function PATCH(
     .from('photos_interventions')
     .update(patch)
     .eq('id', id)
-    .select('id, drive_url, filename, section, ordre, uploaded_at')
+    .select('id, drive_url, filename, section, ordre, uploaded_at, label')
     .maybeSingle();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 

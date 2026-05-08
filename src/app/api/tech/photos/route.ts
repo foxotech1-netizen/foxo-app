@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabase
     .from('photos_interventions')
-    .select('id, drive_url, filename, section, ordre, uploaded_at')
+    .select('id, drive_url, filename, section, ordre, uploaded_at, label')
     .eq('intervention_id', interventionId)
     .order('section', { ascending: true, nullsFirst: false })
     .order('ordre', { ascending: true })
