@@ -2,10 +2,11 @@ import { createClient } from '@/lib/supabase/server';
 import { TECH_EMAILS } from '@/lib/auth/roles';
 import type { Acp, Delegue, Intervention, Occupant, Organisation, Utilisateur, InterventionRow, CreneauDisponible } from '@/lib/types/database';
 import { InterventionsClient } from './InterventionsClient';
+import { SyndicMapWrapper } from '@/components/portal/SyndicMapWrapper';
 
 export const dynamic = 'force-dynamic';
 
-type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville'>;
+type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville' | 'lat' | 'lng'>;
 
 export type FreeSlot = Pick<CreneauDisponible, 'id' | 'technicien_id' | 'date' | 'heure_debut' | 'heure_fin'>;
 
@@ -46,7 +47,7 @@ export default async function AdminPipelinePage() {
       .select('*')
       .is('deleted_at', null)
       .order('created_at', { ascending: false }),
-    supabase.from('acps').select('id,nom,adresse,ville'),
+    supabase.from('acps').select('id, nom, adresse, ville, lat, lng'),
     supabase.from('organisations').select('id,nom,type,email'),
     supabase
       .from('utilisateurs')
@@ -140,6 +141,29 @@ export default async function AdminPipelinePage() {
     };
   });
 
+  // Pins carte admin : toutes les interventions actives (non-clôturées)
+  // dont l'ACP a des coords Nominatim (cf. migration 2026-05-18 + fix
+  // création ACP commit 4452942). Volume potentiellement élevé sur
+  // l'historique global ; filter clôturées exclues côté serveur pour
+  // limiter le payload client.
+  const adminPins = interventions
+    .filter((iv) => iv.statut !== 'cloturee')
+    .map((iv) => {
+      const acp = acps.find((a) => a.id === iv.acp_id);
+      if (!acp?.lat || !acp?.lng) return null;
+      return {
+        id: iv.id,
+        lat: Number(acp.lat),
+        lng: Number(acp.lng),
+        ref: iv.ref ?? null,
+        acp_nom: acp.nom ?? '—',
+        statut: iv.statut,
+        priorite: iv.priorite ?? undefined,
+        type: iv.type ?? null,
+      };
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+
   // Group free slots by technicien
   const freeSlotsByTech: Record<string, FreeSlot[]> = {};
   for (const s of freeSlots) {
@@ -211,13 +235,21 @@ export default async function AdminPipelinePage() {
   const serverNowIso = new Date().toISOString();
 
   return (
-    <InterventionsClient
-      initialRows={rows}
-      techs={techs}
-      loadError={interventionsRes.error?.message ?? null}
-      dashboard={dashboard}
-      serverNowIso={serverNowIso}
-      adminEmail={adminEmail}
-    />
+    <>
+      {adminPins.length > 0 && (
+        <section className="px-4 pb-4">
+          <h2 className="section-label mb-3">Carte des interventions</h2>
+          <SyndicMapWrapper pins={adminPins} basePath="/admin/interventions" />
+        </section>
+      )}
+      <InterventionsClient
+        initialRows={rows}
+        techs={techs}
+        loadError={interventionsRes.error?.message ?? null}
+        dashboard={dashboard}
+        serverNowIso={serverNowIso}
+        adminEmail={adminEmail}
+      />
+    </>
   );
 }

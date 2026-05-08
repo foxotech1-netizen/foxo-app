@@ -29,7 +29,13 @@ function getColor(statut: string, priorite?: string): string {
   return COLOR_BY_STATUT[statut] ?? '#60A5FA';
 }
 
-export default function SyndicMap({ pins }: { pins: MapPin[] }) {
+export default function SyndicMap({
+  pins,
+  basePath = '/portal/interventions',
+}: {
+  pins: MapPin[];
+  basePath?: string;
+}) {
   if (pins.length === 0) return null;
 
   // Centre sur le centroïde des pins
@@ -76,7 +82,7 @@ export default function SyndicMap({ pins }: { pins: MapPin[] }) {
               )}
               <div style={{ marginTop: 6 }}>
                 <a
-                  href={`/portal/interventions/${pin.id}`}
+                  href={`${basePath}/${pin.id}`}
                   style={{ fontSize: 11, color: '#60A5FA', textDecoration: 'underline' }}
                 >
                   Voir le dossier →

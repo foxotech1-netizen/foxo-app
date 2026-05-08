@@ -43,7 +43,13 @@ function filterPins(pins: MapPin[], filter: FilterKey): MapPin[] {
   }
 }
 
-export function SyndicMapWrapper({ pins }: { pins: MapPin[] }) {
+export function SyndicMapWrapper({
+  pins,
+  basePath,
+}: {
+  pins: MapPin[];
+  basePath?: string;
+}) {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('toutes');
   const filtered = filterPins(pins, activeFilter);
 
@@ -85,7 +91,7 @@ export function SyndicMapWrapper({ pins }: { pins: MapPin[] }) {
       {/* Carte ou message vide */}
       {filtered.length > 0 ? (
         <div className="premium-card overflow-hidden p-0">
-          <SyndicMap pins={filtered} />
+          <SyndicMap pins={filtered} basePath={basePath} />
         </div>
       ) : (
         <div className="premium-card p-6 text-center">
