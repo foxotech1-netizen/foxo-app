@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import nextDynamic from 'next/dynamic';
 import { Hand, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
@@ -7,6 +8,9 @@ import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, todayLong } from '@/lib/format';
 import { vocabFor, type OrgType } from '@/lib/portal/vocab';
 import type { Intervention } from '@/lib/types/database';
+
+// Carte Leaflet — client-only (Leaflet touche directement à window/document).
+const SyndicMap = nextDynamic(() => import('@/components/portal/SyndicMap'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -35,22 +39,56 @@ export default async function PortalDashboard() {
   // Filtre par syndic_id (legacy) OU organisation_id (nouveau lien).
   const { data: interventionsData } = await supabase
     .from('interventions')
-    .select('id, ref, statut, priorite, type, creneau_debut, updated_at, acp_id')
+    .select('id, ref, statut, priorite, type, creneau_debut, updated_at, acp_id, adresse')
     .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
     .order('created_at', { ascending: false });
 
   const interventions: Pick<
     Intervention,
-    'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id'
+    'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id' | 'adresse'
   >[] = interventionsData ?? [];
 
-  // Joindre nom des ACPs (light)
+  // Joindre nom + coords des ACPs (lat/lng requis pour la carte).
+  type AcpLite = { id: string; nom: string; lat: number | null; lng: number | null };
   const acpIds = Array.from(new Set(interventions.map((i) => i.acp_id).filter(Boolean) as string[]));
+  let acps: AcpLite[] = [];
   let acpMap = new Map<string, string>();
   if (acpIds.length > 0) {
-    const { data: acps } = await supabase.from('acps').select('id, nom').in('id', acpIds);
-    acpMap = new Map((acps ?? []).map((a) => [a.id, a.nom]));
+    const { data } = await supabase.from('acps').select('id, nom, lat, lng').in('id', acpIds);
+    acps = (data ?? []) as AcpLite[];
+    acpMap = new Map(acps.map((a) => [a.id, a.nom]));
   }
+
+  // Pins carte : filtre les interventions clôturées et sans coords ACP.
+  const pins = interventions
+    .filter((iv) => iv.statut !== 'cloturee')
+    .map((iv) => {
+      const acp = acps.find((a) => a.id === iv.acp_id);
+      if (!acp?.lat || !acp?.lng) return null;
+      return {
+        id: iv.id,
+        lat: Number(acp.lat),
+        lng: Number(acp.lng),
+        ref: iv.ref ?? null,
+        acp_nom: acp.nom,
+        statut: iv.statut,
+        type: iv.type ?? null,
+      };
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+
+  // Prochain RDV : intervention confirmée/nouvelle avec creneau futur le
+  // plus proche (sert au bandeau highlighted en haut du dashboard).
+  const nowDate = new Date();
+  const prochainRdv = interventions
+    .filter((iv) =>
+      iv.creneau_debut &&
+      new Date(iv.creneau_debut) > nowDate &&
+      ['confirmee', 'nouvelle'].includes(iv.statut),
+    )
+    .sort((a, b) =>
+      new Date(a.creneau_debut!).getTime() - new Date(b.creneau_debut!).getTime(),
+    )[0] ?? null;
 
   // Stats
   const stats = {
@@ -118,6 +156,63 @@ export default async function PortalDashboard() {
         >
           <FileText size={14} /> {stats.rapports} rapport(s) disponible(s) — consulter
         </Link>
+      )}
+
+      {/* Prochain RDV */}
+      {prochainRdv && (
+        <section className="premium-card p-4">
+          <h2 className="section-label mb-3">Prochain RDV</h2>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-[15px] font-extrabold text-ink">
+                {acpMap.get(prochainRdv.acp_id ?? '') ?? '—'}
+              </div>
+              {prochainRdv.creneau_debut && (() => {
+                const d = new Date(prochainRdv.creneau_debut);
+                return (
+                  <div className="mt-1 text-[13px] font-bold capitalize" style={{ color: '#60A5FA' }}>
+                    {d.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {' · '}
+                    {d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                );
+              })()}
+              <div className="text-[11px] text-ink-muted mt-0.5">{prochainRdv.type ?? 'Intervention'}</div>
+            </div>
+            <Link
+              href={`/portal/interventions/${prochainRdv.id}`}
+              className="shrink-0 bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90"
+            >
+              Voir →
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Carte interactive */}
+      {pins.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h2 className="section-label">Carte des interventions</h2>
+            <div className="flex items-center gap-3 text-[11px] text-ink-muted flex-wrap">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#60A5FA] inline-block" />En cours
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#34D399] inline-block" />Rapport dispo
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] inline-block" />Urgent
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24] inline-block" />Nouvelle
+              </span>
+            </div>
+          </div>
+          <div className="premium-card overflow-hidden p-0">
+            <SyndicMap pins={pins} />
+          </div>
+        </section>
       )}
 
       <div className="grid md:grid-cols-2 gap-5">

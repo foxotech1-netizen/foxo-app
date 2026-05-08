@@ -149,6 +149,10 @@ export interface Acp {
   // Syndic gestionnaire de l'ACP (lien explicite, en plus du lien
   // implicite par intervention.syndic_id).
   syndic_id_ref: string | null;
+  // Coordonnées Nominatim (cf. migration 2026-05-18_address_coords.sql).
+  // Utilisées pour la carte interactive du dashboard portail syndic.
+  lat: number | null;
+  lng: number | null;
 }
 
 // Enum PostgreSQL côté DB. Ne pas confondre avec le type `Role` applicatif
@@ -220,6 +224,10 @@ export interface Intervention {
     score: number;       // ∈ [0, 1]
   } | null;
   deleted_at: string | null;
+  // Coordonnées Nominatim (cf. migration 2026-05-18_address_coords.sql).
+  // Utilisées pour la carte interactive du dashboard portail syndic.
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface Rapport {
