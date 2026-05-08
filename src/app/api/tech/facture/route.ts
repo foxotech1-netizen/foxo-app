@@ -113,7 +113,7 @@ export async function POST(request: Request) {
   // 1. Cherche une facture existante pour cette intervention.
   const { data: existing } = await admin
     .from('factures')
-    .select('id, numero, montant_ttc, statut')
+    .select('id, numero, montant_ttc, statut, lignes, client_nom, client_email, client_adresse')
     .eq('intervention_id', interventionId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -121,6 +121,51 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existing) {
+    // Si on est en mode catalogue ET la facture est encore brouillon, on
+    // met à jour ses lignes/montants avant de retourner — permet au tech
+    // de revenir éditer la facture sans devoir la supprimer + recréer.
+    if (articlesInput && existing.statut === 'brouillon') {
+      const lignesUpdate: FactureLigne[] = articlesInput.map((a) => ({
+        description: a.description,
+        quantite: a.quantite,
+        prix_unitaire: a.prix_htva,
+        tva_pct: a.tva_pct,
+        ...(a.code ? { article_code: a.code } : {}),
+      }));
+      const htRaw = lignesUpdate.reduce((s, l) => s + l.prix_unitaire * l.quantite, 0);
+      const tvaRaw = lignesUpdate.reduce(
+        (s, l) => s + (l.prix_unitaire * l.quantite * l.tva_pct) / 100,
+        0,
+      );
+      const htU = Math.round(htRaw * 100) / 100;
+      const tvaU = Math.round(tvaRaw * 100) / 100;
+      const ttcU = Math.round((htU + tvaU) * 100) / 100;
+      await admin
+        .from('factures')
+        .update({
+          lignes: lignesUpdate,
+          montant_ht: htU,
+          montant_tva: tvaU,
+          montant_ttc: ttcU,
+          tva_pct: lignesUpdate[0].tva_pct,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .eq('statut', 'brouillon');
+      return NextResponse.json({
+        ok: true,
+        facture: {
+          id: existing.id as string,
+          numero: existing.numero as string,
+          total_ttc: ttcU,
+          statut: existing.statut as string,
+          lignes: lignesUpdate,
+          client_nom: (existing.client_nom as string | null) ?? null,
+          client_email: (existing.client_email as string | null) ?? null,
+          client_adresse: (existing.client_adresse as string | null) ?? null,
+        },
+      });
+    }
     return NextResponse.json({
       ok: true,
       facture: {
@@ -128,6 +173,10 @@ export async function POST(request: Request) {
         numero: existing.numero as string,
         total_ttc: Number(existing.montant_ttc ?? 0),
         statut: existing.statut as string,
+        lignes: ((existing.lignes as FactureLigne[] | null) ?? []),
+        client_nom: (existing.client_nom as string | null) ?? null,
+        client_email: (existing.client_email as string | null) ?? null,
+        client_adresse: (existing.client_adresse as string | null) ?? null,
       },
     });
   }
@@ -243,7 +292,7 @@ export async function POST(request: Request) {
   const { data: created, error } = await admin
     .from('factures')
     .insert(payload)
-    .select('id, numero, montant_ttc, statut')
+    .select('id, numero, montant_ttc, statut, lignes, client_nom, client_email, client_adresse')
     .maybeSingle();
 
   if (error) {
@@ -261,6 +310,10 @@ export async function POST(request: Request) {
       numero: created.numero as string,
       total_ttc: Number(created.montant_ttc ?? ttc),
       statut: created.statut as string,
+      lignes: ((created.lignes as FactureLigne[] | null) ?? lignes),
+      client_nom: (created.client_nom as string | null) ?? null,
+      client_email: (created.client_email as string | null) ?? null,
+      client_adresse: (created.client_adresse as string | null) ?? null,
     },
   });
 }

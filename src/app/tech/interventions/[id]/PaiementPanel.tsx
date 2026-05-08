@@ -1,14 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, CreditCard, Minus, Plus } from 'lucide-react';
+import { Check, CreditCard, Minus, Pencil, Plus } from 'lucide-react';
 import { QrPaiement } from '@/components/QrPaiement';
+import type { FactureLigne } from '@/lib/types/database';
 
 type FactureLite = {
   id: string;
   numero: string;
   total_ttc: number;
   statut: string;
+  lignes: FactureLigne[];
+  client_nom: string | null;
+  client_email: string | null;
+  client_adresse: string | null;
 };
 
 type CatalogArticle = {
@@ -35,8 +40,12 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
   const [facture, setFacture] = useState<FactureLite | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Référence client (form inline post-création)
+  // Informations de facturation (form inline post-création) — un seul
+  // bouton Enregistrer envoie les 4 champs en PATCH.
   const [refValue, setRefValue] = useState('');
+  const [clientNom, setClientNom] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientAdresse, setClientAdresse] = useState('');
   const [refSaving, setRefSaving] = useState(false);
   const [refSaved, setRefSaved] = useState(false);
   const [refError, setRefError] = useState<string | null>(null);
@@ -112,7 +121,12 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
         setError(data.error ?? 'Erreur facture.');
         return;
       }
-      setFacture(data.facture as FactureLite);
+      const f = data.facture as FactureLite;
+      setFacture(f);
+      // Pré-remplit les champs client/ref depuis la facture (état serveur).
+      setClientNom(f.client_nom ?? '');
+      setClientEmail(f.client_email ?? '');
+      setClientAdresse(f.client_adresse ?? '');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur réseau.');
     } finally {
@@ -120,7 +134,31 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
     }
   }
 
-  async function saveRef() {
+  // Reconstruit le state `selected` (Map<articleId, quantite>) à partir
+  // des lignes de la facture courante puis revient en mode sélection
+  // (state A). Match d'une ligne à un article : par article_code en
+  // priorité, fallback sur description. Les lignes legacy sans match
+  // dans le catalogue sont silencieusement omises.
+  function startEdit() {
+    if (!facture || !catalog) return;
+    const newSelected = new Map<string, number>();
+    for (const ligne of facture.lignes) {
+      let article: CatalogArticle | undefined;
+      if (ligne.article_code) {
+        article = catalog.find((c) => c.code === ligne.article_code);
+      }
+      if (!article) {
+        article = catalog.find((c) => c.description === ligne.description);
+      }
+      if (article) {
+        newSelected.set(article.id, ligne.quantite);
+      }
+    }
+    setSelected(newSelected);
+    setFacture(null);
+  }
+
+  async function saveClient() {
     if (!facture) return;
     setRefSaving(true);
     setRefError(null);
@@ -129,7 +167,12 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
       const r = await fetch(`/api/tech/facture/${facture.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ref_bon_commande: refValue }),
+        body: JSON.stringify({
+          ref_bon_commande: refValue,
+          client_nom: clientNom,
+          client_email: clientEmail,
+          client_adresse: clientAdresse,
+        }),
       });
       const data = await r.json();
       if (!data.ok) {
@@ -149,39 +192,90 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
   if (facture) {
     return (
       <section className="premium-card">
-        <div className="section-label mb-2">Paiement sur place</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="section-label">Paiement sur place</div>
+          <button
+            type="button"
+            onClick={startEdit}
+            className="text-[12px] text-navy underline hover:no-underline inline-flex items-center gap-1"
+          >
+            <Pencil size={12} />Modifier
+          </button>
+        </div>
         <QrPaiement
           factureId={facture.id}
           numero={facture.numero}
           montantTTC={facture.total_ttc}
         />
         <div className="mt-4 pt-4 border-t border-sand-border">
-          <label className="section-label block mb-1.5">
-            Référence client (optionnel)
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={refValue}
-              onChange={(e) => setRefValue(e.target.value)}
-              placeholder="ex: BC-2024-001"
-              className="flex-1 px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
-              maxLength={100}
-            />
+          <div className="section-label mb-2">Informations de facturation</div>
+          <div className="space-y-2">
+            <div>
+              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+                Référence client
+              </label>
+              <input
+                type="text"
+                value={refValue}
+                onChange={(e) => setRefValue(e.target.value)}
+                placeholder="ex: BC-2024-001"
+                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+                Nom / société
+              </label>
+              <input
+                type="text"
+                value={clientNom}
+                onChange={(e) => setClientNom(e.target.value)}
+                placeholder="ex: ACP Résidence Les Pins"
+                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+                Adresse de facturation
+              </label>
+              <textarea
+                value={clientAdresse}
+                onChange={(e) => setClientAdresse(e.target.value)}
+                placeholder="Rue, code postal, ville"
+                rows={2}
+                maxLength={500}
+                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+                Email copie facture
+              </label>
+              <input
+                type="email"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                placeholder="ex: comptabilite@syndic.be"
+                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                maxLength={200}
+              />
+            </div>
             <button
               type="button"
-              onClick={saveRef}
+              onClick={saveClient}
               disabled={refSaving}
-              className="bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold transition-opacity hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="w-full bg-navy text-white py-2.5 rounded-md text-[13px] font-bold transition-opacity hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
             >
               {refSaved ? (
                 <><Check size={14} />Enregistré</>
-              ) : refSaving ? 'Sauvegarde…' : 'Enregistrer la réf.'}
+              ) : refSaving ? 'Sauvegarde…' : 'Enregistrer'}
             </button>
+            {refError && (
+              <div className="text-[11px] text-terra">{refError}</div>
+            )}
           </div>
-          {refError && (
-            <div className="mt-1 text-[11px] text-terra">{refError}</div>
-          )}
         </div>
       </section>
     );

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
+import type { FactureLigne } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,21 +40,53 @@ export async function PATCH(
 
   const { id } = await params;
 
-  let body: { ref_bon_commande?: unknown };
+  let body: {
+    ref_bon_commande?: unknown;
+    client_nom?: unknown;
+    client_email?: unknown;
+    client_adresse?: unknown;
+    lignes?: unknown;
+  };
   try {
     body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ ok: false, error: 'Body JSON invalide.' }, { status: 400 });
   }
-  const ref = typeof body.ref_bon_commande === 'string'
-    ? body.ref_bon_commande.trim().slice(0, 100)
-    : '';
+
+  // Build patch incrémental — on n'écrit que les champs fournis. Les
+  // chaînes vides après trim deviennent null (clear). Les lignes
+  // déclenchent un recalcul des montants HT/TVA/TTC.
+  const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (typeof body.ref_bon_commande === 'string') {
+    updateData.reference = body.ref_bon_commande.trim().slice(0, 100) || null;
+  }
+  if (typeof body.client_nom === 'string') {
+    updateData.client_nom = body.client_nom.trim().slice(0, 200) || null;
+  }
+  if (typeof body.client_email === 'string') {
+    updateData.client_email = body.client_email.trim().slice(0, 200) || null;
+  }
+  if (typeof body.client_adresse === 'string') {
+    updateData.client_adresse = body.client_adresse.trim().slice(0, 500) || null;
+  }
+  if (Array.isArray(body.lignes) && body.lignes.length > 0) {
+    const lignes = body.lignes as FactureLigne[];
+    const ht = Math.round(lignes.reduce((s, l) => s + l.prix_unitaire * l.quantite, 0) * 100) / 100;
+    const tva = Math.round(
+      lignes.reduce((s, l) => s + (l.prix_unitaire * l.quantite * l.tva_pct) / 100, 0) * 100,
+    ) / 100;
+    updateData.lignes = lignes;
+    updateData.montant_ht = ht;
+    updateData.montant_tva = tva;
+    updateData.montant_ttc = Math.round((ht + tva) * 100) / 100;
+  }
 
   // Service-role : RLS factures = is_admin only.
   const admin = createAdminClient();
   const { error } = await admin
     .from('factures')
-    .update({ reference: ref || null, updated_at: new Date().toISOString() })
+    .update(updateData)
     .eq('id', id)
     .eq('statut', 'brouillon');
 
