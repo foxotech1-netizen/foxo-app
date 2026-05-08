@@ -121,7 +121,10 @@ export async function POST(request: Request) {
       .insert({
         intervention_id: interventionId,
         drive_file_id: up.file_id,
-        drive_url: up.web_view_link,
+        // Thumbnail publique (Drive permission anyoneWithLink posée par
+        // makeFilePublic dans uploadPhoto). sz=w400 = bonne qualité tout
+        // en gardant le payload léger pour l'UI mobile/desktop.
+        drive_url: `https://drive.google.com/thumbnail?id=${up.file_id}&sz=w400`,
         filename,
         uploaded_by: user.id,
         section,

@@ -231,6 +231,26 @@ async function getPhotosFolder(token: string, ref: string, adresse: string, year
   return photosF?.id ?? null;
 }
 
+// Rend un fichier Drive accessible en lecture publique (anyoneWithLink).
+// Best-effort : si l'appel échoue, on n'interrompt pas le flux d'upload.
+// Utilisé pour permettre l'affichage des miniatures via l'URL
+// `https://drive.google.com/thumbnail?id={FILE_ID}&sz=w400` directement
+// dans un `<img src>` côté navigateur (sans proxy OAuth).
+async function makeFilePublic(fileId: string, accessToken: string): Promise<void> {
+  try {
+    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    });
+  } catch (e) {
+    console.warn('[google-drive] makeFilePublic failed for', fileId, e);
+  }
+}
+
 export async function uploadPhoto(args: {
   ref: string;
   adresse: string;
@@ -249,6 +269,9 @@ export async function uploadPhoto(args: {
   if (!folderId) return { ok: false, error: 'Dossier photos introuvable.' };
   const f = await uploadMultipart(auth.access_token, folderId, args.filename, args.bytes, args.mimeType ?? 'image/jpeg');
   if (!f) return { ok: false, error: 'Échec upload photo.' };
+  // Rend la photo accessible publiquement (lecture seule via lien) pour
+  // afficher la miniature dans <img> côté navigateur sans token OAuth.
+  await makeFilePublic(f.id, auth.access_token);
   return { ok: true, file_id: f.id, web_view_link: f.webViewLink ?? '' };
 }
 
