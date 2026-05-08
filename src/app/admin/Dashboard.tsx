@@ -99,35 +99,35 @@ export function Dashboard({
         <StatCard
           num={stats.nouvelles}
           label="Nouvelles demandes"
-          href="/admin/interventions?statut=nouvelle"
+          href="/admin?statut=nouvelle"
           active={statutFilter === 'nouvelle'}
         />
         <StatCard
           num={stats.enCours}
           label="En cours"
           accent
-          href="/admin/interventions?statut=en_cours"
+          href="/admin?statut=en_cours"
           active={statutFilter === 'en_cours'}
         />
         <StatCard
           num={stats.enSuspens}
           label="En suspens"
           warning={stats.enSuspens > 0}
-          href="/admin/interventions?statut=en_suspens"
+          href="/admin?statut=en_suspens"
           active={statutFilter === 'en_suspens'}
         />
         <StatCard
           num={stats.rapports}
           label="Rapports à envoyer"
           amber={stats.rapports > 0}
-          href="/admin/interventions?statut=rapport"
+          href="/admin?statut=rapport"
           active={statutFilter === 'rapport'}
         />
         <StatCard
           num={stats.closedThisMonth}
           label="Clôturées ce mois"
           muted
-          href="/admin/interventions?statut=cloturee"
+          href="/admin?statut=cloturee"
           active={statutFilter === 'cloturee'}
         />
       </div>
@@ -434,10 +434,9 @@ function StatCard({
         aria-hidden
         style={{
           position: 'absolute',
-          top: 0, left: 0, right: 0, height: 3,
+          top: '12px', bottom: '12px', left: 0, width: 3,
           background: barColor,
-          borderTopLeftRadius: 'inherit',
-          borderTopRightRadius: 'inherit',
+          borderRadius: '0 2px 2px 0',
         }}
       />
       <div className="kpi-value">{num}</div>
