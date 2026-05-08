@@ -82,6 +82,19 @@ export async function POST(request: Request) {
   const acp = acpRes.data as Acp | null;
   const rapport = rapRes.data as Rapport | null;
 
+  // Charge les observations terrain (techniques + tests menés sur site)
+  const obsRes = await supabase
+    .from('observations_terrain')
+    .select('test_type, etage, localisation, notes')
+    .eq('intervention_id', iv.id)
+    .order('created_at', { ascending: true });
+  const observations = (obsRes.data ?? []) as Array<{
+    test_type: string;
+    etage: string | null;
+    localisation: string | null;
+    notes: string | null;
+  }>;
+
   // Au moins une section non vide pour exporter (sinon le .docx est creux)
   const sections = {
     degats: rapport?.degats ?? '',
@@ -107,6 +120,7 @@ export async function POST(request: Request) {
     acp_nom: acpNom,
     date: new Date(),
     sections,
+    observations,
   });
 
   // Upload sur Drive en best-effort (archivage). On `await` pour rester

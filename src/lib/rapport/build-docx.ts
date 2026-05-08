@@ -99,6 +99,7 @@ interface SectionPhoto {
   height: number; // px — toujours PHOTO_HEIGHT_PX (sauf si dimensions plus
                   //   petites que ça après clamp largeur, auquel cas on
                   //   réduit aussi la hauteur pour conserver le ratio).
+  label: string | null; // légende affichée sous l'image (italique muted)
 }
 
 // Calcule (width, height) en pixels pour une photo donnée :
@@ -141,7 +142,7 @@ async function fetchPhotosBySection(
   const admin = createAdminClient();
   const { data } = await admin
     .from('photos_interventions')
-    .select('drive_file_id, drive_url, filename, section, ordre')
+    .select('drive_file_id, drive_url, filename, section, ordre, label')
     .eq('intervention_id', interventionId)
     .not('section', 'is', null)
     .order('section', { ascending: true })
@@ -153,6 +154,7 @@ async function fetchPhotosBySection(
     filename: string | null;
     section: SectionKey;
     ordre: number;
+    label: string | null;
   }>;
   if (rows.length === 0) return empty;
 
@@ -169,6 +171,7 @@ async function fetchPhotosBySection(
       filename: p.filename ?? 'photo',
       width,
       height,
+      label: p.label,
     });
   }
   return empty;
@@ -206,27 +209,13 @@ function buildIdentificationTable(args: {
   acp_nom: string;
   date: Date;
   description: string;
+  techniquesText: string;
 }): Table {
   const C1 = 1900;
   const C2 = 3333;
   const C3 = 1900;
   const C4 = 3333;
   const VALUE_FULL = C2 + C3 + C4;
-
-  // Techniques : checkboxes — par défaut Capteur d'humidité ✓ et
-  // Inspection visuelle ✓ ; les autres ☐. Le tech peut éditer le
-  // .docx pour cocher d'autres techniques avant envoi.
-  const techniques = [
-    { label: 'Inspection visuelle',     checked: true  },
-    { label: "Capteur d'humidité",      checked: true  },
-    { label: 'Acoustique',              checked: false },
-    { label: 'Caméra thermique',        checked: false },
-    { label: 'Caméra endoscopique',     checked: false },
-    { label: 'Traceur fluorescent',     checked: false },
-  ];
-  const techniquesText = techniques
-    .map((t) => `${t.checked ? '☑' : '☐'} ${t.label}`)
-    .join('   ');
 
   return new Table({
     width: { size: TW, type: WidthType.DXA },
@@ -261,10 +250,95 @@ function buildIdentificationTable(args: {
       new TableRow({
         children: [
           labelCell(C1, 'Techniques'),
-          valueCell(VALUE_FULL, techniquesText, 3),
+          valueCell(VALUE_FULL, args.techniquesText, 3),
         ],
       }),
     ],
+  });
+}
+
+// Liste canonique FoxO des techniques d'inspection. Les checkboxes sont
+// cochées dynamiquement à partir des observations_terrain saisies par le
+// technicien. ⚠ Vocabulaire indépendant de TEST_TYPES côté UI : si une
+// observation a un test_type qui ne matche pas exactement un item de cette
+// liste, sa case ne sera pas cochée (à aligner via migration vocab quand
+// pertinent).
+const TECHNIQUES_FOXO = [
+  'Test colorant',
+  'Test de pression',
+  'Capteur d\'humidité',
+  'Thermographie',
+  'Inspection visuelle',
+  'Caméra endoscopique',
+  'Corrélation acoustique',
+];
+
+// Tableau 3 colonnes (test_type / loc / notes) sans bordure pour la
+// section Observations terrain. Aligné sur la largeur tappable TW.
+function buildObservationsTable(observations: Array<{
+  test_type: string;
+  etage: string | null;
+  localisation: string | null;
+  notes: string | null;
+}>): Table {
+  const C1 = 3140;  // 30 %
+  const C2 = 2617;  // 25 %
+  const C3 = 4709;  // 45 %
+  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
+  const rows = observations.map((o) => {
+    const loc = [o.etage ? `Étage ${o.etage}` : null, o.localisation]
+      .filter(Boolean)
+      .join(' — ');
+    return new TableRow({
+      children: [
+        new TableCell({
+          width: { size: C1, type: WidthType.DXA },
+          children: [new Paragraph({
+            spacing: { before: 80, after: 80 },
+            children: [new TextRun({
+              text: o.test_type,
+              bold: true,
+              size: 20,
+              color: BODY_TEXT,
+              font: FONT,
+            })],
+          })],
+        }),
+        new TableCell({
+          width: { size: C2, type: WidthType.DXA },
+          children: [new Paragraph({
+            spacing: { before: 80, after: 80 },
+            children: [new TextRun({
+              text: loc || '—',
+              size: 20,
+              color: BODY_TEXT,
+              font: FONT,
+            })],
+          })],
+        }),
+        new TableCell({
+          width: { size: C3, type: WidthType.DXA },
+          children: [new Paragraph({
+            spacing: { before: 80, after: 80 },
+            children: [new TextRun({
+              text: o.notes || '—',
+              italics: true,
+              size: 20,
+              color: MUTED,
+              font: FONT,
+            })],
+          })],
+        }),
+      ],
+    });
+  });
+  return new Table({
+    width: { size: TW, type: WidthType.DXA },
+    borders: {
+      top: noBorder, bottom: noBorder, left: noBorder, right: noBorder,
+      insideHorizontal: noBorder, insideVertical: noBorder,
+    },
+    rows,
   });
 }
 
@@ -351,6 +425,16 @@ function photosTable(photos: SectionPhoto[]): Table | null {
               }),
             ],
           }),
+          ...(left.label ? [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({
+              text: left.label,
+              size: 18,
+              color: MUTED,
+              italics: true,
+              font: FONT,
+            })],
+          })] : []),
         ],
       }),
     ];
@@ -368,6 +452,16 @@ function photosTable(photos: SectionPhoto[]): Table | null {
                 }),
               ],
             }),
+            ...(right.label ? [new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [new TextRun({
+                text: right.label,
+                size: 18,
+                color: MUTED,
+                italics: true,
+                font: FONT,
+              })],
+            })] : []),
           ],
         }),
       );
@@ -409,6 +503,12 @@ export async function buildRapportDocx(args: {
     conclusion: string;
     recommandations: string;
   };
+  observations?: Array<{
+    test_type: string;
+    etage: string | null;
+    localisation: string | null;
+    notes: string | null;
+  }>;
 }): Promise<Uint8Array> {
   // Logo header — best-effort (si manquant, on rend juste "FoxO" texte).
   let logoBytes: Buffer | null = null;
@@ -516,24 +616,36 @@ export async function buildRapportDocx(args: {
       ],
     }),
 
-    // Tableau identification (5 lignes)
+    // Tableau identification (5 lignes) — techniques cochées dynamiquement
+    // depuis les observations_terrain (mapping par test_type).
     buildIdentificationTable({
       ref: args.ref,
       adresse: args.adresse,
       acp_nom: args.acp_nom,
       date: args.date,
       description: args.sections.degats?.split(/\r?\n/)[0]?.slice(0, 200) || '—',
+      techniquesText: (() => {
+        const tested = new Set((args.observations ?? []).map((o) => o.test_type));
+        return TECHNIQUES_FOXO
+          .map((t) => `${tested.has(t) ? '☑' : '☐'} ${t}`)
+          .join('   ');
+      })(),
     }),
 
     new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
   ];
 
-  // 4 sections + photos
+  // 4 sections + photos. Insertion d'« Observations terrain » entre
+  // Inspection et Conclusion si des observations existent.
   for (const s of sectionsConfig) {
     bodyChildren.push(...sectionTitle(s.title));
     bodyChildren.push(...sectionBody(s.text));
     const tbl = photosTable(photosBySection[s.key]);
     if (tbl) bodyChildren.push(tbl);
+    if (s.key === 'inspection' && args.observations && args.observations.length > 0) {
+      bodyChildren.push(...sectionTitle('Observations terrain'));
+      bodyChildren.push(buildObservationsTable(args.observations));
+    }
   }
 
   // Clôture (alignée droite)

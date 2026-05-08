@@ -16,7 +16,7 @@ export type GenerateResult =
 async function assertTechOwner(interventionId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'tech') return { ok: false, error: 'Accès refusé.' };
+  if (!user || (roleForEmail(user.email) !== 'tech' && roleForEmail(user.email) !== 'admin')) return { ok: false, error: 'Accès refusé.' };
 
   const { data: u } = await supabase
     .from('utilisateurs')
@@ -42,8 +42,15 @@ function buildContextSummary(args: {
   syndic: Pick<Organisation, 'nom' | 'type' | 'email' | 'telephone' | 'bce'> | null;
   tech: Pick<Utilisateur, 'prenom' | 'nom'> | null;
   occupants: Occupant[];
+  observations?: Array<{
+    test_type: string;
+    etage: string | null;
+    localisation: string | null;
+    notes: string | null;
+    created_at: string;
+  }>;
 }): string {
-  const { iv, acp, syndic, tech, occupants } = args;
+  const { iv, acp, syndic, tech, occupants, observations } = args;
   const lines: string[] = [];
 
   lines.push(`Référence FoxO : ${iv.ref ?? 'À attribuer'}`);
@@ -88,6 +95,14 @@ function buildContextSummary(args: {
       const label = `Apt. ${o.appartement ?? '—'} — ${o.nom ?? '—'}`;
       const conf = o.conf ? ` (statut : ${o.conf})` : '';
       lines.push(`  · ${label}${conf}`);
+    }
+  }
+
+  if (observations && observations.length > 0) {
+    lines.push(`\nObservations terrain (${observations.length} test(s) enregistrés) :`);
+    for (const o of observations) {
+      const loc = [o.etage ? `Étage ${o.etage}` : null, o.localisation].filter(Boolean).join(' — ');
+      lines.push(`  · ${o.test_type}${loc ? ' — ' + loc : ''}${o.notes ? ' : ' + o.notes : ''}`);
     }
   }
 
@@ -157,12 +172,26 @@ export async function generateRapportSections(
     supabase.from('occupants').select('*').eq('intervention_id', interventionId),
   ]);
 
+  const obsRes = await supabase
+    .from('observations_terrain')
+    .select('test_type, etage, localisation, notes, created_at')
+    .eq('intervention_id', interventionId)
+    .order('created_at', { ascending: true });
+  const observations = (obsRes.data ?? []) as Array<{
+    test_type: string;
+    etage: string | null;
+    localisation: string | null;
+    notes: string | null;
+    created_at: string;
+  }>;
+
   const ctx = buildContextSummary({
     iv,
     acp: acpRes.data as Pick<Acp, 'nom' | 'adresse' | 'code_postal' | 'ville' | 'bce'> | null,
     syndic: orgRes.data as Pick<Organisation, 'nom' | 'type' | 'email' | 'telephone' | 'bce'> | null,
     tech: techRes.data as Pick<Utilisateur, 'prenom' | 'nom'> | null,
     occupants: (occRes.data ?? []) as Occupant[],
+    observations,
   });
 
   const userMessage = [
