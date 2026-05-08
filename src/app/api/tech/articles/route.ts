@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +28,9 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 
-  const { data, error } = await supabase
+  // Service-role : RLS articles peut limiter le SELECT aux admins.
+  const admin = createAdminClient();
+  const { data, error } = await admin
     .from('articles')
     .select('id, code, description, prix_htva, tva_pct')
     .eq('actif', true)
