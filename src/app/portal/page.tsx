@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import nextDynamic from 'next/dynamic';
 import { Hand, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
@@ -7,10 +6,8 @@ import { getMonthSlots } from '@/lib/portal/availability';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, todayLong } from '@/lib/format';
 import { vocabFor, type OrgType } from '@/lib/portal/vocab';
+import { SyndicMapWrapper } from '@/components/portal/SyndicMapWrapper';
 import type { Intervention } from '@/lib/types/database';
-
-// Carte Leaflet — client-only (Leaflet touche directement à window/document).
-const SyndicMap = nextDynamic(() => import('@/components/portal/SyndicMap'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -210,7 +207,7 @@ export default async function PortalDashboard() {
             </div>
           </div>
           <div className="premium-card overflow-hidden p-0">
-            <SyndicMap pins={pins} />
+            <SyndicMapWrapper pins={pins} />
           </div>
         </section>
       )}
