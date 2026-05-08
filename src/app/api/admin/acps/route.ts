@@ -12,13 +12,25 @@ interface AcpInput {
   bce?: unknown;
   email_rapports?: unknown;
   email_factures?: unknown;
+  syndic_id?: unknown;
   syndic_id_ref?: unknown;
+  lat?: unknown;
+  lng?: unknown;
 }
 
 function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
   const t = v.trim();
   return t || null;
+}
+
+function numOrNull(v: unknown): number | null {
+  if (typeof v === 'number' && isFinite(v)) return v;
+  if (typeof v === 'string') {
+    const n = parseFloat(v);
+    if (isFinite(n)) return n;
+  }
+  return null;
 }
 
 // POST /api/admin/acps
@@ -52,7 +64,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Nom requis.' }, { status: 400 });
   }
 
-  const payload: Record<string, string | null> = {
+  const payload: Record<string, string | number | null> = {
     nom,
     adresse:        strOrNull(body.adresse),
     code_postal:    strOrNull(body.code_postal),
@@ -60,7 +72,12 @@ export async function POST(request: Request) {
     bce:            strOrNull(body.bce),
     email_rapports: strOrNull(body.email_rapports)?.toLowerCase() ?? null,
     email_factures: strOrNull(body.email_factures)?.toLowerCase() ?? null,
+    // syndic_id : NOT NULL en DB. On accepte syndic_id direct ou fallback
+    // sur syndic_id_ref (le drawer envoie les deux à la même valeur).
+    syndic_id:      strOrNull(body.syndic_id) ?? strOrNull(body.syndic_id_ref),
     syndic_id_ref:  strOrNull(body.syndic_id_ref),
+    lat:            numOrNull(body.lat),
+    lng:            numOrNull(body.lng),
   };
 
   const { data, error } = await supabase

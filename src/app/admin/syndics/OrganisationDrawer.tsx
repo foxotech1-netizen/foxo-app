@@ -115,7 +115,10 @@ export function OrganisationDrawer({
           bce: acpForm.bce,
           email_rapports: acpForm.email_rapports,
           email_factures: acpForm.email_factures,
+          syndic_id: org.id,
           syndic_id_ref: org.id,
+          lat: acpAddress.lat ?? null,
+          lng: acpAddress.lng ?? null,
         }),
       });
       const data = await r.json();
