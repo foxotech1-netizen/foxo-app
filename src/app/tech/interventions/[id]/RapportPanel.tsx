@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mic, Sparkles, FileText, Eye, Check, X, Cloud, Camera } from 'lucide-react';
+import { Sparkles, FileText, Eye, Check, X, Cloud, Camera } from 'lucide-react';
 import { saveRapport, publishRapport, triggerDriveSync, type RapportInput } from '../../actions';
 import { generateRapportSections } from './generate-action';
 import type { Rapport } from '@/lib/types/database';
@@ -444,26 +444,6 @@ export function RapportPanel({
             <label className="text-[12px] font-bold text-navy">
               Brief / Dictée pour Claude
             </label>
-            {supportsSpeech && (
-              <button
-                type="button"
-                onClick={() =>
-                  activeDictation === 'brief' ? stopDictation() : startDictation('brief')
-                }
-                className={
-                  'text-[10px] font-bold px-4 py-3 rounded-md min-w-[120px] active:scale-95 transition-transform ' +
-                  (activeDictation === 'brief'
-                    ? 'bg-terra text-white animate-pulse'
-                    : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
-                }
-              >
-                {activeDictation === 'brief' ? (
-                  <span className="inline-flex items-center justify-center gap-1.5">● Arrêter</span>
-                ) : (
-                  <span className="inline-flex items-center justify-center gap-1.5"><Mic size={18} />Dicter</span>
-                )}
-              </button>
-            )}
           </div>
           <textarea
             value={brief}
@@ -507,24 +487,6 @@ export function RapportPanel({
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[12px] font-bold text-navy">{label}</label>
-                {supportsSpeech && !alreadyPublished && (
-                  <button
-                    type="button"
-                    onClick={() => (isActive ? stopDictation() : startDictation(key))}
-                    className={
-                      'text-[10px] font-bold px-4 py-3 rounded-md min-w-[120px] active:scale-95 transition-transform ' +
-                      (isActive
-                        ? 'bg-terra text-white animate-pulse'
-                        : 'bg-[#A17244] text-white hover:bg-[#8A613B]')
-                    }
-                  >
-                    {isActive ? (
-                      <span className="inline-flex items-center justify-center gap-1.5">● Arrêter</span>
-                    ) : (
-                      <span className="inline-flex items-center justify-center gap-1.5"><Mic size={18} />Dicter</span>
-                    )}
-                  </button>
-                )}
               </div>
               <textarea
                 value={values[key]}
