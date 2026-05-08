@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, Copy, Pencil } from 'lucide-react';
+import { Check, Copy } from 'lucide-react';
 import QRCode from 'qrcode';
 
 // Coordonnées Fox Group srl — fixes (cf. footer rapports + IBAN Beobank).
@@ -124,12 +124,6 @@ export function QrPaiement({
             <><Copy size={14} /> Copier IBAN</>
           )}
         </button>
-        <a
-          href={`/admin/facturation?id=${factureId}`}
-          className="text-center text-[11px] text-navy hover:underline font-semibold inline-flex items-center justify-center gap-1.5"
-        >
-          <Pencil size={12} /> Modifier la facture
-        </a>
       </div>
     </div>
   );
