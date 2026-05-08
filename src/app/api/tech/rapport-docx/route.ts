@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import { buildRapportDocx } from '@/lib/rapport/build-docx';
 import { uploadRapport } from '@/lib/google-drive';
-import type { Acp, Intervention, Rapport } from '@/lib/types/database';
+import type { Acp, Intervention, Organisation, Rapport } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,15 +72,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // Charge ACP + rapport en parallèle
-  const [acpRes, rapRes] = await Promise.all([
+  // Charge ACP + rapport + syndic en parallèle
+  const [acpRes, rapRes, orgRes] = await Promise.all([
     iv.acp_id
       ? supabase.from('acps').select('*').eq('id', iv.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('rapports').select('*').eq('intervention_id', iv.id).maybeSingle(),
+    iv.syndic_id
+      ? supabase.from('organisations').select('nom, adresse, email').eq('id', iv.syndic_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const acp = acpRes.data as Acp | null;
   const rapport = rapRes.data as Rapport | null;
+  const syndic = orgRes.data as Pick<Organisation, 'nom' | 'adresse' | 'email'> | null;
 
   // Charge les observations terrain (techniques + tests menés sur site)
   const obsRes = await supabase
@@ -111,13 +115,53 @@ export async function POST(request: Request) {
   const acpNom = acp?.nom ?? '—';
   const acpAdresse = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—';
 
+  // ─── Composition des champs du tableau d'identification ──────────────
+
+  const refSyndic = (iv.reference_externe ?? '').trim() || null;
+
+  // Description : préfère interventions.description complète, sinon 1ère
+  // ligne de la section Dégâts (200 chars max) en fallback.
+  const description = iv.description?.trim()
+    || sections.degats?.split(/\r?\n/)[0]?.slice(0, 200)
+    || '—';
+
+  // Adresse Facturation : nom (iv.nom_facturation prioritaire, sinon
+  // syndic.nom), adresse syndic, email (iv.email_facturation prioritaire,
+  // sinon syndic.email), BCE intervention si présent.
+  const factuLines: string[] = [];
+  const factuName = iv.nom_facturation || syndic?.nom;
+  if (factuName) factuLines.push(factuName);
+  if (syndic?.adresse) factuLines.push(syndic.adresse);
+  const factuEmail = iv.email_facturation || syndic?.email;
+  if (factuEmail) factuLines.push(factuEmail);
+  if (iv.bce_facturation) factuLines.push(`BCE : ${iv.bce_facturation}`);
+  const adresseFacturation = factuLines.length > 0 ? factuLines.join('\n') : '—';
+
+  // Adresse d'intervention : ACP nom + adresse complète + étages distincts
+  // collectés depuis les observations_terrain. Fallback sur iv.adresse si
+  // pas d'ACP rattachée.
+  const intervLines: string[] = [];
+  if (acp?.nom) intervLines.push(acp.nom);
+  if (acpAdresse !== '—') intervLines.push(acpAdresse);
+  const etagesSet = new Set(
+    observations.map((o) => o.etage).filter((e): e is string => Boolean(e)),
+  );
+  if (etagesSet.size > 0) {
+    intervLines.push(`Étages : ${[...etagesSet].sort().join(', ')}`);
+  }
+  const adresseIntervention = intervLines.length > 0
+    ? intervLines.join('\n')
+    : (iv.adresse ?? '—');
+
   // Génération du .docx (template FoxO complet : photos par section,
   // header logo, encadré 4 côtés, etc. cf. lib/rapport/build-docx.ts)
   const docxBytes = await buildRapportDocx({
     interventionId: iv.id,
     ref,
-    adresse: acpAdresse,
-    acp_nom: acpNom,
+    refSyndic,
+    description,
+    adresseFacturation,
+    adresseIntervention,
     date: new Date(),
     sections,
     observations,

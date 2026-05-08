@@ -83,7 +83,7 @@ export function ObservationsPanel({
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
   // Photo optionnelle à uploader avec la nouvelle observation (capturée
   // depuis l'input file du formulaire ; uploadée puis liée dans createObs).
-  const [formPhoto, setFormPhoto] = useState<File | null>(null);
+  const [formPhotos, setFormPhotos] = useState<File[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Affiche le picker de photos libres pour cette observation (id) ou null.
@@ -149,41 +149,41 @@ export function ObservationsPanel({
       }
       const obs = data.observation as Omit<Observation, 'photos'>;
 
-      // Photo optionnelle : upload via /api/tech/upload-photo (FormData
-      // attendue : file + intervention_id), puis lien à l'observation
-      // via POST /api/tech/observations/[id]/photos. La réponse upload
-      // expose { id, drive_url, filename } à la racine (pas un objet
-      // photo enveloppé), on construit l'ObsPhoto à partir de ça.
-      let photos: ObsPhoto[] = [];
-      if (formPhoto) {
+      // Photos optionnelles : pour chaque fichier, upload via
+      // /api/tech/upload-photo (FormData : file + intervention_id, sans
+      // section), puis lien à l'observation via POST
+      // /api/tech/observations/[id]/photos. La réponse upload expose
+      // { id, drive_url, filename } à la racine (pas wrappé). Échec
+      // d'un fichier = continue avec les suivants.
+      const photos: ObsPhoto[] = [];
+      for (const file of formPhotos) {
         const fd = new FormData();
-        fd.append('file', formPhoto);
+        fd.append('file', file);
         fd.append('intervention_id', interventionId);
         const uploadRes = await fetch('/api/tech/upload-photo', {
           method: 'POST',
           body: fd,
         }).then((r) => r.json());
-        if (uploadRes.ok && uploadRes.id) {
-          const newPhoto: ObsPhoto = {
-            id: uploadRes.id,
-            drive_url: uploadRes.drive_url,
-            filename: uploadRes.filename ?? null,
-          };
-          const linkRes = await fetch(`/api/tech/observations/${obs.id}/photos`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ photo_id: newPhoto.id }),
-          }).then((r) => r.json());
-          if (linkRes.ok) {
-            photos = [newPhoto];
-          }
+        if (!uploadRes.ok || !uploadRes.id) continue;
+        const newPhoto: ObsPhoto = {
+          id: uploadRes.id,
+          drive_url: uploadRes.drive_url,
+          filename: uploadRes.filename ?? null,
+        };
+        const linkRes = await fetch(`/api/tech/observations/${obs.id}/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photo_id: newPhoto.id }),
+        }).then((r) => r.json());
+        if (linkRes.ok) {
+          photos.push(newPhoto);
         }
       }
 
       setObservations((prev) => [...prev, { ...obs, photos }]);
       setShowForm(false);
       setFormData(EMPTY_FORM);
-      setFormPhoto(null);
+      setFormPhotos([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur réseau.');
     }
@@ -378,17 +378,20 @@ export function ObservationsPanel({
           />
           <div>
             <label className="text-[11px] font-semibold text-ink-mid block mb-1">
-              Photo (optionnel)
+              Photos (optionnel)
             </label>
             <input
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={(e) => setFormPhoto(e.target.files?.[0] ?? null)}
+              multiple
+              onChange={(e) => setFormPhotos(Array.from(e.target.files ?? []))}
               className="w-full text-[12px] text-ink-mid file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-navy file:text-white file:text-[12px] file:font-semibold"
             />
-            {formPhoto && (
-              <p className="text-[11px] text-ink-muted mt-1">{formPhoto.name}</p>
+            {formPhotos.length > 0 && (
+              <p className="text-[11px] text-ink-muted mt-1">
+                {formPhotos.length} fichier{formPhotos.length > 1 ? 's' : ''} sélectionné{formPhotos.length > 1 ? 's' : ''}
+              </p>
             )}
           </div>
           <div className="flex gap-2">
@@ -404,7 +407,7 @@ export function ObservationsPanel({
               onClick={() => {
                 setShowForm(false);
                 setFormData(EMPTY_FORM);
-                setFormPhoto(null);
+                setFormPhotos([]);
               }}
               className="flex-1 bg-sand-mid text-ink py-2.5 rounded-md text-[13px] font-semibold hover:bg-sand-border"
             >

@@ -203,75 +203,142 @@ function valueCell(width: number, text: string, columnSpan?: number): TableCell 
   });
 }
 
+// Comme valueCell, mais préserve les retours-ligne en créant un Paragraph
+// par ligne. Utilisé pour les cellules multi-lignes du tableau d'identification
+// (Adresse Facturation, Adresse d'intervention, description longue).
+function multiLineCell(width: number, text: string, columnSpan?: number): TableCell {
+  const lines = (text || '—').split(/\r?\n/);
+  return new TableCell({
+    width: { size: width, type: WidthType.DXA },
+    columnSpan,
+    children: lines.map((line) => new Paragraph({
+      children: [new TextRun({
+        text: line,
+        size: 20,
+        color: BODY_TEXT,
+        font: FONT,
+      })],
+    })),
+  });
+}
+
+// Layout 2 colonnes du template FoxO 2026-104 : 4 techniques à gauche,
+// 4 à droite. Chaque label peut être coché à partir d'un ou plusieurs
+// test_type provenant des observations terrain (alias loose).
+const TECHNIQUE_LEFT: readonly string[] = [
+  "Capteur d'humidité",
+  'Thermographie infrarouge',
+  'Caméra endoscopique',
+  'Liquide traceur',
+];
+const TECHNIQUE_RIGHT: readonly string[] = [
+  'Détection acoustique',
+  'Test pression / Compteur',
+  'Gaz traceur',
+  'Inspection visuelle',
+];
+
+// Mapping label Word → test_types observations. Quand une observation
+// matche un alias, la checkbox correspondante est cochée. Une entrée
+// vide signifie qu'aucun test_type courant ne déclenche cette case
+// (Détection acoustique et Gaz traceur ne sont pas dans TEST_TYPES UI).
+const TECHNIQUE_TRIGGERS: Record<string, readonly string[]> = {
+  "Capteur d'humidité":       ["Capteur d'humidité"],
+  'Thermographie infrarouge': ['Thermographie'],
+  'Caméra endoscopique':      ['Caméra endoscopique'],
+  'Liquide traceur':          ['Test colorant'],
+  'Détection acoustique':     [],
+  'Test pression / Compteur': ['Test de pression'],
+  'Gaz traceur':              [],
+  'Inspection visuelle':      ['Inspection visuelle'],
+};
+
+function isTechniqueChecked(label: string, testedSet: Set<string>): boolean {
+  const triggers = TECHNIQUE_TRIGGERS[label] ?? [];
+  return triggers.some((t) => testedSet.has(t));
+}
+
+// Génère un Paragraph par technique avec ☑ si test mené, ☐ sinon.
+function techniqueParagraphs(labels: readonly string[], testedSet: Set<string>): Paragraph[] {
+  return labels.map((label) => {
+    const checked = isTechniqueChecked(label, testedSet);
+    return new Paragraph({
+      spacing: { before: 40, after: 40 },
+      children: [
+        new TextRun({
+          text: `${checked ? '☑' : '☐'} ${label}`,
+          size: 18,
+          color: checked ? DARK_BLUE : BODY_TEXT,
+          bold: checked,
+          font: FONT,
+        }),
+      ],
+    });
+  });
+}
+
 function buildIdentificationTable(args: {
   ref: string;
-  adresse: string;
-  acp_nom: string;
-  date: Date;
+  refSyndic: string | null;
   description: string;
-  techniquesText: string;
+  adresseFacturation: string;
+  adresseIntervention: string;
+  testedSet: Set<string>;
 }): Table {
   const C1 = 1900;
   const C2 = 3333;
   const C3 = 1900;
   const C4 = 3333;
   const VALUE_FULL = C2 + C3 + C4;
+  const LEFT_TECHS = C2 + C3; // span 2
 
   return new Table({
     width: { size: TW, type: WidthType.DXA },
     columnWidths: [C1, C2, C3, C4],
     rows: [
+      // Row 1 : N° Intervention | ref | Réf. syndic | refSyndic ou —
       new TableRow({
         children: [
           labelCell(C1, 'N° Intervention'),
           valueCell(C2, args.ref),
-          labelCell(C3, 'Date'),
-          valueCell(C4, fmtDate(args.date)),
+          labelCell(C3, 'Réf. syndic'),
+          valueCell(C4, args.refSyndic || '—'),
         ],
       }),
+      // Row 2 : Objet intervention | description | Adresse Facturation | facturation
       new TableRow({
         children: [
           labelCell(C1, 'Objet intervention'),
-          valueCell(VALUE_FULL, args.description, 3),
+          multiLineCell(C2, args.description),
+          labelCell(C3, 'Adresse Facturation'),
+          multiLineCell(C4, args.adresseFacturation),
         ],
       }),
-      new TableRow({
-        children: [
-          labelCell(C1, 'Adresse facturation'),
-          valueCell(VALUE_FULL, args.acp_nom || '—', 3),
-        ],
-      }),
+      // Row 3 : Adresse d'intervention | adresse multi-lignes (span 3)
       new TableRow({
         children: [
           labelCell(C1, "Adresse d'intervention"),
-          valueCell(VALUE_FULL, args.adresse || '—', 3),
+          multiLineCell(VALUE_FULL, args.adresseIntervention, 3),
         ],
       }),
+      // Row 4 : Techniques d'inspection | col gauche (C2+C3) | col droite (C4)
       new TableRow({
         children: [
-          labelCell(C1, 'Techniques'),
-          valueCell(VALUE_FULL, args.techniquesText, 3),
+          labelCell(C1, "Techniques d'inspection"),
+          new TableCell({
+            width: { size: LEFT_TECHS, type: WidthType.DXA },
+            columnSpan: 2,
+            children: techniqueParagraphs(TECHNIQUE_LEFT, args.testedSet),
+          }),
+          new TableCell({
+            width: { size: C4, type: WidthType.DXA },
+            children: techniqueParagraphs(TECHNIQUE_RIGHT, args.testedSet),
+          }),
         ],
       }),
     ],
   });
 }
-
-// Liste canonique FoxO des techniques d'inspection. Les checkboxes sont
-// cochées dynamiquement à partir des observations_terrain saisies par le
-// technicien. ⚠ Vocabulaire indépendant de TEST_TYPES côté UI : si une
-// observation a un test_type qui ne matche pas exactement un item de cette
-// liste, sa case ne sera pas cochée (à aligner via migration vocab quand
-// pertinent).
-const TECHNIQUES_FOXO = [
-  'Test colorant',
-  'Test de pression',
-  'Capteur d\'humidité',
-  'Thermographie',
-  'Inspection visuelle',
-  'Caméra endoscopique',
-  'Corrélation acoustique',
-];
 
 // Tableau 3 colonnes (test_type / loc / notes) sans bordure pour la
 // section Observations terrain. Aligné sur la largeur tappable TW.
@@ -494,8 +561,10 @@ function photosTable(photos: SectionPhoto[]): Table | null {
 export async function buildRapportDocx(args: {
   interventionId: string;
   ref: string;
-  adresse: string;
-  acp_nom: string;
+  refSyndic: string | null;
+  description: string;            // multi-lignes autorisées
+  adresseFacturation: string;     // multi-lignes (nom, adresse, email, BCE)
+  adresseIntervention: string;    // multi-lignes (ACP, adresse, étages)
   date: Date;
   sections: {
     degats: string;
@@ -580,7 +649,7 @@ export async function buildRapportDocx(args: {
         alignment: AlignmentType.CENTER,
         children: [
           new TextRun({
-            text: '© 2026 Fox Group srl – Tous droits réservés – Rapport technique',
+            text: '© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite',
             size: 14,
             color: MUTED,
             italics: true,
@@ -616,20 +685,15 @@ export async function buildRapportDocx(args: {
       ],
     }),
 
-    // Tableau identification (5 lignes) — techniques cochées dynamiquement
-    // depuis les observations_terrain (mapping par test_type).
+    // Tableau identification 4 lignes (template FoxO 2026-104) : ref+ref_syndic,
+    // objet+factu, adresse intervention, techniques en 2 colonnes.
     buildIdentificationTable({
       ref: args.ref,
-      adresse: args.adresse,
-      acp_nom: args.acp_nom,
-      date: args.date,
-      description: args.sections.degats?.split(/\r?\n/)[0]?.slice(0, 200) || '—',
-      techniquesText: (() => {
-        const tested = new Set((args.observations ?? []).map((o) => o.test_type));
-        return TECHNIQUES_FOXO
-          .map((t) => `${tested.has(t) ? '☑' : '☐'} ${t}`)
-          .join('   ');
-      })(),
+      refSyndic: args.refSyndic,
+      description: args.description,
+      adresseFacturation: args.adresseFacturation,
+      adresseIntervention: args.adresseIntervention,
+      testedSet: new Set((args.observations ?? []).map((o) => o.test_type)),
     }),
 
     new Paragraph({ spacing: { before: 200, after: 200 }, children: [] }),
