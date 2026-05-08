@@ -69,6 +69,7 @@ export default async function PortalDashboard() {
         ref: iv.ref ?? null,
         acp_nom: acp.nom,
         statut: iv.statut,
+        priorite: iv.priorite ?? undefined,
         type: iv.type ?? null,
       };
     })
@@ -189,26 +190,10 @@ export default async function PortalDashboard() {
       {/* Carte interactive */}
       {pins.length > 0 && (
         <section>
-          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="section-label">Carte des interventions</h2>
-            <div className="flex items-center gap-3 text-[11px] text-ink-muted flex-wrap">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#60A5FA] inline-block" />En cours
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#34D399] inline-block" />Rapport dispo
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F87171] inline-block" />Urgent
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#FBBF24] inline-block" />Nouvelle
-              </span>
-            </div>
           </div>
-          <div className="premium-card overflow-hidden p-0">
-            <SyndicMapWrapper pins={pins} />
-          </div>
+          <SyndicMapWrapper pins={pins} />
         </section>
       )}
 
