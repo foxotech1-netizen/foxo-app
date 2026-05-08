@@ -458,10 +458,13 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         />
       )}
 
-      {/* Liste à gauche */}
+      {/* Liste à gauche — position relative pour ancrer la BulkActionBar
+          en absolute bottom (la chaîne min-h-screen → flex-1 → h-full ne
+          garantit pas une hauteur bornée, donc on ne peut pas se reposer
+          sur flex-shrink-0 pour épingler la barre au bas de l'aside). */}
       <aside
         className={
-          'flex flex-col w-full sm:w-[380px] border-r border-sand-border bg-cream ' +
+          'relative flex flex-col w-full sm:w-[380px] border-r border-sand-border bg-cream ' +
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
@@ -595,10 +598,14 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           </div>
         )}
 
-        {/* Liste — `min-h-0` est essentiel pour que flex-1 puisse rétrécir
-            et laisser la barre d'actions visible en bas (sinon la liste
-            pousse la barre hors écran avec >20 mails). */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Liste — `min-h-0` permet le shrink en flex-col. Padding-bottom
+            dynamique = hauteur estimée de la BulkActionBar (~180px) pour
+            que les derniers items ne soient pas masqués par la barre
+            absolute positionnée par-dessus. */}
+        <div
+          className="flex-1 overflow-y-auto min-h-0"
+          style={{ paddingBottom: selectedIds.size > 0 ? 180 : 0 }}
+        >
           {error && (
             <div className="m-3 text-[12px] bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 font-semibold">
               {error}
@@ -670,8 +677,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           })}
         </div>
 
-        {/* Barre d'actions sticky — flex-shrink-0 avec liste min-h-0 dessus
-            garantit qu'elle reste visible quel que soit le nombre de mails. */}
+        {/* Barre d'actions — position: absolute (cf. aside relative) pour
+            être épinglée au bas de l'aside, peu importe la hauteur réelle
+            calculée par le flex-col parent. Z-20 pour être au-dessus des
+            badges des mails au survol. */}
         {selectedIds.size > 0 && (
           <BulkActionBar
             count={selectedIds.size}
@@ -1022,7 +1031,7 @@ function BulkActionBar({
   onRequestPermanentDelete: () => void;
 }) {
   return (
-    <div className="border-t border-sand-border bg-cream px-3 py-2.5 flex-shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,.08)] relative">
+    <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-sand-border bg-cream px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold uppercase tracking-widest text-navy">
           {count} sélectionné(s)
