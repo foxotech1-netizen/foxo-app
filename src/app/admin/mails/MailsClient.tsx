@@ -63,6 +63,14 @@ function hasInterventionRef(m: MailListItem): boolean {
   return /\b\d{4}-\d{3,5}\b/.test(`${m.subject} ${m.snippet}`);
 }
 
+// Émet un CustomEvent vers la Sidebar avec un delta sur le compteur
+// "non lus". La Sidebar applique prev + delta (clamp >= 0) pour update
+// instantané. Si on ne connaît pas le delta exact, ne pas appeler ;
+// le listener fait un fallback re-fetch quand detail.delta est absent.
+function dispatchMailsUpdate(delta: number) {
+  window.dispatchEvent(new CustomEvent('foxo:mails-updated', { detail: { delta } }));
+}
+
 export function MailsClient({ initialConnected }: { initialConnected: boolean }) {
   const router = useRouter();
   const [mails, setMails] = useState<MailListItem[]>([]);
@@ -144,7 +152,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     return () => { mounted = false; };
   }, [initialConnected]);
 
-  // Charge le détail quand selectedId change
+  // Charge le détail quand selectedId change.
+  // L'API serveur marque le mail comme lu (retire UNREAD côté Gmail).
+  // On capture l'état unread AVANT la mutation pour notifier la Sidebar
+  // d'un -1 si le mail venait juste de passer en lu (sinon 0).
   useEffect(() => {
     if (!selectedId) { setDetail(null); setAnalysis(null); setReplyOpen(false); return; }
     let mounted = true;
@@ -152,6 +163,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setAnalysis(null);
     setReplyOpen(false);
     setReplyBody('');
+    const wasUnread = mails.find((m) => m.id === selectedId)?.unread === true;
     fetch(`/api/admin/mails/${selectedId}`)
       .then((r) => r.json())
       .then((data) => {
@@ -161,6 +173,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           setMails((arr) => arr.map((m) => m.id === selectedId
             ? { ...m, unread: false, label_ids: m.label_ids.filter((l) => l !== 'UNREAD') }
             : m));
+          if (wasUnread) dispatchMailsUpdate(-1);
         } else {
           setError(data.error ?? 'Erreur détail');
         }
@@ -168,6 +181,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setDetailLoading(false); });
     return () => { mounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
   const filtered = useMemo(() => {
@@ -233,10 +247,17 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Action en masse échouée.' });
         return;
       }
-      // Notifie la Sidebar pour qu'elle re-fetch le compteur "non lus"
-      // (cf. listener dans components/Sidebar.tsx). Évite un badge figé
-      // tant que la page n'est pas rechargée.
-      window.dispatchEvent(new Event('foxo:mails-updated'));
+      // Delta exact pour la Sidebar (badge "non lus") :
+      //   - read   = -[nb mails sélectionnés actuellement unread]
+      //   - unread = +ids.length (tous deviennent unread)
+      //   - autres actions = 0 (n'affecte pas le label UNREAD)
+      let delta = 0;
+      if (action === 'read') {
+        delta = -ids.filter((id) => mails.find((m) => m.id === id)?.unread).length;
+      } else if (action === 'unread') {
+        delta = ids.length;
+      }
+      dispatchMailsUpdate(delta);
       // Update optimiste
       setMails((arr) => {
         if (action === 'archive' || action === 'traite' || action === 'trash' || action === 'delete-permanent') {
@@ -320,6 +341,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'ok', msg: 'Mail marqué FOXO_TRAITE' });
         setMails((arr) => arr.filter((m) => m.id !== detail.id));
         setSelectedId(null);
+        // Marquer traité retire le label UNREAD côté Gmail. Si le mail
+        // était déjà lu, le clamp Math.max(0, ...) côté Sidebar évite un
+        // badge négatif.
+        dispatchMailsUpdate(-1);
       }
     } finally {
       setTraiteLoading(false);
@@ -409,6 +434,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Échec suppression.' });
         return;
       }
+      // Supprimer définitivement retire les mails de Gmail. On décrémente
+      // le badge du nombre de mails parmi ids qui étaient unread.
+      const unreadCount = ids.filter((id) => mails.find((m) => m.id === id)?.unread).length;
+      dispatchMailsUpdate(-unreadCount);
       setMails((arr) => arr.filter((m) => !ids.includes(m.id)));
       setSelectedIds(new Set());
       if (selectedId && ids.includes(selectedId)) setSelectedId(null);
@@ -514,6 +543,23 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           </button>
         </div>
 
+        {/* Barre d'actions — sticky top-0 quand mails sélectionnés.
+            Placée juste après les filtres pour rester visible en haut
+            de l'aside, indépendamment du scroll de la liste. */}
+        {selectedIds.size > 0 && (
+          <BulkActionBar
+            count={selectedIds.size}
+            inTrash={inTrash}
+            disabled={bulkLoading}
+            labels={labels}
+            menuOpen={bulkLabelMenuOpen}
+            setMenuOpen={setBulkLabelMenuOpen}
+            onAction={applyBulkAction}
+            onClear={() => setSelectedIds(new Set())}
+            onRequestPermanentDelete={() => setConfirmDelete({ ids: Array.from(selectedIds) })}
+          />
+        )}
+
         {/* Section Libellés */}
         <div className="p-3 border-b border-sand-border flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
@@ -602,14 +648,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           </div>
         )}
 
-        {/* Liste — `min-h-0` permet le shrink en flex-col. Padding-bottom
-            dynamique = hauteur estimée de la BulkActionBar (~180px) pour
-            que les derniers items ne soient pas masqués par la barre
-            absolute positionnée par-dessus. */}
-        <div
-          className="flex-1 overflow-y-auto min-h-0"
-          style={{ paddingBottom: selectedIds.size > 0 ? 180 : 0 }}
-        >
+        {/* Liste — `min-h-0` permet le shrink en flex-col. */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           {error && (
             <div className="m-3 text-[12px] bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 font-semibold">
               {error}
@@ -681,23 +721,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           })}
         </div>
 
-        {/* Barre d'actions — position: absolute (cf. aside relative) pour
-            être épinglée au bas de l'aside, peu importe la hauteur réelle
-            calculée par le flex-col parent. Z-20 pour être au-dessus des
-            badges des mails au survol. */}
-        {selectedIds.size > 0 && (
-          <BulkActionBar
-            count={selectedIds.size}
-            inTrash={inTrash}
-            disabled={bulkLoading}
-            labels={labels}
-            menuOpen={bulkLabelMenuOpen}
-            setMenuOpen={setBulkLabelMenuOpen}
-            onAction={applyBulkAction}
-            onClear={() => setSelectedIds(new Set())}
-            onRequestPermanentDelete={() => setConfirmDelete({ ids: Array.from(selectedIds) })}
-          />
-        )}
       </aside>
 
       {/* Détail à droite (drawer sur mobile) */}
@@ -1013,6 +1036,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       }
       setMails((arr) => arr.filter((m) => m.id !== id));
       setSelectedId(null);
+      // restore ne change pas le label UNREAD. Delta 0 = no-op côté Sidebar.
+      dispatchMailsUpdate(0);
       setFeedback({ kind: 'ok', msg: action === 'restore' ? 'Mail restauré' : 'Action appliquée' });
     } finally {
       setBulkLoading(false);
@@ -1035,7 +1060,7 @@ function BulkActionBar({
   onRequestPermanentDelete: () => void;
 }) {
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-20 border-t border-sand-border bg-cream px-3 py-2.5 shadow-[0_-4px_12px_rgba(0,0,0,.08)]">
+    <div className="sticky top-0 z-10 bg-white border-b border-sand-border px-3 py-2.5">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold uppercase tracking-widest text-navy">
           {count} sélectionné(s)
@@ -1091,7 +1116,7 @@ function BulkActionBar({
           </div>
 
           {menuOpen && (
-            <div className="absolute bottom-full left-3 right-3 mb-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto z-20">
+            <div className="absolute top-full left-3 right-3 mt-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto z-20">
               <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Appliquer un libellé
               </div>
