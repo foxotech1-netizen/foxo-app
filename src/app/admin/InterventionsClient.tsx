@@ -1041,18 +1041,21 @@ export function InterventionsClient({
       {/* Topbar + liste — masqués en mode page complète */}
       {!fullPage && (
       <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="px-6 pt-6 flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)] flex-shrink-0">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Tableau de bord</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5 capitalize">
+          <h1 className="fxs-page-title mb-1">
+            Tableau de <span>bord</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide capitalize">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {new Date(nowMs).toLocaleDateString('fr-BE', {
               weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
             })}
-          </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {techFilterName && (
-            <div className="bg-[#A17244] text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
+            <div className="bg-[var(--color-amber-foxo)] text-[var(--color-cream)] rounded-full px-3 py-1.5 text-[11px] font-medium flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5"><Search size={12} />Filtré : {techFilterName}</span>
               <button
                 type="button"
@@ -1065,7 +1068,7 @@ export function InterventionsClient({
             </div>
           )}
           {recentResponsesFilter && (
-            <div className="bg-terra text-white rounded-full px-3 py-1.5 text-[11px] font-bold flex items-center gap-2">
+            <div className="bg-[var(--color-terra)] text-[var(--color-cream)] rounded-full px-3 py-1.5 text-[11px] font-medium flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5"><Inbox size={12} />Réponses occupants &lt; 48 h ({recentResponseIvIds.size})</span>
               <button
                 type="button"
@@ -1078,10 +1081,10 @@ export function InterventionsClient({
             </div>
           )}
         </div>
-      </header>
+      </div>
 
       {loadError && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold flex-shrink-0">
+        <div className="mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold flex-shrink-0">
           Connexion à la base limitée : {loadError}
         </div>
       )}
@@ -1100,15 +1103,15 @@ export function InterventionsClient({
       {/* Section 4 : Liste des interventions */}
       <div className="px-6 pt-5 flex-shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-          <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest dark:text-[#C8C2B8]">
+          <h3 className="text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] dark:text-[#C8C2B8]">
             {statutFilterLabel
-              ? <>Interventions — <span className="text-navy dark:text-[#A8C4F2]">{statutFilterLabel}</span> ({filtered.length})</>
+              ? <>Interventions — <span className="text-[var(--color-navy)] dark:text-[#A8C4F2]">{statutFilterLabel}</span> ({filtered.length})</>
               : `Toutes les interventions (${filtered.length})`}
           </h3>
           {statutFilterLabel && (
             <a
               href={techFilter ? `/admin?tech=${techFilter}` : '/admin'}
-              className="text-[11px] text-navy underline hover:no-underline inline-flex items-center gap-1 dark:text-[#A8C4F2]"
+              className="text-[11px] text-[var(--color-navy)] underline hover:no-underline inline-flex items-center gap-1 dark:text-[#A8C4F2]"
             >
               <X size={12} />Effacer le filtre
             </a>
@@ -1119,10 +1122,10 @@ export function InterventionsClient({
             type="button"
             onClick={() => router.push('/admin')}
             className={
-              'px-3 py-1.5 rounded-md text-[12px] font-semibold border ' +
+              'px-3 py-1.5 rounded-md text-[12px] font-medium border transition-colors ' +
               (!techFilter
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                ? 'bg-[var(--color-navy)] text-[var(--color-cream)] border-[var(--color-navy)]'
+                : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
             }
           >
             Tous
@@ -1135,10 +1138,10 @@ export function InterventionsClient({
                 type="button"
                 onClick={() => router.push(active ? '/admin' : `/admin?tech=${t.id}`)}
                 className={
-                  'px-3 py-1.5 rounded-md text-[12px] font-semibold border ' +
+                  'px-3 py-1.5 rounded-md text-[12px] font-medium border transition-colors ' +
                   (active
-                    ? 'bg-[#A17244] text-white border-[#A17244]'
-                    : 'bg-white text-ink-mid border-sand-border hover:border-[#A17244]')
+                    ? 'bg-[var(--color-amber-foxo)] text-[var(--color-cream)] border-[var(--color-amber-foxo)]'
+                    : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-amber-foxo)]')
                 }
               >
                 {[t.prenom, t.nom].filter(Boolean).join(' ') || t.email}
@@ -1154,12 +1157,12 @@ export function InterventionsClient({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — référence, ACP, syndic, adresse…"
-          className="flex-1 px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+          className="flex-1 px-3.5 py-2.5 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] outline-none focus:border-[var(--color-navy-mid)] transition-colors"
         />
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as typeof filter)}
-          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
+          className="px-3 py-2.5 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] cursor-pointer outline-none focus:border-[var(--color-navy-mid)]"
         >
           <option value="tous">Tous statuts</option>
           {STATUT_PIPELINE.map((s) => (
