@@ -11,11 +11,13 @@ import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 
+// Avatars techniciens — palette FoxO sémantique. Cycle 4 couleurs pour
+// différencier visuellement chaque tech dans la grille DashboardTechs.
 const TECH_AVATAR_COLORS = [
-  { bg: '#A17244', soft: '#F0DCC4' },
-  { bg: '#1B3A6B', soft: '#D6E4F7' },
-  { bg: '#1F6B45', soft: '#D4EDE2' },
-  { bg: '#C4622D', soft: '#F7EDE5' },
+  { bg: 'var(--color-amber-foxo)', soft: 'var(--color-amber-light)' },
+  { bg: 'var(--color-navy)',       soft: 'var(--color-navy-pale)' },
+  { bg: 'var(--color-ok)',         soft: 'var(--color-ok-light)' },
+  { bg: 'var(--color-terra)',      soft: 'var(--color-terra-light)' },
 ];
 
 function fmtTime(iso: string | null): string {
@@ -134,12 +136,14 @@ export function Dashboard({
 
       {/* ── 2. Alertes prioritaires ──────────────────────────────────────── */}
       {stats.urgent > 0 && (
-        <div
-          className="px-4 py-2.5 border rounded-lg text-xs font-semibold flex items-center gap-2"
-          style={{ background: '#FFF5F5', borderColor: '#FCA5A5', color: '#DC2626' }}
-        >
-          <Zap size={18} aria-hidden />
-          {stats.urgent} intervention(s) urgente(s) en attente de traitement
+        <div className="flex items-center gap-3 bg-gradient-to-r from-[var(--color-terra-light)] to-[rgba(247,237,229,0.3)] border border-[var(--color-terra-mid)] border-l-[3px] border-l-[var(--color-terra)] px-4 py-2.5 rounded-r-lg">
+          <div className="w-[22px] h-[22px] rounded-md bg-[var(--color-terra)] text-[var(--color-cream)] flex items-center justify-center text-sm font-semibold font-sora flex-shrink-0">
+            <Zap size={14} aria-hidden />
+          </div>
+          <div className="flex-1 text-[13px] text-[var(--color-terra)] font-medium">
+            <strong className="text-[var(--color-ink)] font-semibold">{stats.urgent} intervention{stats.urgent > 1 ? 's' : ''} urgente{stats.urgent > 1 ? 's' : ''}</strong>
+            {' '}en attente de traitement
+          </div>
         </div>
       )}
 
@@ -230,7 +234,7 @@ export function Dashboard({
                 className="w-full text-left bg-[var(--main-bg)] hover:bg-amber-light border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[11px] text-[#8A5A1A] font-bold">{iv.ref ?? '?'}</span>
+                  <span className="font-sora text-[11px] text-[var(--color-amber-foxo)] font-semibold tracking-[0.01em]">{iv.ref ?? '?'}</span>
                   <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
                 </div>
                 <div className="text-[10px] text-ink-muted mt-0.5">
@@ -309,7 +313,7 @@ export function DashboardTechs({
             <div className="flex items-center gap-3 mb-3">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0"
-                style={{ background: color.bg, color: '#fff' }}
+                style={{ background: color.bg, color: 'var(--color-cream)' }}
               >
                 {initiales(tech.prenom, tech.nom)}
               </div>
@@ -390,7 +394,7 @@ export function DashboardTechs({
                         technicien_id: s.technicien_id,
                       })}
                       title="Cliquer pour planifier une intervention sur ce créneau"
-                      className="bg-ok-light text-ok border border-ok-mid rounded-md px-2 py-1 text-[11px] font-semibold cursor-pointer transition-colors hover:bg-ok-mid hover:border-[#E2C9A1]"
+                      className="bg-[var(--color-ok-light)] text-[var(--color-ok)] border border-[var(--color-ok-mid)] rounded-md px-2 py-1 text-[11px] font-medium cursor-pointer transition-colors hover:bg-[var(--color-ok-mid)] hover:border-[var(--color-amber-foxo)]/30"
                     >
                       {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
                       {' · '}
@@ -414,37 +418,43 @@ function StatCard({
   accent?: boolean; muted?: boolean; warning?: boolean; amber?: boolean;
   href?: string; active?: boolean;
 }) {
-  // Couleur de la barre 3px en haut de la card, par type de KPI.
-  // default + accent (en cours) → navy ; warning (suspens) → red ;
-  // amber (rapports) → ambre ; muted (clôturées) → gris.
-  let barColor = '#1B3A6B';
-  if (warning) barColor = '#DC2626';
-  else if (amber) barColor = '#B8830A';
-  else if (muted) barColor = '#9A9690';
+  // Couleur de la pastille accent en haut-droite, par type de KPI.
+  // default → navy ; accent (en cours) → sky ; warning (suspens) → terra ;
+  // amber (rapports) → amber-foxo ; muted (clôturées) → ink-muted.
+  let dotColor = 'var(--color-navy)';
+  let dotBg = 'var(--color-navy-pale)';
+  let valueColor = 'var(--color-ink)';
+  if (accent) { dotColor = 'var(--color-sky-foxo)'; dotBg = 'var(--color-sky-light-foxo)'; }
+  else if (warning) { dotColor = 'var(--color-terra)'; dotBg = 'var(--color-terra-light)'; valueColor = 'var(--color-terra)'; }
+  else if (amber) { dotColor = 'var(--color-amber-foxo)'; dotBg = 'var(--color-amber-light)'; }
+  else if (muted) { dotColor = 'var(--color-ink-muted)'; dotBg = 'var(--color-sand-mid)'; valueColor = 'var(--color-ink-mid)'; }
 
-  // Filtre actif : override la border 1px de .premium-card en 2px ambre.
-  // L'inline style l'emporte sur la règle CSS de .premium-card.
-  const activeStyle: React.CSSProperties = active
-    ? { borderColor: '#E2C9A1', borderWidth: 2, borderStyle: 'solid' }
-    : {};
+  // Filtre actif : ring navy autour de la card.
+  const activeRing = active ? 'ring-2 ring-[var(--color-amber-foxo)]/40' : '';
 
   const content = (
-    <div className="premium-card px-4 py-3.5" style={activeStyle}>
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          top: '12px', bottom: '12px', left: 0, width: 3,
-          background: barColor,
-          borderRadius: '0 2px 2px 0',
-        }}
-      />
-      <div className="kpi-value">{num}</div>
-      <div className="text-[12px] font-semibold text-[var(--text-secondary)] mt-2">
+    <div
+      className={`relative bg-[var(--color-cream)] rounded-[10px] p-4 transition-all hover:-translate-y-0.5 ${activeRing}`}
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="text-[10px] font-medium tracking-[0.12em] uppercase text-[var(--color-ink-muted)] mb-2.5">
         {label}
       </div>
+      <div
+        aria-hidden
+        className="absolute top-4 right-4 w-[22px] h-[22px] rounded-md flex items-center justify-center"
+        style={{ background: dotBg }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }}></span>
+      </div>
+      <div
+        className="font-sora text-3xl font-semibold leading-none mb-1.5"
+        style={{ color: valueColor, letterSpacing: '-0.04em' }}
+      >
+        {num}
+      </div>
       {href && (
-        <div className="text-[10px] font-bold mt-2" style={{ color: '#C8924A' }}>
+        <div className="text-[10px] font-medium mt-2 text-[var(--color-navy-mid)]">
           Voir tout →
         </div>
       )}
@@ -481,28 +491,37 @@ function TodoCard({
   empty: string;
   children: React.ReactNode;
 }) {
-  // Palettes premium par colonne — Tailwind v3 hex passés inline (pas
-  // exposés comme classes en Tailwind v4 par défaut).
-  const headerColor: React.CSSProperties = {
-    navy:  { background: '#EFF6FF', color: '#1D4ED8', borderColor: '#BFDBFE' },
-    ok:    { background: '#F0FDF4', color: '#15803D', borderColor: '#BBF7D0' },
-    amber: { background: '#FFFBEB', color: '#92400E', borderColor: '#FED7AA' },
-  }[color];
+  // Palettes par colonne — design tokens FoxO.
+  const swatchColor =
+    color === 'navy' ? 'var(--color-navy)'
+    : color === 'ok' ? 'var(--color-ok)'
+    : 'var(--color-amber-foxo)';
+  const badgeBg =
+    color === 'navy' ? 'var(--color-navy-pale)'
+    : color === 'ok' ? 'var(--color-ok-light)'
+    : 'var(--color-amber-light)';
+  const badgeFg = swatchColor;
+
   return (
     <div
-      className="border rounded-2xl overflow-hidden"
-      style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+      className="bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
     >
-      <div
-        className="px-4 py-2.5 flex items-center justify-between border-b"
-        style={headerColor}
-      >
-        <span className="text-[11px] font-bold uppercase tracking-wider">{title}</span>
-        <span className="text-[12px] font-extrabold">{count}</span>
+      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[var(--color-sand-mid)]">
+        <span className="w-[3px] h-3.5 rounded-sm" style={{ background: swatchColor }}></span>
+        <span className="font-sora text-[13px] font-medium text-[var(--color-ink)] flex-1">
+          {title}
+        </span>
+        <span
+          className="font-sora text-[11px] font-semibold px-2 py-0.5 rounded-full"
+          style={{ background: badgeBg, color: badgeFg }}
+        >
+          {count}
+        </span>
       </div>
       <div className="p-3 space-y-1.5 max-h-[240px] overflow-y-auto">
         {count === 0 ? (
-          <div className="text-[12px] text-ink-muted text-center py-4">{empty}</div>
+          <div className="text-[12px] text-[var(--color-ink-muted)] text-center py-4">{empty}</div>
         ) : children}
       </div>
     </div>
@@ -810,14 +829,14 @@ function NewMailSection({
       </div>
 
       {batchState?.running && (
-        <div className="mb-2 bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5">
-          <div className="text-[11px] text-navy font-semibold mb-1">
+        <div className="mb-2 bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)] rounded-md px-2.5 py-1.5">
+          <div className="text-[11px] text-[var(--color-navy)] font-medium mb-1">
             Analyse en cours… {batchState.current}/{batchState.total}
-            {batchState.updated > 0 && <span className="text-[#8A5A1A] ml-2">· {batchState.updated} avec diff</span>}
+            {batchState.updated > 0 && <span className="text-[var(--color-amber-foxo)] ml-2">· {batchState.updated} avec diff</span>}
           </div>
-          <div className="h-1.5 bg-sand-mid rounded-full overflow-hidden">
+          <div className="h-1.5 bg-[var(--color-sand-mid)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-navy transition-all"
+              className="h-full bg-[var(--color-navy)] transition-all"
               style={{ width: `${Math.round((batchState.current / batchState.total) * 100)}%` }}
             />
           </div>
@@ -826,12 +845,12 @@ function NewMailSection({
 
       {toast && (
         <div className={
-          'mb-2 px-3 py-2 text-[11px] font-semibold rounded-md border ' +
+          'mb-2 px-3 py-2 text-[11px] font-medium rounded-md border ' +
           (toast.kind === 'ok'
-            ? 'bg-ok-light border-ok-mid text-ok'
+            ? 'bg-[var(--color-ok-light)] border-[var(--color-ok-mid)] text-[var(--color-ok)]'
             : toast.kind === 'warn'
-              ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A]'
-              : 'bg-terra-light border-terra-mid text-terra')
+              ? 'bg-[var(--color-amber-light)] border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)]'
+              : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
         }>
           {toast.msg}
         </div>
@@ -859,10 +878,10 @@ function NewMailSection({
                   onClick={() => onOpenIntervention(iv.id)}
                   className="flex-1 flex items-center gap-2 text-left min-w-0"
                 >
-                  <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#C8924A] text-white font-bold flex-shrink-0">
+                  <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] font-semibold flex-shrink-0">
                     <Mail size={11} aria-hidden /> Mail
                   </span>
-                  <span className="text-[12px] font-display font-bold flex-shrink-0" style={{ color: '#C8924A' }}>
+                  <span className="font-sora text-[12px] font-semibold flex-shrink-0 text-[var(--color-navy)] tracking-[0.01em]">
                     {iv.ref ?? '?'}
                   </span>
                   <span className="font-bold text-ink truncate flex-1">
@@ -876,7 +895,7 @@ function NewMailSection({
                   )}
                   {hasDiff && (
                     <span
-                      className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]"
+                      className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30"
                       title="Différences détectées par la dernière réanalyse"
                     >
                       <AlertTriangle size={11} aria-hidden /> À vérifier
@@ -983,8 +1002,8 @@ function NewMailSection({
                 type="button"
                 onClick={() => handleDelete(confirmDeleteId)}
                 disabled={deleting}
-                className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
-                style={{ background: '#C4622D' }}
+                className="px-3 py-2 rounded-md text-[12px] font-medium text-[var(--color-cream)] disabled:opacity-50 transition-colors"
+                style={{ background: 'var(--color-terra)' }}
               >
                 {deleting ? 'Suppression…' : 'Supprimer définitivement'}
               </button>
