@@ -133,12 +133,12 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
       {/* Tableau */}
       <div
         className="rounded-xl border overflow-hidden"
-        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+        style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
       >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[860px]">
             <thead>
-              <tr className="bg-[var(--table-bg)]">
+              <tr className="bg-[var(--color-sand)]">
                 {['Date', 'Technicien', 'Titre', 'Catégorie', 'Déductibilité', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
                   <th
                     key={h}
