@@ -279,7 +279,7 @@ export function FacturationListClient({
                   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ' +
                   (active
                     ? 'bg-navy text-white border-navy'
-                    : 'bg-[var(--card-bg)] text-ink-mid border-[var(--card-border)] hover:border-navy-mid')
+                    : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
                 }
               >
                 {c.label}
@@ -303,7 +303,7 @@ export function FacturationListClient({
             'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold border transition-colors ' +
             (showAdvanced || hasActiveAdvanced
               ? 'bg-navy-pale text-navy border-navy-light'
-              : 'bg-[var(--card-bg)] text-ink-mid border-[var(--card-border)] hover:border-navy-mid')
+              : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
           }
           aria-expanded={showAdvanced}
         >
@@ -317,7 +317,7 @@ export function FacturationListClient({
 
       {/* Filtres avancés — recherche + syndic + période + reset */}
       {showAdvanced && (
-        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)]">
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-[var(--color-sand-border)] bg-[var(--color-cream)]">
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}

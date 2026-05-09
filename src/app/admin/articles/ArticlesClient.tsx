@@ -143,11 +143,11 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
         </div>
       )}
 
-      <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+      <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[680px]">
             <thead>
-              <tr className="bg-[var(--table-bg)]">
+              <tr className="bg-[var(--color-sand)]">
                 <SortableTh label="Code"        sortKey="code"        currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Description" sortKey="description" currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Prix TTC"    sortKey="prix_ttc"    currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
