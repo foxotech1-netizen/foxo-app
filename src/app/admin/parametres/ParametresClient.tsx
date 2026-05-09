@@ -1017,7 +1017,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           font-size: 9px;
           font-weight: 700;
           letter-spacing: 0.15em;
-          color: var(--text-muted, #9A9690);
+          color: var(--color-ink-muted);
           text-transform: uppercase;
           padding: 4px 8px 2px;
         }

@@ -53,26 +53,11 @@
   --color-ok-light: #E4F2EB;
   --color-ok-mid:   #B8D9C8;
 
-  /* Sidebar — fallback (override runtime par ThemeApplier qui injecte
-     --sidebar-bg / --sidebar-logo-bg / --sidebar-logo-fg selon le
-     thème actif). Cf. src/components/ThemeApplier.tsx. */
-  --sidebar-bg:        linear-gradient(180deg, #2C2A24 0%, #1A1814 100%);
-  --sidebar-logo-bg:   #E2C9A1;
-  --sidebar-logo-fg:   #7A6A50;
-
-  /* Tech app — alias des tokens FoxO pour compat historique. Les nouveaux
-     composants tech utilisent directement var(--color-sand/cream/ink/etc.)
-     du design system FoxO via MainContentTech (cf. components/layout/
-     MainContentTech.tsx + FOXO_DESIGN_SYSTEM_PROMPT.md). Ces alias sont
-     gardés en place pour les composants legacy non encore refactorés et
-     sont strictement identiques aux tokens FoxO correspondants. */
-  --tech-bg:        var(--color-sand);
-  --tech-card:      var(--color-cream);
-  --tech-card-mid:  var(--color-sand-mid);
-  --tech-text:      var(--color-ink);
-  --tech-text-mid:  var(--color-ink-mid);
-  --tech-text-mute: var(--color-ink-muted);
-  --tech-border:    var(--color-sand-border);
+  /* Accent secondaire propre au portail tech.foxo.be (vert PWA terrain).
+     Distinct de la palette sémantique FoxO — utilisé sur :
+     refs missions, swatches panels intervention, focus inputs tech,
+     bottom-nav iOS-style. Pas un thème, juste une teinte d'accent. */
+  --accent-tech:    #34D399;
 
   color-scheme: light;
 }
@@ -129,15 +114,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Stats — chiffres mis en avant */
+/* Stats — chiffres mis en avant. Classe legacy conservée pour les
+   callsites non encore migrés (Dashboard.tsx StatCard helper interne,
+   FacturationListClient KPI tile). */
 .stat-num {
   color: var(--color-ink);
 }
 
 /* Utility : applique Syne (font display, --font-syne défini par
-   next/font dans app/layout.tsx). À utiliser manuellement sur les
-   <h1> / <h2> pour donner du caractère aux titres ; le corps reste
-   en DM Sans (--font-sans). */
+   next/font dans app/layout.tsx). Classe legacy conservée pour les
+   callsites encore en font-display (admin/hub, app-hub, go-hub). */
 .font-display {
   font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;
@@ -198,64 +184,51 @@ h1.fxs-page-title > span,
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   Premium UI tokens — design tokens partagés admin / tech / portal
-   pour le langage visuel "premium B2B" (cards à élévation, KPI Syne,
-   row-hover discret). Certaines clés (--card-bg, --card-border) sont
-   ré-injectées dynamiquement par ThemeApplier sur <html> selon le
-   thème actif ; les valeurs :root ci-dessous servent de fallback
-   avant l'application du thème (évite le FOUC) et restent utilisables
-   via var(--card-bg, fallback).
+   Classes legacy "premium" — conservées en compat pour les composants
+   admin pas encore migrés sur les utilitaires .fxs-card / .fxs-page-title.
+   Toutes rebasées sur les tokens FoxO directs (post-migration mono-thème,
+   plus de var(--card-bg) etc. injectées dynamiquement).
    ───────────────────────────────────────────────────────────────────── */
-:root {
-  --page-bg:           #F0EDE8;
-  --card-radius:       12px;
-  --card-shadow:       0 1px 4px rgba(26, 25, 22, 0.06);
-  --card-shadow-hover: 0 8px 24px rgba(26, 25, 22, 0.10);
-  --text-primary:      #1A1916;
-  --text-secondary:    #6B6760;
-  --text-muted:        #9A9690;
-  /* Accents stables par portail — distincts de --accent (dynamique
-     selon le thème). Sert pour les barres en haut des KPI cards et
-     les badges contextualisés (mail/syndic/tech). */
-  --accent-admin:      #C8924A;
-  --accent-tech:       #34D399;
-  --accent-portal:     #60A5FA;
-}
-
 .premium-card {
   position: relative;
-  background: var(--card-bg, #FFFFFF);
-  border: 1px solid var(--card-border, #E6E2DC);
-  border-radius: var(--card-radius);
-  box-shadow: var(--card-shadow);
+  background: var(--color-cream);
+  border: 1px solid var(--color-sand-border);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(15, 32, 64, 0.04),
+    0 4px 12px rgba(15, 32, 64, 0.05),
+    0 0 0 1px rgba(15, 32, 64, 0.04);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .premium-card:hover {
-  box-shadow: var(--card-shadow-hover);
+  box-shadow:
+    0 2px 4px rgba(15, 32, 64, 0.06),
+    0 8px 24px rgba(15, 32, 64, 0.10),
+    0 0 0 1px var(--color-navy-light);
   transform: translateY(-2px);
 }
 
 .section-title {
-  font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: var(--color-ink);
   letter-spacing: 0.3px;
 }
 
 .section-label {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  color: var(--color-ink-mid);
 }
 
 .kpi-value {
-  font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   font-size: 28px;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: var(--color-ink);
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -266,7 +239,7 @@ h1.fxs-page-title > span,
   cursor: pointer;
 }
 .row-hover:hover {
-  background: #F7F5F2;
+  background: var(--color-sand-hover);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
