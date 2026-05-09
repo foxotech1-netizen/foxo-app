@@ -17,14 +17,17 @@ export default async function ParametresPage() {
 
   return (
     <>
-      <header className="px-6 py-4 bg-sand border-b border-sand-border flex-shrink-0">
-        <h1 className="text-xl font-extrabold text-ink">Paramètres</h1>
-        <p className="text-[11px] text-ink-muted mt-0.5">
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Paramè<span>tres</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
           Configuration de la plateforme Fox Group SRL
-        </p>
-      </header>
+        </div>
+      </div>
 
-      <div id="parametres-scroll" className="flex-1 overflow-auto px-6 py-5">
+      <div id="parametres-scroll">
         <ParametresClient initial={map} />
       </div>
     </>

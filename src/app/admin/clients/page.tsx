@@ -14,20 +14,23 @@ export default async function ClientsPage() {
 
   return (
     <>
-      <header className="px-6 py-4 bg-sand border-b border-sand-border flex-shrink-0">
-        <h1 className="text-xl font-extrabold text-ink">Clients</h1>
-        <p className="text-[11px] text-ink-muted mt-0.5">
-          {clients.length} client(s) — ACP, particuliers, entreprises
-        </p>
-      </header>
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Cli<span>ents</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          {clients.length} client{clients.length > 1 ? 's' : ''} — ACP, particuliers, entreprises
+        </div>
+      </div>
 
       {error && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold flex-shrink-0">
+        <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
           Erreur : {error.message}
         </div>
       )}
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         <ClientsListClient initial={clients} />
       </div>
     </>

@@ -19,26 +19,29 @@ export default async function DevisPage() {
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Devis</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            {devis.length} devis chargé(s)
-          </p>
+          <h1 className="fxs-page-title mb-1">
+            De<span>vis</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+            {devis.length} devis chargé{devis.length > 1 ? 's' : ''}
+          </div>
         </div>
         <Link
           href="/admin/facturation/devis/new"
-          className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90"
+          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm"
         >
           + Nouveau devis
         </Link>
-      </header>
+      </div>
       {error && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold flex-shrink-0">
+        <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
           Erreur de chargement : {error.message}
         </div>
       )}
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         <DevisListClient initial={devis} />
       </div>
     </>

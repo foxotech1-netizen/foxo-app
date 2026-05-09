@@ -13,14 +13,15 @@ export default async function MailsPage() {
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-extrabold text-ink">Mails</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            {connected ? <>Boîte connectée : <span className="font-mono">{accountEmail ?? 'compte Google'}</span></> : 'Boîte non connectée'}
-          </p>
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Ma<span>ils</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          {connected ? <>Boîte connectée : <span className="font-mono">{accountEmail ?? 'compte Google'}</span></> : 'Boîte non connectée'}
         </div>
-      </header>
+      </div>
 
       {!connected && (
         <div className="mx-6 mt-3 px-4 py-3 bg-amber-light border border-[#E8C896] rounded-lg text-[13px] text-[#8A5A1A] flex items-center justify-between gap-3 flex-shrink-0">

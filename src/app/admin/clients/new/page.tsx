@@ -6,18 +6,20 @@ export const dynamic = 'force-dynamic';
 export default function NewClientPage() {
   return (
     <>
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Nouveau client</h1>
+          <h1 className="fxs-page-title mb-1">
+            Nouveau <span>client</span>
+          </h1>
         </div>
         <Link
           href="/admin/clients"
-          className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]"
+          className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
         >
           ← Retour
         </Link>
-      </header>
-      <div className="flex-1 overflow-auto px-6 py-5">
+      </div>
+      <div>
         <ClientForm initial={null} />
       </div>
     </>

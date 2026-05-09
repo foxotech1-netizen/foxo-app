@@ -54,16 +54,17 @@ export default async function RappelsPage() {
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-extrabold text-ink">Rappels de paiement</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            Configure les rappels automatiques et envoie des rappels manuels.
-          </p>
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Rappels de <span>paiement</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
+          Configure les rappels automatiques et envoie des rappels manuels
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         <RappelsClient
           initialParams={initialParams}
           enRetard={enRetard}

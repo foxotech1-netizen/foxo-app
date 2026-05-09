@@ -38,16 +38,17 @@ export default async function ExportComptablePage() {
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-extrabold text-ink">Export comptable</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            Génère et envoie l&apos;export CSV des factures à ton comptable.
-          </p>
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Export <span>comptable</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          Génère et envoie l&apos;export CSV des factures à ton comptable
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         <ExportClient emailComptable={emailComptable} history={history} />
       </div>
     </>

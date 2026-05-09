@@ -19,22 +19,25 @@ export default async function NewFacturePage() {
 
   return (
     <>
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Nouvelle facture</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
+          <h1 className="fxs-page-title mb-1">
+            Nouvelle <span>facture</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             N° proposé : <span className="font-mono">{initialNumero}</span> (modifiable)
-          </p>
+          </div>
         </div>
         <Link
           href="/admin/facturation"
-          className="text-[12px] text-ink-mid hover:text-navy"
+          className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
         >
           ← Retour à la liste
         </Link>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         <FactureEditor initial={null} initialNumero={initialNumero} articles={articles} />
       </div>
     </>

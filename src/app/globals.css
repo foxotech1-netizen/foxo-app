@@ -149,6 +149,45 @@ body {
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Card signature du Design System FoxO — triple shadow stack à appliquer
+   à TOUTES les cards/panels. Utilisable sur n'importe quel <div> :
+       <div className="fxs-card">…</div>
+       <div className="fxs-card fxs-card-hover">…</div>  (cards cliquables)
+   Évite de répéter inline `style={{boxShadow: '...'}}` sur 40 pages. */
+.fxs-card {
+  background: var(--color-cream);
+  border-radius: 10px;
+  box-shadow:
+    0 1px 2px rgba(15, 32, 64, 0.04),
+    0 4px 12px rgba(15, 32, 64, 0.05),
+    0 0 0 1px rgba(15, 32, 64, 0.04);
+}
+.fxs-card-hover {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.fxs-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 4px rgba(15, 32, 64, 0.06),
+    0 8px 24px rgba(15, 32, 64, 0.10),
+    0 0 0 1px var(--color-navy-light);
+}
+
+/* H1 de page selon le pattern spec — texte light + accent navy semibold.
+   Usage : <h1 className="fxs-page-title">Titre <span>accent</span></h1> */
+.fxs-page-title {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 1.5rem;       /* 24px */
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  color: var(--color-ink);
+  line-height: 1;
+}
+.fxs-page-title > span {
+  font-weight: 600;
+  color: var(--color-navy);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Premium UI tokens — design tokens partagés admin / tech / portal
    pour le langage visuel "premium B2B" (cards à élévation, KPI Syne,

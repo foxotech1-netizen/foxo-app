@@ -61,16 +61,19 @@ export default async function AlertesPage() {
 
   return (
     <>
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Alertes</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            {totalAlertes} alerte(s) en attente de traitement
-          </p>
+          <h1 className="fxs-page-title mb-1">
+            Aler<span>tes</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
+            {totalAlertes} alerte{totalAlertes > 1 ? 's' : ''} en attente
+          </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5 space-y-6">
+      <div className="space-y-6">
         <Section
           title="En suspens"
           subtitle="Dossiers bloqués nécessitant une action"

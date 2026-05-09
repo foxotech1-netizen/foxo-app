@@ -14,14 +14,17 @@ export default async function ArticlesPage() {
 
   return (
     <>
-      <header className="px-6 py-4 bg-sand border-b border-sand-border flex-shrink-0">
-        <h1 className="text-xl font-extrabold text-ink">Catalogue d&apos;articles</h1>
-        <p className="text-[11px] text-ink-muted mt-0.5">
-          {articles.length} prestation(s) — saisie en TTC, HTVA recalculé automatiquement
-        </p>
-      </header>
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Catalogue <span>articles</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          {articles.length} prestation{articles.length > 1 ? 's' : ''} — saisie en TTC, HTVA recalculé automatiquement
+        </div>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         <ArticlesClient initial={articles} />
       </div>
     </>
