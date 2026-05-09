@@ -1557,7 +1557,7 @@ export function InterventionsClient({
                             <div className="font-bold mb-1 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
                               <ClipboardList size={14} />Action requise
                             </div>
-                            <div className="text-[#5A3F15] dark:text-[#F0D896]">{text}</div>
+                            <div className="text-[var(--color-amber-foxo)] dark:text-[#F0D896]">{text}</div>
                           </div>
                         );
                       })()}
