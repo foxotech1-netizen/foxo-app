@@ -317,7 +317,7 @@ function StatCard({
         }}
       />
       <div className="kpi-value">{num}</div>
-      <div className="text-[12px] font-semibold text-[var(--text-secondary)] mt-2">{label}</div>
+      <div className="text-[12px] font-semibold text-[var(--color-ink-mid)] mt-2">{label}</div>
     </div>
   );
 }

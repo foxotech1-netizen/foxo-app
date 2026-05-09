@@ -44,8 +44,8 @@ export default async function HomePage() {
   return (
     <div className="foxo-home-root">
       <div className="foxo-home-logo-zone">
-        {/* Logo NOIR — fond hero clair (var(--hero-bg), sand chaud). */}
-        <Logo size={72} variant="noir" priority />
+        {/* Logo BLANC — fond hero navy gradient FoxO. */}
+        <Logo size={72} variant="blanc" priority />
         <span className="section-label">FoxO · Interface Admin</span>
       </div>
 
@@ -74,21 +74,24 @@ export default async function HomePage() {
       <style>{`
         .foxo-home-root {
           min-height: 100vh;
-          background: var(--card-bg);
+          background: var(--color-cream);
           display: flex;
           flex-direction: column;
           align-items: stretch;
           width: 100%;
         }
         .foxo-home-logo-zone {
-          background: var(--hero-bg);
-          padding: 32px 16px 24px;
+          background: linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%);
+          padding: 40px 16px 32px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           gap: 10px;
           border-bottom: 1px solid rgba(0,0,0,.12);
+        }
+        .foxo-home-logo-zone .section-label {
+          color: rgba(253, 251, 247, 0.65);
         }
         .foxo-home-grid-wrap {
           flex: 1;
@@ -115,9 +118,12 @@ export default async function HomePage() {
           gap: 4px;
           text-decoration: none;
           font-family: var(--font-sans);
-          background: var(--card-bg);
-          border: 1px solid var(--card-border);
-          box-shadow: var(--card-shadow);
+          background: var(--color-cream);
+          border: 1px solid var(--color-sand-border);
+          box-shadow:
+            0 1px 2px rgba(15, 32, 64, 0.04),
+            0 4px 12px rgba(15, 32, 64, 0.05),
+            0 0 0 1px rgba(15, 32, 64, 0.04);
           transition: transform .18s ease, box-shadow .18s ease;
           padding: 10px;
           text-align: center;
@@ -132,16 +138,16 @@ export default async function HomePage() {
           flex-shrink: 0;
         }
         .foxo-home-tile-title {
-          font-family: var(--font-syne), ui-sans-serif, system-ui, sans-serif;
+          font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
           font-size: 13px;
-          font-weight: 700;
-          color: var(--text-primary);
+          font-weight: 600;
+          color: var(--color-ink);
           letter-spacing: -0.01em;
           line-height: 1.15;
         }
         .foxo-home-tile-subtitle {
           font-size: 11px;
-          color: var(--text-secondary);
+          color: var(--color-ink-mid);
           line-height: 1.2;
           margin-top: 2px;
         }
@@ -152,26 +158,28 @@ export default async function HomePage() {
           min-width: 22px;
           height: 22px;
           padding: 0 6px;
-          background: #E53935;
-          color: #FFFFFF;
+          background: var(--color-terra);
+          color: var(--color-cream);
           border-radius: 11px;
           font-size: 11px;
-          font-weight: 800;
+          font-weight: 700;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 6px rgba(0,0,0,.4);
+          box-shadow: 0 2px 6px rgba(0,0,0,.25);
         }
 
         @media (hover: hover) {
           .foxo-home-tile:hover {
             transform: translateY(-3px);
-            box-shadow: var(--card-shadow-hover);
+            box-shadow:
+              0 2px 4px rgba(15, 32, 64, 0.06),
+              0 8px 24px rgba(15, 32, 64, 0.10),
+              0 0 0 1px var(--color-navy-light);
           }
         }
         .foxo-home-tile:active {
           transform: scale(0.95);
-          box-shadow: var(--card-shadow);
         }
 
         @media (max-width: 640px) {

@@ -1034,18 +1034,18 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           cursor: pointer;
           font-family: inherit;
           font-size: 12px;
-          color: var(--text-secondary, #6B6760);
+          color: var(--color-ink-mid);
           text-align: left;
           transition: background-color 0.15s ease, color 0.15s ease;
           width: 100%;
         }
         .param-nav-item:hover {
-          background: rgba(200, 146, 74, 0.08);
-          color: var(--text-primary, #1A1916);
+          background: var(--color-sand-hover);
+          color: var(--color-ink);
         }
         .param-nav-item.active {
-          background: rgba(200, 146, 74, 0.15);
-          color: var(--accent-admin, #C8924A);
+          background: var(--color-navy-pale);
+          color: var(--color-navy);
           font-weight: 600;
         }
         .param-nav-label {
@@ -1076,10 +1076,10 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             position: sticky;
             top: 0;
             z-index: 10;
-            background: var(--main-bg, var(--color-sand));
+            background: var(--color-sand);
             margin-bottom: 4px;
             padding-bottom: 8px;
-            border-bottom: 1px solid var(--card-border, #E6E2DC);
+            border-bottom: 1px solid var(--color-sand-border);
           }
           .param-nav {
             flex-direction: row;
@@ -1097,7 +1097,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             margin-top: 0;
             margin-left: 8px;
             padding-left: 8px;
-            border-left: 1px solid var(--card-border, #E6E2DC);
+            border-left: 1px solid var(--color-sand-border);
           }
           .param-nav-title {
             display: none;

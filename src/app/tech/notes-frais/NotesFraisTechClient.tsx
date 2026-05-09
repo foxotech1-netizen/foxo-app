@@ -193,10 +193,10 @@ export function NotesFraisTechClient({
     <div className="space-y-4">
       <header className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-lg font-display font-extrabold text-[var(--text-primary)]">
+          <h1 className="font-sora text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
             Mes notes de frais
           </h1>
-          <p className="text-[11px] text-[var(--text-3)] mt-0.5">
+          <p className="text-[12px] text-[var(--color-ink-mid)] mt-0.5">
             {notes.length} note{notes.length > 1 ? 's' : ''} enregistrée{notes.length > 1 ? 's' : ''}
           </p>
         </div>
