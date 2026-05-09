@@ -120,18 +120,21 @@ export default async function PortalDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="inline-flex items-center gap-2 text-2xl font-display font-extrabold text-[var(--text-primary)]">Bonjour <Hand size={22} /></h1>
-          <p className="text-[12px] text-[var(--text-3)] capitalize mt-1">{todayLong()}</p>
-          <p className="text-[12px] text-[var(--text-2)] mt-0.5">
-            <span className="font-semibold">{org.nom}</span> · {org.type}
-          </p>
+          <h1 className="fxs-page-title mb-1 inline-flex items-center gap-2">
+            Bon<span>jour</span>
+            <Hand size={20} className="text-[var(--color-navy)]" />
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide capitalize">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+            {todayLong()} · <span className="font-semibold normal-case">{org.nom}</span> · {org.type}
+          </div>
         </div>
         {v.newRequestVerb && (
           <Link
             href="/portal/nouveau"
-            className={`text-white px-4 py-2.5 rounded-lg text-xs font-bold ${accentBg}`}
+            className={`text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm ${accentBg}`}
           >
             {v.newRequestVerb}
           </Link>

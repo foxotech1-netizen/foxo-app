@@ -46,17 +46,17 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       </Link>
 
       {/* En-tête : référence + statut + ACP + métadonnées */}
-      <header className="bg-cream border border-sand-border rounded-2xl p-5">
+      <header className="fxs-card p-5">
         <div className="flex flex-wrap items-center gap-2 mb-2">
-          <span className="font-mono text-xs text-ink-muted">{iv.ref ?? '—'}</span>
+          <span className="font-mono text-xs text-[var(--color-ink-muted)]">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-2 py-0.5">
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra)]/30 rounded-full px-2 py-0.5">
               <Zap size={12} /> URGENT
             </span>
           )}
           <StatutBadge statut={iv.statut} big />
         </div>
-        <h1 className="text-xl font-extrabold text-ink">{acp?.nom ?? '—'}</h1>
+        <h1 className="fxs-page-title">{acp?.nom ?? '—'}</h1>
         {adresseFull && (
           <div className="inline-flex items-center gap-1.5 text-[13px] text-ink-mid mt-1"><MapPin size={14} /> {adresseFull}</div>
         )}

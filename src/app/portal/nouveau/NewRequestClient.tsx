@@ -231,13 +231,16 @@ export function NewRequestClient({
 
   return (
     <div className="space-y-5 max-w-[760px] mx-auto">
-      <div>
-        <h1 className="text-xl font-extrabold text-ink">
-          {isPartner ? 'Confier une mission' : 'Nouvelle demande d\'intervention'}
+      <div className="pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          {isPartner
+            ? <>Confier une <span>mission</span></>
+            : <>Nouvelle demande d&apos;<span>intervention</span></>}
         </h1>
-        <p className="text-xs text-ink-mid mt-1">
-          5 étapes — vous pouvez revenir en arrière à tout moment.
-        </p>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          5 étapes — vous pouvez revenir en arrière à tout moment
+        </div>
       </div>
 
       <StepIndicator step={step} labels={STEP_LABELS} />
