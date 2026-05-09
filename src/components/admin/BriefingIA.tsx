@@ -8,7 +8,7 @@
 // `getBriefing(userId)` (Anthropic SDK). Conserver l'API du composant
 // (props + classes) pour minimiser le diff lors du branchement.
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Mail, AlertTriangle, Calendar, type LucideIcon } from 'lucide-react';
 
 export interface BriefingCounts {
@@ -34,14 +34,17 @@ interface BriefingIAProps {
   compact?: boolean;
 }
 
+// Souscription "no-op" + snapshot SSR vide → useSyncExternalStore renvoie ''
+// côté server, puis l'heure courante côté client à l'hydratation. Permet
+// d'éviter le warning react-hooks/set-state-in-effect tout en gardant un
+// SSR neutre (pas de mismatch).
+const NOOP_SUBSCRIBE = () => () => {};
+const getClientTime = () =>
+  new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+const getServerTime = () => '';
+
 export function BriefingIA({ counts, compact = false }: BriefingIAProps) {
-  // Timestamp "généré à HH:MM" — figé au mount client. Évite l'écart
-  // SSR/CSR (le briefing est rendu après hydratation, donc on tolère
-  // un flash très bref sans timestamp).
-  const [generatedAt, setGeneratedAt] = useState<string>('');
-  useEffect(() => {
-    setGeneratedAt(new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }));
-  }, []);
+  const generatedAt = useSyncExternalStore(NOOP_SUBSCRIBE, getClientTime, getServerTime);
 
   function handleAction(key: string) {
     // Sprint 1 : log pur. Sprint 2 : router push / server action.

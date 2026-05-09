@@ -27,15 +27,13 @@ interface ChatIAProps {
 
 export function ChatIA({ compact = false }: ChatIAProps) {
   const [value, setValue] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(!compact);
+  // showSuggestions est dérivé : visible par défaut en desktop ; masqué
+  // en mobile sauf si l'utilisateur a explicitement cliqué sur "Voir
+  // suggestions" (manualOpen=true). Évite un useEffect de sync sur le
+  // breakpoint qui déclenche le warning react-hooks/set-state-in-effect.
+  const [manualOpen, setManualOpen] = useState(false);
+  const showSuggestions = !compact || manualOpen;
   const [toast, setToast] = useState<string | null>(null);
-
-  // Quand le breakpoint change (compact desktop → mobile), on resync
-  // l'état d'ouverture par défaut. Sinon le chat resterait dans son
-  // état initial même après resize.
-  useEffect(() => {
-    setShowSuggestions(!compact);
-  }, [compact]);
 
   // Auto-dismiss toast (mêmes 3.5s que la convention NewMailSection).
   useEffect(() => {
@@ -130,7 +128,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
         {compact && !showSuggestions && (
           <button
             type="button"
-            onClick={() => setShowSuggestions(true)}
+            onClick={() => setManualOpen(true)}
             className="mt-2 text-[11px] font-medium text-[var(--color-navy)] inline-flex items-center gap-1 hover:underline"
           >
             <ChevronDown size={12} aria-hidden />
