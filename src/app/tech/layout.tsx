@@ -6,6 +6,7 @@ import { roleForEmail } from '@/lib/auth/roles';
 import { Logo } from '@/components/Logo';
 import { PWARegister } from '@/components/PWARegister';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { MainContentTech } from '@components/layout/MainContentTech';
 import { TechBottomNav } from './TechBottomNav';
 
 export const metadata: Metadata = {
@@ -49,7 +50,7 @@ export default async function TechLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-sand text-ink">
-      {/* Bannière logo cohérente avec portal/rdv/admin */}
+      {/* Bannière logo cohérente avec portal/rdv/admin — STRICTEMENT INTACTE */}
       <header
         className="px-4 h-16 flex items-center justify-between sticky top-0 z-50 border-b border-[rgba(0,0,0,0.12)]"
         style={{ background: 'var(--sidebar-logo-bg)' }}
@@ -67,19 +68,14 @@ export default async function TechLayout({
           <form action="/auth/logout" method="POST">
             <button
               type="submit"
-              className="text-[11px] px-2 text-ink-mid hover:text-ink"
+              className="text-[11px] px-2 text-ink-mid hover:text-ink min-h-[44px]"
             >
               Déconnexion
             </button>
           </form>
         </div>
       </header>
-      <main
-        className="flex-1 px-4 py-4 max-w-[640px] mx-auto w-full"
-        style={{ paddingBottom: 'calc(90px + env(safe-area-inset-bottom, 0px))' }}
-      >
-        {children}
-      </main>
+      <MainContentTech>{children}</MainContentTech>
       <TechBottomNav />
       <PWARegister />
     </div>
