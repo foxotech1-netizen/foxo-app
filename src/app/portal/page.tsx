@@ -123,7 +123,7 @@ export default async function PortalDashboard() {
       <div className="flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1 inline-flex items-center gap-2">
-            Bon<span>jour</span>
+            <span>Bonjour</span>
             <Hand size={20} className="text-[var(--color-navy)]" />
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide capitalize">
