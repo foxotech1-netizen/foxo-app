@@ -421,11 +421,14 @@ function CalendarWidget({
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
-    <section className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--card-border)]">
+    <section
+      className="bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-[var(--color-sand-mid)]">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-[var(--text-3)] font-bold">Disponibilités FoxO</div>
-          <div className="text-base font-bold text-[var(--text)] mt-0.5">
+          <div className="font-sora text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)]">Disponibilités FoxO</div>
+          <div className="font-sora text-[18px] font-semibold text-[var(--color-ink)] mt-0.5 capitalize tracking-tight">
             {MONTH_NAMES[m.month]} {m.year}
           </div>
         </div>
@@ -434,20 +437,22 @@ function CalendarWidget({
             type="button"
             onClick={() => onChange(Math.max(0, active - 1))}
             disabled={active === 0}
-            className="bg-[var(--card-border-2)] w-8 h-8 rounded-md text-[var(--text-2)] hover:bg-[var(--card-border)] disabled:opacity-40"
+            className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] w-11 h-11 rounded-md text-[var(--color-ink-mid)] disabled:opacity-40 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center text-[18px]"
+            aria-label="Mois précédent"
           >‹</button>
           <button
             type="button"
             onClick={() => onChange(Math.min(months.length - 1, active + 1))}
             disabled={active >= months.length - 1}
-            className="bg-[var(--card-border-2)] w-8 h-8 rounded-md text-[var(--text-2)] hover:bg-[var(--card-border)] disabled:opacity-40"
+            className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] w-11 h-11 rounded-md text-[var(--color-ink-mid)] disabled:opacity-40 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center text-[18px]"
+            aria-label="Mois suivant"
           >›</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-[var(--card-border)]">
+      <div className="grid grid-cols-7 gap-px bg-[var(--color-sand-border)]">
         {DAYS_SHORT.map((d) => (
-          <div key={d} className="bg-[var(--table-bg)] text-center py-2 text-[10px] font-bold text-[var(--text-3)] uppercase">
+          <div key={d} className="bg-[var(--color-sand)] text-center py-2 text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.1em]">
             {d}
           </div>
         ))}
@@ -455,16 +460,18 @@ function CalendarWidget({
           <div
             key={c.key}
             className={
-              'p-1.5 sm:p-2 min-h-[72px] ' +
+              'p-1.5 sm:p-2 min-h-[80px] ' +
               (c.inMonth
-                ? c.iso === todayStr ? 'bg-[var(--accent-dim)]' : 'bg-[var(--card-bg)]'
-                : 'bg-[var(--main-bg)] opacity-50')
+                ? c.iso === todayStr
+                  ? 'bg-[var(--color-navy-pale)]'
+                  : 'bg-[var(--color-cream)]'
+                : 'bg-[var(--color-sand)] opacity-50')
             }
           >
             {c.inMonth && (
               <div className={
-                'text-[11px] font-semibold mb-1 ' +
-                (c.iso === todayStr ? 'text-[var(--accent)] font-extrabold' : 'text-[var(--text-2)]')
+                'text-[12px] font-medium mb-1 ' +
+                (c.iso === todayStr ? 'text-[var(--color-navy)] font-semibold' : 'text-[var(--color-ink-mid)]')
               }>
                 {c.day}
               </div>
@@ -480,20 +487,20 @@ function CalendarWidget({
                       type="button"
                       onClick={() => onPick(s)}
                       className={
-                        'flex items-center justify-center gap-1 w-full text-[10px] font-semibold rounded px-1.5 py-0.5 truncate transition-colors ' +
+                        'flex items-center justify-center gap-1 w-full text-[11px] font-semibold rounded px-1.5 py-1 truncate transition-colors ' +
                         (isSelected
-                          ? 'bg-[var(--btn-bg)] text-[var(--btn-color)]'
-                          : 'bg-ok-light text-ok hover:bg-[#C8E5D5]')
+                          ? 'bg-[var(--color-navy)] text-[var(--color-cream)]'
+                          : 'bg-[var(--color-ok-light)] text-[var(--color-ok)] border border-[var(--color-ok-mid)] hover:bg-[var(--color-ok-mid)]')
                       }
                     >
                       <span>{time}</span>
-                      {isSelected && <Check size={12} />}
+                      {isSelected && <Check size={12} strokeWidth={3} />}
                     </button>
                   );
                 }
                 if (s.status === 'reserve') {
                   return (
-                    <div key={s.iso} className="text-[10px] font-semibold rounded px-1.5 py-0.5 bg-[var(--accent-dim)] text-[var(--accent)] truncate">
+                    <div key={s.iso} className="text-[11px] font-medium rounded px-1.5 py-1 bg-[var(--color-sand-mid)] text-[var(--color-ink-muted)] truncate text-center" title="Indisponible">
                       {time}
                     </div>
                   );
@@ -505,10 +512,10 @@ function CalendarWidget({
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-4 px-4 py-3 border-t border-[var(--card-border)]">
-        <Legend swatchClass="bg-ok-light border-ok-mid" label="Disponible" />
-        <Legend swatchClass="bg-[var(--accent-dim)] border-[var(--accent)]" label="Réservé" />
-        <Legend swatchClass="bg-[var(--btn-bg)] border-[var(--btn-bg)]" label="Sélectionné" />
+      <div className="flex flex-wrap gap-4 px-4 sm:px-5 py-3 border-t border-[var(--color-sand-mid)]">
+        <Legend swatchClass="bg-[var(--color-ok-light)] border-[var(--color-ok-mid)]" label="Disponible" />
+        <Legend swatchClass="bg-[var(--color-sand-mid)] border-[var(--color-sand-border)]" label="Indisponible" />
+        <Legend swatchClass="bg-[var(--color-navy)] border-[var(--color-navy)]" label="Sélectionné" />
       </div>
     </section>
   );
@@ -516,8 +523,8 @@ function CalendarWidget({
 
 function Legend({ swatchClass, label }: { swatchClass: string; label: string }) {
   return (
-    <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-2)]">
-      <span className={`w-3 h-3 rounded-sm border ${swatchClass}`} />
+    <div className="flex items-center gap-1.5 text-[12px] text-[var(--color-ink-mid)]">
+      <span className={`w-3.5 h-3.5 rounded-sm border ${swatchClass}`} />
       {label}
     </div>
   );
@@ -562,29 +569,38 @@ function buildGrid(year: number, month: number, slots: Slot[]): Cell[] {
 
 function StepIndicator({ step }: { step: Step }) {
   return (
-    <div className="bg-[var(--table-bg)] border-b border-[var(--card-border)] px-4 py-3">
-      <div className="flex gap-1.5 sm:gap-2 items-center">
+    <div className="bg-[var(--color-sand)] border-b border-[var(--color-sand-mid)] px-4 sm:px-7 py-4">
+      <div className="flex gap-2 sm:gap-3 items-center">
         {STEP_LABELS.map((label, i) => {
           const n = (i + 1) as Step;
           const state = n < step ? 'done' : n === step ? 'active' : 'todo';
           return (
-            <div key={label} className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+            <div key={label} className="flex items-center gap-2 flex-1 min-w-0">
               <div
                 className={
-                  'w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 ' +
-                  (state === 'done' ? 'bg-ok text-white' :
-                    state === 'active' ? 'bg-[var(--btn-bg)] text-[var(--btn-color)]' :
-                    'bg-[var(--card-border-2)] text-[var(--text-3)]')
+                  'font-sora w-9 h-9 rounded-full flex items-center justify-center text-[13px] font-semibold flex-shrink-0 transition-colors ' +
+                  (state === 'done'
+                    ? 'bg-[var(--color-ok-light)] text-[var(--color-ok)] border border-[var(--color-ok-mid)]'
+                    : state === 'active'
+                      ? 'bg-[var(--color-navy)] text-[var(--color-cream)]'
+                      : 'bg-[var(--color-navy-pale)] text-[var(--color-navy)] border border-[var(--color-navy-light)]')
                 }
               >
-                {state === 'done' ? <Check size={14} /> : n}
+                {state === 'done' ? <Check size={16} strokeWidth={2.5} /> : n}
               </div>
               <span className={
-                'text-[11px] font-semibold truncate hidden sm:inline ' +
-                (state === 'active' ? 'text-[var(--accent)]' : 'text-[var(--text-2)]')
+                'text-[12px] font-medium truncate hidden sm:inline ' +
+                (state === 'active'
+                  ? 'text-[var(--color-navy)]'
+                  : state === 'done'
+                    ? 'text-[var(--color-ok)]'
+                    : 'text-[var(--color-ink-mid)]')
               }>{label}</span>
               {i < STEP_LABELS.length - 1 && (
-                <div className={'flex-1 h-px ' + (n < step ? 'bg-ok' : 'bg-[var(--card-border)]')} />
+                <div className={
+                  'flex-1 h-[2px] rounded transition-colors ' +
+                  (n < step ? 'bg-[var(--color-ok)]' : 'bg-[var(--color-sand-border)]')
+                } />
               )}
             </div>
           );
@@ -604,8 +620,8 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
-        {label}{required && <span className="text-terra"> *</span>}
+      <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
+        {label}{required && <span className="text-[var(--color-terra)] ml-0.5">*</span>}
       </label>
       <input
         type={type}
@@ -613,7 +629,7 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
+        className="w-full min-h-[48px] px-4 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--color-navy)] focus:ring-2 focus:ring-[var(--color-navy-pale)] transition-all placeholder:text-[var(--color-ink-muted)] placeholder:italic"
       />
     </div>
   );
@@ -639,24 +655,29 @@ function Step1(props: {
   contactEmail: string; setContactEmail: (v: string) => void;
   contactInstr: string; setContactInstr: (v: string) => void;
 }) {
+  const inputCls = 'w-full min-h-[48px] px-4 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--color-navy)] focus:ring-2 focus:ring-[var(--color-navy-pale)] transition-all placeholder:text-[var(--color-ink-muted)] placeholder:italic';
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Section 1 : Mandant */}
       <section>
-        <h3 className="text-sm font-bold text-[var(--accent)] mb-3">
-          Vos coordonnées <span className="text-[10px] uppercase tracking-wider text-[var(--text-3)] ml-1">(mandant — facturation)</span>
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+          <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] uppercase tracking-[0.12em]">
+            Vos coordonnées <span className="text-[var(--color-ink-mid)] font-normal normal-case ml-1">(mandant — facturation)</span>
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Prénom" value={props.prenom} onChange={props.setPrenom} required />
           <Field label="Nom" value={props.nom} onChange={props.setNom} required />
         </div>
-        <div className="mt-3">
+        <div className="mt-4">
           <Field label="Email" type="email" value={props.email} onChange={props.setEmail} placeholder="vous@exemple.be" required />
         </div>
-        <div className="mt-3">
+        <div className="mt-4">
           <Field label="Téléphone" type="tel" value={props.telephone} onChange={props.setTelephone} placeholder="+32 ..." required />
         </div>
-        <div className="mt-3">
+        <div className="mt-4">
           <AddressAutocomplete
             label="Adresse de facturation"
             required
@@ -679,7 +700,7 @@ function Step1(props: {
             placeholder="Commence à taper la rue…"
           />
         </div>
-        <div className="mt-3">
+        <div className="mt-4">
           <Field
             label="BCE / TVA (optionnel — si professionnel)"
             value={props.bce}
@@ -690,14 +711,19 @@ function Step1(props: {
       </section>
 
       {/* Section 2 : Lieu d'intervention */}
-      <section className="border-t border-[var(--card-border)] pt-4">
-        <h3 className="text-sm font-bold text-[var(--accent)] mb-3">Lieu d&apos;intervention</h3>
-        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 text-[var(--text)]">
+      <section className="border-t border-[var(--color-sand-mid)] pt-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+          <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] uppercase tracking-[0.12em]">
+            Lieu d&apos;intervention
+          </h3>
+        </div>
+        <label className="flex items-center gap-2.5 text-[14px] cursor-pointer mb-4 text-[var(--color-ink)] min-h-[44px]">
           <input
             type="checkbox"
             checked={props.lieuMeme}
             onChange={(e) => props.setLieuMeme(e.target.checked)}
-            className="accent-[var(--btn-bg)]"
+            className="w-5 h-5 accent-[var(--color-navy)]"
           />
           Même adresse que ci-dessus
         </label>
@@ -707,20 +733,20 @@ function Step1(props: {
               value={props.lieuRue}
               onChange={(e) => props.setLieuRue(e.target.value)}
               placeholder="Rue et numéro de l'intervention"
-              className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)] mb-2"
+              className={inputCls + ' mb-3'}
             />
             <div className="grid grid-cols-3 gap-2">
               <input
                 value={props.lieuCp}
                 onChange={(e) => props.setLieuCp(e.target.value)}
                 placeholder="Code postal"
-                className="col-span-1 px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                className={'col-span-1 ' + inputCls}
               />
               <input
                 value={props.lieuVille}
                 onChange={(e) => props.setLieuVille(e.target.value)}
                 placeholder="Ville"
-                className="col-span-2 px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                className={'col-span-2 ' + inputCls}
               />
             </div>
           </div>
@@ -728,29 +754,32 @@ function Step1(props: {
       </section>
 
       {/* Section 3 : Contact sur place (optionnel) */}
-      <section className="border-t border-[var(--card-border)] pt-4">
-        <h3 className="text-sm font-bold text-[var(--accent)] mb-3">
-          Contact sur place <span className="text-[10px] uppercase tracking-wider text-[var(--text-3)] ml-1">(optionnel)</span>
-        </h3>
-        <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-3 text-[var(--text)]">
+      <section className="border-t border-[var(--color-sand-mid)] pt-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+          <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] uppercase tracking-[0.12em]">
+            Contact sur place <span className="text-[var(--color-ink-mid)] font-normal normal-case ml-1">(optionnel)</span>
+          </h3>
+        </div>
+        <label className="flex items-center gap-2.5 text-[14px] cursor-pointer mb-4 text-[var(--color-ink)] min-h-[44px]">
           <input
             type="checkbox"
             checked={props.contactActif}
             onChange={(e) => props.setContactActif(e.target.checked)}
-            className="accent-[var(--btn-bg)]"
+            className="w-5 h-5 accent-[var(--color-navy)]"
           />
           Contact différent de moi
         </label>
         {props.contactActif && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Prénom" value={props.contactPrenom} onChange={props.setContactPrenom} required />
               <Field label="Nom" value={props.contactNom} onChange={props.setContactNom} required />
             </div>
             <Field label="Téléphone" type="tel" value={props.contactTel} onChange={props.setContactTel} placeholder="+32 ..." required />
             <Field label="Email (optionnel)" type="email" value={props.contactEmail} onChange={props.setContactEmail} placeholder="contact@..." />
             <div>
-              <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
+              <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
                 Instructions d&apos;accès
               </label>
               <textarea
@@ -758,7 +787,7 @@ function Step1(props: {
                 onChange={(e) => props.setContactInstr(e.target.value)}
                 placeholder="Digicode, gardien, créneau d'accès…"
                 rows={3}
-                className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)] resize-y"
+                className={inputCls + ' resize-y min-h-[80px]'}
               />
             </div>
           </div>
@@ -777,18 +806,25 @@ function Step2(props: {
   onRemovePhoto: (i: number) => void;
   photosInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
+  const inputCls = 'w-full min-h-[48px] px-4 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--color-navy)] focus:ring-2 focus:ring-[var(--color-navy-pale)] transition-all';
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-bold text-[var(--accent)]">2. Le problème</h3>
+    <div className="space-y-5">
+      <div className="flex items-center gap-2.5 mb-2">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+        <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] uppercase tracking-[0.12em]">
+          Le problème
+        </h3>
+      </div>
 
       <div>
-        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
-          Type d&apos;intervention <span className="text-terra">*</span>
+        <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
+          Type d&apos;intervention <span className="text-[var(--color-terra)] ml-0.5">*</span>
         </label>
         <select
           value={props.type}
           onChange={(e) => props.setType(e.target.value)}
-          className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)]"
+          className={inputCls + ' cursor-pointer'}
           required
         >
           <option value="">— Sélectionner —</option>
@@ -797,8 +833,8 @@ function Step2(props: {
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">
-          Description détaillée <span className="text-terra">*</span>
+        <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
+          Description détaillée <span className="text-[var(--color-terra)] ml-0.5">*</span>
         </label>
         <textarea
           value={props.description}
@@ -806,45 +842,50 @@ function Step2(props: {
           placeholder="Décrivez le problème, l'étage, les dégâts visibles…"
           rows={5}
           required
-          className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)] resize-y min-h-[100px]"
+          className={inputCls + ' resize-y min-h-[120px] placeholder:text-[var(--color-ink-muted)] placeholder:italic'}
         />
-        <p className="text-[11px] text-[var(--text-3)] mt-1">
-          {props.description.trim().length} caractère(s) — minimum 10
+        <p className="text-[12px] text-[var(--color-ink-mid)] mt-1.5">
+          {props.description.trim().length} caractère{props.description.trim().length > 1 ? 's' : ''} — minimum 10
         </p>
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Priorité</label>
-        <div className="grid grid-cols-2 gap-2">
-          {(['normale', 'urgente'] as const).map((p) => (
-            <label
-              key={p}
-              className={
-                'px-3.5 py-2.5 border-2 rounded-lg cursor-pointer flex items-center gap-2 text-xs ' +
-                (props.priorite === p
-                  ? 'border-[var(--btn-bg)] bg-[var(--accent-dim)] text-[var(--text)]'
-                  : 'border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--text)]')
-              }
-            >
-              <input
-                type="radio"
-                name="priorite"
-                checked={props.priorite === p}
-                onChange={() => props.setPriorite(p)}
-                className="accent-[var(--btn-bg)]"
-              />
-              {p === 'urgente' ? (
-                <span className="inline-flex items-center gap-1">
-                  <Zap size={14} /> Urgente
-                </span>
-              ) : 'Normale'}
-            </label>
-          ))}
+        <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Priorité</label>
+        <div className="grid grid-cols-2 gap-3">
+          {(['normale', 'urgente'] as const).map((p) => {
+            const active = props.priorite === p;
+            return (
+              <label
+                key={p}
+                className={
+                  'min-h-[52px] px-4 py-3 border-2 rounded-lg cursor-pointer flex items-center gap-2.5 text-[14px] transition-colors ' +
+                  (active
+                    ? p === 'urgente'
+                      ? 'border-[var(--color-terra)] bg-[var(--color-terra-light)] text-[var(--color-terra)] font-semibold'
+                      : 'border-[var(--color-navy)] bg-[var(--color-navy-pale)] text-[var(--color-navy)] font-semibold'
+                    : 'border-[var(--color-sand-border)] bg-[var(--color-cream)] text-[var(--color-ink)] hover:border-[var(--color-navy-light)]')
+                }
+              >
+                <input
+                  type="radio"
+                  name="priorite"
+                  checked={active}
+                  onChange={() => props.setPriorite(p)}
+                  className="w-4 h-4 accent-[var(--color-navy)]"
+                />
+                {p === 'urgente' ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Zap size={16} /> Urgente
+                  </span>
+                ) : 'Normale'}
+              </label>
+            );
+          })}
         </div>
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Photos (facultatif, max 3)</label>
+        <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Photos (facultatif, max 3)</label>
         <input
           ref={props.photosInputRef}
           type="file"
@@ -857,25 +898,25 @@ function Step2(props: {
         <label
           htmlFor="rdv-photos"
           className={
-            'inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-semibold cursor-pointer ' +
+            'inline-flex items-center gap-2 min-h-[48px] px-4 py-3 rounded-lg text-[14px] font-medium transition-colors ' +
             (props.photos.length >= 3
-              ? 'bg-[var(--card-border-2)] text-[var(--text-3)] cursor-not-allowed'
-              : 'bg-[var(--card-border-2)] text-[var(--text-2)] hover:bg-[var(--card-border)]')
+              ? 'bg-[var(--color-sand-mid)] text-[var(--color-ink-muted)] cursor-not-allowed'
+              : 'bg-[var(--color-cream)] border border-dashed border-[var(--color-amber-foxo)]/40 text-[var(--color-ink)] hover:bg-[var(--color-amber-light)]/50 cursor-pointer')
           }
         >
-          <Camera size={14} />
+          <Camera size={16} className="text-[var(--color-amber-foxo)]" />
           {props.photos.length >= 3 ? 'Maximum atteint' : 'Ajouter des photos'}
         </label>
         {props.photos.length > 0 && (
-          <div className="mt-2 space-y-1.5">
+          <div className="mt-3 space-y-2">
             {props.photos.map((p, i) => (
-              <div key={i} className="flex items-center justify-between bg-[var(--table-bg)] rounded-md px-3 py-1.5 text-[12px] text-[var(--text)]">
+              <div key={i} className="flex items-center justify-between bg-[var(--color-sand)] border border-[var(--color-sand-border)] rounded-md px-3 py-2 text-[13px] text-[var(--color-ink)]">
                 <span className="truncate flex-1">{p.name}</span>
-                <span className="text-[var(--text-3)] text-[11px] mx-2">{(p.size / 1024 / 1024).toFixed(1)} MB</span>
+                <span className="text-[var(--color-ink-mid)] text-[12px] mx-2 font-mono">{(p.size / 1024 / 1024).toFixed(1)} MB</span>
                 <button
                   type="button"
                   onClick={() => props.onRemovePhoto(i)}
-                  className="text-terra hover:underline text-[11px]"
+                  className="text-[var(--color-terra)] hover:underline text-[12px] font-semibold min-h-[44px] px-2"
                 >Retirer</button>
               </div>
             ))}
@@ -892,45 +933,54 @@ function Step3(props: {
   preSelected: boolean;
   onClear: () => void;
 }) {
+  const inputCls = 'w-full min-h-[48px] px-4 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--color-navy)] focus:ring-2 focus:ring-[var(--color-navy-pale)] transition-all';
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-bold text-[var(--accent)]">3. Créneau souhaité</h3>
-      <p className="text-xs text-[var(--text-2)]">Non contractuel — FoxO confirmera sous 24h ouvrables.</p>
+    <div className="space-y-5">
+      <div className="flex items-center gap-2.5">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+        <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] uppercase tracking-[0.12em]">
+          Créneau souhaité
+        </h3>
+      </div>
+      <p className="text-[14px] text-[var(--color-ink-mid)]">
+        Non contractuel — FoxO confirmera sous <strong className="text-[var(--color-ink)]">24 h ouvrables</strong>.
+      </p>
       {props.preSelected && (
-        <div className="bg-ok-light border border-ok-mid rounded-lg px-3.5 py-2.5 text-[13px] text-ok flex justify-between items-center">
-          <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 size={14} /> Créneau pré-sélectionné depuis le calendrier
+        <div className="bg-[var(--color-ok-light)] border border-[var(--color-ok-mid)] rounded-lg px-4 py-3 text-[14px] text-[var(--color-ok)] flex justify-between items-center gap-3">
+          <span className="inline-flex items-center gap-2 font-medium">
+            <CheckCircle2 size={16} /> Créneau pré-sélectionné depuis le calendrier
           </span>
           <button
             type="button"
             onClick={props.onClear}
-            className="text-[11px] text-ok underline hover:no-underline"
+            className="text-[13px] text-[var(--color-ok)] font-semibold underline hover:no-underline min-h-[44px] px-2"
           >Modifier</button>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Date</label>
+          <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Date</label>
           <input
             type="date"
             value={props.date}
             onChange={(e) => props.setDate(e.target.value)}
-            className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)] outline-none focus:border-[var(--accent)]"
+            className={inputCls}
           />
         </div>
         <div>
-          <label className="text-xs font-semibold text-[var(--text-2)] block mb-1.5">Heure</label>
+          <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Heure</label>
           <select
             value={props.heure}
             onChange={(e) => props.setHeure(e.target.value)}
-            className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text)]"
+            className={inputCls + ' cursor-pointer'}
           >
             <option value="">— Indifférent —</option>
             {HOURS.map((h) => <option key={h} value={h}>{h.replace(':', 'h')}</option>)}
           </select>
         </div>
       </div>
-      <p className="text-[11px] text-[var(--text-3)]">
+      <p className="text-[13px] text-[var(--color-ink-mid)] italic">
         Vous pouvez aussi laisser vide — FoxO vous proposera un créneau.
       </p>
     </div>
@@ -951,9 +1001,15 @@ function Step4(props: {
     : 'À définir avec FoxO';
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-sm font-bold text-[var(--accent)]">4. Récapitulatif</h3>
-      <div className="bg-[var(--table-bg)] rounded-xl p-4 border border-[var(--card-border)] space-y-2 text-[13px] text-[var(--text)]">
+    <div className="space-y-5">
+      <div className="flex items-center gap-2.5">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+        <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] uppercase tracking-[0.12em]">
+          Récapitulatif
+        </h3>
+      </div>
+
+      <div className="bg-[var(--color-sand-mid)] rounded-xl p-5 sm:p-6 space-y-3 text-[14px] text-[var(--color-ink)]">
         <Row label="Demandeur" value={`${props.prenom} ${props.nom}`} />
         <Row label="Email" value={props.email} mono />
         <Row label="Téléphone" value={props.telephone} mono />
@@ -963,29 +1019,29 @@ function Step4(props: {
           label="Priorité"
           value={
             props.priorite === 'urgente' ? (
-              <span className="inline-flex items-center gap-1">
-                <Zap size={14} /> Urgente
+              <span className="inline-flex items-center gap-1.5 text-[var(--color-terra)] font-semibold">
+                <Zap size={15} /> Urgente
               </span>
             ) : 'Normale'
           }
         />
         <Row label="Créneau" value={creneau} />
-        {props.photoCount > 0 && <Row label="Photos" value={`${props.photoCount} jointe(s)`} />}
+        {props.photoCount > 0 && <Row label="Photos" value={`${props.photoCount} jointe${props.photoCount > 1 ? 's' : ''}`} />}
       </div>
 
-      <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg p-3 text-[12px] text-[var(--text-2)] leading-relaxed">
-        <strong className="text-[var(--text)] block mb-1">Description :</strong>
-        <p className="whitespace-pre-wrap">{props.description}</p>
+      <div className="bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg p-4 text-[14px] text-[var(--color-ink-mid)] leading-relaxed">
+        <strong className="text-[var(--color-ink)] block mb-1.5 font-semibold">Description :</strong>
+        <p className="whitespace-pre-wrap text-[var(--color-ink)]">{props.description}</p>
       </div>
 
-      <label className="flex items-start gap-2 cursor-pointer">
+      <label className="flex items-start gap-3 cursor-pointer min-h-[44px] py-1">
         <input
           type="checkbox"
           checked={props.accepted}
           onChange={(e) => props.setAccepted(e.target.checked)}
-          className="mt-0.5 accent-[var(--btn-bg)]"
+          className="mt-1 w-5 h-5 accent-[var(--color-navy)] flex-shrink-0"
         />
-        <span className="text-[12px] text-[var(--text-2)] leading-relaxed">
+        <span className="text-[13px] text-[var(--color-ink-mid)] leading-relaxed">
           J&apos;accepte d&apos;être contacté par FoxO pour confirmation du créneau et accepte le traitement de mes données pour le suivi de cette demande.
         </span>
       </label>
@@ -995,9 +1051,9 @@ function Step4(props: {
 
 function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
-    <div className="grid grid-cols-3 gap-2">
-      <span className="text-[11px] text-[var(--text-3)] uppercase tracking-wider font-bold col-span-1">{label}</span>
-      <span className={'col-span-2 ' + (mono ? 'font-mono text-xs' : '')}>{value}</span>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3">
+      <span className="text-[11px] text-[var(--color-ink-mid)] uppercase tracking-[0.12em] font-medium sm:col-span-1">{label}</span>
+      <span className={'sm:col-span-2 font-medium text-[var(--color-ink)] ' + (mono ? 'font-mono text-[13px]' : '')}>{value}</span>
     </div>
   );
 }
