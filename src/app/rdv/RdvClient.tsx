@@ -248,15 +248,17 @@ export function RdvClient({ months }: { months: MonthData[] }) {
         style={{ background: 'linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)' }}
       >
         <div className="max-w-[1100px] mx-auto">
-          <div className="flex justify-center mb-6 sm:mb-7">
-            {/* Logo responsive : 72px mobile / 88px tablet / 96px desktop.
-                size={96} = max pour Next/Image optimization, dimensions
-                visuelles contraintes via className w/h responsives. */}
+          <div className="flex justify-center mb-8 sm:mb-10">
+            {/* Logo responsive : 96px mobile / 120px tablet / 144px desktop.
+                size={144} = max pour Next/Image optimization, dimensions
+                visuelles contraintes via className w/h responsives.
+                À 320px : padding x-4 (16px) → 288px utilisable, logo 96px
+                occupe 33%, ne touche pas les bords. */}
             <Logo
-              size={96}
+              size={144}
               variant="blanc"
               priority
-              className="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] lg:w-[96px] lg:h-[96px]"
+              className="w-[96px] h-[96px] sm:w-[120px] sm:h-[120px] lg:w-[144px] lg:h-[144px]"
             />
           </div>
           <h1 className="font-sora text-[32px] sm:text-[40px] md:text-[44px] font-semibold text-[var(--color-cream)] tracking-tight leading-tight">
