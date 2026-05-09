@@ -1,15 +1,14 @@
-import { Logo } from '@/components/Logo';
 import { VENDOR } from '@/lib/constants/vendor';
 
-// Layout standalone /rdv : pas de sidebar/auth, header public sable doré
-// + main content + footer légal sand-mid.
+// Layout standalone /rdv : pas de sidebar/auth, pas de header — le hero
+// navy (rendu par RdvClient) commence directement sous la barre d'URL
+// du navigateur. Le footer légal sand-mid est conservé en bas de page.
 //
-// ⚠ Le HEADER sable doré #E2C9A1 est préservé volontairement comme
-// élément public brand (mémoire projet — accord Christophe). C'est le
-// signal de présence physique FoxO sur la page publique de prise de RDV.
-//
-// La règle navy plus présent qu'ailleurs s'applique sous ce header :
-// hero gradient navy dans RdvClient, CTAs primaires navy plein, etc.
+// Note : la bande beige sable doré #E2C9A1 historique a été retirée
+// (décision validée par Christophe — faisait redondance avec le hero
+// navy puissant désormais en place). Les autres pages publiques sur
+// fond sable doré (auth/login, /o/[token]) restent intactes — chacune
+// a sa propre identité.
 export default function RdvLayout({
   children,
 }: {
@@ -17,24 +16,6 @@ export default function RdvLayout({
 }) {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--color-sand)] text-[var(--color-ink)]">
-      {/* HEADER public sable doré — préservé brand. */}
-      <header
-        className="border-b border-[rgba(0,0,0,0.12)] py-4 px-4 sticky top-0 z-40"
-        style={{ background: '#E2C9A1' }}
-      >
-        <div className="max-w-[1100px] mx-auto flex items-center gap-3">
-          <Logo size={44} variant="noir" priority />
-          <div>
-            <div className="font-sora text-[18px] font-semibold text-[var(--color-ink)] leading-none tracking-tight">
-              FoxO
-            </div>
-            <div className="font-sora text-[11px] font-light text-[#7A6A50] mt-1 tracking-wide">
-              Détection de fuites · Belgique
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1 w-full">
         {children}
       </main>

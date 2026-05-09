@@ -238,16 +238,26 @@ export function RdvClient({ months }: { months: MonthData[] }) {
   // ── Vue principale ─────────────────────────────────────────────────────
   return (
     <>
-      {/* HERO navy fort — signal de confiance institutionnelle pour
-          particuliers qui découvrent FoxO. Logo blanc + titre Sora cream.
+      {/* HERO navy fort — démarre tout en haut sous la barre d'URL du
+          navigateur (header beige supprimé — décision validée Christophe).
+          Signal de confiance institutionnelle pour particuliers qui
+          découvrent FoxO. Logo blanc grande taille + titre Sora cream.
           Pattern propre à la page publique RDV (navy plus présent qu'ailleurs). */}
       <section
-        className="px-4 sm:px-6 py-12 sm:py-16 text-center"
+        className="px-4 sm:px-6 py-16 sm:py-20 md:py-24 text-center"
         style={{ background: 'linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)' }}
       >
         <div className="max-w-[1100px] mx-auto">
-          <div className="flex justify-center mb-5">
-            <Logo size={56} variant="blanc" priority />
+          <div className="flex justify-center mb-6 sm:mb-7">
+            {/* Logo responsive : 72px mobile / 88px tablet / 96px desktop.
+                size={96} = max pour Next/Image optimization, dimensions
+                visuelles contraintes via className w/h responsives. */}
+            <Logo
+              size={96}
+              variant="blanc"
+              priority
+              className="w-[72px] h-[72px] sm:w-[88px] sm:h-[88px] lg:w-[96px] lg:h-[96px]"
+            />
           </div>
           <h1 className="font-sora text-[32px] sm:text-[40px] md:text-[44px] font-semibold text-[var(--color-cream)] tracking-tight leading-tight">
             Demander une intervention
@@ -276,6 +286,11 @@ export function RdvClient({ months }: { months: MonthData[] }) {
             Démarrer ma demande
             <ChevronDown size={18} />
           </button>
+          {/* TODO design system : envisager un lien "← Retour à foxo.be"
+              discret en cream/60 dans le hero ou footer — à valider selon
+              stratégie SEO/UX (peut nuire au funnel de conversion si
+              trop visible, mais utile si l'utilisateur est arrivé par
+              erreur sans connaître FoxO). */}
         </div>
       </section>
 
