@@ -9,7 +9,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Home, ClipboardList, Calendar, Plus, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/Logo';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { usePortalContext } from './PortalContext';
 
 // ─── Styles inline (mêmes constantes que la sidebar admin) ─────────────
@@ -213,15 +212,14 @@ export function PortalNav() {
 
         <div style={S.footer}>
           <span style={S.footerEmail} title={orgEmail}>{orgEmail}</span>
-          <ThemeToggle className="foxo-theme-toggle-desktop" />
           <button
             onClick={handleLogout}
             style={{
               background: 'rgba(255,255,255,.05)',
               border: '1px solid rgba(255,255,255,.08)',
               borderRadius: 7,
-              padding: '8px 10px',
-              color: '#8A8278',
+              padding: '10px 12px',
+              color: 'rgba(253, 251, 247, 0.65)',
               fontSize: 11,
               cursor: 'pointer',
               fontFamily: 'inherit',
@@ -237,7 +235,6 @@ export function PortalNav() {
       <header className="foxo-portal-mobile-header">
         <Logo size={36} variant="blanc" />
         <span className="foxo-portal-mobile-header-label">{orgNom || vocab.portalLabel}</span>
-        <ThemeToggle className="foxo-portal-theme-toggle-mobile" />
       </header>
 
       {/* ── MOBILE bottom nav ───────────────────────────────────────────── */}
@@ -260,24 +257,6 @@ export function PortalNav() {
         .foxo-portal-mobile         { display: none; }
         .foxo-portal-mobile-header  { display: none; }
 
-        .foxo-theme-toggle-desktop {
-          width: 100%;
-          height: 34px;
-          border-radius: 7px;
-          background: rgba(255,255,255,.06);
-          border: 1px solid rgba(255,255,255,.1);
-          color: #C8C2B8;
-          font-size: 11px;
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          font-family: inherit;
-        }
-        .foxo-portal-theme-toggle-mobile { display: none; }
-
         @media (max-width: 1023px) {
           .foxo-portal-desktop { display: none !important; }
           .foxo-portal-mobile  { display: flex !important; }
@@ -299,24 +278,6 @@ export function PortalNav() {
             font-weight: 600;
             text-align: center;
           }
-          .foxo-portal-theme-toggle-mobile {
-            display: flex !important;
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 36px;
-            height: 36px;
-            border-radius: 9px;
-            background: rgba(28,26,22,.12);
-            border: 1px solid rgba(28,26,22,.18);
-            color: #2C2A24;
-            font-size: 16px;
-            cursor: pointer;
-            align-items: center;
-            justify-content: center;
-            font-family: inherit;
-          }
           /* Espace pour le header fixe en haut + la bottom nav en bas */
           main {
             padding-top: calc(80px + env(safe-area-inset-top, 0px)) !important;
@@ -328,11 +289,7 @@ export function PortalNav() {
         @media (hover: hover) {
           .foxo-portal-desktop a:hover {
             background: rgba(255,255,255,.04);
-            color: #F0ECE4;
-          }
-          .foxo-theme-toggle-desktop:hover {
-            background: rgba(255,255,255,.12) !important;
-            color: #F0ECE4 !important;
+            color: var(--color-cream);
           }
         }
       `}</style>

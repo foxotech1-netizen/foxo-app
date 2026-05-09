@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { DM_Sans, DM_Mono, Syne, Sora, Inter } from 'next/font/google';
-import { ThemeApplier, THEME_INIT_SCRIPT } from '@/components/ThemeApplier';
 import './globals.css';
 
 const dmSans = DM_Sans({
@@ -58,20 +57,11 @@ export default function RootLayout({
   return (
     <html
       lang="fr"
-      suppressHydrationWarning
       className={`${dmSans.variable} ${dmMono.variable} ${syne.variable} ${sora.variable} ${inter.variable}`}
     >
-      <head>
-        {/* Script blocking pré-paint qui pose les CSS vars du thème
-            (selon localStorage + portail courant) avant le 1er render
-            React → évite le FOUC blanc et la transition de couleurs. */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="min-h-full">
-        {/* Réapplique le thème par défaut du portail au changement de
-            path (admin/tech/portal) — l'utilisateur peut override via
-            ThemeSelector / ThemeToggle, persisté dans localStorage. */}
-        <ThemeApplier />
+        {/* Identité visuelle FoxO unique (sand/cream/ink/navy/terra/
+            amber-foxo/ok/sky-foxo) — plus de système de thèmes runtime. */}
         {children}
       </body>
     </html>

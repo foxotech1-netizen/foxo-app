@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import Sidebar from '@components/Sidebar';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { MainContent } from '@components/layout/MainContent';
 
 export default async function AdminLayout({
@@ -48,16 +47,6 @@ export default async function AdminLayout({
           est porté par MainContent, donc cette div extérieure reste un
           simple wrapper. */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Topbar globale — présente sur toutes les pages admin.
-            Emplacement réservé à droite : ThemeToggle pour l'instant ;
-            la barre de recherche globale et le bouton "Nouvelle
-            intervention" pourront s'insérer ici plus tard. */}
-        <div className="flex items-center justify-end gap-2 px-4 py-2 border-b border-sand-border bg-cream flex-shrink-0 sticky top-0 z-40">
-          <ThemeToggle
-            inline
-            className="px-2.5 py-1.5 rounded-md text-[16px] leading-none hover:bg-sand-mid transition cursor-pointer"
-          />
-        </div>
         <MainContent className="flex-1">{children}</MainContent>
       </div>
     </div>
