@@ -1174,12 +1174,15 @@ export function InterventionsClient({
 
       {/* Table — desktop only (cf. cards mobile plus bas) */}
       <div className="flex-1 overflow-auto px-6 pt-3 pb-4">
-        <div className="hidden md:block bg-cream rounded-xl border border-sand-border overflow-hidden">
+        <div
+          className="hidden md:block bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
+          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        >
           <table className="w-full border-collapse min-w-[700px]">
             <thead>
-              <tr className="bg-sand">
+              <tr className="bg-[var(--color-sand)]">
                 {['Réf.', 'ACP', 'Type', 'Syndic', 'Technicien', 'Créneau', 'Statut', 'Màj', ''].map((h, i) => (
-                  <th key={h || `col-${i}`} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                  <th key={h || `col-${i}`} className="px-3.5 py-2.5 text-left text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] border-b border-[var(--color-sand-border)] whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -1188,7 +1191,7 @@ export function InterventionsClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={9} className="text-center py-12 text-[var(--color-ink-muted)] text-[13px]">
                     Aucune intervention
                   </td>
                 </tr>
@@ -1199,8 +1202,8 @@ export function InterventionsClient({
                     <tr
                       key={iv.id}
                       onClick={() => openDrawer(iv.id)}
-                      className={`cursor-pointer border-b border-sand-mid transition-colors ${
-                        sel ? 'bg-navy-pale' : 'bg-cream hover:bg-sand-hover'
+                      className={`cursor-pointer border-b border-[var(--color-sand-mid)] transition-colors ${
+                        sel ? 'bg-[var(--color-navy-pale)]' : 'bg-[var(--color-cream)] hover:bg-[var(--color-sand-hover)]'
                       }`}
                     >
                       <td className="px-3.5 py-2.5">
@@ -1212,11 +1215,11 @@ export function InterventionsClient({
                               title={`Couleur ${iv.color}`}
                             />
                           )}
-                          <div className="font-mono text-xs font-medium text-navy">{iv.ref ?? '—'}</div>
+                          <div className="font-sora text-xs font-semibold text-[var(--color-navy)] tracking-[0.01em]">{iv.ref ?? '—'}</div>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); window.open(`/admin/interventions/${iv.id}`, '_blank'); }}
-                            className="text-[10px] text-ink-muted/40 hover:text-navy transition-colors"
+                            className="text-[10px] text-[var(--color-ink-muted)]/40 hover:text-[var(--color-navy)] transition-colors"
                             title="Ouvrir dans un nouvel onglet"
                             aria-label="Ouvrir dans un nouvel onglet"
                           >
@@ -1225,14 +1228,13 @@ export function InterventionsClient({
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {iv.priorite === 'urgente' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                               <Zap size={12} />URGENT
                             </span>
                           )}
                           {iv.source === 'mail' && (
                             <span
-                              className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
-                              style={{ background: '#A17244' }}
+                              className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)]"
                               title="Demande créée automatiquement depuis un mail entrant"
                             >
                               <Mail size={12} />Mail
@@ -1242,7 +1244,7 @@ export function InterventionsClient({
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); openDrawer(iv.id, 'historique'); }}
-                              className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 hover:bg-[#F2DBC9] cursor-pointer"
+                              className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5 hover:opacity-80 cursor-pointer transition-opacity"
                               title={`${iv.recidive_count} intervention(s) similaire(s) sur cette ACP dans les 12 mois — voir Historique`}
                             >
                               <RefreshCw size={12} />Récidive ({iv.recidive_count})
@@ -1250,7 +1252,7 @@ export function InterventionsClient({
                           )}
                           {(iv.unread_messages_count ?? 0) > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5"
+                              className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-cream)] bg-[var(--color-terra)] rounded-full px-1.5 py-0.5"
                               title={`${iv.unread_messages_count} message(s) non lu(s) du partenaire`}
                             >
                               <MessageCircle size={12} />{iv.unread_messages_count}
@@ -1261,42 +1263,42 @@ export function InterventionsClient({
                       <td className="px-3.5 py-2.5">
                         {iv.acp ? (
                           <>
-                            <div className="font-bold text-[13px]">{iv.acp.nom}</div>
-                            <div className="text-[10px] text-ink-muted truncate max-w-[200px]">
+                            <div className="font-medium text-[13px] text-[var(--color-ink)]">{iv.acp.nom}</div>
+                            <div className="text-[10px] text-[var(--color-ink-muted)] truncate max-w-[200px]">
                               {[iv.acp.adresse, iv.acp.ville].filter(Boolean).join(', ') || '—'}
                             </div>
                           </>
                         ) : iv.source === 'mail' ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-1.5 py-0.5"
+                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-amber-foxo)] bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5"
                                 title="ACP non identifiée — associer manuellement dans le drawer">
                             <AlertTriangle size={12} />à associer
                           </span>
                         ) : (
-                          <span className="text-ink-muted text-[12px]">—</span>
+                          <span className="text-[var(--color-ink-muted)] text-[12px]">—</span>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid whitespace-nowrap">
+                      <td className="px-3.5 py-2.5 text-[11px] text-[var(--color-ink-mid)] whitespace-nowrap">
                         {iv.type ?? '—'}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <div className="text-xs font-semibold">{iv.syndic?.nom ?? '—'}</div>
+                        <div className="text-xs font-medium text-[var(--color-ink)]">{iv.syndic?.nom ?? '—'}</div>
                         {iv.syndic?.type && <TypeBadge type={iv.syndic.type} className="mt-1" />}
                       </td>
-                      <td className="px-3.5 py-2.5 text-xs">
+                      <td className="px-3.5 py-2.5 text-xs text-[var(--color-ink)]">
                         {iv.technicien ? (
                           <span>{(iv.technicien.prenom ?? '')[0]}. {iv.technicien.nom}</span>
                         ) : (
-                          <span className="text-terra font-semibold text-[11px]">Non assigné</span>
+                          <span className="text-[var(--color-terra)] font-semibold text-[11px]">Non assigné</span>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                      <td className="px-3.5 py-2.5 text-[11px] text-[var(--color-ink-mid)] font-mono whitespace-nowrap">
                         {fmtDate(iv.creneau_debut)}
                       </td>
                       <td className="px-3.5 py-2.5">
                         <Badge statut={iv.statut} />
                         <Pipebar statut={iv.statut} />
                       </td>
-                      <td className="px-3.5 py-2.5 text-[10px] text-ink-muted font-mono whitespace-nowrap">
+                      <td className="px-3.5 py-2.5 text-[10px] text-[var(--color-ink-muted)] font-mono whitespace-nowrap">
                         {relTime(iv.updated_at, nowMs)}
                       </td>
                       <td className="px-2 py-2.5 text-right">
@@ -1307,7 +1309,7 @@ export function InterventionsClient({
                             setRowDeleteErr(null);
                             setDeletingRow({ id: iv.id, ref: iv.ref });
                           }}
-                          className="text-ink-muted/40 hover:text-terra transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-terra-light"
+                          className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-terra)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)]"
                           title="Supprimer cette intervention"
                           aria-label="Supprimer cette intervention"
                         >
@@ -1325,7 +1327,7 @@ export function InterventionsClient({
         {/* Cards mobile (< 768px) — version condensée de chaque ligne */}
         <div className="md:hidden space-y-2">
           {filtered.length === 0 ? (
-            <div className="text-center py-12 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border">
+            <div className="text-center py-12 text-[var(--color-ink-muted)] text-[13px] fxs-card">
               Aucune intervention
             </div>
           ) : (
@@ -1338,10 +1340,8 @@ export function InterventionsClient({
                   type="button"
                   onClick={() => openDrawer(iv.id)}
                   className={
-                    'w-full text-left bg-cream rounded-xl border p-3 transition-colors ' +
-                    (sel
-                      ? 'border-navy ring-2 ring-navy/20'
-                      : 'border-sand-border hover:bg-sand-hover')
+                    'w-full text-left fxs-card fxs-card-hover p-3 ' +
+                    (sel ? 'ring-2 ring-[var(--color-navy)]/20' : '')
                   }
                 >
                   <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -1352,7 +1352,7 @@ export function InterventionsClient({
                           style={{ background: iv.color }}
                         />
                       )}
-                      <span className="font-mono text-[11px] font-bold text-navy truncate">
+                      <span className="font-sora text-[11px] font-semibold text-[var(--color-navy)] truncate tracking-[0.01em]">
                         {iv.ref ?? '—'}
                       </span>
                     </div>
@@ -1365,54 +1365,51 @@ export function InterventionsClient({
                     || (iv.unread_messages_count ?? 0) > 0) && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {iv.priorite === 'urgente' && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                           <Zap size={12} />URGENT
                         </span>
                       )}
                       {iv.source === 'mail' && (
-                        <span
-                          className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
-                          style={{ background: '#A17244' }}
-                        >
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)]">
                           <Mail size={12} />Mail
                         </span>
                       )}
                       {(iv.recidive_count ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                           <RefreshCw size={12} />Récidive ({iv.recidive_count})
                         </span>
                       )}
                       {(iv.unread_messages_count ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-white bg-terra rounded-full px-1.5 py-0.5">
+                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-cream)] bg-[var(--color-terra)] rounded-full px-1.5 py-0.5">
                           <MessageCircle size={12} />{iv.unread_messages_count}
                         </span>
                       )}
                     </div>
                   )}
 
-                  <div className="text-[13px] font-bold text-ink truncate inline-flex items-center gap-1">
+                  <div className="text-[13px] font-medium text-[var(--color-ink)] truncate inline-flex items-center gap-1">
                     {iv.acp?.nom ?? (iv.source === 'mail' ? (<><AlertTriangle size={12} />ACP à associer</>) : '—')}
                   </div>
                   {adresse && (
-                    <div className="text-[10px] text-ink-muted truncate">{adresse}</div>
+                    <div className="text-[10px] text-[var(--color-ink-muted)] truncate">{adresse}</div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-sand-mid">
+                  <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-[var(--color-sand-mid)]">
                     <div className="min-w-0">
-                      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Type</div>
-                      <div className="text-[11px] truncate">{iv.type ?? '—'}</div>
+                      <div className="text-[9px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">Type</div>
+                      <div className="text-[11px] text-[var(--color-ink)] truncate">{iv.type ?? '—'}</div>
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Tech</div>
-                      <div className="text-[11px] truncate">
+                      <div className="text-[9px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">Tech</div>
+                      <div className="text-[11px] truncate text-[var(--color-ink)]">
                         {iv.technicien
                           ? `${(iv.technicien.prenom ?? '')[0]}. ${iv.technicien.nom ?? ''}`
-                          : <span className="text-terra font-semibold">Non assigné</span>}
+                          : <span className="text-[var(--color-terra)] font-semibold">Non assigné</span>}
                       </div>
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Créneau</div>
-                      <div className="text-[11px] font-mono">{fmtDate(iv.creneau_debut)}</div>
+                      <div className="text-[9px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">Créneau</div>
+                      <div className="text-[11px] font-mono text-[var(--color-ink)]">{fmtDate(iv.creneau_debut)}</div>
                     </div>
                   </div>
                 </button>
@@ -1421,8 +1418,8 @@ export function InterventionsClient({
           )}
         </div>
 
-        <p className="text-[11px] text-ink-muted mt-2 px-0.5">
-          {filtered.length} intervention(s)
+        <p className="text-[11px] text-[var(--color-ink-muted)] mt-2 px-0.5">
+          {filtered.length} intervention{filtered.length > 1 ? 's' : ''}
           {filtered.length !== rows.length ? ` sur ${rows.length}` : ''} · Cliquez une ligne pour ouvrir le détail
         </p>
 
