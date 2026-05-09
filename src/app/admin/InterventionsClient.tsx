@@ -1443,28 +1443,28 @@ export function InterventionsClient({
           onClick={(e) => { if (!fullPage && e.target === e.currentTarget) closeDrawer(); }}
           className={
             fullPage
-              ? 'flex flex-col h-full bg-cream'
-              : 'fixed inset-0 bg-navy-deep/45 z-50 flex justify-end'
+              ? 'flex flex-col h-full bg-[var(--color-cream)]'
+              : 'fixed inset-0 bg-[var(--color-navy-deep)]/45 z-50 flex justify-end'
           }
         >
           <div className={
             fullPage
-              ? 'w-full max-w-[1100px] mx-auto bg-cream flex-1 overflow-y-auto flex flex-col'
-              : 'w-[460px] bg-cream h-screen overflow-y-auto shadow-2xl border-l border-sand-border flex flex-col'
+              ? 'w-full max-w-[1100px] mx-auto bg-[var(--color-cream)] flex-1 overflow-y-auto flex flex-col'
+              : 'w-[460px] bg-[var(--color-cream)] h-screen overflow-y-auto shadow-2xl border-l border-[var(--color-sand-border)] flex flex-col'
           }>
-            <header className="px-5 pt-5 bg-sand border-b border-sand-border">
+            <header className="px-5 pt-5 bg-[var(--color-sand)] border-b border-[var(--color-sand-border)]">
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex gap-2 items-center flex-wrap mb-0.5">
-                    <span className="font-mono text-xs text-ink-muted">{selected.ref ?? '—'}</span>
+                    <span className="font-sora text-xs font-semibold text-[var(--color-navy)] tracking-[0.01em]">{selected.ref ?? '—'}</span>
                     {selected.priorite === 'urgente' && (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-2 py-0.5">
+                      <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2 py-0.5">
                         <Zap size={12} />URGENT
                       </span>
                     )}
                   </div>
-                  <div className="text-base font-extrabold text-ink mt-0.5">{selected.acp?.nom ?? '—'}</div>
-                  <div className="text-xs text-ink-mid">
+                  <div className="font-sora text-base font-light tracking-tight text-[var(--color-ink)] mt-0.5">{selected.acp?.nom ?? '—'}</div>
+                  <div className="text-xs text-[var(--color-ink-mid)]">
                     {[selected.acp?.adresse, selected.acp?.ville].filter(Boolean).join(', ')}
                   </div>
                 </div>
@@ -1473,7 +1473,7 @@ export function InterventionsClient({
                     <button
                       type="button"
                       onClick={() => window.open(`/admin/interventions/${selected.id}`, '_blank')}
-                      className="bg-sand-mid h-8 px-2 rounded-md text-ink-mid hover:bg-sand-border text-[12px] font-bold"
+                      className="bg-[var(--color-sand-mid)] h-8 px-2 rounded-md text-[var(--color-ink-mid)] hover:bg-[var(--color-sand-border)] text-[12px] font-medium transition-colors"
                       title="Ouvrir dans un nouvel onglet"
                       aria-label="Ouvrir dans un nouvel onglet"
                     >
@@ -1482,7 +1482,7 @@ export function InterventionsClient({
                   )}
                   <button
                     onClick={closeDrawer}
-                    className="bg-sand-mid h-8 px-2.5 rounded-md text-ink-mid hover:bg-sand-border text-[12px] font-bold inline-flex items-center justify-center"
+                    className="bg-[var(--color-sand-mid)] h-8 px-2.5 rounded-md text-[var(--color-ink-mid)] hover:bg-[var(--color-sand-border)] text-[12px] font-medium inline-flex items-center justify-center transition-colors"
                     title={fullPage ? 'Retour à la liste' : 'Fermer'}
                   >
                     {fullPage ? '← Retour' : <X size={14} />}
@@ -1492,17 +1492,17 @@ export function InterventionsClient({
               <div className="mt-3"><Pipebar statut={selected.statut} /></div>
               <div className="flex justify-between items-center mt-2 pb-4">
                 <Badge statut={selected.statut} big />
-                <span className="text-[11px] text-ink-muted font-mono">{relTime(selected.updated_at, nowMs)}</span>
+                <span className="text-[11px] text-[var(--color-ink-muted)] font-mono">{relTime(selected.updated_at, nowMs)}</span>
               </div>
             </header>
 
-            <nav className="flex bg-cream px-5 border-b border-sand-border overflow-x-auto">
+            <nav className="flex bg-[var(--color-cream)] px-5 border-b border-[var(--color-sand-border)] overflow-x-auto">
               {(['dossier','suivi','documents','ia','historique'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
                   className={`py-2.5 px-4 text-xs font-medium capitalize border-b-2 transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
-                    tab === t ? 'text-navy border-navy font-bold' : 'text-ink-muted border-transparent hover:text-ink-mid'
+                    tab === t ? 'text-[var(--color-navy)] border-[var(--color-navy)]' : 'text-[var(--color-ink-muted)] border-transparent hover:text-[var(--color-ink-mid)]'
                   }`}
                 >
                   {t === 'ia' ? (<><Sparkles size={14} />Assistant IA</>) : t === 'historique' ? (<><ClipboardList size={14} />Historique</>) : t}
@@ -1510,7 +1510,7 @@ export function InterventionsClient({
               ))}
             </nav>
 
-            <div className="px-5 py-4 flex-1 overflow-y-auto bg-sand">
+            <div className="px-5 py-4 flex-1 overflow-y-auto bg-[var(--color-sand)]">
               {tab === 'dossier' && (
                 <>
                   {/* Stepper + bandeau — seulement pour interventions source='mail' */}
@@ -3911,11 +3911,18 @@ function MailTypeBadge({ type }: { type: string }) {
 
 function Block({ title, children, id }: { title: React.ReactNode; children: React.ReactNode; id?: string }) {
   return (
-    <div id={id} className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border mb-3 scroll-mt-4">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
-        {title}
+    <div
+      id={id}
+      className="bg-[var(--color-cream)] rounded-[10px] px-3.5 py-3 mb-3 scroll-mt-4"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center gap-2.5 mb-2">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
+        <div className="font-sora text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] flex-1">
+          {title}
+        </div>
       </div>
-      <div className="text-[13px] text-ink leading-relaxed">{children}</div>
+      <div className="text-[13px] text-[var(--color-ink)] leading-relaxed">{children}</div>
     </div>
   );
 }
