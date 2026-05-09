@@ -191,15 +191,21 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
   // ─── STATE C : facture générée ────────────────────────────────────
   if (facture) {
     return (
-      <section className="premium-card">
-        <div className="flex items-center justify-between mb-2">
-          <div className="section-label">Paiement sur place</div>
+      <section
+        className="bg-[var(--color-cream)] rounded-xl p-4"
+        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      >
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+            <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">Paiement sur place</div>
+          </div>
           <button
             type="button"
             onClick={startEdit}
-            className="text-[12px] text-navy underline hover:no-underline inline-flex items-center gap-1"
+            className="text-[13px] font-semibold text-[var(--color-navy)] underline hover:no-underline inline-flex items-center gap-1 min-h-[44px]"
           >
-            <Pencil size={12} />Modifier
+            <Pencil size={13} />Modifier
           </button>
         </div>
         <QrPaiement
@@ -207,11 +213,14 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
           numero={facture.numero}
           montantTTC={facture.total_ttc}
         />
-        <div className="mt-4 pt-4 border-t border-sand-border">
-          <div className="section-label mb-2">Informations de facturation</div>
-          <div className="space-y-2">
+        <div className="mt-4 pt-4 border-t border-[var(--color-sand-border)]">
+          <div className="flex items-center gap-2.5 mb-3">
+            <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+            <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">Informations de facturation</div>
+          </div>
+          <div className="space-y-3">
             <div>
-              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+              <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
                 Référence client
               </label>
               <input
@@ -219,12 +228,12 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
                 value={refValue}
                 onChange={(e) => setRefValue(e.target.value)}
                 placeholder="ex: BC-2024-001"
-                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
                 maxLength={100}
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+              <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
                 Nom / société
               </label>
               <input
@@ -232,12 +241,12 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
                 value={clientNom}
                 onChange={(e) => setClientNom(e.target.value)}
                 placeholder="ex: ACP Résidence Les Pins"
-                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
                 maxLength={200}
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+              <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
                 Adresse de facturation
               </label>
               <textarea
@@ -246,11 +255,11 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
                 placeholder="Rue, code postal, ville"
                 rows={2}
                 maxLength={500}
-                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y"
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+              <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
                 Email copie facture
               </label>
               <input
@@ -258,7 +267,7 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
                 placeholder="ex: comptabilite@syndic.be"
-                className="w-full px-3 py-2 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
                 maxLength={200}
               />
             </div>
@@ -266,14 +275,14 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
               type="button"
               onClick={saveClient}
               disabled={refSaving}
-              className="w-full bg-navy text-white py-2.5 rounded-md text-[13px] font-bold transition-opacity hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              className="w-full bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-md text-[14px] font-semibold transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1.5 min-h-[48px]"
             >
               {refSaved ? (
-                <><Check size={14} />Enregistré</>
+                <><Check size={15} />Enregistré</>
               ) : refSaving ? 'Sauvegarde…' : 'Enregistrer'}
             </button>
             {refError && (
-              <div className="text-[11px] text-terra">{refError}</div>
+              <div className="text-[12px] text-[var(--color-terra)] font-semibold">{refError}</div>
             )}
           </div>
         </div>
@@ -284,9 +293,15 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
   // ─── Catalogue en cours de chargement ─────────────────────────────
   if (catalog === null) {
     return (
-      <section className="premium-card">
-        <div className="section-label mb-2">Paiement sur place</div>
-        <div className="text-[12px] text-ink-muted">Chargement du catalogue…</div>
+      <section
+        className="bg-[var(--color-cream)] rounded-xl p-4"
+        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      >
+        <div className="flex items-center gap-2.5 mb-2">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">Paiement sur place</div>
+        </div>
+        <div className="text-[13px] text-[var(--color-ink-mid)]">Chargement du catalogue…</div>
       </section>
     );
   }
@@ -295,23 +310,29 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
   const totalSelected = Array.from(selected.values()).reduce((s, q) => s + q, 0);
 
   return (
-    <section className="premium-card">
-      <div className="section-label mb-3">Paiement sur place</div>
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-4"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+        <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">Paiement sur place</div>
+      </div>
 
       {catalogError && (
-        <div className="mb-2 text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2">
+        <div className="mb-3 text-[12px] text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-md px-3 py-2">
           {catalogError}
         </div>
       )}
 
       {catalog.length === 0 && !catalogError && (
-        <div className="text-[12px] text-ink-muted italic mb-3">
+        <div className="text-[13px] text-[var(--color-ink-mid)] italic mb-3">
           Aucun article au catalogue. Utilise « Passer sans article ».
         </div>
       )}
 
       {catalog.length > 0 && (
-        <div className="grid gap-2 mb-3">
+        <div className="grid gap-2.5 mb-3">
           {catalog.map((a) => {
             const qty = selected.get(a.id) ?? 0;
             const ttc = a.prix_htva * (1 + a.tva_pct / 100);
@@ -320,36 +341,36 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
               <div
                 key={a.id}
                 className={
-                  'border-2 rounded-lg p-3 transition ' +
-                  (isSelected ? 'border-ok' : 'border-sand-border bg-white')
+                  'border-2 rounded-lg p-3.5 transition-colors ' +
+                  (isSelected ? 'border-[var(--color-ok)] bg-[var(--color-ok-light)]/30' : 'border-[var(--color-sand-border)] bg-[var(--color-cream)]')
                 }
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold text-navy">{a.description}</div>
-                    <div className="text-[11px] text-ink-muted mt-0.5">
-                      {fmtMoney(ttc)} TTC
-                      {a.code && <span className="ml-2 font-mono">[{a.code}]</span>}
+                    <div className="text-[14px] font-semibold text-[var(--color-ink)]">{a.description}</div>
+                    <div className="text-[12px] text-[var(--color-ink-mid)] mt-0.5">
+                      <span className="font-sora font-semibold text-[var(--color-ink)]">{fmtMoney(ttc)}</span> TTC
+                      {a.code && <span className="ml-2 font-mono text-[var(--color-ink-mid)]">[{a.code}]</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => decrement(a.id)}
                       disabled={qty === 0}
-                      className="w-7 h-7 rounded-md bg-sand-mid text-navy flex items-center justify-center disabled:opacity-30 transition-opacity hover:opacity-80"
+                      className="w-11 h-11 rounded-md bg-[var(--color-sand-mid)] text-[var(--color-navy)] flex items-center justify-center disabled:opacity-30 transition-opacity hover:opacity-80 min-h-[44px] min-w-[44px]"
                       aria-label="Diminuer"
                     >
-                      <Minus size={14} />
+                      <Minus size={16} />
                     </button>
-                    <span className="w-7 text-center text-[13px] font-bold tabular-nums">{qty}</span>
+                    <span className="font-sora w-7 text-center text-[15px] font-semibold tabular-nums text-[var(--color-ink)]">{qty}</span>
                     <button
                       type="button"
                       onClick={() => increment(a.id)}
-                      className="w-7 h-7 rounded-md bg-navy text-white flex items-center justify-center transition-opacity hover:opacity-90"
+                      className="w-11 h-11 rounded-md bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] flex items-center justify-center transition-colors min-h-[44px] min-w-[44px]"
                       aria-label="Augmenter"
                     >
-                      <Plus size={14} />
+                      <Plus size={16} />
                     </button>
                   </div>
                 </div>
@@ -360,7 +381,7 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
       )}
 
       {error && (
-        <div className="mb-2 text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2">
+        <div className="mb-3 text-[12px] text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-md px-3 py-2">
           {error}
         </div>
       )}
@@ -369,11 +390,11 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
         type="button"
         onClick={() => generateFacture(true)}
         disabled={loading || totalSelected === 0}
-        className="w-full bg-ok text-white py-3 rounded-xl font-bold text-[14px] disabled:opacity-50 transition-opacity hover:opacity-90 inline-flex items-center justify-center gap-1.5"
+        className="w-full bg-[var(--color-ok)] text-[var(--color-cream)] py-3.5 rounded-xl font-semibold text-[15px] disabled:opacity-50 transition-opacity hover:opacity-90 inline-flex items-center justify-center gap-2 min-h-[48px]"
       >
         {loading ? 'Génération…' : (
           <>
-            <CreditCard size={16} />
+            <CreditCard size={18} />
             Générer facture ({totalSelected} ligne{totalSelected > 1 ? 's' : ''})
           </>
         )}
@@ -383,7 +404,7 @@ export function PaiementPanel({ interventionId }: { interventionId: string }) {
         type="button"
         onClick={() => generateFacture(false)}
         disabled={loading}
-        className="w-full mt-2 text-[11px] text-ink-mid hover:text-navy underline disabled:opacity-50"
+        className="w-full mt-2 text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] underline disabled:opacity-50 min-h-[44px]"
       >
         Passer sans article (tarif paramètre par défaut)
       </button>

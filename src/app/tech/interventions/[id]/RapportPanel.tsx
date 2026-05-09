@@ -318,22 +318,28 @@ export function RapportPanel({
   }
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
-          Rapport
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-4"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">
+            Rapport
+          </div>
         </div>
         {savedAt && (
-          <span className="text-[10px] text-ink-muted font-mono">
+          <span className="text-[11px] text-[var(--color-ink-mid)] font-mono">
             Enregistré {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
       </div>
 
       {!alreadyPublished && (
-        <div className="bg-white border border-sand-border rounded-xl p-3 mb-3">
+        <div className="bg-[var(--color-sand)] border border-[var(--color-sand-border)] rounded-xl p-3.5 mb-3">
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-[12px] font-bold text-navy">
+            <label className="text-[13px] font-semibold text-[var(--color-navy)]">
               Brief / Dictée pour Claude
             </label>
           </div>
@@ -342,42 +348,42 @@ export function RapportPanel({
             onChange={(e) => setBrief(e.target.value)}
             placeholder="Dicte librement ce que tu as vu, fait, conclu et recommandé. Claude rédigera les 4 sections du rapport."
             rows={5}
-            className="w-full bg-white border border-sand-border rounded-lg px-3 py-2 text-[13px] text-ink outline-none focus:border-navy-mid resize-y min-h-[100px]"
+            className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[100px]"
           />
           <button
             type="button"
             onClick={doGenerate}
             disabled={generating || pending}
-            className="w-full mt-2 bg-navy text-white py-2.5 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50"
+            className="w-full mt-2 bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[14px] disabled:opacity-50 transition-colors min-h-[48px]"
           >
             {generating ? 'Génération en cours…' : (
-              <span className="inline-flex items-center justify-center gap-1.5"><Sparkles size={14} />Générer avec Claude</span>
+              <span className="inline-flex items-center justify-center gap-1.5"><Sparkles size={16} />Générer avec Claude</span>
             )}
           </button>
           {generateMessage && (
             <div
               className={
-                'text-[11px] rounded-md px-3 py-2 mt-2 border font-semibold ' +
+                'text-[12px] rounded-md px-3 py-2 mt-2 border font-semibold ' +
                 (generateMessage.kind === 'ok'
-                  ? 'bg-ok-light border-ok-mid text-ok'
-                  : 'bg-terra-light border-terra-mid text-terra')
+                  ? 'bg-[var(--color-ok-light)] border-[var(--color-ok-mid)] text-[var(--color-ok)]'
+                  : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
               }
             >
               {generateMessage.msg}
             </div>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 leading-relaxed">
+          <p className="text-[11px] text-[var(--color-ink-mid)] mt-2 leading-relaxed">
             Astuce : décris dégâts visibles, inspection menée (acoustique, traceur, thermo, capteur d&apos;humidité), conclusion sur l&apos;origine, et recommandations.
           </p>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {SECTIONS.map(({ key, label, placeholder }) => {
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[12px] font-bold text-navy">{label}</label>
+                <label className="text-[13px] font-semibold text-[var(--color-navy)]">{label}</label>
               </div>
               <textarea
                 value={values[key]}
@@ -385,7 +391,7 @@ export function RapportPanel({
                 placeholder={placeholder}
                 rows={4}
                 disabled={alreadyPublished}
-                className="w-full bg-white border border-sand-border rounded-lg px-3 py-2 text-[13px] text-ink outline-none focus:border-navy-mid resize-y min-h-[80px] disabled:opacity-70 disabled:bg-sand-mid"
+                className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[80px] disabled:opacity-70 disabled:bg-[var(--color-sand-mid)]"
               />
 
               {/* Photos liées à cette section */}
@@ -407,10 +413,10 @@ export function RapportPanel({
       {feedback && (
         <div
           className={
-            'text-[11px] rounded-md px-3 py-2 mt-3 border font-semibold ' +
+            'text-[12px] rounded-md px-3 py-2 mt-3 border font-semibold ' +
             (feedback.kind === 'ok'
-              ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              ? 'bg-[var(--color-ok-light)] border-[var(--color-ok-mid)] text-[var(--color-ok)]'
+              : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
           }
         >
           {feedback.msg}
@@ -423,14 +429,14 @@ export function RapportPanel({
             <button
               onClick={() => doSave()}
               disabled={pending || exportingWord}
-              className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50 active:opacity-80"
+              className="bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px]"
             >
               {pending ? '…' : 'Enregistrer'}
             </button>
             <button
               onClick={doExportWord}
               disabled={exportingWord || pending}
-              className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:bg-navy-mid disabled:opacity-50 active:opacity-80"
+              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px]"
             >
               {exportingWord ? 'Génération Word…' : (
                 <span className="inline-flex items-center justify-center gap-1.5"><FileText size={14} />Exporter Word</span>
@@ -438,7 +444,7 @@ export function RapportPanel({
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
-              className="bg-sand-mid text-ink border border-sand-border py-3 rounded-xl font-bold text-[13px] hover:bg-sand-border active:opacity-80"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] active:opacity-80 transition-colors min-h-[48px]"
             >
               <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} />Aperçu</span>
             </button>
@@ -447,21 +453,21 @@ export function RapportPanel({
             onClick={doPublish}
             disabled={pending || !canPublish || exportingWord}
             title={!canPublish ? 'Clôture l\'intervention avant de publier' : ''}
-            className="w-full mt-2 bg-ok text-white py-3 rounded-xl font-bold text-[13px] disabled:opacity-40 active:opacity-80"
+            className="w-full mt-2 bg-[var(--color-ok)] text-[var(--color-cream)] py-3.5 rounded-xl font-semibold text-[14px] disabled:opacity-40 active:opacity-80 hover:opacity-90 transition-opacity min-h-[48px]"
           >
-            <span className="inline-flex items-center justify-center gap-1.5">Publier<Check size={14} /></span>
+            <span className="inline-flex items-center justify-center gap-1.5">Publier<Check size={16} /></span>
           </button>
         </>
       ) : (
         <>
-          <div className="bg-ok-light border border-ok-mid rounded-md px-3 py-2 text-[11px] text-ok text-center font-semibold mt-3">
+          <div className="bg-[var(--color-ok-light)] border border-[var(--color-ok-mid)] rounded-md px-3 py-2 text-[12px] text-[var(--color-ok)] text-center font-semibold mt-3">
             <span className="inline-flex items-center justify-center gap-1.5"><Check size={14} />Rapport déjà publié</span>
           </div>
           <div className="grid grid-cols-2 gap-2 mt-2">
             <button
               onClick={doExportWord}
               disabled={exportingWord}
-              className="bg-navy text-white py-2.5 rounded-xl font-bold text-[12px] hover:bg-navy-mid disabled:opacity-50 active:opacity-80"
+              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[44px]"
             >
               {exportingWord ? 'Génération Word…' : (
                 <span className="inline-flex items-center justify-center gap-1.5"><FileText size={14} />Exporter Word</span>
@@ -469,7 +475,7 @@ export function RapportPanel({
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
-              className="bg-sand-mid text-ink border border-sand-border py-2.5 rounded-xl font-bold text-[12px] hover:bg-sand-border"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] transition-colors min-h-[44px]"
             >
               <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} />Aperçu</span>
             </button>
@@ -480,7 +486,7 @@ export function RapportPanel({
       <button
         onClick={doDriveSync}
         disabled={pending}
-        className="w-full mt-2 bg-[#A17244] text-white py-2.5 rounded-xl text-[12px] font-semibold hover:bg-[#8A613B] disabled:opacity-50"
+        className="w-full mt-2 bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-3 rounded-xl text-[13px] font-semibold disabled:opacity-50 transition-colors min-h-[44px]"
       >
         <span className="inline-flex items-center justify-center gap-1.5"><Cloud size={14} />Synchroniser vers Google Drive</span>
       </button>

@@ -65,64 +65,83 @@ export function TimerPanel({
     elapsed = fmtDuration(endMs - startMs);
   }
 
+  // Détermine la couleur du timer en cours selon la durée écoulée :
+  // amber si > 1h, terra si > 2h, sinon vert tech (alerte visuelle terrain).
+  const timerColor = (() => {
+    if (!inProgress || !startedAt) return 'var(--accent-tech)';
+    const elapsedMs = Date.now() - new Date(startedAt).getTime();
+    if (elapsedMs > 2 * 3600_000) return 'var(--color-terra)';
+    if (elapsedMs > 3600_000)     return 'var(--color-amber-foxo)';
+    return 'var(--accent-tech)';
+  })();
+
   return (
-    <section className="premium-card">
-      <div className="section-label mb-3">
-        Suivi temps
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-5"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+        <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">
+          Suivi temps
+        </div>
       </div>
 
       {!startedAt && (
         <button
           onClick={onStart}
           disabled={pending}
-          className="w-full bg-ok text-white py-3.5 rounded-xl font-bold text-[15px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90"
+          className="w-full bg-[var(--color-ok)] text-[var(--color-cream)] py-4 rounded-xl font-semibold text-[16px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90 min-h-[48px] inline-flex items-center justify-center gap-2"
         >
-          {pending ? 'Démarrage…' : <><Play size={15} className="inline mr-1" />Démarrer l&apos;intervention</>}
+          {pending ? 'Démarrage…' : <><Play size={18} />Démarrer l&apos;intervention</>}
         </button>
       )}
 
       {startedAt && !endedAt && (
         <>
-          <div className="text-center mb-3">
-            <div className="section-label mb-1">
+          <div className="text-center mb-4">
+            <div className="font-sora text-[11px] font-medium text-[var(--color-amber-foxo)] uppercase tracking-[0.12em] mb-1.5">
               En cours
             </div>
-            <div className="text-3xl font-extrabold text-navy font-mono tabular-nums">
+            <div
+              className="font-sora text-[28px] font-semibold font-mono tabular-nums tracking-[-0.02em]"
+              style={{ color: timerColor }}
+            >
               {elapsed}
             </div>
-            <div className="text-[10px] text-ink-muted mt-1">
-              Démarré à <span className="font-mono">{new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+            <div className="text-[12px] text-[var(--color-ink-mid)] mt-1">
+              Démarré à <span className="font-mono text-[var(--color-ink)]">{new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
           <button
             onClick={onEnd}
             disabled={pending}
-            className="w-full bg-terra text-white py-3.5 rounded-xl font-bold text-[15px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90"
+            className="w-full bg-[var(--color-terra)] text-[var(--color-cream)] py-4 rounded-xl font-semibold text-[16px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90 min-h-[48px] inline-flex items-center justify-center gap-2"
           >
-            {pending ? 'Clôture…' : <><Square size={15} className="inline mr-1" />Clôturer l&apos;intervention</>}
+            {pending ? 'Clôture…' : <><Square size={18} />Clôturer l&apos;intervention</>}
           </button>
         </>
       )}
 
       {endedAt && (
-        <div className="bg-navy-pale border border-navy-light rounded-xl p-3.5 text-center">
-          <div className="section-label mb-1">
+        <div className="bg-[var(--color-ok-light)] border border-[var(--color-ok-mid)] rounded-xl p-4 text-center">
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ok)] uppercase tracking-[0.12em] mb-1.5">
             Terminée
           </div>
-          <div className="text-2xl font-extrabold text-navy font-mono tabular-nums">
+          <div className="font-sora text-[24px] font-semibold text-[var(--color-ok)] font-mono tabular-nums tracking-[-0.02em]">
             {elapsed}
           </div>
-          <div className="text-[10px] text-ink-mid mt-1 font-mono">
+          <div className="text-[12px] text-[var(--color-ink-mid)] mt-1.5 font-mono">
             {startedAt && new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
             {' — '}
             {new Date(endedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
           </div>
-          <div className="text-[11px] text-ink-muted mt-2">Statut actuel : {statut}</div>
+          <div className="text-[12px] text-[var(--color-ink-mid)] mt-2">Statut actuel : {statut}</div>
         </div>
       )}
 
       {error && (
-        <div className="text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 mt-2 font-semibold">
+        <div className="text-[12px] text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-md px-3 py-2 mt-3 font-semibold">
           {error}
         </div>
       )}

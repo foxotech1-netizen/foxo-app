@@ -104,26 +104,32 @@ export function NotesPanel({
 
   const dirty = text !== lastSentRef.current;
   const status: React.ReactNode = pendingSync
-    ? <span className="inline-flex items-center gap-1"><Save size={10} />Sauvegarde…</span>
+    ? <span className="inline-flex items-center gap-1"><Save size={11} />Sauvegarde…</span>
     : error
-      ? <span className="inline-flex items-center gap-1"><AlertTriangle size={10} />{error} (sauvegardé localement)</span>
+      ? <span className="inline-flex items-center gap-1"><AlertTriangle size={11} />{error} (sauvegardé localement)</span>
       : dirty
         ? '… modifications en attente'
         : savedAt
-          ? <span className="inline-flex items-center gap-1"><Check size={10} />Sauvegardé {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+          ? <span className="inline-flex items-center gap-1"><Check size={11} />Sauvegardé {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
           : initial
-            ? <span className="inline-flex items-center gap-1"><Check size={10} />Synchronisé</span>
+            ? <span className="inline-flex items-center gap-1"><Check size={11} />Synchronisé</span>
             : '';
 
   return (
-    <section className="premium-card">
-      <div className="flex items-center justify-between mb-2">
-        <div className="section-label inline-flex items-center gap-1.5">
-          <MessageCircle size={12} />Notes technicien
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-4"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em] inline-flex items-center gap-1.5">
+            <MessageCircle size={13} />Notes technicien
+          </div>
         </div>
         <span className={
-          'text-[10px] font-semibold ' +
-          (error ? 'text-terra' : pendingSync ? 'text-navy' : 'text-ok')
+          'text-[11px] font-semibold ' +
+          (error ? 'text-[var(--color-terra)]' : pendingSync ? 'text-[var(--color-navy)]' : 'text-[var(--color-ok)]')
         }>
           {status}
         </span>
@@ -133,9 +139,9 @@ export function NotesPanel({
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Notes internes (digicode, accès difficile, prochaine inspection…). Non visibles par le client."
         rows={5}
-        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+        className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y"
       />
-      <p className="text-[10px] text-ink-muted mt-2 italic">
+      <p className="text-[12px] text-[var(--color-ink-mid)] mt-2 italic">
         Sauvegarde automatique 2s après la dernière frappe. Persistance locale en cas de coupure réseau.
       </p>
     </section>

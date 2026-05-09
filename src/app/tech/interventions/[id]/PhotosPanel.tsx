@@ -208,29 +208,39 @@ export function PhotosPanel({
   }
 
   return (
-    <section className="premium-card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="section-label">
-          Photos terrain
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-4"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">
+            Photos terrain
+          </div>
         </div>
-        <span className="text-[11px] text-ink-mid">{photos.length}</span>
+        <span
+          className="font-sora text-[11px] font-semibold text-[var(--accent-tech)] bg-[var(--color-ok-light)] px-2.5 py-0.5 rounded-full"
+        >
+          {photos.length}
+        </span>
       </div>
 
       {!online && (
-        <div className="text-[11px] bg-amber-light text-[#8A5A1A] border border-[#E8C896] rounded-md px-3 py-2 mb-2 font-semibold inline-flex items-center gap-1.5">
-          <WifiOff size={12} />Hors ligne — les photos seront uploadées automatiquement au retour du réseau.
+        <div className="text-[12px] bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30 rounded-md px-3 py-2 mb-3 font-semibold inline-flex items-center gap-1.5">
+          <WifiOff size={13} />Hors ligne — les photos seront uploadées automatiquement au retour du réseau.
         </div>
       )}
 
       {queueCount > 0 && (
-        <div className="text-[11px] bg-navy-pale text-navy border border-navy-light rounded-md px-3 py-2 mb-2 font-semibold flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5"><Send size={12} />{queueCount} photo{queueCount > 1 ? 's' : ''} en attente d&apos;envoi</span>
+        <div className="text-[12px] bg-[var(--color-navy-pale)] text-[var(--color-navy)] border border-[var(--color-navy-light)] rounded-md px-3 py-2 mb-3 font-semibold flex items-center justify-between">
+          <span className="inline-flex items-center gap-1.5"><Send size={13} />{queueCount} photo{queueCount > 1 ? 's' : ''} en attente d&apos;envoi</span>
           {online && (
             <button
               type="button"
               onClick={drainQueue}
               disabled={uploading}
-              className="text-[10px] underline hover:no-underline disabled:opacity-50"
+              className="text-[11px] underline hover:no-underline disabled:opacity-50 min-h-[40px]"
             >
               Envoyer maintenant
             </button>
@@ -252,30 +262,32 @@ export function PhotosPanel({
       <label
         htmlFor="photo-input"
         className={
-          'block w-full text-center py-3.5 rounded-xl font-bold text-[14px] cursor-pointer transition-opacity hover:opacity-90 ' +
-          (uploading ? 'bg-sand-mid text-ink-muted' : 'bg-navy text-white hover:bg-navy-mid active:bg-navy-mid')
+          'flex items-center justify-center w-full text-center py-4 rounded-xl font-semibold text-[15px] cursor-pointer transition-opacity hover:opacity-90 min-h-[48px] ' +
+          (uploading
+            ? 'bg-[var(--color-sand-mid)] text-[var(--color-ink-muted)]'
+            : 'bg-[var(--color-navy)] text-[var(--color-cream)] hover:bg-[var(--color-navy-dark)]')
         }
       >
         {uploading
           ? `Upload ${progress.done}/${progress.total}…`
-          : <span className="inline-flex items-center justify-center gap-1.5"><Camera size={18} />Prendre des photos</span>}
+          : <span className="inline-flex items-center justify-center gap-2"><Camera size={20} />Prendre des photos</span>}
       </label>
 
       {error && (
-        <div className="text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 mt-2 font-semibold">
+        <div className="text-[12px] text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-md px-3 py-2 mt-3 font-semibold">
           {error}
         </div>
       )}
 
       {photos.length > 0 && (
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-3 gap-3 mt-4">
           {photos.map((p) => (
             <a
               key={p.name}
               href={p.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block aspect-square overflow-hidden rounded-md border border-sand-border bg-sand-mid"
+              className="block aspect-square overflow-hidden rounded-lg border border-[var(--color-sand-border)] bg-[var(--color-sand-mid)] transition-transform active:scale-[0.97]"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
@@ -284,7 +296,7 @@ export function PhotosPanel({
         </div>
       )}
 
-      <p className="text-[10px] text-ink-muted mt-3 leading-relaxed">
+      <p className="text-[11px] text-[var(--color-ink-mid)] mt-3 leading-relaxed">
         Uploadées vers Google Drive (RAPPORTS/[année]/[ref+adresse]/photos/). Les photos prises
         hors ligne sont stockées localement (IndexedDB) et envoyées au retour du réseau.
       </p>

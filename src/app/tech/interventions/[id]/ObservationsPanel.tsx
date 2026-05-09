@@ -304,48 +304,56 @@ export function ObservationsPanel({
     }
   }
 
+  const cardStyle = { boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' };
+
   // ─── Loading ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <section className="premium-card">
-        <div className="section-label mb-2">Observations terrain</div>
-        <div className="text-[12px] text-ink-muted">Chargement…</div>
+      <section className="bg-[var(--color-cream)] rounded-xl p-4" style={cardStyle}>
+        <div className="flex items-center gap-2.5 mb-2">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">Observations terrain</div>
+        </div>
+        <div className="text-[13px] text-[var(--color-ink-mid)]">Chargement…</div>
       </section>
     );
   }
 
   return (
-    <section className="premium-card">
+    <section className="bg-[var(--color-cream)] rounded-xl p-4" style={cardStyle}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="section-label">Observations terrain</div>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+          <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">Observations terrain</div>
+        </div>
         {!disabled && (
           <button
             type="button"
             onClick={() => setShowForm((s) => !s)}
-            className="bg-navy text-white px-3 py-2.5 rounded-md text-[12px] font-bold inline-flex items-center gap-1.5 transition-opacity hover:opacity-90 active:scale-95"
+            className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors active:scale-95 min-h-[44px]"
           >
-            <Plus size={14} />
+            <Plus size={15} />
             {showForm ? 'Fermer' : 'Ajouter'}
           </button>
         )}
       </div>
 
       {error && (
-        <div className="mb-2 text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2">
+        <div className="mb-3 text-[12px] text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-md px-3 py-2">
           {error}
         </div>
       )}
 
       {/* Formulaire ajout */}
       {showForm && !disabled && (
-        <div className="bg-white border border-sand-border rounded-lg p-3 mb-3 space-y-2">
+        <div className="bg-[var(--color-sand)] border border-[var(--color-sand-border)] rounded-lg p-4 mb-3 space-y-3">
           <div>
-            <label className="text-[11px] font-semibold text-ink-mid block mb-1">Type de test</label>
+            <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Type de test</label>
             <select
               value={formData.test_type}
               onChange={(e) => setFormData((f) => ({ ...f, test_type: e.target.value as TestType }))}
-              className="w-full px-3 py-2.5 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             >
               {TEST_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -357,7 +365,7 @@ export function ObservationsPanel({
               onChange={(e) => setFormData((f) => ({ ...f, etage: e.target.value }))}
               placeholder="Étage (ex: 2ème)"
               maxLength={100}
-              className="px-3 py-2.5 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             />
             <input
               type="text"
@@ -365,7 +373,7 @@ export function ObservationsPanel({
               onChange={(e) => setFormData((f) => ({ ...f, localisation: e.target.value }))}
               placeholder="Localisation (ex: Apt 4, Cuisine)"
               maxLength={200}
-              className="px-3 py-2.5 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             />
           </div>
           <textarea
@@ -374,10 +382,10 @@ export function ObservationsPanel({
             placeholder="Constatations…"
             rows={2}
             maxLength={5000}
-            className="w-full px-3 py-2.5 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+            className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-md text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y"
           />
           <div>
-            <label className="text-[11px] font-semibold text-ink-mid block mb-1">
+            <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
               Photos (optionnel)
             </label>
             <input
@@ -386,10 +394,10 @@ export function ObservationsPanel({
               capture="environment"
               multiple
               onChange={(e) => setFormPhotos(Array.from(e.target.files ?? []))}
-              className="w-full text-[12px] text-ink-mid file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-navy file:text-white file:text-[12px] file:font-semibold"
+              className="w-full text-[13px] text-[var(--color-ink-mid)] file:mr-2 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-[var(--color-navy)] file:text-[var(--color-cream)] file:text-[13px] file:font-semibold file:cursor-pointer"
             />
             {formPhotos.length > 0 && (
-              <p className="text-[11px] text-ink-muted mt-1">
+              <p className="text-[12px] text-[var(--color-ink-mid)] mt-1.5">
                 {formPhotos.length} fichier{formPhotos.length > 1 ? 's' : ''} sélectionné{formPhotos.length > 1 ? 's' : ''}
               </p>
             )}
@@ -398,7 +406,7 @@ export function ObservationsPanel({
             <button
               type="button"
               onClick={createObs}
-              className="flex-1 bg-ok text-white py-2.5 rounded-md text-[13px] font-bold transition-opacity hover:opacity-90"
+              className="flex-1 bg-[var(--color-ok)] text-[var(--color-cream)] py-3 rounded-md text-[14px] font-semibold transition-opacity hover:opacity-90 min-h-[48px]"
             >
               Enregistrer
             </button>
@@ -409,7 +417,7 @@ export function ObservationsPanel({
                 setFormData(EMPTY_FORM);
                 setFormPhotos([]);
               }}
-              className="flex-1 bg-sand-mid text-ink py-2.5 rounded-md text-[13px] font-semibold hover:bg-sand-border"
+              className="flex-1 bg-[var(--color-cream)] border border-[var(--color-sand-border)] text-[var(--color-ink)] py-3 rounded-md text-[14px] font-medium hover:bg-[var(--color-sand-hover)] min-h-[48px] transition-colors"
             >
               Annuler
             </button>
@@ -419,40 +427,40 @@ export function ObservationsPanel({
 
       {/* Liste des observations */}
       {observations.length === 0 && !showForm && (
-        <div className="text-[12px] text-ink-muted italic">
+        <div className="text-[13px] text-[var(--color-ink-mid)] italic">
           Aucune observation pour cette intervention.
         </div>
       )}
 
       {observations.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {observations.map((obs) => {
             const Icon = ICON_BY_TYPE[obs.test_type as TestType] ?? HelpCircle;
             const isLinking = linkingForObs === obs.id;
             return (
               <div
                 key={obs.id}
-                className="bg-white border border-sand-border rounded-lg p-3 relative"
+                className="bg-[var(--color-sand)] border border-[var(--color-sand-border)] rounded-lg p-3.5 relative"
               >
                 {/* Bouton supprimer */}
                 {!disabled && (
                   <button
                     type="button"
                     onClick={() => deleteObs(obs.id)}
-                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-sand-mid hover:bg-terra hover:text-white text-ink-muted flex items-center justify-center transition-colors"
+                    className="absolute top-2 right-2 w-9 h-9 rounded-full bg-[var(--color-sand-mid)] hover:bg-[var(--color-terra)] hover:text-[var(--color-cream)] text-[var(--color-ink-muted)] flex items-center justify-center transition-colors"
                     title="Supprimer l'observation"
                     aria-label="Supprimer l'observation"
                   >
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 )}
 
                 {/* Bandeau */}
-                <div className="flex items-center gap-2 mb-1.5 pr-8 flex-wrap">
-                  <Icon size={16} className="text-navy shrink-0" />
-                  <span className="text-[13px] font-bold text-navy">{obs.test_type}</span>
+                <div className="flex items-center gap-2 mb-2 pr-10 flex-wrap">
+                  <Icon size={17} className="text-[var(--accent-tech)] shrink-0" />
+                  <span className="text-[14px] font-semibold text-[var(--color-ink)]">{obs.test_type}</span>
                   {(obs.etage || obs.localisation) && (
-                    <span className="text-[11px] text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full">
+                    <span className="text-[11px] font-medium text-[var(--color-ink)] bg-[var(--color-sand-mid)] px-2.5 py-1 rounded-full">
                       {[obs.etage, obs.localisation].filter(Boolean).join(' · ')}
                     </span>
                   )}
@@ -460,16 +468,16 @@ export function ObservationsPanel({
 
                 {/* Notes */}
                 {obs.notes && (
-                  <p className="text-[12px] text-ink-mid whitespace-pre-wrap mb-2">{obs.notes}</p>
+                  <p className="text-[13px] text-[var(--color-ink)] whitespace-pre-wrap mb-2 leading-relaxed">{obs.notes}</p>
                 )}
 
                 {/* Photos liées */}
                 {obs.photos.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-2">
+                  <div className="flex flex-wrap gap-2 mb-2">
                     {obs.photos.map((p) => (
                       <div
                         key={p.id}
-                        className="relative w-[60px] h-[60px] rounded-md overflow-hidden border border-sand-border bg-sand-mid group"
+                        className="relative w-[80px] h-[80px] rounded-md overflow-hidden border border-[var(--color-sand-border)] bg-[var(--color-sand-mid)] group"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -481,7 +489,7 @@ export function ObservationsPanel({
                           <button
                             type="button"
                             onClick={() => unlinkPhoto(obs.id, p)}
-                            className="absolute top-0 right-0 w-5 h-5 bg-terra text-white text-[12px] leading-none rounded-bl-md opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute top-0 right-0 w-7 h-7 bg-[var(--color-terra)] text-[var(--color-cream)] text-[14px] leading-none rounded-bl-md flex items-center justify-center transition-opacity opacity-90"
                             title="Détacher"
                             aria-label="Détacher la photo"
                           >
@@ -514,20 +522,20 @@ export function ObservationsPanel({
                       <label
                         htmlFor={`obs-upload-${obs.id}`}
                         className={
-                          'text-[11px] text-navy underline inline-flex items-center gap-1 ' +
+                          'text-[12px] text-[var(--accent-tech)] font-semibold underline inline-flex items-center gap-1 min-h-[44px] py-2 ' +
                           (uploadingForObs === obs.id ? 'cursor-wait opacity-70' : 'cursor-pointer')
                         }
                       >
-                        <Camera size={12} />
+                        <Camera size={14} />
                         {uploadingForObs === obs.id ? 'Upload…' : 'Ajouter photos'}
                       </label>
                       <button
                         type="button"
                         onClick={() => setLinkingForObs(isLinking ? null : obs.id)}
                         disabled={unlinkedPhotos.length === 0}
-                        className="text-[11px] text-navy underline disabled:text-ink-muted disabled:no-underline disabled:cursor-not-allowed inline-flex items-center gap-1"
+                        className="text-[12px] text-[var(--accent-tech)] font-semibold underline disabled:text-[var(--color-ink-muted)] disabled:no-underline disabled:cursor-not-allowed inline-flex items-center gap-1 min-h-[44px] py-2"
                       >
-                        <ImagePlus size={12} />
+                        <ImagePlus size={14} />
                         {unlinkedPhotos.length === 0
                           ? 'Aucune photo libre à lier'
                           : isLinking
@@ -536,13 +544,13 @@ export function ObservationsPanel({
                       </button>
                     </div>
                     {isLinking && unlinkedPhotos.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-2">
+                      <div className="flex flex-wrap gap-2 mt-2">
                         {unlinkedPhotos.map((p) => (
                           <button
                             key={p.id}
                             type="button"
                             onClick={() => linkPhoto(obs.id, p)}
-                            className="w-[60px] h-[60px] rounded-md overflow-hidden border-2 border-sand-border hover:border-navy bg-sand-mid transition-colors"
+                            className="w-[80px] h-[80px] rounded-md overflow-hidden border-2 border-[var(--color-sand-border)] hover:border-[var(--accent-tech)] bg-[var(--color-sand-mid)] transition-colors"
                             title="Cliquer pour lier"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}

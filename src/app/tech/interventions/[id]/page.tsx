@@ -62,34 +62,39 @@ export default async function TechInterventionPage({
 
   return (
     <div className="space-y-4">
-      <Link href="/tech" className="text-xs hover:underline font-semibold" style={{ color: '#34D399' }}>
+      <Link href="/tech" className="inline-flex items-center text-[14px] hover:underline font-medium text-[var(--accent-tech)] min-h-[44px]">
         ← Mes missions
       </Link>
 
       {/* En-tête */}
-      <header className="premium-card p-4">
-        <div className="flex items-center gap-2 flex-wrap mb-1.5">
-          <span className="font-mono text-[11px] text-[var(--text-3)]">{iv.ref ?? '—'}</span>
+      <header
+        className="bg-[var(--color-cream)] rounded-xl p-5"
+        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      >
+        <div className="flex items-center gap-2 flex-wrap mb-2">
+          <span className="font-sora text-[12px] font-semibold tracking-[0.01em] text-[var(--accent-tech)]">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 inline-flex items-center gap-1">
-              <Zap size={10} />URGENT
+            <span className="text-[11px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2.5 py-1 inline-flex items-center gap-1">
+              <Zap size={11} />URGENT
             </span>
           )}
         </div>
-        <h1 className="text-lg font-extrabold text-[var(--text-primary)]">{acp?.nom ?? '—'}</h1>
-        <div className="text-xs text-[var(--text-2)] mt-1">
+        <h1 className="font-sora text-[22px] font-semibold tracking-tight text-[var(--color-ink)]">{acp?.nom ?? '—'}</h1>
+        <div className="text-[13px] text-[var(--color-ink)] mt-1.5">
           {[acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—'}
         </div>
         {iv.adresse && (
-          <div className="text-xs font-semibold mt-1 inline-flex items-center gap-1.5" style={{ color: '#34D399' }}><MapPin size={12} />{iv.adresse}</div>
+          <div className="text-[13px] font-semibold mt-1.5 inline-flex items-center gap-1.5 text-[var(--accent-tech)]">
+            <MapPin size={14} />{iv.adresse}
+          </div>
         )}
         {iv.creneau_debut && (() => {
           const d = new Date(iv.creneau_debut);
           const time = d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
           const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
           return (
-            <div className="text-[11px] text-[var(--text-3)] mt-2 font-mono flex items-center gap-2">
-              <span className="font-bold" style={{ color: '#34D399' }}>{time}</span>
+            <div className="text-[12px] text-[var(--color-ink-mid)] mt-2.5 font-mono flex items-center gap-2">
+              <span className="font-semibold text-[var(--accent-tech)]">{time}</span>
               <span>·</span>
               <span className="capitalize">{dateLabel}</span>
             </div>
@@ -99,9 +104,9 @@ export default async function TechInterventionPage({
 
       {/* Problème déclaré */}
       <Block title="Problème déclaré">
-        <strong className="text-[var(--text-primary)]">{iv.type ?? '—'}</strong>
+        <strong className="text-[var(--color-ink)] text-[14px]">{iv.type ?? '—'}</strong>
         {iv.description && (
-          <p className="text-[var(--text-2)] mt-1.5 whitespace-pre-wrap text-[13px]">{iv.description}</p>
+          <p className="text-[var(--color-ink)] mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{iv.description}</p>
         )}
       </Block>
 
@@ -110,17 +115,17 @@ export default async function TechInterventionPage({
         <Block title="Demandeur">
           <div className="flex justify-between items-center gap-2">
             <div>
-              <div className="font-semibold text-[var(--text-primary)] text-[13px]">{syndic.nom}</div>
+              <div className="font-semibold text-[var(--color-ink)] text-[14px]">{syndic.nom}</div>
               {syndic.telephone && (
-                <div className="text-[11px] text-[var(--text-2)] font-mono">{syndic.telephone}</div>
+                <div className="text-[12px] text-[var(--color-ink-mid)] font-mono mt-0.5">{syndic.telephone}</div>
               )}
             </div>
             {syndic.telephone && (
               <a
                 href={`tel:${syndic.telephone}`}
-                className="bg-navy text-white px-3 py-1.5 rounded-md text-[11px] font-bold hover:bg-navy-mid"
+                className="bg-[var(--color-navy)] text-[var(--color-cream)] px-4 py-2.5 rounded-md text-[13px] font-semibold hover:bg-[var(--color-navy-dark)] min-h-[44px] inline-flex items-center gap-1.5 transition-colors"
               >
-                Appeler
+                <Phone size={14} />Appeler
               </a>
             )}
           </div>
@@ -130,12 +135,12 @@ export default async function TechInterventionPage({
       {/* Occupants */}
       {occupants.length > 0 && (
         <Block title={`Occupants (${occupants.length})`}>
-          <div className="divide-y divide-sand-mid">
+          <div className="divide-y divide-[var(--color-sand-mid)]">
             {occupants.map((o) => (
-              <div key={o.id} className="py-2 first:pt-0 last:pb-0 flex justify-between items-center gap-2">
-                <div>
-                  <div className="text-[13px] font-semibold text-[var(--text-primary)]">{o.nom ?? '—'}</div>
-                  <div className="text-[11px] text-[var(--text-2)]">
+              <div key={o.id} className="py-3 first:pt-0 last:pb-0 flex justify-between items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[var(--color-ink)]">{o.nom ?? '—'}</div>
+                  <div className="text-[12px] text-[var(--color-ink)] mt-0.5">
                     Apt. {o.appartement ?? '—'}
                     {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
                   </div>
@@ -143,10 +148,10 @@ export default async function TechInterventionPage({
                 {o.telephone && (
                   <a
                     href={`tel:${o.telephone}`}
-                    className="bg-sand-mid text-[#34D399] px-2.5 py-1 rounded-md text-[11px] font-bold hover:bg-sand-border inline-flex items-center"
+                    className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2.5 rounded-md text-[13px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center min-h-[44px] min-w-[44px] justify-center transition-colors"
                     aria-label="Appeler"
                   >
-                    <Phone size={14} />
+                    <Phone size={16} />
                   </a>
                 )}
               </div>
@@ -208,9 +213,15 @@ export default async function TechInterventionPage({
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="premium-card p-4">
-      <div className="section-label mb-2">
-        {title}
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-4"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+    >
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
+        <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">
+          {title}
+        </div>
       </div>
       {children}
     </section>
