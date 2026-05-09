@@ -425,28 +425,32 @@ export function RapportPanel({
 
       {!alreadyPublished ? (
         <>
+          {/* grid-cols-3 → largeurs uniformes garanties (équipartition).
+              whitespace-nowrap empêche "Exporter Word" et "Génération Word…"
+              de casser sur 2 lignes sur petits écrans. min-h-[48px] préservé
+              pour cible tactile (Apple HIG). */}
           <div className="grid grid-cols-3 gap-2 mt-4">
             <button
               onClick={() => doSave()}
               disabled={pending || exportingWord}
-              className="bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px]"
+              className="bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px] whitespace-nowrap"
             >
               {pending ? '…' : 'Enregistrer'}
             </button>
             <button
               onClick={doExportWord}
               disabled={exportingWord || pending}
-              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px]"
+              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px] whitespace-nowrap"
             >
-              {exportingWord ? 'Génération Word…' : (
-                <span className="inline-flex items-center justify-center gap-1.5"><FileText size={14} />Exporter Word</span>
+              {exportingWord ? 'Génération…' : (
+                <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><FileText size={14} />Exporter Word</span>
               )}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
-              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] active:opacity-80 transition-colors min-h-[48px]"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] active:opacity-80 transition-colors min-h-[48px] whitespace-nowrap"
             >
-              <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} />Aperçu</span>
+              <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><Eye size={14} />Aperçu</span>
             </button>
           </div>
           <button
@@ -467,17 +471,17 @@ export function RapportPanel({
             <button
               onClick={doExportWord}
               disabled={exportingWord}
-              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[44px]"
+              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[44px] whitespace-nowrap"
             >
-              {exportingWord ? 'Génération Word…' : (
-                <span className="inline-flex items-center justify-center gap-1.5"><FileText size={14} />Exporter Word</span>
+              {exportingWord ? 'Génération…' : (
+                <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><FileText size={14} />Exporter Word</span>
               )}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
-              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] transition-colors min-h-[44px]"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] transition-colors min-h-[44px] whitespace-nowrap"
             >
-              <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} />Aperçu</span>
+              <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><Eye size={14} />Aperçu</span>
             </button>
           </div>
         </>
