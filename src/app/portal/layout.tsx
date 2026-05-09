@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { type OrgType } from '@/lib/portal/vocab';
+import { MainContent } from '@components/layout/MainContent';
 import { PortalProvider } from './PortalContext';
 import { PortalNav } from './PortalNav';
 
@@ -29,13 +30,13 @@ export default async function PortalLayout({
       {/* Layout flex calqué sur src/app/admin/layout.tsx :
           - PortalNav rend la sidebar desktop (sticky 220px) + mobile header
             fixe en haut + bottom nav iOS-style (4 items).
-          - <main> prend le reste de la largeur via flex-1. Le padding mobile
-            (top 80 + bottom 90) est ajouté par les media queries de PortalNav. */}
-      <div className="flex bg-sand min-h-screen">
+          - MainContent porte le `<main>` sémantique + sand bg + radial
+            gradients du Design System FoxO. Le padding interne (px-6 py-6)
+            est géré par MainContent ; les pages refondues (Phase 1+)
+            géreront elles-mêmes leur max-width et leur padding mobile. */}
+      <div className="flex min-h-screen">
         <PortalNav />
-        <main className="flex-1 flex flex-col min-w-0 px-3 sm:px-6 py-5 max-w-[1100px] mx-auto w-full">
-          {children}
-        </main>
+        <MainContent className="flex-1 min-w-0">{children}</MainContent>
       </div>
     </PortalProvider>
   );

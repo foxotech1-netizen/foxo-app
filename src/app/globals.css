@@ -138,6 +138,17 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Design System FoxO (cf. FOXO_DESIGN_SYSTEM_PROMPT.md). Sora pour les
+   titres/chiffres/refs, Inter pour le body. Définies en classes manuelles
+   pour rester compatible avec Tailwind v4 (pas de fontFamily.sora dans
+   un tailwind.config.ts puisque la config se fait via @theme ici). */
+.font-sora {
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+}
+.font-inter {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Premium UI tokens — design tokens partagés admin / tech / portal
    pour le langage visuel "premium B2B" (cards à élévation, KPI Syne,

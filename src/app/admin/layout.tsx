@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import Sidebar from '@components/Sidebar';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { MainContent } from '@components/layout/MainContent';
 
 export default async function AdminLayout({
   children,
@@ -40,9 +41,13 @@ export default async function AdminLayout({
   const recentResponsesCount = recentRespRes.count ?? 0;
 
   return (
-    <div className="flex bg-sand min-h-screen">
+    <div className="flex min-h-screen">
       <Sidebar alertCount={alertCount} recentResponsesCount={recentResponsesCount} />
-      <main className="flex-1 flex flex-col min-w-0">
+      {/* Right column en flex-col : topbar (sticky) + MainContent (Design
+          System FoxO — sand bg + radial gradients). Le `<main>` sémantique
+          est porté par MainContent, donc cette div extérieure reste un
+          simple wrapper. */}
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar globale — présente sur toutes les pages admin.
             Emplacement réservé à droite : ThemeToggle pour l'instant ;
             la barre de recherche globale et le bouton "Nouvelle
@@ -53,8 +58,8 @@ export default async function AdminLayout({
             className="px-2.5 py-1.5 rounded-md text-[16px] leading-none hover:bg-sand-mid transition cursor-pointer"
           />
         </div>
-        {children}
-      </main>
+        <MainContent className="flex-1">{children}</MainContent>
+      </div>
     </div>
   );
 }
