@@ -187,8 +187,8 @@ export function AddressAutocomplete({
   return (
     <div ref={wrapRef} className={'relative ' + (className ?? '')}>
       {label && (
-        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">
-          {label} {required && <span className="text-terra">*</span>}
+        <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
+          {label} {required && <span className="text-[var(--color-terra)] ml-0.5">*</span>}
         </label>
       )}
       <div className="relative">
@@ -200,15 +200,15 @@ export function AddressAutocomplete({
           placeholder={placeholder}
           disabled={disabled}
           required={required}
-          className="w-full px-3 py-2.5 pr-20 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+          className="w-full min-h-[48px] px-4 py-3 pr-24 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--color-navy)] focus:ring-2 focus:ring-[var(--color-navy-pale)] disabled:opacity-50 transition-all placeholder:text-[var(--color-ink-muted)] placeholder:italic"
         />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
           {loading && (
-            <span className="inline-block w-3.5 h-3.5 border-2 border-navy-mid border-t-transparent rounded-full animate-spin" aria-label="Chargement" />
+            <span className="inline-block w-4 h-4 border-2 border-[var(--color-navy-mid)] border-t-transparent rounded-full animate-spin" aria-label="Chargement" />
           )}
           {value.verified && !loading && (
             <span
-              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]"
+              className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-ok-light)] text-[var(--color-ok)] border border-[var(--color-ok-mid)]"
               title={`Lat ${value.lat ?? '—'}, Lng ${value.lng ?? '—'}`}
             >
               <CheckCircle2 size={12} /> vérifiée
@@ -218,11 +218,11 @@ export function AddressAutocomplete({
             <button
               type="button"
               onClick={handleClear}
-              className="text-ink-muted hover:text-terra leading-none w-5 h-5 flex items-center justify-center"
+              className="text-[var(--color-ink-muted)] hover:text-[var(--color-terra)] leading-none w-7 h-7 flex items-center justify-center transition-colors"
               aria-label="Effacer"
               tabIndex={-1}
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           )}
         </div>
@@ -230,19 +230,24 @@ export function AddressAutocomplete({
 
       {/* Champs structurés (lecture seule, en debug visuel) */}
       {value.verified && (value.code_postal || value.ville) && (
-        <div className="text-[11px] text-ink-muted mt-1 dark:text-[#C8C2B8]">
+        <div className="text-[12px] text-[var(--color-ink-mid)] mt-1.5">
           {[value.code_postal, value.ville, value.pays].filter(Boolean).join(' · ')}
         </div>
       )}
 
-      {/* Dropdown suggestions */}
+      {/* Dropdown suggestions — pattern card signature triple-shadow */}
       {open && (suggestions.length > 0 || loading || error || (query.trim().length >= 4 && !loading)) && (
-        <div className="absolute z-30 mt-1 w-full bg-white border border-sand-border rounded-lg shadow-lg max-h-[280px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32]">
+        <div
+          className="absolute z-30 mt-1 w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg max-h-[280px] overflow-y-auto"
+          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        >
           {error && (
-            <div className="px-3 py-2 text-[11px] text-terra font-semibold inline-flex items-center gap-1.5"><AlertTriangle size={12} /> {error}</div>
+            <div className="px-3 py-2.5 text-[12px] text-[var(--color-terra)] font-semibold inline-flex items-center gap-1.5">
+              <AlertTriangle size={13} /> {error}
+            </div>
           )}
           {!error && suggestions.length === 0 && !loading && query.trim().length >= 4 && (
-            <div className="px-3 py-2 text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+            <div className="px-3 py-2.5 text-[12px] text-[var(--color-ink-mid)] italic">
               Aucune adresse trouvée — tu peux saisir manuellement.
             </div>
           )}
@@ -251,12 +256,12 @@ export function AddressAutocomplete({
               key={`${s.lat}-${s.lng}-${i}`}
               type="button"
               onClick={() => selectSuggestion(s)}
-              className="block w-full text-left px-3 py-2 hover:bg-sand transition-colors border-b border-sand-mid last:border-b-0 dark:hover:bg-[#2A2520] dark:border-[#3D3A32]"
+              className="block w-full text-left px-3.5 py-2.5 hover:bg-[var(--color-sand)] focus:bg-[var(--color-navy-pale)] focus:text-[var(--color-navy)] focus:outline-none transition-colors border-b border-[var(--color-sand-mid)] last:border-b-0 min-h-[48px]"
             >
-              <div className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">
+              <div className="text-[13px] font-semibold text-[var(--color-ink)]">
                 {composeAdresse(s.rue, s.numero) || s.display_name.split(',')[0]}
               </div>
-              <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+              <div className="text-[11px] text-[var(--color-ink-mid)] mt-0.5">
                 {[s.code_postal, s.ville].filter(Boolean).join(' ') || s.display_name.split(',').slice(1).join(',').trim()}
               </div>
             </button>
