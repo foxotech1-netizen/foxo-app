@@ -37,26 +37,27 @@ export default async function EditDevisPage({
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">
+          <h1 className="fxs-page-title mb-1">
             Devis <span className="font-mono">{devis.numero}</span>
           </h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             Statut : <strong className="capitalize">{devis.statut}</strong>
             {devis.converted_to_facture_id && (
-              <> · <Link href={`/admin/facturation/${devis.converted_to_facture_id}`} className="text-navy underline">Facture liée →</Link></>
+              <> · <Link href={`/admin/facturation/${devis.converted_to_facture_id}`} className="text-[var(--color-navy)] underline">Facture liée →</Link></>
             )}
-          </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={devis} defaults={emailDefaults} />
-          <Link href="/admin/facturation/devis" className="text-[12px] text-ink-mid hover:text-navy min-h-[44px] inline-flex items-center">
+          <Link href="/admin/facturation/devis" className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>
         </div>
-      </header>
-      <div className="flex-1 overflow-auto px-6 py-5">
+      </div>
+      <div>
         <FactureEditor initial={devis} initialNumero={devis.numero} articles={articles} mode="devis" />
       </div>
     </>

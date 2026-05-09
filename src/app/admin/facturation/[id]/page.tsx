@@ -70,15 +70,16 @@ export default async function EditFacturePage({
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">
+          <h1 className="fxs-page-title mb-1">
             Facture <span className="font-mono">{facture.numero}</span>
           </h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             Statut : <strong className="capitalize">{facture.statut}</strong>
             {facture.date_paiement && ` · Payée le ${new Date(facture.date_paiement).toLocaleDateString('fr-BE')}`}
-          </p>
+          </div>
           <div className="mt-2">
             <PaymentRefBadge reference={facture.reference_structuree} />
           </div>
@@ -88,19 +89,19 @@ export default async function EditFacturePage({
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"
-            className="text-[12px] text-ink-mid hover:text-navy min-h-[44px] inline-flex items-center"
+            className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
           >
             ← Retour
           </Link>
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         {avoirs.length > 0 && (
-          <div className="mb-4 bg-amber-light border border-[#E8C896] rounded-2xl px-4 py-3">
+          <div className="mb-4 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded-2xl px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold text-[#8A5A1A] uppercase tracking-wider mb-1 inline-flex items-center gap-1.5">
+                <div className="text-[10px] font-bold text-[var(--color-amber-foxo)] uppercase tracking-wider mb-1 inline-flex items-center gap-1.5">
                   <FileEdit size={12} aria-hidden /> {avoirs.length} avoir(s) lié(s) — solde réel
                 </div>
                 <div className="flex flex-wrap items-baseline gap-3 text-[13px]">

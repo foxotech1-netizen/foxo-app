@@ -39,24 +39,25 @@ export default async function ClientDetailPage({
 
   return (
     <>
-      <header className="px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">
+          <h1 className="fxs-page-title mb-1">
             {[client.prenom, client.nom].filter(Boolean).join(' ')}
           </h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            {TYPE_CLIENT_LABEL[client.type]} · {factures.length} facture(s) liée(s)
-          </p>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+            {TYPE_CLIENT_LABEL[client.type]} · {factures.length} facture{factures.length > 1 ? 's' : ''} liée{factures.length > 1 ? 's' : ''}
+          </div>
         </div>
         <Link
           href="/admin/clients"
-          className="text-[12px] text-ink-mid hover:text-navy dark:text-[#C8C2B8]"
+          className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
         >
           ← Retour
         </Link>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5 space-y-6">
+      <div className="space-y-6">
         <ClientForm initial={client} redirectAfter={`/admin/clients/${client.id}`} />
 
         <section className="max-w-[760px]">
