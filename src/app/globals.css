@@ -60,14 +60,19 @@
   --sidebar-logo-bg:   #E2C9A1;
   --sidebar-logo-fg:   #7A6A50;
 
-  /* Tech app — palette dédiée */
-  --tech-bg:        #F5F2EC;
-  --tech-card:      #FDFBF7;
-  --tech-card-mid:  #EDE8DF;
-  --tech-text:      #1C1A16;
-  --tech-text-mid:  #6B6558;
-  --tech-text-mute: #A09A8E;
-  --tech-border:    #DDD8CC;
+  /* Tech app — alias des tokens FoxO pour compat historique. Les nouveaux
+     composants tech utilisent directement var(--color-sand/cream/ink/etc.)
+     du design system FoxO via MainContentTech (cf. components/layout/
+     MainContentTech.tsx + FOXO_DESIGN_SYSTEM_PROMPT.md). Ces alias sont
+     gardés en place pour les composants legacy non encore refactorés et
+     sont strictement identiques aux tokens FoxO correspondants. */
+  --tech-bg:        var(--color-sand);
+  --tech-card:      var(--color-cream);
+  --tech-card-mid:  var(--color-sand-mid);
+  --tech-text:      var(--color-ink);
+  --tech-text-mid:  var(--color-ink-mid);
+  --tech-text-mute: var(--color-ink-muted);
+  --tech-border:    var(--color-sand-border);
 
   color-scheme: light;
 }
