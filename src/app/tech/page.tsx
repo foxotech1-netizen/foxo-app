@@ -110,12 +110,14 @@ export default async function TechHome() {
 
   return (
     <div className="space-y-4">
-      {/* Hero — gradient sombre vert tech, identité PWA terrain. Hex
-          conservés volontairement (identité visuelle hors palette FoxO,
-          comme le launcher /admin/hub). */}
+      {/* Hero — gradient navy FoxO (cohérence avec hero RDV public).
+          L'ancien gradient vert tech a été retiré pour aligner l'identité
+          principale du portail tech sur la palette navy/sand/cream. Le
+          vert --accent-tech reste utilisé en accents secondaires (refs,
+          swatches panels, focus inputs, bottom-nav PWA). */}
       <header
         className="-mx-4 px-6 py-7 mb-1 rounded-b-xl"
-        style={{ background: 'linear-gradient(180deg, #0d2318 0%, #1a3d2a 100%)' }}
+        style={{ background: 'linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)' }}
       >
         <h1 className="font-sora font-semibold text-[24px] text-[var(--color-cream)] tracking-tight">
           Bonjour {u.prenom ?? ''}
