@@ -91,7 +91,10 @@ export default async function HubPage() {
 
   const tiles: Tile[] = [
     {
-      href: '/admin/home',
+      // /admin/home a été retiré au Sprint 1 (Tableau de bord adaptive
+      // remplace l'écran d'accueil tuiles). On pointe directement vers
+      // le dashboard, qui héberge maintenant le briefing IA.
+      href: '/admin',
       icon: LayoutDashboard,
       label: 'Administration',
       subtitle: 'Interventions, facturation, clients',

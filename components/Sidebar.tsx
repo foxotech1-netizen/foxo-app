@@ -11,7 +11,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 import {
-  LayoutGrid, BarChart3, Bell, Calendar, Wrench, Sparkles,
+  BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
   type LucideIcon,
@@ -20,7 +20,9 @@ import {
 interface NavItem { href: string; Icon: LucideIcon; label: string; badge?: boolean }
 
 const NAV_MAIN: NavItem[] = [
-  { href: '/admin/home',        Icon: LayoutGrid,  label: 'Accueil'         },
+  // Item "Accueil" supprimé Sprint 1 — la page /admin/home a été retirée
+  // au profit du Tableau de bord adaptive qui intègre désormais le
+  // briefing IA + les missions du jour en tête de page.
   { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
   { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
@@ -248,15 +250,19 @@ export default function Sidebar({
     return pathname.startsWith(href)
   }
 
-  // ── Mobile bottom nav — 5 items fixes ───────────────────────────────────────
+  // ── Mobile bottom nav — 4 items fixes ──────────────────────────────────
+  // Item "Menu" (qui pointait vers /admin/home, retiré Sprint 1) supprimé.
+  // L'accès aux pages secondaires (clients, comptabilité, …) se fait via
+  // /admin/hub depuis le sélecteur de portail. Item Assistant masqué le
+  // temps que la page /admin/assistant soit re-développée (Sprint 3).
   const BOTTOM_NAV: NavItem[] = [
     { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
     { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
     { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
+    { href: '/admin/techniciens', Icon: Wrench,  label: 'Techniciens' },
     // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA
     // dédiée sera fonctionnelle (chat plein écran avec historique).
     // { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
-    { href: '/admin/home',      Icon: LayoutGrid, label: 'Menu'     },
   ]
 
   return (
