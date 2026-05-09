@@ -128,25 +128,26 @@ export default async function PlanningPage({
 
   return (
     <>
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-extrabold text-ink">Planning</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            Créneaux fermés par défaut. Crée-les explicitement dans l&apos;onglet « Gérer ».
-          </p>
+      <div className="mb-4 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1">
+          Plan<span>ning</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          Créneaux fermés par défaut. Crée-les explicitement dans l&apos;onglet « Gérer »
         </div>
-      </header>
+      </div>
 
       {/* Onglets */}
-      <div className="px-6 pt-4 bg-sand border-b border-sand-border flex-shrink-0">
-        <div className="flex gap-1">
+      <div className="mb-4">
+        <div className="flex gap-1 border-b border-[var(--color-sand-border)]">
           <Link
             href={tabHref('calendar')}
             className={
-              'px-4 py-2 rounded-t-lg text-[12px] font-bold border-b-2 ' +
+              'px-4 py-2 rounded-t-lg text-[12px] font-medium border-b-2 -mb-px ' +
               (tab === 'calendar'
-                ? 'bg-cream border-navy text-navy'
-                : 'border-transparent text-ink-muted hover:text-ink dark:hover:border-[rgba(255,255,255,.2)]')
+                ? 'bg-[var(--color-cream)] border-[var(--color-navy)] text-[var(--color-navy)]'
+                : 'border-transparent text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]')
             }
           >
             Calendrier
@@ -154,10 +155,10 @@ export default async function PlanningPage({
           <Link
             href={tabHref('manage')}
             className={
-              'px-4 py-2 rounded-t-lg text-[12px] font-bold border-b-2 ' +
+              'px-4 py-2 rounded-t-lg text-[12px] font-medium border-b-2 -mb-px ' +
               (tab === 'manage'
-                ? 'bg-cream border-navy text-navy'
-                : 'border-transparent text-ink-muted hover:text-ink dark:hover:border-[rgba(255,255,255,.2)]')
+                ? 'bg-[var(--color-cream)] border-[var(--color-navy)] text-[var(--color-navy)]'
+                : 'border-transparent text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]')
             }
           >
             Gérer les disponibilités
@@ -165,7 +166,7 @@ export default async function PlanningPage({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div>
         {tab === 'calendar' ? (
           <PlanningCalendar
             year={year}

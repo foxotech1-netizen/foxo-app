@@ -83,23 +83,26 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
   }, [notes]);
 
   return (
-    <div className="space-y-4 p-6">
-      <header className="flex items-center justify-between flex-wrap gap-3">
+    <div className="space-y-4">
+      <div className="flex justify-between items-end flex-wrap gap-3 mb-2 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Notes de frais</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
+          <h1 className="fxs-page-title mb-1">
+            Notes de <span>frais</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {notes.length} note{notes.length > 1 ? 's' : ''} — gestion des dépenses techniciens
-          </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => alert('Drawer de création à implémenter dans le prochain sprint.')}
-          className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90 inline-flex items-center gap-1.5"
+          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm inline-flex items-center gap-1.5"
         >
           <Plus size={14} />
           Nouvelle note
         </button>
-      </header>
+      </div>
 
       {/* Tabs filtre statut */}
       <div className="flex flex-wrap gap-0.5 border-b border-sand-border -mb-px">

@@ -15,16 +15,18 @@ const QUICK_ACTIONS: QuickAction[] = [
 export default function AssistantPage() {
   return (
     <>
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-extrabold text-ink inline-flex items-center gap-1.5"><Sparkles size={16} aria-hidden /> Assistant Claude</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            Pose n&apos;importe quelle question sur l&apos;activité FoxO. Claude a accès aux interventions, syndics et techniciens en temps réel.
-          </p>
+      <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="fxs-page-title mb-1 inline-flex items-center gap-2">
+          <Sparkles size={18} className="text-[var(--color-navy)]" aria-hidden />
+          Assistant <span>Claude</span>
+        </h1>
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          Pose n&apos;importe quelle question sur l&apos;activité FoxO. Claude a accès aux interventions, syndics et techniciens en temps réel
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-hidden px-6 py-5">
+      <div>
         <div className="h-full max-w-[900px] mx-auto">
           <AssistantChat
             mode="global"

@@ -126,28 +126,33 @@ export function TechniciensClient({
 
   return (
     <>
-      <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
+      <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">Techniciens</h1>
-          <p className="text-[11px] text-ink-muted mt-0.5">{techs.length} technicien(s)</p>
+          <h1 className="fxs-page-title mb-1">
+            Techni<span>ciens</span>
+          </h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+            {techs.length} technicien{techs.length > 1 ? 's' : ''}
+          </div>
         </div>
         <button
           onClick={() => { setOpen(true); setError(null); }}
-          className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-bold tracking-wider hover:bg-navy-mid inline-flex items-center gap-1.5"
+          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm inline-flex items-center gap-1.5"
         >
           <Plus size={14} />Ajouter un technicien
         </button>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-auto px-6 pt-4 pb-4">
+      <div>
         {loadError && (
-          <div className="mb-3 px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold">
+          <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
             Connexion à la base limitée : {loadError}
           </div>
         )}
 
         {inviteBanner && (
-          <div className="mb-3 px-4 py-3 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold flex items-start justify-between gap-3">
+          <div className="mb-3 px-4 py-3 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold flex items-start justify-between gap-3">
             <span className="flex-1">{inviteBanner}</span>
             <button
               type="button"
