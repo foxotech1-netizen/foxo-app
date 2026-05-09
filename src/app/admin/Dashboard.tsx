@@ -11,6 +11,11 @@ import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+// TODO Sprint Brouillons IA + Briefing : réactiver BriefingIA
+// quand le composant sera branché sur Claude API avec données
+// réelles (cron + Gmail + Calendar). Pour l'instant masqué car
+// les placeholders statiques inventaient des chiffres factices.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { BriefingIA } from '@/components/admin/BriefingIA';
 import { ChatIA } from '@/components/admin/ChatIA';
 import { NextMissions } from '@/components/admin/NextMissions';
@@ -117,14 +122,6 @@ export function Dashboard({
     }
     return { confirmedToday, rapportToSend, occupantsPending };
   }, [rows, today, dashboard.occupantsPendingByIv]);
-
-  // Counts agrégés pour BriefingIA — dérivés des données déjà chargées
-  // côté server (cf. admin/page.tsx) : pas de re-fetch.
-  const briefingCounts = useMemo(() => ({
-    interventionsToday: todoToday.confirmedToday.length,
-    urgences: stats.urgent,
-    mailsNonLus: newMailIvs.length,
-  }), [todoToday.confirmedToday.length, stats.urgent, newMailIvs.length]);
 
   // ── Sections "détaillées" ─────────────────────────────────────────────
   // Bloc commun rendu : (a) inline en tablette, (b) dans la colonne
@@ -244,12 +241,13 @@ export function Dashboard({
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {/* Briefing IA — toujours en tête, taille adaptive selon device */}
-      <BriefingIA counts={briefingCounts} compact={isMobile} />
+      {/* BriefingIA masqué en attendant le branchement Claude API
+          (cf. TODO sur l'import) — les placeholders statiques inventaient
+          des chiffres factices ([ref] Flagey II, FACT-049, etc.) qui
+          peuvent induire en erreur l'utilisateur. */}
 
-      {/* Mobile + Tablet : Missions du jour + Chat express juste après
-          le briefing. En desktop ces composants migrent dans la colonne
-          droite (cf. plus bas). */}
+      {/* Mobile + Tablet : Missions du jour + Chat express en tête.
+          En desktop ces composants migrent dans la colonne droite. */}
       {!isDesktop && (
         <>
           <NextMissions
