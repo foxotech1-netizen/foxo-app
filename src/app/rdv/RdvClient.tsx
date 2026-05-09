@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition } from 'react';
-import { Camera, Check, CheckCircle2, PartyPopper, Zap } from 'lucide-react';
+import { Camera, Check, CheckCircle2, ChevronDown, Shield, Zap } from 'lucide-react';
 import type { Slot } from '@/lib/portal/availability';
+import { Logo } from '@/components/Logo';
 import { submitRdv } from './actions';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 
@@ -197,18 +198,38 @@ export function RdvClient({ months }: { months: MonthData[] }) {
   // ── Vue succès ─────────────────────────────────────────────────────────
   if (success) {
     return (
-      <div className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl p-8 text-center max-w-[560px] mx-auto mt-4">
-        <div className="flex justify-center mb-3">
-          <PartyPopper size={48} className="text-ok" />
-        </div>
-        <h1 className="text-2xl font-extrabold text-ok">Demande reçue !</h1>
-        <p className="text-sm text-[var(--text-2)] mt-2 leading-relaxed">
-          Un email de confirmation vous a été envoyé.<br />
-          FoxO vous confirmera un créneau sous <strong>24h ouvrables</strong>.
-        </p>
-        <div className="mt-5 inline-block bg-[var(--table-bg)] border border-[var(--card-border)] rounded-xl px-5 py-3">
-          <div className="text-[10px] text-[var(--text-3)] uppercase tracking-wider font-bold">Référence</div>
-          <div className="text-lg font-bold text-[var(--accent)] font-mono mt-1">{success.ref}</div>
+      <div className="px-4 sm:px-6 py-12 max-w-[1100px] mx-auto w-full">
+        <div
+          className="bg-[var(--color-cream)] rounded-[10px] p-8 sm:p-10 text-center max-w-[560px] mx-auto"
+          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        >
+          {/* Icône Check géante dans cercle ok-light */}
+          <div className="flex justify-center mb-5">
+            <div className="w-24 h-24 rounded-full bg-[var(--color-ok-light)] flex items-center justify-center">
+              <Check size={48} className="text-[var(--color-ok)]" strokeWidth={2.5} />
+            </div>
+          </div>
+          <h1 className="font-sora text-[28px] sm:text-[32px] font-semibold text-[var(--color-ink)] tracking-tight">
+            Demande envoyée
+          </h1>
+          <p className="text-[15px] text-[var(--color-ink-mid)] mt-3 leading-relaxed">
+            Un email de confirmation vous a été envoyé.<br />
+            FoxO vous confirmera un créneau sous <strong className="text-[var(--color-ink)]">24 h ouvrables</strong>.
+          </p>
+          <div className="mt-6 inline-block bg-[var(--color-sand-mid)] rounded-xl px-6 py-4">
+            <div className="text-[11px] text-[var(--color-ink-mid)] uppercase tracking-[0.12em] font-medium">Référence</div>
+            <div className="font-sora text-[20px] font-semibold text-[var(--color-navy)] font-mono tracking-[0.01em] mt-1">
+              {success.ref}
+            </div>
+          </div>
+          <div className="mt-8">
+            <a
+              href="/rdv"
+              className="inline-flex items-center justify-center min-h-[48px] px-5 rounded-md text-[14px] font-semibold text-[var(--color-navy)] bg-transparent border border-[var(--color-navy)] hover:bg-[var(--color-navy-pale)] transition-colors"
+            >
+              Retour à l&apos;accueil
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -216,11 +237,57 @@ export function RdvClient({ months }: { months: MonthData[] }) {
 
   // ── Vue principale ─────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <>
+      {/* HERO navy fort — signal de confiance institutionnelle pour
+          particuliers qui découvrent FoxO. Logo blanc + titre Sora cream.
+          Pattern propre à la page publique RDV (navy plus présent qu'ailleurs). */}
+      <section
+        className="px-4 sm:px-6 py-12 sm:py-16 text-center"
+        style={{ background: 'linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)' }}
+      >
+        <div className="max-w-[1100px] mx-auto">
+          <div className="flex justify-center mb-5">
+            <Logo size={56} variant="blanc" priority />
+          </div>
+          <h1 className="font-sora text-[32px] sm:text-[40px] md:text-[44px] font-semibold text-[var(--color-cream)] tracking-tight leading-tight">
+            Demander une intervention
+          </h1>
+          <p className="text-[15px] sm:text-[16px] text-[var(--color-cream)]/80 mt-3 max-w-[640px] mx-auto leading-relaxed">
+            Détection de fuites par des techniciens certifiés.
+            Réponse confirmée sous <strong className="text-[var(--color-cream)]">24 h ouvrables</strong>.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-[13px]">
+            <span className="inline-flex items-center gap-1.5 text-[var(--color-cream)]/85 bg-[var(--color-cream)]/10 border border-[var(--color-cream)]/15 px-3 py-1.5 rounded-full">
+              <Shield size={14} />Détection non destructive
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-[var(--color-cream)]/85 bg-[var(--color-cream)]/10 border border-[var(--color-cream)]/15 px-3 py-1.5 rounded-full">
+              Belgique francophone &amp; néerlandophone
+            </span>
+            {/* TODO design system : envisager d'ajouter ici un témoignage
+                syndic, des logos clients en niveau de gris discret, ou
+                une garantie "Réponse sous 24h" en pill ok-light cream
+                — éviter d'implémenter sans accord Christophe. */}
+          </div>
+          <button
+            type="button"
+            onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            className="mt-8 inline-flex items-center justify-center gap-2 min-h-[52px] px-6 rounded-md text-[15px] font-semibold bg-[var(--color-cream)] text-[var(--color-navy)] hover:bg-[var(--color-sand)] transition-colors shadow-sm"
+          >
+            Démarrer ma demande
+            <ChevronDown size={18} />
+          </button>
+        </div>
+      </section>
+
+      <div className="px-4 sm:px-6 py-8 sm:py-10 max-w-[1100px] mx-auto w-full"
+        style={{ paddingBottom: 'calc(40px + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold text-[var(--text)]">Demander une intervention</h1>
-        <p className="text-sm text-[var(--text-2)] mt-1">
-          Choisissez un créneau dans le calendrier ou complétez directement le formulaire.
+        <h2 className="font-sora text-[22px] sm:text-[24px] font-semibold text-[var(--color-ink)] tracking-tight">
+          Choisissez votre créneau
+        </h2>
+        <p className="text-[14px] text-[var(--color-ink-mid)] mt-1">
+          Cliquez sur un créneau libre ci-dessous, ou complétez directement le formulaire.
         </p>
       </div>
 
@@ -234,10 +301,14 @@ export function RdvClient({ months }: { months: MonthData[] }) {
       />
 
       {/* FORM */}
-      <div ref={formRef} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-2xl overflow-hidden">
+      <div
+        ref={formRef}
+        className="bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
+        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      >
         <StepIndicator step={step} />
 
-        <div className="p-5 sm:p-6">
+        <div className="p-5 sm:p-7">
           {step === 1 && (
             <Step1
               prenom={prenom} setPrenom={setPrenom}
@@ -292,17 +363,17 @@ export function RdvClient({ months }: { months: MonthData[] }) {
           )}
 
           {(stepError || serverError) && (
-            <div className="mt-4 bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5 text-xs font-semibold">
+            <div className="mt-4 bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] text-[var(--color-terra)] rounded-lg px-4 py-3 text-[13px] font-medium">
               {stepError ?? serverError}
             </div>
           )}
 
-          <div className="flex justify-between gap-2 mt-5">
+          <div className="flex justify-between gap-3 mt-6 pt-5 border-t border-[var(--color-sand-mid)]">
             <button
               type="button"
               onClick={tryGoBack}
               disabled={step === 1 || submitting}
-              className="bg-[var(--card-border-2)] text-[var(--text-2)] px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+              className="px-4 sm:px-5 min-h-[48px] rounded-md text-[14px] font-medium bg-[var(--color-cream)] text-[var(--color-ink)] border border-[var(--color-sand-border)] hover:bg-[var(--color-sand-hover)] disabled:opacity-50 transition-colors"
             >
               ← Précédent
             </button>
@@ -311,7 +382,7 @@ export function RdvClient({ months }: { months: MonthData[] }) {
                 type="button"
                 onClick={tryAdvance}
                 disabled={submitting}
-                className="bg-[var(--btn-bg)] text-[var(--btn-color)] px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                className="px-5 sm:px-6 min-h-[48px] rounded-md text-[14px] font-semibold bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] disabled:opacity-50 transition-colors shadow-sm"
               >
                 Suivant →
               </button>
@@ -320,15 +391,17 @@ export function RdvClient({ months }: { months: MonthData[] }) {
                 type="button"
                 onClick={trySubmit}
                 disabled={submitting}
-                className="bg-[var(--btn-bg)] text-[var(--btn-color)] px-5 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                className="px-5 sm:px-6 min-h-[56px] rounded-md text-[15px] font-semibold bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] disabled:opacity-50 transition-colors shadow-sm inline-flex items-center justify-center gap-2"
               >
-                {submitting ? 'Envoi…' : 'Confirmer ma demande'}
+                {submitting ? 'Envoi en cours…' : (<><Check size={18} />Confirmer ma demande</>)}
               </button>
             )}
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      </div>
+    </>
   );
 }
 
