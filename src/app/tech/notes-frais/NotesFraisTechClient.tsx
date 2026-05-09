@@ -29,12 +29,15 @@ const CATEGORIES: { v: CategorieNoteFrais; l: string }[] = [
   { v: 'autre',          l: 'Autre (legacy)' },
 ];
 
+// Badges statut — couleurs alignées sur la palette FoxO. Le statut
+// "remboursee" garde un purple distinct (sémantiquement séparé du flow
+// admin) — pas de token FoxO existant pour ce cas, on garde le hex.
 const STATUT_BADGE: Record<StatutNoteFrais, { fg: string; bg: string; label: string }> = {
-  brouillon:  { fg: '#6B6558', bg: '#EDEAE3', label: 'Brouillon'  },
-  soumise:    { fg: '#1B3A6B', bg: '#D6E4F7', label: 'Soumise'    },
-  approuvee:  { fg: '#1F6B45', bg: '#D4EDE2', label: 'Approuvée'  },
-  rejetee:    { fg: '#C4622D', bg: '#F7EDE5', label: 'Rejetée'    },
-  remboursee: { fg: '#7C3AED', bg: '#F5F3FF', label: 'Remboursée' },
+  brouillon:  { fg: 'var(--color-ink-mid)',     bg: 'var(--color-sand-mid)',    label: 'Brouillon'  },
+  soumise:    { fg: 'var(--color-navy)',        bg: 'var(--color-navy-pale)',   label: 'Soumise'    },
+  approuvee:  { fg: 'var(--color-ok)',          bg: 'var(--color-ok-light)',    label: 'Approuvée'  },
+  rejetee:    { fg: 'var(--color-terra)',       bg: 'var(--color-terra-light)', label: 'Rejetée'    },
+  remboursee: { fg: '#7C3AED',                  bg: '#F5F3FF',                  label: 'Remboursée' },
 };
 
 function fmtDate(iso: string | null): string {
@@ -232,7 +235,7 @@ export function NotesFraisTechClient({
               value={form.titre}
               onChange={(e) => setForm((f) => ({ ...f, titre: e.target.value }))}
               placeholder="Ex : Plein gasoil chantier Etterbeek"
-              className="w-full px-3 py-3 border border-[var(--card-border)] rounded-lg text-[14px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             />
           </FormField>
 
@@ -240,7 +243,7 @@ export function NotesFraisTechClient({
             <select
               value={form.categorie}
               onChange={(e) => setForm((f) => ({ ...f, categorie: e.target.value as CategorieNoteFrais }))}
-              className="w-full px-3 py-3 border border-[var(--card-border)] rounded-lg text-[14px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             >
               {CATEGORIES.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
             </select>
@@ -253,10 +256,10 @@ export function NotesFraisTechClient({
               return (
                 <div
                   className={
-                    'mt-1.5 text-[11px] font-bold inline-block px-2 py-0.5 rounded-full border ' +
+                    'mt-1.5 text-[11px] font-semibold inline-block px-2.5 py-1 rounded-full border ' +
                     (isFull
-                      ? 'bg-ok-light text-ok border-ok-mid'
-                      : 'bg-amber-light text-[#8A5A1A] border-[#E8C896]')
+                      ? 'bg-[var(--color-ok-light)] text-[var(--color-ok)] border-[var(--color-ok-mid)]'
+                      : 'bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] border-[var(--color-amber-foxo)]/30')
                   }
                   title={d.comptable === 'representation'
                     ? 'Frais de représentation — TVA non récupérable'
@@ -273,7 +276,7 @@ export function NotesFraisTechClient({
               type="date"
               value={form.date_depense}
               onChange={(e) => setForm((f) => ({ ...f, date_depense: e.target.value }))}
-              className="w-full px-3 py-3 border border-[var(--card-border)] rounded-lg text-[14px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             />
           </FormField>
 
@@ -283,7 +286,7 @@ export function NotesFraisTechClient({
               value={form.fournisseur}
               onChange={(e) => setForm((f) => ({ ...f, fournisseur: e.target.value }))}
               placeholder="Ex : Q8, Brico, Hubo…"
-              className="w-full px-3 py-3 border border-[var(--card-border)] rounded-lg text-[14px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             />
           </FormField>
 
@@ -296,7 +299,7 @@ export function NotesFraisTechClient({
               value={form.montant_ttc}
               onChange={(e) => setForm((f) => ({ ...f, montant_ttc: e.target.value }))}
               placeholder="0,00"
-              className="w-full px-3 py-3 border border-[var(--card-border)] rounded-lg text-[14px] font-mono bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] font-mono bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
             />
           </FormField>
 
@@ -306,7 +309,7 @@ export function NotesFraisTechClient({
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={2}
               placeholder="Précision, lien intervention…"
-              className="w-full px-3 py-3 border border-[var(--card-border)] rounded-lg text-[14px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399] resize-y"
+              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y"
             />
           </FormField>
 
@@ -316,12 +319,12 @@ export function NotesFraisTechClient({
               <img
                 src={photoUrl}
                 alt="ticket"
-                className="max-h-48 rounded-lg border border-[var(--card-border)] w-full object-contain bg-[var(--card-bg)]"
+                className="max-h-48 rounded-lg border border-[var(--color-sand-border)] w-full object-contain bg-[var(--color-cream)]"
               />
             ) : (
-              <label className="flex flex-col items-center justify-center w-full py-6 border-2 border-dashed border-[var(--card-border)] rounded-lg bg-[var(--card-bg)] text-center cursor-pointer hover:bg-sand-hover">
-                <Camera size={24} className="text-[var(--text-3)]" />
-                <span className="text-[12px] text-[var(--text-2)] mt-1">
+              <label className="flex flex-col items-center justify-center w-full py-7 border-2 border-dashed border-[var(--color-amber-foxo)]/40 rounded-lg bg-[var(--color-amber-light)]/40 text-center cursor-pointer hover:bg-[var(--color-amber-light)] transition-colors min-h-[44px]">
+                <Camera size={26} className="text-[var(--color-amber-foxo)]" />
+                <span className="text-[13px] font-medium text-[var(--color-ink)] mt-1.5">
                   {uploading ? 'Upload en cours…' : 'Toucher pour ajouter une photo'}
                 </span>
                 <input
@@ -342,7 +345,7 @@ export function NotesFraisTechClient({
               <button
                 type="button"
                 onClick={() => setPhotoUrl(null)}
-                className="text-[11px] text-terra hover:underline mt-1 font-bold"
+                className="text-[12px] text-[var(--color-terra)] hover:underline mt-2 font-semibold min-h-[44px]"
               >
                 Retirer la photo
               </button>
@@ -354,7 +357,7 @@ export function NotesFraisTechClient({
               type="button"
               onClick={() => { setShowForm(false); resetForm(); }}
               disabled={submitting || uploading}
-              className="flex-1 px-3 py-3 rounded-lg text-[13px] font-bold bg-sand-mid text-[var(--text-primary)] border border-[var(--card-border)] disabled:opacity-50"
+              className="flex-1 px-3.5 py-3 rounded-lg text-[14px] font-medium bg-[var(--color-cream)] text-[var(--color-ink)] border border-[var(--color-sand-border)] hover:bg-[var(--color-sand-hover)] disabled:opacity-50 min-h-[48px] transition-colors"
             >
               Annuler
             </button>
@@ -362,9 +365,9 @@ export function NotesFraisTechClient({
               type="button"
               onClick={handleCreate}
               disabled={submitting || uploading}
-              className="flex-[2] px-3 py-3 rounded-lg text-[13px] font-bold bg-[#34D399] text-white disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+              className="flex-[2] px-3.5 py-3 rounded-lg text-[14px] font-semibold bg-[var(--accent-tech)] text-[var(--color-cream)] disabled:opacity-50 inline-flex items-center justify-center gap-1.5 min-h-[48px]"
             >
-              {submitting ? '…' : <><Save size={14} />Enregistrer en brouillon</>}
+              {submitting ? '…' : <><Save size={16} />Enregistrer en brouillon</>}
             </button>
           </div>
         </section>
@@ -372,47 +375,51 @@ export function NotesFraisTechClient({
 
       {/* Liste des notes */}
       {notes.length === 0 && !showForm ? (
-        <div className="premium-card p-6 text-center text-[13px] text-[var(--text-3)]">
+        <div
+          className="bg-[var(--color-cream)] rounded-xl p-6 text-center text-[14px] text-[var(--color-ink-mid)]"
+          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        >
           Aucune note pour l&apos;instant. Touche « Nouvelle » pour ajouter une dépense.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {notes.map((n) => {
             const badge = STATUT_BADGE[n.statut];
             const isSubmitting = submittingId === n.id;
             return (
               <article
                 key={n.id}
-                className="premium-card p-3.5"
+                className="bg-[var(--color-cream)] rounded-xl p-4"
+                style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
               >
-                <div className="flex items-start justify-between gap-2 mb-1.5">
+                <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] font-mono text-[var(--text-3)]">
+                    <span className="text-[12px] font-mono text-[var(--color-ink-mid)]">
                       {fmtDate(n.date_depense)}
                     </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-sand-mid text-[var(--text-2)]">
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--color-sand-mid)] text-[var(--color-ink)]">
                       {CATEGORIES.find((c) => c.v === n.categorie)?.l ?? n.categorie}
                     </span>
                   </div>
                   <span
-                    className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full whitespace-nowrap"
+                    className="inline-block text-[11px] font-semibold uppercase tracking-[0.1em] px-2.5 py-1 rounded-full whitespace-nowrap"
                     style={{ color: badge.fg, background: badge.bg }}
                   >
                     {badge.label}
                   </span>
                 </div>
 
-                <div className="font-bold text-[14px] text-[var(--text-primary)]">
+                <div className="font-semibold text-[15px] text-[var(--color-ink)]">
                   {n.titre}
                 </div>
                 {n.fournisseur && (
-                  <div className="text-[11px] text-[var(--text-2)] mt-0.5">
+                  <div className="text-[12px] text-[var(--color-ink)] mt-1">
                     {n.fournisseur}
                   </div>
                 )}
 
-                <div className="flex items-baseline justify-between mt-2">
-                  <span className="text-[18px] font-extrabold font-mono text-[var(--text-primary)]">
+                <div className="flex items-baseline justify-between mt-3">
+                  <span className="font-sora text-[20px] font-semibold text-[var(--color-ink)] tracking-[-0.02em]">
                     {fmtMoney(n.montant_ttc)}
                   </span>
                   {n.statut === 'brouillon' && (
@@ -420,9 +427,9 @@ export function NotesFraisTechClient({
                       type="button"
                       onClick={() => handleSubmitOne(n.id)}
                       disabled={isSubmitting}
-                      className="bg-[#34D399] text-white px-3 py-1.5 rounded-md text-[11px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+                      className="bg-[var(--accent-tech)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-[12px] font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[40px]"
                     >
-                      {isSubmitting ? '…' : <><Send size={12} />Soumettre</>}
+                      {isSubmitting ? '…' : <><Send size={13} />Soumettre</>}
                     </button>
                   )}
                 </div>
@@ -440,7 +447,7 @@ export function NotesFraisTechClient({
 function FormField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="section-label block mb-1">
+      <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">
         {label}
       </label>
       {children}
