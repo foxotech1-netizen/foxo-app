@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import { Logo } from '@/components/Logo';
 import { PWARegister } from '@/components/PWARegister';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { MainContentTech } from '@components/layout/MainContentTech';
 import { TechBottomNav } from './TechBottomNav';
 
@@ -50,27 +49,26 @@ export default async function TechLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-sand text-ink">
-      {/* Bannière logo cohérente avec portal/rdv/admin — STRICTEMENT INTACTE */}
+      {/* Bannière logo — gradient navy FoxO fixe (post-migration mono-thème). */}
       <header
-        className="px-4 h-16 flex items-center justify-between sticky top-0 z-50 border-b border-[rgba(0,0,0,0.12)]"
-        style={{ background: 'var(--sidebar-logo-bg)' }}
+        className="px-4 h-16 flex items-center justify-between sticky top-0 z-50 border-b border-[rgba(255,255,255,0.08)]"
+        style={{ background: 'linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%)' }}
       >
         <Link href="/tech" className="flex items-center gap-2.5">
-          {/* Logo BLANC officiel sur fond sombre du TechHeader (var
-              --sidebar-logo-bg, foncé selon le thème actif). */}
+          {/* Logo BLANC sur fond navy permanent. */}
           <Logo size={36} variant="blanc" priority />
           <div>
-            <div className="text-[10px] text-[#7A6A50] uppercase tracking-[.15em] font-semibold">
+            <div className="text-[10px] uppercase tracking-[.15em] font-semibold" style={{ color: 'rgba(253, 251, 247, 0.55)' }}>
               Technicien
             </div>
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <ThemeToggle className="w-8 h-8 rounded-md flex items-center justify-center text-[14px] hover:bg-black/5" />
           <form action="/auth/logout" method="POST">
             <button
               type="submit"
-              className="text-[11px] px-2 text-ink-mid hover:text-ink min-h-[44px]"
+              className="text-[11px] px-2 min-h-[44px]"
+              style={{ color: 'rgba(253, 251, 247, 0.65)' }}
             >
               Déconnexion
             </button>

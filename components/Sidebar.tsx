@@ -10,10 +10,6 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
-import { ThemeToggle } from '@/components/ThemeToggle'
-import { ThemeSelector } from '@/components/ThemeSelector'
-import { useTheme } from '@/components/ThemeApplier'
-import { themes } from '@/lib/themes'
 import {
   LayoutGrid, BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
@@ -57,11 +53,11 @@ const PARTENAIRES_SUB: NavItem[] = [
 
 // ─── Styles inline (pas de Tailwind JIT requis) ────────────────────────────────
 const S = {
-  // Desktop sidebar
+  // Desktop sidebar — gradient navy FoxO fixe (calque sur PortalNav).
   sidebar: {
     width: 220,
     minHeight: '100vh',
-    background: 'var(--sidebar-bg)',
+    background: 'linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%)',
     display: 'flex' as const,
     flexDirection: 'column' as const,
     flexShrink: 0,
@@ -73,18 +69,17 @@ const S = {
   },
   // Zone logo
   logoZone: {
-    background: 'var(--sidebar-logo-bg)',
     padding: '20px 16px 16px',
     display: 'flex' as const,
     flexDirection: 'column' as const,
     alignItems: 'center' as const,
     gap: 8,
-    borderBottom: '1px solid rgba(0,0,0,.12)',
+    borderBottom: '1px solid rgba(255,255,255,.08)',
     flexShrink: 0,
   },
   logoLabel: {
     fontSize: 9,
-    color: 'var(--sidebar-logo-fg)',
+    color: 'rgba(253, 251, 247, 0.55)',
     textTransform: 'uppercase' as const,
     letterSpacing: '.15em',
     fontWeight: 600,
@@ -105,23 +100,26 @@ const S = {
     marginBottom: 2,
     fontSize: 13,
     fontWeight: active ? 600 : 500,
-    color: active ? '#F0ECE4' : '#C8C2B8',
-    background: active ? 'rgba(255,255,255,.09)' : 'transparent',
+    color: active ? 'var(--color-cream)' : 'rgba(253, 251, 247, 0.65)',
+    background: active ? 'rgba(168, 212, 232, 0.10)' : 'transparent',
+    borderLeft: active ? '2px solid var(--color-sky-foxo)' : '2px solid transparent',
+    paddingLeft: active ? 10 : 12,
     cursor: 'pointer',
     textDecoration: 'none',
     transition: 'all .15s',
     justifyContent: 'space-between' as const,
   }),
   badge: {
-    background: '#C4622D',
-    color: '#fff',
+    background: 'var(--color-amber-foxo)',
+    color: 'var(--color-cream)',
     borderRadius: 20,
     fontSize: 10,
-    fontWeight: 700,
+    fontWeight: 600,
     padding: '1px 7px',
     marginLeft: 'auto',
   },
-  // Footer (sticky bottom : ThemeSelector + Déconnexion)
+  // Footer (sticky bottom : juste Déconnexion — ThemeSelector retiré
+  // dans la migration mono-thème FoxO)
   footer: {
     padding: '10px 14px 14px',
     borderTop: '1px solid rgba(255,255,255,.05)',
@@ -141,8 +139,8 @@ const S = {
     bottom: 0,
     left: 0,
     right: 0,
-    background: 'linear-gradient(180deg, #2C2A24 0%, #1A1814 100%)',
-    borderTop: '1px solid #E2C9A1',
+    background: 'linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%)',
+    borderTop: '1px solid rgba(255,255,255,.08)',
     justifyContent: 'space-around' as const,
     alignItems: 'center' as const,
     padding: '8px 0',
@@ -155,10 +153,10 @@ const S = {
     alignItems: 'center',
     gap: 3,
     padding: '4px 12px',
-    color: active ? '#E2C9A1' : '#C8C2B8',
+    color: active ? 'var(--color-cream)' : 'rgba(253, 251, 247, 0.65)',
     textDecoration: 'none',
     fontSize: 10,
-    fontWeight: active ? 700 : 500,
+    fontWeight: active ? 600 : 500,
     minWidth: 48,
     minHeight: 44,
     justifyContent: 'center',
@@ -183,11 +181,8 @@ export default function Sidebar({
   const pathname = usePathname()
   const router   = useRouter()
   const supabase = createClient()
-  const theme = useTheme()
-  // Logo : variante blanche officielle si la sidebar du thème actif est
-  // sombre (cf. sidebarDark dans src/lib/themes.ts). Future-proof pour
-  // un thème sidebar claire (sidebarDark: false → variante 'noir').
-  const logoVariant: 'noir' | 'blanc' = themes[theme]?.sidebarDark ? 'blanc' : 'noir'
+  // Logo BLANC fixe — la sidebar admin est désormais sur gradient navy
+  // permanent (post-migration mono-thème FoxO).
 
   // Menu Partenaires : ouvert par défaut si on est déjà sur une de ses
   // sous-pages (lazy init useState — pas de useEffect → pas de souci
@@ -266,7 +261,7 @@ export default function Sidebar({
       <aside style={S.sidebar} className="foxo-sidebar-desktop">
         {/* Logo */}
         <div style={S.logoZone}>
-          <Logo size={90} variant={logoVariant} priority />
+          <Logo size={90} variant="blanc" priority />
           <span style={S.logoLabel}>Interface Admin</span>
         </div>
 
@@ -359,17 +354,17 @@ export default function Sidebar({
           ))}
         </nav>
 
-        {/* Footer : thème + déconnexion */}
+        {/* Footer : Déconnexion (sélecteur de thème retiré dans la
+            migration mono-thème FoxO). */}
         <div style={S.footer}>
-          <ThemeSelector className="foxo-theme-selector" />
           <button
             onClick={handleLogout}
             style={{
               background: 'rgba(255,255,255,.05)',
               border: '1px solid rgba(255,255,255,.08)',
               borderRadius: 7,
-              padding: '8px 10px',
-              color: '#8A8278',
+              padding: '10px 12px',
+              color: 'rgba(253, 251, 247, 0.65)',
               fontSize: 11,
               cursor: 'pointer',
               fontFamily: 'inherit',
@@ -381,11 +376,10 @@ export default function Sidebar({
         </div>
       </aside>
 
-      {/* ── MOBILE : header fixe en haut avec logo + toggle thème ─────────── */}
+      {/* ── MOBILE : header fixe en haut avec logo (toggle thème retiré) ─────────── */}
       <header className="foxo-mobile-header">
-        <Logo size={36} variant={logoVariant} />
+        <Logo size={36} variant="blanc" />
         <span className="foxo-mobile-header-label">Interface Admin</span>
-        <ThemeToggle className="foxo-theme-toggle-mobile" />
       </header>
 
       {/* ── MOBILE bottom nav ────────────────────────────────────────────────── */}
@@ -402,11 +396,11 @@ export default function Sidebar({
                 top: 6,
                 right: '50%',
                 transform: 'translateX(8px)',
-                background: '#C4622D',
-                color: '#fff',
+                background: 'var(--color-amber-foxo)',
+                color: 'var(--color-cream)',
                 borderRadius: 20,
                 fontSize: 9,
-                fontWeight: 700,
+                fontWeight: 600,
                 padding: '0 5px',
                 minWidth: 16,
                 textAlign: 'center',
@@ -423,26 +417,6 @@ export default function Sidebar({
         .foxo-sidebar-mobile  { display: none; }
         .foxo-mobile-header   { display: none; }
 
-        .foxo-theme-toggle-desktop {
-          width: 100%;
-          height: 34px;
-          border-radius: 7px;
-          background: rgba(255,255,255,.06);
-          border: 1px solid rgba(255,255,255,.1);
-          color: #C8C2B8;
-          font-size: 11px;
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          font-family: inherit;
-        }
-        .foxo-theme-toggle-mobile {
-          display: none;
-        }
-
         @media (max-width: 768px) {
           .foxo-sidebar-desktop { display: none !important; }
           .foxo-sidebar-mobile  { display: flex !important; }
@@ -451,8 +425,8 @@ export default function Sidebar({
             position: fixed;
             top: 0; left: 0; right: 0;
             z-index: 80;
-            background: var(--sidebar-logo-bg);
-            border-bottom: 1px solid rgba(0,0,0,.12);
+            background: linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%);
+            border-bottom: 1px solid rgba(255,255,255,.08);
             padding: max(env(safe-area-inset-top, 8px), 8px) 16px 8px;
             align-items: center;
             justify-content: center;
@@ -460,28 +434,10 @@ export default function Sidebar({
           }
           .foxo-mobile-header-label {
             font-size: 9px;
-            color: var(--sidebar-logo-fg);
+            color: rgba(253, 251, 247, 0.55);
             text-transform: uppercase;
             letter-spacing: .15em;
             font-weight: 600;
-          }
-          .foxo-theme-toggle-mobile {
-            display: flex !important;
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 36px;
-            height: 36px;
-            border-radius: 9px;
-            background: rgba(28,26,22,.12);
-            border: 1px solid rgba(28,26,22,.18);
-            color: #2C2A24;
-            font-size: 16px;
-            cursor: pointer;
-            align-items: center;
-            justify-content: center;
-            font-family: inherit;
           }
           /* Espace pour le header fixe en haut (#E2C9A1 + logo + label)
              et la bottom nav en bas. Marge confortable au-dessus de la

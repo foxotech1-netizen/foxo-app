@@ -286,8 +286,8 @@ export function PortalNav() {
             position: fixed;
             top: 0; left: 0; right: 0;
             z-index: 80;
-            background: var(--sidebar-logo-bg);
-            border-bottom: 1px solid rgba(0,0,0,.12);
+            background: linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%);
+            border-bottom: 1px solid rgba(255,255,255,.08);
             padding: max(env(safe-area-inset-top, 8px), 8px) 16px 8px;
             align-items: center;
             justify-content: center;
@@ -295,7 +295,7 @@ export function PortalNav() {
           }
           .foxo-portal-mobile-header-label {
             font-size: 10px;
-            color: var(--sidebar-logo-fg);
+            color: rgba(253, 251, 247, 0.65);
             font-weight: 600;
             text-align: center;
           }
