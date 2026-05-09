@@ -9,7 +9,7 @@ export default function NewClientPage() {
       <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">
-            Nouveau <span>client</span>
+            Nouveau client
           </h1>
         </div>
         <Link

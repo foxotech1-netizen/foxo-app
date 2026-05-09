@@ -130,7 +130,7 @@ export default async function PlanningPage({
     <>
       <div className="mb-4 pb-3.5 border-b border-[var(--color-sand-border)]">
         <h1 className="fxs-page-title mb-1">
-          <span>Planning</span>
+          Planning
         </h1>
         <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>

@@ -173,27 +173,23 @@ body {
     0 0 0 1px var(--color-navy-light);
 }
 
-/* H1 de page selon le pattern spec — texte light + accent navy semibold.
-   Usage : <h1 className="fxs-page-title">Titre <span>accent</span></h1>
-
-   Note cascade : le sélecteur `h1.fxs-page-title > span` (spécificité 0,1,2)
-   est volontairement plus spécifique que les utilities Tailwind v4 (0,1,0)
-   et que toutes les `dark:` variants pour garantir que l'accent reste navy
-   peu importe le thème actif (dark-amber injecte `--accent: #C8924A` qui
-   pouvait être perçu comme une amber-foxo dans le titre — la règle ici
-   coupe court à toute cascade ambiguë). */
+/* H1 de page — un seul style uniforme (Sora 600 ink), plus de découpage
+   en deux couleurs/graisses. Le pattern <span> d'accent navy a été retiré
+   à la demande produit ; les anciens spans de découpage qui resteraient
+   dans des h1.fxs-page-title héritent désormais du style parent (color +
+   font-weight) pour rester invisibles à la cascade. */
 .fxs-page-title {
   font-family: var(--font-sora), ui-sans-serif, sans-serif;
   font-size: 1.5rem;       /* 24px */
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--color-ink);
   line-height: 1;
 }
 h1.fxs-page-title > span,
 .fxs-page-title > span {
-  font-weight: 600;
-  color: var(--color-navy);
+  font-weight: inherit;
+  color: inherit;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

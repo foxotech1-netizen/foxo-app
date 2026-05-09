@@ -233,9 +233,7 @@ export function NewRequestClient({
     <div className="space-y-5 max-w-[760px] mx-auto">
       <div className="pb-3.5 border-b border-[var(--color-sand-border)]">
         <h1 className="fxs-page-title mb-1">
-          {isPartner
-            ? <>Confier une <span>mission</span></>
-            : <>Nouvelle demande d&apos;<span>intervention</span></>}
+          {isPartner ? 'Confier une mission' : 'Nouvelle demande d\'intervention'}
         </h1>
         <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>

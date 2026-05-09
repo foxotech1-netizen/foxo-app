@@ -1044,7 +1044,7 @@ export function InterventionsClient({
       <div className="px-6 pt-6 flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)] flex-shrink-0">
         <div>
           <h1 className="fxs-page-title mb-1">
-            Tableau de <span>bord</span>
+            Tableau de bord
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide capitalize">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
