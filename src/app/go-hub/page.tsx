@@ -45,9 +45,16 @@ export default function GoHubPage() {
       }}
     >
       <header className="w-full pt-16 pb-8 flex flex-col items-center px-4">
-        <Logo size={56} variant="blanc" priority />
+        {/* Logo responsive 144/160/200px (cohérence avec hero RDV
+            et app-hub partenaires). */}
+        <Logo
+          size={200}
+          variant="blanc"
+          priority
+          className="w-[144px] h-[144px] sm:w-[160px] sm:h-[160px] lg:w-[200px] lg:h-[200px]"
+        />
         <div
-          className="w-32 h-px mt-6 mb-4"
+          className="w-32 h-px mt-8 mb-4"
           style={{ background: 'rgba(255,255,255,0.15)' }}
         />
         <div
