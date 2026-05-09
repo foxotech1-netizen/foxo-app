@@ -10,6 +10,12 @@ import {
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { BriefingIA } from '@/components/admin/BriefingIA';
+import { ChatIA } from '@/components/admin/ChatIA';
+import { NextMissions } from '@/components/admin/NextMissions';
+import { Accordion } from '@/components/ui/Accordion';
+import { SyndicMapWrapper, type SyndicMapPin } from '@/components/portal/SyndicMapWrapper';
 
 // Avatars techniciens — palette FoxO sémantique. Cycle 4 couleurs pour
 // différencier visuellement chaque tech dans la grille DashboardTechs.
@@ -49,14 +55,23 @@ export function Dashboard({
   onOpenIntervention,
   statutFilter,
   nowMs,
+  adminPins = [],
 }: {
   rows: InterventionRow[];
   dashboard: DashboardData;
   onOpenIntervention: (id: string) => void;
   statutFilter?: string | null;
   nowMs: number;
+  adminPins?: SyndicMapPin[];
 }) {
   const today = useMemo(() => new Date(nowMs), [nowMs]);
+
+  // Breakpoints — alignés sur Tailwind (sm=640, md=768, lg=1024).
+  // Sur SSR/initial render tous renvoient false → on rend la variante
+  // mobile comme fallback safe (DOM léger, accordéon fermé).
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isTabletUp = useMediaQuery('(min-width: 768px)');
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // ── Section 1 : stats temps réel ────────────────────────────────────────
   const stats = useMemo(() => {
@@ -77,6 +92,15 @@ export function Dashboard({
     [rows],
   );
 
+  // ── Missions du jour (toutes statuts actifs sauf cloturee) ──────────────
+  // Sert à NextMissions — distinct de todoToday.confirmedToday qui ne garde
+  // que les confirmées strictes pour la TodoCard "Confirmées aujourd'hui".
+  const todayMissions = useMemo(() => {
+    return rows
+      .filter((r) => r.statut !== 'cloturee' && isSameDay(r.creneau_debut, today))
+      .sort((a, b) => (a.creneau_debut ?? '').localeCompare(b.creneau_debut ?? ''));
+  }, [rows, today]);
+
   // ── Section 3 : à faire aujourd'hui ─────────────────────────────────────
   const todoToday = useMemo(() => {
     const confirmedToday = rows.filter(
@@ -94,47 +118,30 @@ export function Dashboard({
     return { confirmedToday, rapportToSend, occupantsPending };
   }, [rows, today, dashboard.occupantsPendingByIv]);
 
-  return (
+  // Counts agrégés pour BriefingIA — dérivés des données déjà chargées
+  // côté server (cf. admin/page.tsx) : pas de re-fetch.
+  const briefingCounts = useMemo(() => ({
+    interventionsToday: todoToday.confirmedToday.length,
+    urgences: stats.urgent,
+    mailsNonLus: newMailIvs.length,
+  }), [todoToday.confirmedToday.length, stats.urgent, newMailIvs.length]);
+
+  // ── Sections "détaillées" ─────────────────────────────────────────────
+  // Bloc commun rendu : (a) inline en tablette, (b) dans la colonne
+  // gauche en desktop, (c) dans l'accordéon en mobile. Un seul source
+  // of truth pour ces sections legacy.
+  const detailedSections = (
     <div className="space-y-5">
-      {/* ── 1. Stats temps réel ──────────────────────────────────────────── */}
+      {/* 1. Stats temps réel */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <StatCard
-          num={stats.nouvelles}
-          label="Nouvelles demandes"
-          href="/admin?statut=nouvelle"
-          active={statutFilter === 'nouvelle'}
-        />
-        <StatCard
-          num={stats.enCours}
-          label="En cours"
-          accent
-          href="/admin?statut=en_cours"
-          active={statutFilter === 'en_cours'}
-        />
-        <StatCard
-          num={stats.enSuspens}
-          label="En suspens"
-          warning={stats.enSuspens > 0}
-          href="/admin?statut=en_suspens"
-          active={statutFilter === 'en_suspens'}
-        />
-        <StatCard
-          num={stats.rapports}
-          label="Rapports à envoyer"
-          amber={stats.rapports > 0}
-          href="/admin?statut=rapport"
-          active={statutFilter === 'rapport'}
-        />
-        <StatCard
-          num={stats.closedThisMonth}
-          label="Clôturées ce mois"
-          muted
-          href="/admin?statut=cloturee"
-          active={statutFilter === 'cloturee'}
-        />
+        <StatCard num={stats.nouvelles} label="Nouvelles demandes" href="/admin?statut=nouvelle" active={statutFilter === 'nouvelle'} />
+        <StatCard num={stats.enCours} label="En cours" accent href="/admin?statut=en_cours" active={statutFilter === 'en_cours'} />
+        <StatCard num={stats.enSuspens} label="En suspens" warning={stats.enSuspens > 0} href="/admin?statut=en_suspens" active={statutFilter === 'en_suspens'} />
+        <StatCard num={stats.rapports} label="Rapports à envoyer" amber={stats.rapports > 0} href="/admin?statut=rapport" active={statutFilter === 'rapport'} />
+        <StatCard num={stats.closedThisMonth} label="Clôturées ce mois" muted href="/admin?statut=cloturee" active={statutFilter === 'cloturee'} />
       </div>
 
-      {/* ── 2. Alertes prioritaires ──────────────────────────────────────── */}
+      {/* 2. Alertes prioritaires */}
       {stats.urgent > 0 && (
         <div className="flex items-center gap-3 bg-gradient-to-r from-[var(--color-terra-light)] to-[rgba(247,237,229,0.3)] border border-[var(--color-terra-mid)] border-l-[3px] border-l-[var(--color-terra)] px-4 py-2.5 rounded-r-lg">
           <div className="w-[22px] h-[22px] rounded-md bg-[var(--color-terra)] text-[var(--color-cream)] flex items-center justify-center text-sm font-semibold font-sora flex-shrink-0">
@@ -147,7 +154,7 @@ export function Dashboard({
         </div>
       )}
 
-      {/* ── 2bis. Réponses occupants récentes (< 48 h) ───────────────────── */}
+      {/* 2bis. Réponses occupants récentes (< 48 h) */}
       {dashboard.recentResponses.length > 0 && (
         <RecentResponsesCard
           responses={dashboard.recentResponses}
@@ -156,7 +163,7 @@ export function Dashboard({
         />
       )}
 
-      {/* ── 3. Nouvelles demandes mail (cron analyse auto) ───────────────── */}
+      {/* 3. Nouvelles demandes mail (cron analyse auto) */}
       {newMailIvs.length > 0 && (
         <NewMailSection
           mails={newMailIvs}
@@ -164,13 +171,10 @@ export function Dashboard({
         />
       )}
 
-      {/* ── 4. À faire aujourd'hui ───────────────────────────────────────── */}
+      {/* 4. À faire aujourd'hui */}
       <section>
-        <h3 className="section-label mb-2">
-          À faire aujourd&apos;hui
-        </h3>
+        <h3 className="section-label mb-2">À faire aujourd&apos;hui</h3>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Confirmées du jour */}
           <TodoCard
             title="Confirmées aujourd'hui"
             count={todoToday.confirmedToday.length}
@@ -184,20 +188,13 @@ export function Dashboard({
                 onClick={() => onOpenIntervention(iv.id)}
                 className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
               >
-                <span className="font-mono text-[11px] text-navy font-bold">
-                  {fmtTime(iv.creneau_debut)}
-                </span>
-                <span className="font-bold text-ink truncate flex-1">
-                  {iv.acp?.nom ?? '—'}
-                </span>
-                <span className="text-[10px] text-ink-muted">
-                  {iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}
-                </span>
+                <span className="font-mono text-[11px] text-navy font-bold">{fmtTime(iv.creneau_debut)}</span>
+                <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
+                <span className="text-[10px] text-ink-muted">{iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}</span>
               </button>
             ))}
           </TodoCard>
 
-          {/* Rapports à envoyer */}
           <TodoCard
             title="Rapports à valider/envoyer"
             count={todoToday.rapportToSend.length}
@@ -212,14 +209,11 @@ export function Dashboard({
                 className="w-full text-left bg-[var(--color-sand)] hover:bg-ok-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
               >
                 <span className="font-mono text-[11px] text-ok font-bold">{iv.ref ?? '?'}</span>
-                <span className="font-bold text-ink truncate flex-1">
-                  {iv.acp?.nom ?? '—'}
-                </span>
+                <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
               </button>
             ))}
           </TodoCard>
 
-          {/* Occupants en attente */}
           <TodoCard
             title="Occupants à relancer"
             count={todoToday.occupantsPending.length}
@@ -245,6 +239,65 @@ export function Dashboard({
           </TodoCard>
         </div>
       </section>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-3 sm:gap-4">
+      {/* Briefing IA — toujours en tête, taille adaptive selon device */}
+      <BriefingIA counts={briefingCounts} compact={isMobile} />
+
+      {/* Mobile + Tablet : Missions du jour + Chat express juste après
+          le briefing. En desktop ces composants migrent dans la colonne
+          droite (cf. plus bas). */}
+      {!isDesktop && (
+        <>
+          <NextMissions
+            missions={todayMissions}
+            limit={isMobile ? 3 : 5}
+            onOpenIntervention={onOpenIntervention}
+          />
+          <ChatIA compact={isMobile} />
+        </>
+      )}
+
+      {/* Desktop (≥1024px) : layout 2 colonnes. Gauche = sections legacy
+          (KPIs / mails / todo). Droite = NextMissions + ChatIA. */}
+      {isDesktop && (
+        <div className="grid grid-cols-[1.4fr_1fr] gap-4 items-start">
+          <div>{detailedSections}</div>
+          <div className="flex flex-col gap-3">
+            <NextMissions
+              missions={todayMissions}
+              limit={5}
+              onOpenIntervention={onOpenIntervention}
+            />
+            <ChatIA compact={false} />
+          </div>
+        </div>
+      )}
+
+      {/* Tablet (768-1023px) : sections détaillées rendues directement
+          (pas d'accordéon — assez d'espace pour tout afficher). */}
+      {isTabletUp && !isDesktop && detailedSections}
+
+      {/* Mobile (<768px) : sections détaillées + carte planquées
+          dans un accordéon pour garder le focus sur le briefing/chat.
+          Badge urgences en cas d'alerte pour pousser à l'ouvrir. */}
+      {isMobile && (
+        <Accordion
+          title="Tableau de bord détaillé"
+          defaultOpen={false}
+          badge={stats.urgent > 0 ? stats.urgent : undefined}
+        >
+          <div className="space-y-3 pt-1">
+            {adminPins.length > 0 && (
+              <SyndicMapWrapper pins={adminPins} basePath="/admin/interventions" />
+            )}
+            {detailedSections}
+          </div>
+        </Accordion>
+      )}
     </div>
   );
 }

@@ -158,6 +158,7 @@ export function InterventionsClient({
   adminEmail = '',
   fullPage = false,
   initialSelectedId = null,
+  adminPins = [],
 }: {
   initialRows: InterventionRow[];
   techs: Utilisateur[];
@@ -166,6 +167,10 @@ export function InterventionsClient({
   serverNowIso: string;
   /** Email admin connecté — alimente MessagesPanel.currentUserEmail. */
   adminEmail?: string;
+  /** Pins de la carte admin — propagés au Dashboard pour l'accordéon
+      mobile (la même donnée alimente la carte server-rendered en
+      desktop, hidden md:block côté admin/page.tsx). */
+  adminPins?: import('@/components/portal/SyndicMapWrapper').SyndicMapPin[];
   // Mode page complète (route /admin/interventions/[id]) — masque la
   // liste, étend le drawer en pleine largeur, et auto-sélectionne
   // l'intervention `initialSelectedId`. Le bouton "Fermer" devient
@@ -1089,7 +1094,11 @@ export function InterventionsClient({
         </div>
       )}
 
-      {/* Dashboard sections 1-4 : Stats → Alertes → Mail → À faire aujourd'hui */}
+      {/* Dashboard adaptive : Briefing IA + Missions du jour + Chat
+          express + sections détaillées (KPIs, mails, todo). Sur mobile
+          le détail bascule dans un accordéon ; la carte admin
+          server-rendered est masquée et re-rendue dans cet accordéon
+          via adminPins. */}
       <div className="px-6 pt-4 flex-shrink-0">
         <Dashboard
           rows={rows}
@@ -1097,6 +1106,7 @@ export function InterventionsClient({
           onOpenIntervention={openDrawer}
           statutFilter={statutParam}
           nowMs={nowMs}
+          adminPins={adminPins}
         />
       </div>
 

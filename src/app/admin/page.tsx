@@ -237,7 +237,12 @@ export default async function AdminPipelinePage() {
   return (
     <>
       {adminPins.length > 0 && (
-        <section className="px-4 pb-4">
+        // Carte des interventions : visible uniquement à partir du breakpoint
+        // tablette (md ≥ 768px). Sur mobile, le composant Dashboard la
+        // re-rend dans son accordéon "Tableau de bord détaillé" via la prop
+        // adminPins propagée — évite de pousser la carte tout en haut sur
+        // mobile au détriment du briefing IA.
+        <section className="px-4 pb-4 hidden md:block">
           <h2 className="section-label mb-3">Carte des interventions</h2>
           <SyndicMapWrapper pins={adminPins} basePath="/admin/interventions" />
         </section>
@@ -249,6 +254,7 @@ export default async function AdminPipelinePage() {
         dashboard={dashboard}
         serverNowIso={serverNowIso}
         adminEmail={adminEmail}
+        adminPins={adminPins}
       />
     </>
   );

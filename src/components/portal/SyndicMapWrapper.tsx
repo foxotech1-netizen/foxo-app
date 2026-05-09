@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 
 const SyndicMap = dynamic(() => import('./SyndicMap'), { ssr: false });
 
-type MapPin = {
+export type SyndicMapPin = {
   id: string;
   lat: number;
   lng: number;
@@ -15,6 +15,7 @@ type MapPin = {
   priorite?: string;
   type: string | null;
 };
+type MapPin = SyndicMapPin;
 
 type FilterKey = 'toutes' | 'en_cours' | 'nouvelles' | 'rapport' | 'urgentes';
 
