@@ -22,7 +22,6 @@ import {
   type CalendarWatchStatus,
 } from './actions';
 import { SocieteSection } from './SocieteSection';
-import { ThemePicker } from '@/components/ThemePicker';
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'jamais';
@@ -68,7 +67,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'GÉNÉRAL',
     items: [
       { id: 'societe',   label: 'Société & identité', icon: Building2, keywords: ['société', 'nom', 'tva', 'bce', 'iban', 'adresse', 'logo', 'téléphone', 'email', 'légal', 'identité'] },
-      { id: 'apparence', label: 'Apparence',          icon: Palette,   keywords: ['thème', 'theme', 'couleur', 'sombre', 'clair', 'planning', 'palette', 'logo'] },
+      { id: 'apparence', label: 'Apparence',          icon: Palette,   keywords: ['couleur', 'planning', 'palette'] },
     ],
   },
   {
@@ -370,7 +369,6 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
           ref={(el) => { sectionsRef.current.apparence = el; }}
           className="space-y-5"
         >
-          <ThemePicker />
           <Section
             title="Couleurs du planning"
             desc="Couleurs des créneaux par type et par technicien. S'appliquent dans /admin/planning et sur les events Google Calendar (mappés sur le colorId le plus proche)."
