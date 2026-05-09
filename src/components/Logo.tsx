@@ -11,11 +11,15 @@ export function Logo({
   priority = false,
   className,
   variant = 'blue',
+  style,
 }: {
   size?: number;
   priority?: boolean;
   className?: string;
   variant?: 'blue' | 'black';
+  /** Style inline additionnel (ex: filter pour rendre le logo blanc sur
+   *  fond sombre). Mergé avec display/objectFit gérés en interne. */
+  style?: React.CSSProperties;
 }) {
   const src = variant === 'black'
     ? '/foxo-logo-noir-transparent.png'
@@ -28,7 +32,7 @@ export function Logo({
       height={size}
       priority={priority}
       className={className}
-      style={{ display: 'block', objectFit: 'contain' }}
+      style={{ display: 'block', objectFit: 'contain', ...style }}
     />
   );
 }
