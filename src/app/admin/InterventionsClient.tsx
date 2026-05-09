@@ -128,7 +128,7 @@ function Pipebar({ statut }: { statut: StatutIntervention }) {
   if (statut === 'en_suspens') {
     return (
       <div className="flex gap-0.5 mt-1.5 items-center">
-        <div className="h-[3px] flex-1 rounded-md bg-[#F7EDE5] border border-[#E8C4AF]" />
+        <div className="h-[3px] flex-1 rounded-md bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)]" />
         <span className="text-[9px] text-terra font-bold ml-1.5 whitespace-nowrap font-mono">
           EN SUSPENS
         </span>
@@ -1553,8 +1553,8 @@ export function InterventionsClient({
                         const text = fromCol ?? (m ? m[1].trim() : null);
                         if (!text) return null;
                         return (
-                          <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-                            <div className="font-bold mb-1 text-[#8A5A1A] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
+                          <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
+                            <div className="font-bold mb-1 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
                               <ClipboardList size={14} />Action requise
                             </div>
                             <div className="text-[#5A3F15] dark:text-[#F0D896]">{text}</div>
@@ -1738,7 +1738,7 @@ export function InterventionsClient({
                               {[selected.delegue.prenom, selected.delegue.nom].filter(Boolean).join(' ') || selected.delegue.email}
                             </span>
                             {selected.source === 'mail' && (
-                              <span className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
+                              <span className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[var(--color-amber-foxo)]"
                                     title="Délégué identifié automatiquement depuis le mail">
                                 <Mail size={10} />mail
                               </span>
@@ -2028,7 +2028,7 @@ export function InterventionsClient({
                             : (<span>En attente</span>);
                           const confColor = o.conf === 'confirme' ? 'text-ok dark:text-[#7AC9A0]'
                             : o.conf === 'decline' ? 'text-terra'
-                            : 'text-[#8A5A1A] dark:text-[#E8C896]';
+                            : 'text-[var(--color-amber-foxo)] dark:text-[#E8C896]';
                           // Marqueur "extrait du mail" posé par le cron
                           const fromMail = (o.instructions ?? '').includes('[extrait du mail]');
                           return (
@@ -2039,7 +2039,7 @@ export function InterventionsClient({
                                   {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">· {o.etage}</span> : null}
                                   {o.proposed_creneau_debut && (
                                     <span
-                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[#D6E4F7] text-[#1B3A6B] border border-[#A8C4F2] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
+                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[var(--color-navy-light)] text-[var(--color-navy)] border border-[var(--color-navy-light)] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
                                       title="L'occupant a proposé un autre créneau"
                                     >
                                       <RefreshCw size={10} />Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -2055,7 +2055,7 @@ export function InterventionsClient({
                                   )}
                                   {fromMail && (
                                     <span
-                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[#A17244]"
+                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[var(--color-amber-foxo)]"
                                       title="Occupant extrait automatiquement depuis les CC du mail"
                                     >
                                       <Mail size={10} />mail
@@ -2109,7 +2109,7 @@ export function InterventionsClient({
                                       templateKey: 'sms_template_lien_occupant',
                                       preferredChannel: o.contact_preference ?? null,
                                     })}
-                                    className="text-[10px] bg-[#A17244] text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
+                                    className="text-[10px] bg-[var(--color-amber-foxo)] text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
                                   >
                                     <Smartphone size={12} />SMS lien
                                   </button>
@@ -2169,7 +2169,7 @@ export function InterventionsClient({
                                     return n;
                                   });
                                 }}
-                                className="w-4 h-4 accent-[#1B3A6B]"
+                                className="w-4 h-4 accent-[var(--color-navy)]"
                               />
                               <PrefIcon size={14} className="flex-shrink-0" />
                               <span className="font-bold flex-1 truncate">
@@ -2211,7 +2211,7 @@ export function InterventionsClient({
                         type="button"
                         onClick={sendConfirmMail}
                         disabled={confirmMailPending}
-                        className="bg-[#1F6B45] text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+                        className="bg-[var(--color-ok)] text-[var(--color-cream)] px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
                       >
                         {confirmMailPending ? 'Envoi…' : (<><Send size={14} />Envoyer confirmation au client</>)}
                       </button>
@@ -2239,7 +2239,7 @@ export function InterventionsClient({
                         type="button"
                         onClick={() => { setDeleteConfirmOpen(true); setDeleteMsg(null); }}
                         className="w-full bg-terra text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
-                        style={{ background: '#C4622D' }}
+                        style={{ background: 'var(--color-terra)' }}
                       >
                         <Trash2 size={14} />Supprimer cette intervention
                       </button>
@@ -2349,7 +2349,7 @@ export function InterventionsClient({
                       <button
                         onClick={resendRapport}
                         disabled={emailPending}
-                        className="w-full bg-[#A17244] text-white py-2.5 rounded-lg text-xs font-bold hover:bg-[#8A613B] disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                        className="w-full bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-2.5 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
                       >
                         {emailPending ? 'Envoi…' : (<><Mail size={14} />Envoyer le rapport au syndic</>)}
                       </button>
@@ -2627,7 +2627,7 @@ function SoftDeleteRowModal({
             onClick={onConfirm}
             disabled={pending}
             className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
-            style={{ background: '#C4622D' }}
+            style={{ background: 'var(--color-terra)' }}
           >
             {pending ? 'Suppression…' : 'Confirmer'}
           </button>
@@ -2677,7 +2677,7 @@ function DeleteInterventionModal({
             onClick={onConfirm}
             disabled={pending}
             className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
-            style={{ background: '#C4622D' }}
+            style={{ background: 'var(--color-terra)' }}
           >
             {pending ? 'Suppression…' : 'Supprimer définitivement'}
           </button>
@@ -2757,7 +2757,7 @@ function ReanalysisPanel({
           onClick={onApply}
           disabled={pending}
           className="bg-ok text-white px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
-          style={{ background: '#1F6B45' }}
+          style={{ background: 'var(--color-ok)' }}
         >
           {pending ? '…' : (<><CheckCircle2 size={14} />Appliquer les modifications</>)}
         </button>
@@ -3157,9 +3157,9 @@ function AcpSuggestionBanner({
   const labelAcp = acpName ?? suggestion.nom_extrait;
 
   return (
-    <div className="mb-2 bg-amber-light border border-[#E8C896] rounded-md px-3 py-2 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
+    <div className="mb-2 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-md px-3 py-2 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[12px] text-[#8A5A1A] dark:text-[#F0D896] flex-1 min-w-[200px]">
+        <div className="text-[12px] text-[var(--color-amber-foxo)] dark:text-[#F0D896] flex-1 min-w-[200px]">
           <span className="font-bold inline-flex items-center gap-1"><Lightbulb size={12} />ACP suggérée :</span>{' '}
           <span className="font-semibold">{labelAcp}</span>
           <span className="text-[11px] opacity-80"> (score {scorePct} %)</span>
@@ -3459,8 +3459,8 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
   return (
     <div className="space-y-4">
       {data.recidives_detectees > 0 && (
-        <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-          <div className="font-bold text-[#8A5A1A] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
+        <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
+          <div className="font-bold text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
             <RefreshCw size={14} />{data.recidives_detectees} récidive{data.recidives_detectees > 1 ? 's' : ''} détectée{data.recidives_detectees > 1 ? 's' : ''}
           </div>
           <div className="text-[11px] text-[#5A3F15] dark:text-[#F0D896]">
@@ -3542,7 +3542,7 @@ function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: st
           <span className="font-mono text-[11px] font-bold text-navy dark:text-[#A8C4F2]">{iv.ref ?? '?'}</span>
           <span className="text-[10px] font-mono text-ink-muted dark:text-[#C8C2B8]">{date}</span>
           {iv.is_recidive && (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[#8A5A1A] border border-[#E8C896]">
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30">
               <RefreshCw size={10} />Récidive
             </span>
           )}
@@ -3682,8 +3682,8 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
   return (
     <>
       {doublonLink && (
-        <div className="bg-amber-light border border-[#E8C896] rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-          <div className="font-bold mb-0.5 text-[#8A5A1A] inline-flex items-center gap-1.5 dark:text-[#F0D896]"><AlertTriangle size={12} />Doublon possible</div>
+        <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
+          <div className="font-bold mb-0.5 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]"><AlertTriangle size={12} />Doublon possible</div>
           <div className="text-[#5A3F15] dark:text-[#F0D896]">
             Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="font-mono font-bold underline">{doublonLink.liee_ref ?? '?'}</Link>
             {doublonLink.note && <> · <span className="italic">{doublonLink.note}</span></>}
@@ -3883,7 +3883,7 @@ function LienBadge({ type, source }: { type: string; source: string }) {
     : type === 'suivi' ? 'Suivi'
     : type === 'doublon' ? 'Doublon'
     : 'Lié';
-  const color = type === 'doublon' ? 'bg-amber-light text-[#8A5A1A] border-[#E8C896]'
+  const color = type === 'doublon' ? 'bg-amber-light text-[var(--color-amber-foxo)] border-[var(--color-amber-foxo)]/30'
     : type === 'meme_dossier' ? 'bg-navy-pale text-navy border-navy-light'
     : type === 'suivi' ? 'bg-ok-light text-ok border-ok-mid'
     : 'bg-sand-mid text-ink-mid border-sand-border';
