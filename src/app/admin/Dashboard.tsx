@@ -182,7 +182,7 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-[var(--main-bg)] hover:bg-navy-pale border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
               >
                 <span className="font-mono text-[11px] text-navy font-bold">
                   {fmtTime(iv.creneau_debut)}
@@ -209,7 +209,7 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-[var(--main-bg)] hover:bg-ok-light border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                className="w-full text-left bg-[var(--color-sand)] hover:bg-ok-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
               >
                 <span className="font-mono text-[11px] text-ok font-bold">{iv.ref ?? '?'}</span>
                 <span className="font-bold text-ink truncate flex-1">
@@ -231,7 +231,7 @@ export function Dashboard({
                 key={iv.id}
                 type="button"
                 onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-[var(--main-bg)] hover:bg-amber-light border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
+                className="w-full text-left bg-[var(--color-sand)] hover:bg-amber-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <span className="font-sora text-[11px] text-[var(--color-amber-foxo)] font-semibold tracking-[0.01em]">{iv.ref ?? '?'}</span>
@@ -354,7 +354,7 @@ export function DashboardTechs({
                       key={iv.id}
                       type="button"
                       onClick={() => onOpenIntervention(iv.id)}
-                      className="w-full text-left bg-[var(--main-bg)] hover:bg-navy-pale border border-[var(--card-border-2)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                      className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
                     >
                       <span className="font-mono font-bold text-navy text-[11px]">
                         {fmtTime(iv.creneau_debut)}
@@ -574,7 +574,7 @@ function RecentResponsesCard({
       </h3>
       <div
         className="border rounded-2xl divide-y divide-sand-mid overflow-hidden"
-        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+        style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
       >
         {responses.slice(0, 8).map((r) => {
           const tag = reponseLabel(r);
@@ -858,7 +858,7 @@ function NewMailSection({
 
       <div
         className="border rounded-2xl p-3"
-        style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+        style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
       >
         <div className="space-y-1.5">
           {visibleMails.map((iv) => {
@@ -871,7 +871,7 @@ function NewMailSection({
             return (
               <div
                 key={iv.id}
-                className="row-hover relative bg-[var(--card-bg)] border border-[var(--card-border)] rounded-md flex items-center gap-2 px-2.5 py-2 text-[12px]"
+                className="row-hover relative bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-md flex items-center gap-2 px-2.5 py-2 text-[12px]"
               >
                 <button
                   type="button"
@@ -923,7 +923,7 @@ function NewMailSection({
                   <div
                     ref={menuRef}
                     className="absolute top-full right-0 mt-1 z-20 border rounded-md shadow-lg min-w-[200px]"
-                    style={{ background: 'var(--card-bg)', borderColor: 'var(--card-border)' }}
+                    style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <MenuItem
@@ -977,7 +977,7 @@ function NewMailSection({
         >
           <div
             className="border border-terra rounded-2xl p-5 w-full max-w-[420px]"
-            style={{ background: 'var(--card-bg)' }}
+            style={{ background: 'var(--color-cream)'}}
           >
             <h2 className="text-[14px] font-extrabold text-terra mb-2 flex items-center gap-1.5">
               <Trash2 size={16} aria-hidden /> Supprimer cette intervention
@@ -994,7 +994,7 @@ function NewMailSection({
                 type="button"
                 onClick={() => setConfirmDeleteId(null)}
                 disabled={deleting}
-                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-[var(--card-border-2)] bg-[var(--main-bg)] text-ink-mid disabled:opacity-50"
+                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-[var(--color-sand-mid)] bg-[var(--color-sand)] text-ink-mid disabled:opacity-50"
               >
                 Annuler
               </button>
