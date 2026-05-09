@@ -25,7 +25,9 @@ const NAV_MAIN: NavItem[] = [
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
   { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
   { href: '/admin/techniciens', Icon: Wrench,      label: 'Techniciens' },
-  { href: '/admin/assistant',   Icon: Sparkles,    label: 'Assistant'   },
+  // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA
+  // dédiée sera fonctionnelle (chat plein écran avec historique).
+  // { href: '/admin/assistant',   Icon: Sparkles,    label: 'Assistant'   },
 ]
 
 // NAV_GESTION ne contient PLUS Syndics — celui-ci est désormais le 1er
@@ -251,7 +253,9 @@ export default function Sidebar({
     { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
     { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
     { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
-    { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
+    // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA
+    // dédiée sera fonctionnelle (chat plein écran avec historique).
+    // { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
     { href: '/admin/home',      Icon: LayoutGrid, label: 'Menu'     },
   ]
 
