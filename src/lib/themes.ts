@@ -3,10 +3,11 @@ export type ThemeKey = 'dark-amber' | 'warm-light' | 'foxo-blue';
 export const themes = {
   'dark-amber': {
     name: 'Sombre Amber',
-    // Si la sidebar du thème est sombre, le logo (noir d'origine) est
-    // inversé en blanc via filter brightness-0 invert. Future-proof :
-    // un thème à sidebar claire mettra `sidebarDark: false` et
-    // affichera le logo natif.
+    // Si la sidebar du thème est sombre, le composant <Logo /> sélectionne
+    // automatiquement la variante 'blanc' (cf. components/Sidebar.tsx :
+    // logoVariant = sidebarDark ? 'blanc' : 'noir'). Future-proof : un
+    // thème à sidebar claire mettra `sidebarDark: false` et utilisera
+    // la variante 'noir' par défaut.
     sidebarDark: true,
     // Hero banner /admin/home — bandeau qui surplombe la grille de
     // modules. warm-light garde le sable d'origine ; les autres thèmes

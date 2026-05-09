@@ -56,17 +56,9 @@ export default async function TechLayout({
         style={{ background: 'var(--sidebar-logo-bg)' }}
       >
         <Link href="/tech" className="flex items-center gap-2.5">
-          {/* Logo BLANC sur fond navy/sombre du TechHeader. Le filter CSS
-              brightness(0) invert(1) écrase tous les pixels en noir pur
-              puis inverse en blanc — la transparence du PNG est préservée.
-              Plus fiable que les classes Tailwind brightness-0/invert qui
-              ne composaient pas correctement dans certains contextes. */}
-          <Logo
-            size={36}
-            variant="black"
-            priority
-            style={{ filter: 'brightness(0) invert(1)' }}
-          />
+          {/* Logo BLANC officiel sur fond sombre du TechHeader (var
+              --sidebar-logo-bg, foncé selon le thème actif). */}
+          <Logo size={36} variant="blanc" priority />
           <div>
             <div className="text-[10px] text-[#7A6A50] uppercase tracking-[.15em] font-semibold">
               Technicien

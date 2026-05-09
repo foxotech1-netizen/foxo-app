@@ -50,7 +50,7 @@ export default async function LoginPage({
       >
         {/* Bannière logo */}
         <div className="py-7 flex flex-col items-center gap-2 border-b border-[rgba(0,0,0,0.12)]">
-          <Logo size={84} variant="black" priority />
+          <Logo size={84} variant="noir" priority />
           <div
             className="text-[10px] uppercase tracking-[.15em] font-semibold"
             style={{ color: '#7A6A50' }}

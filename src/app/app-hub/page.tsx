@@ -61,12 +61,7 @@ export default function AppHubPage() {
       }}
     >
       <header className="w-full pt-16 pb-8 flex flex-col items-center px-4">
-        <Logo
-          size={56}
-          variant="black"
-          priority
-          className="brightness-0 invert"
-        />
+        <Logo size={56} variant="blanc" priority />
         <div
           className="w-32 h-px mt-6 mb-4"
           style={{ background: 'rgba(255,255,255,0.15)' }}

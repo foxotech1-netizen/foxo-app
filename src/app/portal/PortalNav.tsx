@@ -4,11 +4,11 @@
 // Desktop : sidebar gauche 220px (sticky)
 // Mobile  : header fixe en haut + bottom navigation iOS-style
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Home, ClipboardList, Calendar, Plus, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { Logo } from '@/components/Logo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { usePortalContext } from './PortalContext';
 
@@ -184,15 +184,9 @@ export function PortalNav() {
       {/* ── DESKTOP sidebar ─────────────────────────────────────────────── */}
       <aside style={S.sidebar} className="foxo-portal-desktop">
         <div style={S.logoZone}>
-          <Image
-            src="/foxo-logo-noir-transparent.png"
-            alt="FoxO"
-            width={90}
-            height={90}
-            style={{ objectFit: 'contain' }}
-            className="brightness-0 invert"
-            priority
-          />
+          {/* Logo BLANC officiel — sidebar portal toujours sur fond navy
+              (gradient #0f1e35 → #1a3a5c, cf. S.sidebar). */}
+          <Logo size={90} variant="blanc" priority />
           <span style={S.logoLabel}>{orgNom || vocab.portalLabel}</span>
         </div>
 
@@ -241,14 +235,7 @@ export function PortalNav() {
 
       {/* ── MOBILE header fixe ──────────────────────────────────────────── */}
       <header className="foxo-portal-mobile-header">
-        <Image
-          src="/foxo-logo-noir-transparent.png"
-          alt="FoxO"
-          width={36}
-          height={36}
-          style={{ objectFit: 'contain' }}
-          className="brightness-0 invert"
-        />
+        <Logo size={36} variant="blanc" />
         <span className="foxo-portal-mobile-header-label">{orgNom || vocab.portalLabel}</span>
         <ThemeToggle className="foxo-portal-theme-toggle-mobile" />
       </header>

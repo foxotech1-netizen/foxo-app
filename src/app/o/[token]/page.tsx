@@ -68,7 +68,7 @@ export default async function OccupantPortal({
     <div className="min-h-screen bg-[var(--main-bg)] py-8 px-4 flex items-start justify-center">
       <div className="w-full max-w-[480px]">
         <div className="flex flex-col items-center mb-6">
-          <Logo size={64} />
+          <Logo size={64} variant="noir" />
           <div className="text-[10px] text-[var(--text-3)] uppercase tracking-[.15em] font-semibold mt-2">
             Confirmation de présence
           </div>
@@ -240,7 +240,7 @@ function NotFoundCard() {
     <div className="min-h-screen bg-[var(--main-bg)] py-8 px-4 flex items-start justify-center">
       <div className="w-full max-w-[420px] mt-12">
         <div className="flex flex-col items-center mb-6">
-          <Logo size={56} />
+          <Logo size={56} variant="noir" />
         </div>
         <div className="bg-[var(--card-bg)] rounded-2xl border border-[var(--card-border)] p-6 text-center">
           <h1 className="text-lg font-extrabold text-[var(--text)] mb-2">Lien invalide</h1>

@@ -1,10 +1,10 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   BarChart3, Bell, Calendar, Wrench, Sparkles, Users, User,
   Receipt, Package, Mail, Settings, type LucideIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { Logo } from '@/components/Logo';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,14 +44,8 @@ export default async function HomePage() {
   return (
     <div className="foxo-home-root">
       <div className="foxo-home-logo-zone">
-        <Image
-          src="/foxo-logo-noir-transparent.png"
-          alt="FoxO"
-          width={72}
-          height={72}
-          style={{ objectFit: 'contain' }}
-          priority
-        />
+        {/* Logo NOIR — fond hero clair (var(--hero-bg), sand chaud). */}
+        <Logo size={72} variant="noir" priority />
         <span className="section-label">FoxO · Interface Admin</span>
       </div>
 

@@ -5,11 +5,11 @@
 
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Logo } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { ThemeSelector } from '@/components/ThemeSelector'
 import { useTheme } from '@/components/ThemeApplier'
@@ -184,10 +184,10 @@ export default function Sidebar({
   const router   = useRouter()
   const supabase = createClient()
   const theme = useTheme()
-  // Logo : inversé en blanc si la sidebar du thème actif est sombre
-  // (cf. sidebarDark dans src/lib/themes.ts). Future-proof pour un
-  // thème sidebar claire.
-  const logoFilterCls = themes[theme]?.sidebarDark ? 'brightness-0 invert' : ''
+  // Logo : variante blanche officielle si la sidebar du thème actif est
+  // sombre (cf. sidebarDark dans src/lib/themes.ts). Future-proof pour
+  // un thème sidebar claire (sidebarDark: false → variante 'noir').
+  const logoVariant: 'noir' | 'blanc' = themes[theme]?.sidebarDark ? 'blanc' : 'noir'
 
   // Menu Partenaires : ouvert par défaut si on est déjà sur une de ses
   // sous-pages (lazy init useState — pas de useEffect → pas de souci
@@ -266,15 +266,7 @@ export default function Sidebar({
       <aside style={S.sidebar} className="foxo-sidebar-desktop">
         {/* Logo */}
         <div style={S.logoZone}>
-          <Image
-            src="/foxo-logo-noir-transparent.png"
-            alt="FoxO"
-            width={90}
-            height={90}
-            className={logoFilterCls}
-            style={{ objectFit: 'contain' }}
-            priority
-          />
+          <Logo size={90} variant={logoVariant} priority />
           <span style={S.logoLabel}>Interface Admin</span>
         </div>
 
@@ -391,14 +383,7 @@ export default function Sidebar({
 
       {/* ── MOBILE : header fixe en haut avec logo + toggle thème ─────────── */}
       <header className="foxo-mobile-header">
-        <Image
-          src="/foxo-logo-noir-transparent.png"
-          alt="FoxO"
-          width={36}
-          height={36}
-          className={logoFilterCls}
-          style={{ objectFit: 'contain' }}
-        />
+        <Logo size={36} variant={logoVariant} />
         <span className="foxo-mobile-header-label">Interface Admin</span>
         <ThemeToggle className="foxo-theme-toggle-mobile" />
       </header>

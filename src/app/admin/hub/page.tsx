@@ -133,12 +133,7 @@ export default async function HubPage() {
         style={{ background: 'linear-gradient(180deg, #1A1916 0%, #2C2A24 100%)' }}
       >
         <div className="flex justify-center mb-4">
-          <Logo
-            size={56}
-            variant="black"
-            priority
-            className="brightness-0 invert"
-          />
+          <Logo size={56} variant="blanc" priority />
         </div>
         <h1 className="text-2xl font-extrabold text-white font-display">
           Bonjour, {prenom ?? 'Admin'}

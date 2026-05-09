@@ -1,29 +1,33 @@
 import Image from 'next/image';
 
-// Deux variantes du logo selon le fond :
-//   - 'blue' (défaut) : logo bleu, pour fonds sombres (login navy, gradient
-//     sidebar) ou fonds clairs (cream, sand)
-//   - 'black' : logo noir, élégant sur le sable doré #E2C9A1
+// Logo FoxO — deux variantes officielles selon le fond :
+//   - 'noir'  (défaut) : logo noir transparent, pour fonds clairs
+//                        (sand, cream, sable doré #E2C9A1)
+//   - 'blanc'           : logo blanc transparent, pour fonds sombres
+//                        (sidebar navy, hub, hero techPWA, login dark)
 //
-// Les deux PNG sont transparents 1024×1024 carré.
+// Les deux assets sont des PNG 1024×1024 carrés transparents servis
+// depuis /public/. Ne plus utiliser de filter CSS brightness-0/invert
+// hack — la version blanche officielle est désormais disponible et
+// garantit un rendu propre (anti-aliasing préservé).
 export function Logo({
   size = 80,
   priority = false,
   className,
-  variant = 'blue',
+  variant = 'noir',
   style,
 }: {
   size?: number;
   priority?: boolean;
   className?: string;
-  variant?: 'blue' | 'black';
-  /** Style inline additionnel (ex: filter pour rendre le logo blanc sur
-   *  fond sombre). Mergé avec display/objectFit gérés en interne. */
+  variant?: 'noir' | 'blanc';
+  /** Style inline additionnel (rare — la plupart des cas n'en ont
+   *  pas besoin). Mergé avec display/objectFit gérés en interne. */
   style?: React.CSSProperties;
 }) {
-  const src = variant === 'black'
-    ? '/foxo-logo-noir-transparent.png'
-    : '/foxo-logo-transparent.png';
+  const src = variant === 'blanc'
+    ? '/foxo-logo-blanc-transparent.png'
+    : '/foxo-logo-noir-transparent.png';
   return (
     <Image
       src={src}
