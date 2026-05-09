@@ -13,10 +13,11 @@ const TYPE_FILTERS: ('tous' | TypeClient)[] = ['tous', 'acp', 'particulier', 'en
 function isFilterValue(v: string | null): v is typeof TYPE_FILTERS[number] {
   return v !== null && (TYPE_FILTERS as readonly string[]).includes(v);
 }
+// Couleurs des badges type — design tokens FoxO sémantiques.
 const TYPE_COLORS: Record<TypeClient, string> = {
-  acp: '#1B3A6B',
-  particulier: '#1F6B45',
-  entreprise: '#A17244',
+  acp:         'var(--color-navy)',
+  particulier: 'var(--color-ok)',
+  entreprise:  'var(--color-amber-foxo)',
 };
 
 export function ClientsListClient({ initial }: { initial: Client[] }) {
@@ -59,7 +60,7 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <Link
           href="/admin/clients/new"
-          className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90"
+          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm transition-colors"
         >
           + Nouveau client
         </Link>
@@ -67,12 +68,12 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — nom, BCE, email, ville…"
-          className="flex-1 min-w-[200px] px-3.5 py-2 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+          className="flex-1 min-w-[200px] px-3.5 py-2 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] outline-none focus:border-[var(--color-navy-mid)] transition-colors"
         />
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as typeof filter)}
-          className="px-3 py-2 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
+          className="px-3 py-2 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] cursor-pointer outline-none focus:border-[var(--color-navy-mid)]"
         >
           <option value="tous">Tous types</option>
           {(['acp', 'particulier', 'entreprise'] as TypeClient[]).map((t) => (
@@ -81,13 +82,13 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
         </select>
       </div>
 
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="bg-[var(--color-cream)] rounded-xl border border-[var(--color-sand-border)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[760px]">
             <thead>
-              <tr className="bg-sand dark:bg-[#221E1A]">
+              <tr className="bg-[var(--color-sand)]">
                 {['Nom', 'Type', 'Ville', 'Email', 'Téléphone', 'BCE', ''].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap dark:text-[#C8C2B8] dark:border-[#3D3A32]">
+                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] border-b border-[var(--color-sand-border)] whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -96,38 +97,38 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px] dark:text-[#C8C2B8]">
+                  <td colSpan={7} className="text-center py-12 text-[var(--color-ink-muted)] text-[13px]">
                     Aucun client.
                   </td>
                 </tr>
               ) : filtered.map((c) => (
-                <tr key={c.id} className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#3D3A32] dark:hover:bg-[#2A2520]">
+                <tr key={c.id} className="border-b border-[var(--color-sand-mid)] hover:bg-[var(--color-sand-hover)] transition-colors">
                   <td className="px-3.5 py-2.5">
                     <Link
                       href={`/admin/clients/${c.id}`}
-                      className="text-[13px] font-bold text-navy hover:underline dark:text-[#A8C4F2]"
+                      className="text-[13px] font-medium text-[var(--color-navy)] hover:underline"
                     >
                       {[c.prenom, c.nom].filter(Boolean).join(' ')}
                     </Link>
                   </td>
                   <td className="px-3.5 py-2.5">
                     <span
-                      className="inline-block text-[10px] uppercase tracking-wider px-2 py-0.5 rounded text-white"
-                      style={{ background: TYPE_COLORS[c.type], fontWeight: 600 }}
+                      className="inline-block text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 rounded font-semibold text-[var(--color-cream)]"
+                      style={{ background: TYPE_COLORS[c.type] }}
                     >
                       {TYPE_CLIENT_LABEL[c.type]}
                     </span>
                   </td>
-                  <td className="px-3.5 py-2.5 text-[12px] dark:text-[#C8C2B8]">
+                  <td className="px-3.5 py-2.5 text-[12px] text-[var(--color-ink)]">
                     {[c.code_postal, c.ville].filter(Boolean).join(' ') || '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid dark:text-[#C8C2B8]">
+                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-[var(--color-ink-mid)]">
                     {c.email ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid dark:text-[#C8C2B8]">
+                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-[var(--color-ink-mid)]">
                     {c.telephone ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid dark:text-[#C8C2B8]">
+                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-[var(--color-ink-mid)]">
                     {c.bce ?? '—'}
                   </td>
                   <td className="px-3.5 py-2.5 whitespace-nowrap">
