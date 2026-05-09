@@ -68,10 +68,15 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
   }), [rows, now]);
 
   return (
-    <div className="space-y-3">
-      <header>
-        <h1 className="text-xl font-display font-extrabold text-[var(--text-primary)] inline-flex items-center gap-2"><ClipboardList size={18} />Historique</h1>
-        <p className="text-[11px] text-[var(--text-3)] mt-1">{rows.length} intervention{rows.length !== 1 ? 's' : ''} au total</p>
+    <div className="space-y-4">
+      <header className="pb-3.5 border-b border-[var(--color-sand-border)]">
+        <h1 className="font-sora text-[24px] font-semibold tracking-tight text-[var(--color-ink)] inline-flex items-center gap-2">
+          <ClipboardList size={20} className="text-[var(--accent-tech)]" />Historique
+        </h1>
+        <div className="flex items-center gap-2 text-[12px] text-[var(--color-ink-mid)] tracking-wide mt-1">
+          <span className="w-1 h-1 rounded-full bg-[var(--accent-tech)]"></span>
+          {rows.length} intervention{rows.length !== 1 ? 's' : ''} au total
+        </div>
       </header>
 
       {/* Recherche */}
@@ -80,11 +85,11 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Rechercher (référence, client, ACP…)"
-        className="w-full px-3 py-2.5 border border-[var(--card-border)] rounded-lg text-[13px] bg-[var(--card-bg)] text-[var(--text-primary)] outline-none focus:border-[#34D399]"
+        className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
       />
 
-      {/* Filtres */}
-      <div className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-1">
+      {/* Filtres — pills tactiles */}
+      <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
         {([
           { v: 'tous' as const,     label: 'Toutes',    n: counts.tous },
           { v: 'mois' as const,     label: 'Ce mois',   n: counts.mois },
@@ -96,10 +101,10 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
             type="button"
             onClick={() => setFilter(opt.v)}
             className={
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ' +
+              'flex-shrink-0 px-3.5 py-2 rounded-full text-[13px] font-semibold transition-colors min-h-[40px] ' +
               (filter === opt.v
-                ? 'bg-[#34D399] text-white'
-                : 'bg-[var(--card-bg)] text-[var(--text-2)] border border-[var(--card-border)] hover:border-[#34D399]')
+                ? 'bg-[var(--accent-tech)] text-[var(--color-cream)]'
+                : 'bg-[var(--color-cream)] text-[var(--color-ink)] border border-[var(--color-sand-border)] hover:border-[var(--accent-tech)]')
             }
           >
             {opt.label} <span className="opacity-70">{opt.n}</span>
@@ -109,11 +114,14 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
 
       {/* Liste */}
       {filtered.length === 0 ? (
-        <div className="premium-card p-6 text-center text-[13px] text-[var(--text-2)]">
+        <div
+          className="bg-[var(--color-cream)] rounded-xl p-6 text-center text-[14px] text-[var(--color-ink-mid)]"
+          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        >
           Aucune intervention ne correspond aux critères.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filtered.map((m) => <MissionCard key={m.id} m={m} />)}
         </div>
       )}
@@ -125,37 +133,38 @@ function MissionCard({ m }: { m: MissionRow }) {
   return (
     <Link
       href={`/tech/interventions/${m.id}`}
-      className="block premium-card p-3"
+      className="block bg-[var(--color-cream)] rounded-xl p-4 transition-all active:scale-[0.99] min-h-[44px]"
+      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
     >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono text-[11px] font-semibold" style={{ color: '#34D399' }}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-sora text-[12px] font-semibold tracking-[0.01em] text-[var(--accent-tech)]">
             {m.ref ?? '—'}
           </span>
-          <span className="text-[10px] font-mono text-[var(--text-3)]">
+          <span className="text-[11px] font-mono text-[var(--color-ink-mid)]">
             {fmtDate(m.creneau_debut ?? m.updated_at)}
           </span>
           {m.priorite === 'urgente' && (
-            <span className="text-[9px] font-bold text-terra bg-terra-light border border-terra-mid rounded-full px-1.5 py-0.5 inline-flex items-center">
-              <Zap size={10} />
+            <span className="text-[11px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2 py-0.5 inline-flex items-center gap-1">
+              <Zap size={11} />
             </span>
           )}
         </div>
         <StatutBadge statut={m.statut} />
       </div>
-      <div className="font-bold text-[13px] text-[var(--text-primary)]">{m.client_label}</div>
+      <div className="font-semibold text-[14px] text-[var(--color-ink)]">{m.client_label}</div>
       {(m.acp_ville || m.adresse) && (
-        <div className="text-[11px] text-[var(--text-2)] mt-0.5">
+        <div className="text-[12px] text-[var(--color-ink)] mt-1">
           {[m.adresse, m.acp_ville].filter(Boolean).join(' · ')}
         </div>
       )}
-      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-[var(--text-3)]">
+      <div className="flex items-center gap-3 mt-2 text-[11px] text-[var(--color-ink-mid)]">
         {m.type && <span>{m.type}</span>}
         {m.photo_count > 0 && (
-          <span className="font-bold inline-flex items-center gap-1"><Camera size={12} />{m.photo_count}</span>
+          <span className="font-semibold inline-flex items-center gap-1"><Camera size={13} />{m.photo_count}</span>
         )}
         {m.has_rapport && (
-          <span className="font-bold text-ok inline-flex items-center gap-1"><FileEdit size={12} />rapport</span>
+          <span className="font-semibold text-[var(--color-ok)] inline-flex items-center gap-1"><FileEdit size={13} />rapport</span>
         )}
       </div>
     </Link>
