@@ -71,7 +71,10 @@ const CELL_SHARED = {
 // largeur ≤ moitié de TW (layout 2-cols).
 const PHOTO_HEIGHT_PX = 302;
 const PHOTO_FALLBACK_WIDTH_PX = 403; // 302 * 4/3
-const PHOTO_MAX_WIDTH_PX = Math.floor(((TW - 160) / 2) * 96 / 1440);
+// Cap unique ~400px : photos rendues en colonne CENTRÉE (1 par row), pas
+// en grille 2 cols. La largeur est plafonnée pour rester confortable à
+// la lecture sans dévorer la page.
+const PHOTO_MAX_WIDTH_PX = 400;
 
 // ─── ReportData — input contrat du builder ────────────────────────────
 
@@ -454,76 +457,53 @@ async function fetchPhotosBySection(
 
 function photosTable(photos: SectionPhoto[]): Table | null {
   if (photos.length === 0) return null;
-  const cellW = Math.floor((TW - 160) / 2);
 
-  const rows: TableRow[] = [];
-  for (let i = 0; i < photos.length; i += 2) {
-    const left = photos[i];
-    const right = photos[i + 1];
-    const cells: TableCell[] = [
-      new TableCell({
-        width: { size: cellW, type: WidthType.DXA },
+  // Layout : 1 photo par row, cellule pleine largeur (TW), paragraph
+  // centré horizontalement, spacing { before: 200, after: 200 } pour
+  // aérer entre les clichés. Label en italique muted centré sous chaque
+  // photo. La largeur image elle-même est plafonnée à PHOTO_MAX_WIDTH_PX
+  // (cap ~400px) via computePhotoDimensions, donc le centrage du Paragraph
+  // gère l'alignement visuel sans avoir besoin de cellules vides.
+  const rows: TableRow[] = photos.map((photo) => {
+    const cellChildren: Paragraph[] = [
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: photo.label ? 60 : 200 },
         children: [
-          new Paragraph({
-            alignment: left && !right ? AlignmentType.CENTER : AlignmentType.LEFT,
-            children: [
-              new ImageRun({
-                data: left.bytes,
-                transformation: { width: left.width, height: left.height },
-                type: left.type,
-              }),
-            ],
+          new ImageRun({
+            data: photo.bytes,
+            transformation: { width: photo.width, height: photo.height },
+            type: photo.type,
           }),
-          ...(left.label ? [new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [new TextRun({
-              text: left.label,
+        ],
+      }),
+    ];
+    if (photo.label) {
+      cellChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 0, after: 200 },
+          children: [
+            new TextRun({
+              text: photo.label,
               size: 18,
               color: MUTED,
               italics: true,
               font: FONT,
-            })],
-          })] : []),
-        ],
-      }),
-    ];
-    if (right) {
-      cells.push(
-        new TableCell({
-          width: { size: cellW, type: WidthType.DXA },
-          children: [
-            new Paragraph({
-              children: [
-                new ImageRun({
-                  data: right.bytes,
-                  transformation: { width: right.width, height: right.height },
-                  type: right.type,
-                }),
-              ],
             }),
-            ...(right.label ? [new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [new TextRun({
-                text: right.label,
-                size: 18,
-                color: MUTED,
-                italics: true,
-                font: FONT,
-              })],
-            })] : []),
           ],
         }),
       );
-    } else {
-      cells.push(
-        new TableCell({
-          width: { size: cellW, type: WidthType.DXA },
-          children: [new Paragraph({ children: [] })],
-        }),
-      );
     }
-    rows.push(new TableRow({ children: cells }));
-  }
+    return new TableRow({
+      children: [
+        new TableCell({
+          width: { size: TW, type: WidthType.DXA },
+          children: cellChildren,
+        }),
+      ],
+    });
+  });
 
   const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
   return new Table({
