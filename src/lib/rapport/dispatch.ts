@@ -4,11 +4,15 @@ import { sendRapportEmail } from '@/lib/email/rapport';
 import { uploadRapport } from '@/lib/google-drive';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { ReportData, ReportTechniques } from '@/lib/rapport/build-docx';
+import {
+  buildObjet,
+  buildFacturationLines,
+  buildAdresseInterventionLine1,
+  buildAdresseInterventionLine2,
+  buildRefLabelValue,
+  fmtDateShort,
+} from '@/lib/rapport/report-data-mapping';
 import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
-
-function fmtDateShort(d: Date): string {
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
 
 // Cf. route.ts pour la même logique. Mappe les test_type observations →
 // 8 booleans techniques. Accepte les 2 vocabulaires (avant/après commit
@@ -65,26 +69,29 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   if (!ivData) return { ok: false, error: 'Intervention introuvable.' };
   const iv = ivData as Intervention;
 
+  // Colonnes étendues pour le mapping ReportData modèle 2026-101 :
+  //   - syndic.bce + syndic.contact : ligne 1/2 facturation
+  //   - occupant.prenom + type_occupant : "Apt X : Prénom Nom (type)"
   const [acpRes, syndicRes, techRes, rapRes, occRes, obsRes] = await Promise.all([
     iv.acp_id
       ? supabase.from('acps').select('*').eq('id', iv.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.syndic_id
-      ? supabase.from('organisations').select('id, nom, adresse, email, type, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
+      ? supabase.from('organisations').select('id, nom, adresse, email, type, contact, bce, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.technicien_id
       ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('rapports').select('*').eq('intervention_id', iv.id).maybeSingle(),
-    supabase.from('occupants').select('appartement, nom').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
+    supabase.from('occupants').select('appartement, prenom, nom, type_occupant').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
     supabase.from('observations_terrain').select('test_type').eq('intervention_id', iv.id).order('created_at', { ascending: true }),
   ]);
 
   const acp = acpRes.data as Acp | null;
-  const syndic = syndicRes.data as Pick<Organisation, 'id' | 'nom' | 'adresse' | 'email' | 'type' | 'email_factures' | 'email_rapports' | 'email_communications'> | null;
+  const syndic = syndicRes.data as Pick<Organisation, 'id' | 'nom' | 'adresse' | 'email' | 'type' | 'contact' | 'bce' | 'email_factures' | 'email_rapports' | 'email_communications'> | null;
   const tech = techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
   const rapport = rapRes.data as Rapport | null;
-  const occupants = (occRes.data ?? []) as Pick<Occupant, 'appartement' | 'nom'>[];
+  const occupants = (occRes.data ?? []) as Pick<Occupant, 'appartement' | 'prenom' | 'nom' | 'type_occupant'>[];
   const appartements = occupants
     .map((o) => o.appartement)
     .filter((a): a is string => Boolean(a && a.trim()));
@@ -129,41 +136,27 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   }, 'rapport');
 
   // ─── Composition ReportData (template FOXO_BASE) ────────────────────
+  //
+  // Helpers partagés avec route.ts (rapport-docx export brouillon) pour
+  // garantir un mapping identique entre brouillon et envoi final.
   const today = new Date();
-  const refExterne = (iv.reference_externe ?? '').trim();
 
   // Le builder splitte sur '||PARA||' pour produire un Paragraph par bloc
   // (cf. textToParas dans build-docx.ts). Les doubles sauts de ligne
   // saisis par le tech (ou Claude) deviennent des séparateurs.
   const toParaFmt = (s: string) => (s ?? '').replace(/\n\n/g, '||PARA||');
 
-  const adresseLigne1 = [acp?.nom, acpAdresse]
-    .filter((v): v is string => Boolean(v && v.trim()))
-    .join('  –  ') || (iv.adresse ?? '');
-
-  const adresseLigne2 = occupants
-    .map((o) => {
-      const apt = o.appartement?.trim();
-      const nm = o.nom?.trim();
-      if (apt && nm) return `Apt ${apt} – ${nm}`;
-      if (apt) return `Apt ${apt}`;
-      if (nm) return nm;
-      return null;
-    })
-    .filter((s): s is string => s !== null)
-    .join('  –  ');
+  const refLabelValue = buildRefLabelValue(iv, today);
+  const facturationLines = buildFacturationLines(iv, acp, syndic);
 
   const reportData: ReportData = {
     numero: ref,
-    ref_label: refExterne ? 'Réf. syndic :' : 'Date intervention :',
-    ref_value: refExterne || fmtDateShort(today),
-    objet: iv.description || '—',
-    facturation_ligne1: iv.nom_facturation || syndic?.nom || '',
-    facturation_ligne2: syndic?.adresse || '',
-    facturation_ligne3: iv.email_facturation || syndic?.email || '',
-    facturation_ligne4: iv.bce_facturation ? `BCE : ${iv.bce_facturation}` : '',
-    adresse_ligne1: adresseLigne1,
-    adresse_ligne2: adresseLigne2,
+    ref_label: refLabelValue.ref_label,
+    ref_value: refLabelValue.ref_value,
+    objet: buildObjet(rapport, acp, iv),
+    ...facturationLines,
+    adresse_ligne1: buildAdresseInterventionLine1(acp, iv),
+    adresse_ligne2: buildAdresseInterventionLine2(occupants),
     adresse_ligne3: '',
     techniques: buildTechniques(observations),
     degats: toParaFmt(rapport.degats ?? ''),
