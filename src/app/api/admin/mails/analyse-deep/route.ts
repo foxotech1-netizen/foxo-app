@@ -46,8 +46,27 @@ type AnalyseType =
   | 'accuse_reception'
   | 'spam_commercial';
 
+// Aligné sur l'enum interventions.type côté DB (NOT NULL, ne pas
+// inventer de nouvelles valeurs sans ALTER TYPE). 'Autre' sert de
+// fallback safe si Claude hésite ou si l'intent n'est pas clair.
+type TypeIntervention =
+  | 'Fuite canalisation'
+  | 'Fuite chauffage'
+  | 'Fuite infiltration'
+  | 'Surconsommation eau'
+  | 'Autre';
+
+const ALLOWED_TYPES: TypeIntervention[] = [
+  'Fuite canalisation',
+  'Fuite chauffage',
+  'Fuite infiltration',
+  'Surconsommation eau',
+  'Autre',
+];
+
 interface ClaudeAnalyse {
   type: AnalyseType;
+  type_intervention: TypeIntervention | null;
   urgence: boolean;
   langue: 'fr' | 'nl' | 'en' | 'other';
   adresse_extraite: string | null;
@@ -83,12 +102,19 @@ function extractJson(raw: string): string {
 }
 
 // ─── Helper Nominatim (best-effort) ───────────────────────────────────
+//
+// Cascade de tentatives : adresse complète → adresse nettoyée (sans
+// "Résidence X", "Apt Y", "Bât Z", "Étage N") → ville seule (dernier
+// segment après dernière virgule). Nominatim échoue souvent sur les
+// chaînes verbeuses qui mélangent immeuble + apt + ville — le fallback
+// récupère au moins un point dans la ville pour le scoring géo.
 
 interface NominatimItem { lat: string; lon: string }
 
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+async function geocodeOnce(query: string): Promise<{ lat: number; lng: number } | null> {
+  if (!query.trim()) return null;
   try {
-    const url = `${NOMINATIM_API}?format=json&limit=1&q=${encodeURIComponent(address)}`;
+    const url = `${NOMINATIM_API}?format=json&limit=1&q=${encodeURIComponent(query)}`;
     const res = await fetch(url, {
       headers: {
         'User-Agent': 'foxo-app/1.0 (info@foxo.be)',
@@ -105,6 +131,51 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   } catch {
     return null;
   }
+}
+
+function stripVerboseAddressTokens(address: string): string {
+  let s = ` ${address} `;
+  // Strip "Résidence X" / "Résidence X," / "Résidence X —"
+  s = s.replace(/\bRésidence\s+[\w\d-]+\s*[,—–-]?\s*/gi, ' ');
+  // Strip "Appartement / Apt / App + identifiant"
+  s = s.replace(/\b(?:Appartement|App?\.?)\s+[\w\d-]+\s*[,—–-]?\s*/gi, ' ');
+  // Strip "Bât / Bâtiment + identifiant"
+  s = s.replace(/\b(?:Bâtiment|Bâ?t\.?)\s+[\w\d-]+\s*[,—–-]?\s*/gi, ' ');
+  // Strip "Étage N"
+  s = s.replace(/\bÉtage\s+[\w\d-]+\s*[,—–-]?\s*/gi, ' ');
+  // Compact spaces & comma artifacts
+  s = s.replace(/,\s*,/g, ',').replace(/\s+/g, ' ').trim().replace(/^,|,$/g, '').trim();
+  return s;
+}
+
+function lastSegment(address: string): string {
+  const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
+  return parts[parts.length - 1] ?? '';
+}
+
+async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  // Tentative 1 — adresse complète, telle qu'extraite par Claude.
+  const t1 = await geocodeOnce(address);
+  console.log(`[analyse-deep] geocoding attempt 1: "${address}" →`, t1);
+  if (t1) return t1;
+
+  // Tentative 2 — strip des tokens verbeux (Résidence/Apt/Bât/Étage).
+  const cleaned = stripVerboseAddressTokens(address);
+  if (cleaned && cleaned !== address.trim()) {
+    const t2 = await geocodeOnce(cleaned);
+    console.log(`[analyse-deep] geocoding attempt 2: "${cleaned}" →`, t2);
+    if (t2) return t2;
+  }
+
+  // Tentative 3 — dernier segment (ville seule).
+  const ville = lastSegment(cleaned || address);
+  if (ville && ville !== (cleaned || address).trim()) {
+    const t3 = await geocodeOnce(ville);
+    console.log(`[analyse-deep] geocoding attempt 3: "${ville}" →`, t3);
+    if (t3) return t3;
+  }
+
+  return null;
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────
@@ -195,6 +266,7 @@ export async function POST(request: Request) {
       `Schéma de sortie strict :`,
       `{`,
       `  "type": "demande_intervention" | "relance_rapport" | "suivi_dossier" | "question_generale" | "accuse_reception" | "spam_commercial",`,
+      `  "type_intervention": "Fuite canalisation" | "Fuite chauffage" | "Fuite infiltration" | "Surconsommation eau" | "Autre",`,
       `  "urgence": boolean,`,
       `  "langue": "fr" | "nl" | "en" | "other",`,
       `  "adresse_extraite": string | null,`,
@@ -205,6 +277,7 @@ export async function POST(request: Request) {
       `}`,
       ``,
       `Règles :`,
+      `- type_intervention : déduire du contenu du mail. "infiltration" / "fuite plafond" / "tâches d'humidité" → "Fuite infiltration". "fuite chaudière" / "radiateur" / "chauffage" → "Fuite chauffage". "compteur eau" / "consommation anormale" → "Surconsommation eau". "tuyau" / "canalisation" / "sanitaire" → "Fuite canalisation". Si doute → "Autre".`,
       `- urgence=true si "fuite active", "dégât en cours", "urgent", "rapidement", "asap"`,
       `- adresse_extraite au format "Rue X N°, Ville" ou null si rien d'identifiable`,
       `- numero_dossier_mentionne : pattern "2026-XXX" ou null`,
@@ -268,6 +341,8 @@ export async function POST(request: Request) {
     // 6. Matching dossier existant
     let dossierMatchId: string | null = null;
     let dossierInfo: DossierInfo | null = null;
+    let dossierExisted = false;
+    let dossierCreated = false;
     let lat: number | null = null;
     let lng: number | null = null;
     let driveFolderId: string | null = null;
@@ -282,6 +357,7 @@ export async function POST(request: Request) {
         const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null; drive_folder_id: string | null };
         dossierMatchId = d.id;
         dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
+        dossierExisted = true;
         lat = d.lat;
         lng = d.lng;
         driveFolderId = d.drive_folder_id;
@@ -300,6 +376,7 @@ export async function POST(request: Request) {
         const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null; drive_folder_id: string | null };
         dossierMatchId = d.id;
         dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
+        dossierExisted = true;
         lat = d.lat;
         lng = d.lng;
         driveFolderId = d.drive_folder_id;
@@ -325,8 +402,18 @@ export async function POST(request: Request) {
         errors.push(`drive: ${e instanceof Error ? e.message : 'inconnu'}`);
       }
 
+      // type intervention : déduit par Claude (type_intervention de l'analyse).
+      // Validé contre l'enum DB ; fallback 'Autre' si valeur inconnue ou null —
+      // évite la violation NOT NULL sur interventions.type.
+      const typeFromClaude = analyse.type_intervention;
+      const typeForInsert: TypeIntervention =
+        typeFromClaude && ALLOWED_TYPES.includes(typeFromClaude)
+          ? typeFromClaude
+          : 'Autre';
+
       const insertPayload: Record<string, unknown> = {
         ref: createdRef,
+        type: typeForInsert,
         adresse: analyse.adresse_extraite,
         lat,
         lng,
@@ -348,6 +435,7 @@ export async function POST(request: Request) {
         const ins = inserted as { id: string; ref: string | null; adresse: string | null };
         dossierMatchId = ins.id;
         dossierInfo = { id: ins.id, ref: ins.ref, adresse: ins.adresse };
+        dossierCreated = true;
       }
     }
 
@@ -429,12 +517,17 @@ export async function POST(request: Request) {
       errors.push(`upsert mails_analyses: ${e instanceof Error ? e.message : 'inconnu'}`);
     }
 
-    // 11. Réponse enrichie
+    // 11. Réponse enrichie. dossier_created/dossier_existed permettent à
+    //     l'UI de différencier "Dossier 2026-XXX créé" (nouvelle entrée
+    //     dans interventions) vs "Dossier 2026-XXX existant" (matché par
+    //     ref ou ILIKE adresse).
     return NextResponse.json({
       success: true,
       analyse: {
         ...analyse,
         dossier: dossierInfo,
+        dossier_created: dossierCreated,
+        dossier_existed: dossierExisted,
         creneau_propose: creneauPropose,
         creneau_alternative: creneauAlternative,
         fenetre_etendue: fenetreEtendue,
