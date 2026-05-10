@@ -63,6 +63,25 @@ interface DossierInfo {
   adresse: string | null;
 }
 
+// ─── Helper extraction JSON (Claude entoure parfois le JSON de fences
+//     ```json … ``` ou ajoute un préambule "Voici le JSON :", malgré
+//     l'instruction stricte. extractJson nettoie de manière robuste avant
+//     parse). ──────────────────────────────────────────────────────────
+
+function extractJson(raw: string): string {
+  let s = raw.trim();
+  // Strip markdown fences ```json ... ``` ou ``` ... ```
+  s = s.replace(/^```(?:json)?\s*\n?/i, '');
+  s = s.replace(/\n?```\s*$/i, '');
+  // Extract first { to last }
+  const start = s.indexOf('{');
+  const end = s.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('Aucun objet JSON trouvé dans la réponse');
+  }
+  return s.slice(start, end + 1);
+}
+
 // ─── Helper Nominatim (best-effort) ───────────────────────────────────
 
 interface NominatimItem { lat: string; lon: string }
@@ -167,6 +186,8 @@ export async function POST(request: Request) {
 
     // 4. Appel Claude API
     const systemPrompt = [
+      `IMPÉRATIF : ta réponse complète DOIT être uniquement un objet JSON valide. Aucun texte avant. Aucun texte après. Aucun markdown. Aucune balise \`\`\`. Commence directement par { et termine par }.`,
+      ``,
       `Tu es l'assistant de FoxO, société belge de détection de fuites non destructive.`,
       ``,
       `Tu analyses un mail entrant et tu retournes UNIQUEMENT du JSON valide (aucun markdown, aucun texte autour).`,
@@ -217,14 +238,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Parsing JSON strict
+    // Log de la réponse brute (visible dans Vercel logs) pour pouvoir
+    // diagnostiquer rapidement les drifts de format de Claude (fences,
+    // préambules, etc.) sans avoir à reproduire le mail.
+    console.log('[analyse-deep] raw response', claudeRaw.slice(0, 300));
+
+    // 5. Parsing JSON strict — passe par extractJson qui supporte les
+    //    fences ```json ... ``` et le bruit avant/après l'objet, malgré
+    //    la consigne stricte du system prompt.
     let analyse: ClaudeAnalyse;
     try {
-      analyse = JSON.parse(claudeRaw) as ClaudeAnalyse;
-    } catch {
-      console.error('[analyse-deep] JSON Claude invalide:', claudeRaw.slice(0, 500));
+      const cleaned = extractJson(claudeRaw);
+      analyse = JSON.parse(cleaned) as ClaudeAnalyse;
+    } catch (err) {
+      console.error('[analyse-deep] JSON parse failed', {
+        raw: claudeRaw.slice(0, 500),
+        error: err instanceof Error ? err.message : String(err),
+      });
       return NextResponse.json(
-        { success: false, error: 'Claude a renvoyé un JSON invalide', raw: claudeRaw.slice(0, 1000) },
+        {
+          success: false,
+          error: 'Claude a renvoyé un JSON invalide',
+          raw_preview: claudeRaw.slice(0, 200),
+        },
         { status: 500 },
       );
     }
