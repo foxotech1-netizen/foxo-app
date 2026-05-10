@@ -23,12 +23,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
-import { getEmailThread, downloadGmailAttachment } from '@/lib/gmail';
+import { getEmailThread } from '@/lib/gmail';
 import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau';
-import {
-  createInterventionFolderFromMail,
-  uploadAttachmentToFolder,
-} from '@/lib/drive/create-intervention-folder';
+import type { TypeIntervention } from '@/lib/mails/intervention-types';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -45,24 +42,6 @@ type AnalyseType =
   | 'question_generale'
   | 'accuse_reception'
   | 'spam_commercial';
-
-// Aligné sur l'enum interventions.type côté DB (NOT NULL, ne pas
-// inventer de nouvelles valeurs sans ALTER TYPE). 'Autre' sert de
-// fallback safe si Claude hésite ou si l'intent n'est pas clair.
-type TypeIntervention =
-  | 'Fuite canalisation'
-  | 'Fuite chauffage'
-  | 'Fuite infiltration'
-  | 'Surconsommation eau'
-  | 'Autre';
-
-const ALLOWED_TYPES: TypeIntervention[] = [
-  'Fuite canalisation',
-  'Fuite chauffage',
-  'Fuite infiltration',
-  'Surconsommation eau',
-  'Autre',
-];
 
 interface ClaudeAnalyse {
   type: AnalyseType;
@@ -277,9 +256,29 @@ export async function POST(request: Request) {
       `}`,
       ``,
       `Règles :`,
-      `- type_intervention : déduire du contenu du mail. "infiltration" / "fuite plafond" / "tâches d'humidité" → "Fuite infiltration". "fuite chaudière" / "radiateur" / "chauffage" → "Fuite chauffage". "compteur eau" / "consommation anormale" → "Surconsommation eau". "tuyau" / "canalisation" / "sanitaire" → "Fuite canalisation". Si doute → "Autre".`,
+      `- type_intervention : déduire du contenu. "Infiltration plafond" / "tâches d'humidité" → "Fuite infiltration". "fuite chaudière" / "radiateur" / "chauffage" → "Fuite chauffage". "compteur eau" / "consommation anormale" → "Surconsommation eau". "tuyau" / "canalisation" / "sanitaire" → "Fuite canalisation". Si doute → "Autre".`,
       `- urgence=true si "fuite active", "dégât en cours", "urgent", "rapidement", "asap"`,
-      `- adresse_extraite au format "Rue X N°, Ville" ou null si rien d'identifiable`,
+      ``,
+      `- adresse_extraite : DOIT être au format postal belge strict`,
+      `   "Type-voie Nom Numéro, Code-postal Ville"`,
+      `  Exemples valides :`,
+      `   - "Avenue Henri Liebrecht 66, 1090 Bruxelles"`,
+      `   - "Rue de la Loi 16, 1000 Bruxelles"`,
+      `   - "Chaussée de Charleroi 145, 1060 Bruxelles"`,
+      ``,
+      `  INTERDIT (mettre null) :`,
+      `   - Noms commerciaux : "Résidence Greenwood", "Tour des Pins"`,
+      `   - Adresses partielles : "F4, Bruxelles", "Appartement 12"`,
+      `   - Lieux génériques : "Bruxelles", "chez le client"`,
+      ``,
+      `  Cherche dans :`,
+      `   - Le corps du mail (priorité)`,
+      `   - La signature (souvent en bas)`,
+      `   - Les forwards inclus dans le thread`,
+      ``,
+      `  Si aucune adresse postale complète n'est trouvée, mets null.`,
+      `  Ne JAMAIS deviner ni reformater un nom de résidence en adresse.`,
+      ``,
       `- numero_dossier_mentionne : pattern "2026-XXX" ou null`,
       `- resume : max 200 caractères, en français`,
       `- Si forward avec historique, considère le contexte complet du thread`,
@@ -338,52 +337,56 @@ export async function POST(request: Request) {
       );
     }
 
-    // 6. Matching dossier existant
+    // 6. Matching dossier existant (lecture seule — analyse-deep ne crée
+    //    plus de nouveau dossier ; dossier_created reste donc toujours
+    //    false dans la réponse de cette route et passera à true via
+    //    confirm-and-create après validation manuelle).
     let dossierMatchId: string | null = null;
     let dossierInfo: DossierInfo | null = null;
     let dossierExisted = false;
-    let dossierCreated = false;
     let lat: number | null = null;
     let lng: number | null = null;
-    let driveFolderId: string | null = null;
 
     if (analyse.numero_dossier_mentionne) {
       const { data } = await admin
         .from('interventions')
-        .select('id, ref, adresse, lat, lng, drive_folder_id')
+        .select('id, ref, adresse, lat, lng')
         .eq('ref', analyse.numero_dossier_mentionne)
         .maybeSingle();
       if (data) {
-        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null; drive_folder_id: string | null };
+        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
         dossierMatchId = d.id;
         dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
         dossierExisted = true;
         lat = d.lat;
         lng = d.lng;
-        driveFolderId = d.drive_folder_id;
       }
     }
     if (!dossierMatchId && analyse.adresse_extraite) {
       const firstWords = analyse.adresse_extraite.split(/\s+/).slice(0, 3).join(' ');
       const { data } = await admin
         .from('interventions')
-        .select('id, ref, adresse, lat, lng, drive_folder_id')
+        .select('id, ref, adresse, lat, lng')
         .ilike('adresse', `%${firstWords}%`)
         .neq('statut', 'cloturee')
         .limit(1)
         .maybeSingle();
       if (data) {
-        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null; drive_folder_id: string | null };
+        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
         dossierMatchId = d.id;
         dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
         dossierExisted = true;
         lat = d.lat;
         lng = d.lng;
-        driveFolderId = d.drive_folder_id;
       }
     }
 
-    // 7. Si demande_intervention sans match : géocoder + créer Drive + INSERT
+    // 7. (LECTURE SEULE) Si demande_intervention sans match : géocoder
+    //    pour scorer le créneau proposé. AUCUNE création Drive ni INSERT
+    //    intervention ici — ces side-effects sont déférés à la route
+    //    confirm-and-create, déclenchée après validation manuelle dans
+    //    l'UI. Le but : proposer (analyse-deep) puis confirmer
+    //    explicitement (admin) avant de toucher à la DB / Drive.
     if (analyse.type === 'demande_intervention' && !dossierMatchId && analyse.adresse_extraite) {
       const geo = await geocodeAddress(analyse.adresse_extraite);
       if (geo) {
@@ -392,81 +395,11 @@ export async function POST(request: Request) {
       } else {
         errors.push('geocoding: aucun résultat Nominatim');
       }
-
-      let createdRef: string | null = null;
-      try {
-        const drive = await createInterventionFolderFromMail(analyse.adresse_extraite);
-        driveFolderId = drive.folder_id;
-        createdRef = drive.ref;
-      } catch (e) {
-        errors.push(`drive: ${e instanceof Error ? e.message : 'inconnu'}`);
-      }
-
-      // type intervention : déduit par Claude (type_intervention de l'analyse).
-      // Validé contre l'enum DB ; fallback 'Autre' si valeur inconnue ou null —
-      // évite la violation NOT NULL sur interventions.type.
-      const typeFromClaude = analyse.type_intervention;
-      const typeForInsert: TypeIntervention =
-        typeFromClaude && ALLOWED_TYPES.includes(typeFromClaude)
-          ? typeFromClaude
-          : 'Autre';
-
-      const insertPayload: Record<string, unknown> = {
-        ref: createdRef,
-        type: typeForInsert,
-        adresse: analyse.adresse_extraite,
-        lat,
-        lng,
-        drive_folder_id: driveFolderId,
-        statut: 'nouvelle',
-        source: 'mail',
-        source_mail_id: threadId,
-        description: analyse.resume,
-        priorite: analyse.urgence ? 'urgente' : 'normale',
-      };
-      const { data: inserted, error: insErr } = await admin
-        .from('interventions')
-        .insert(insertPayload)
-        .select('id, ref, adresse')
-        .single();
-      if (insErr) {
-        errors.push(`insert intervention: ${insErr.message}`);
-      } else if (inserted) {
-        const ins = inserted as { id: string; ref: string | null; adresse: string | null };
-        dossierMatchId = ins.id;
-        dossierInfo = { id: ins.id, ref: ins.ref, adresse: ins.adresse };
-        dossierCreated = true;
-      }
     }
 
-    // 8. Stocker pièces jointes (si dossier + drive_folder_id dispo)
-    const pjDriveIds: string[] = [];
-    let pjUploaded = 0;
-    if (dossierMatchId && driveFolderId) {
-      // Aplati : (message_id, attachment) — on a besoin du message_id pour
-      // appeler /messages/{id}/attachments/{att_id}.
-      const flat = messages.flatMap((m) => m.attachments.map((a) => ({ message_id: m.id, ...a })));
-      for (const att of flat) {
-        if (!att.attachment_id) continue;
-        try {
-          const data64 = await downloadGmailAttachment(att.message_id, att.attachment_id);
-          if (!data64) {
-            errors.push(`gmail attachment ${att.filename}: download échoué`);
-            continue;
-          }
-          const up = await uploadAttachmentToFolder({
-            folder_id: driveFolderId,
-            filename: att.filename,
-            mime_type: att.mime_type,
-            data_base64: data64,
-          });
-          pjDriveIds.push(up.file_id);
-          pjUploaded += 1;
-        } catch (e) {
-          errors.push(`upload pj ${att.filename}: ${e instanceof Error ? e.message : 'inconnu'}`);
-        }
-      }
-    }
+    // 8. (LECTURE SEULE) Pas de stockage de PJ ici — déféré à
+    //    confirm-and-create qui a un dossier Drive cible.
+    const pjUploaded = 0;
 
     // 9. Proposer un créneau (si demande_intervention)
     let creneauPropose: CreneauPropose | null = null;
@@ -489,6 +422,12 @@ export async function POST(request: Request) {
 
     // 10. UPSERT mails_analyses (toujours, permet retry idempotent)
     try {
+      // pj_drive_ids et brouillon_gmail_id / event_calendar_id NE SONT
+      // PAS écrits ici — ils sont gérés respectivement par
+      // confirm-and-create (uploads PJ post-validation) et
+      // draft-reply / calendar/events. L'UPSERT préserve naturellement
+      // les colonnes absentes du payload (Supabase upsert sémantique :
+      // INSERT … ON CONFLICT DO UPDATE SET <colonnes du payload>).
       const upsertPayload: Record<string, unknown> = {
         thread_id: threadId,
         type: analyse.type,
@@ -502,7 +441,6 @@ export async function POST(request: Request) {
         dossier_match_id: dossierMatchId,
         creneau_propose_id: creneauPropose?.creneau_id ?? null,
         fenetre_etendue: fenetreEtendue,
-        pj_drive_ids: pjDriveIds,
         analyse_raw: analyse,
         errors: errors.length > 0 ? errors : null,
         updated_at: new Date().toISOString(),
@@ -526,7 +464,9 @@ export async function POST(request: Request) {
       analyse: {
         ...analyse,
         dossier: dossierInfo,
-        dossier_created: dossierCreated,
+        // analyse-deep est read-only : dossier_created toujours false ici.
+        // confirm-and-create renvoie dossier_created=true après validation.
+        dossier_created: false,
         dossier_existed: dossierExisted,
         creneau_propose: creneauPropose,
         creneau_alternative: creneauAlternative,
