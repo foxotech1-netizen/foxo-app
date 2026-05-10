@@ -236,7 +236,7 @@ async function getPhotosFolder(token: string, ref: string, adresse: string, year
 // Utilisé pour permettre l'affichage des miniatures via l'URL
 // `https://drive.google.com/thumbnail?id={FILE_ID}&sz=w400` directement
 // dans un `<img src>` côté navigateur (sans proxy OAuth).
-async function makeFilePublic(fileId: string, accessToken: string): Promise<void> {
+export async function makeFilePublic(fileId: string, accessToken: string): Promise<void> {
   try {
     await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
       method: 'POST',
