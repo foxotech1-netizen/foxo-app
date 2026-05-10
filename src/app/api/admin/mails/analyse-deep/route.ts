@@ -2,30 +2,28 @@
 // Body : { thread_id: string }
 // Response : { success, analyse?, errors? }
 //
-// Pipeline complet d'analyse approfondie d'un thread Gmail :
-//   1. Guard admin (cf. roleForEmail)
-//   2. Charge tous les messages du thread Gmail (REST direct)
-//   3. Construit le contexte FoxO (syndics + 5 dossiers actifs récents)
-//   4. Appelle Claude (claude-sonnet-4-6) avec system prompt strict JSON
-//   5. Parse JSON ; si échec → 500 explicite
-//   6. Matching dossier existant (ref puis fuzzy adresse)
-//   7. Si demande_intervention sans match : géocode Nominatim, crée
+// Pipeline 11 étapes :
+//   1. Guard admin
+//   2. Charge thread Gmail (via getEmailThread de @/lib/gmail)
+//   3. Contexte FoxO (50 syndics + 5 dossiers actifs récents)
+//   4. Claude (claude-sonnet-4-6) → JSON strict
+//   5. Parse ; si invalide → 500
+//   6. Match dossier (ref puis fuzzy adresse)
+//   7. Si demande_intervention sans match → géocode Nominatim, crée
 //      dossier Drive (createInterventionFolderFromMail), INSERT intervention
-//   8. Stocke les pièces jointes Gmail dans le dossier Drive
-//   9. Si demande_intervention : proposeCreneau (primary + alternative)
-//  10. UPSERT mails_analyses (clé thread_id pour idempotence)
-//  11. Réponse JSON avec analyse enrichie
+//   8. Stocke pièces jointes Gmail dans Drive
+//   9. proposeCreneau si demande_intervention
+//  10. UPSERT mails_analyses (toujours — permet retry idempotent)
+//  11. Réponse enrichie
 //
-// ⚠ Aucun envoi automatique vers le client (règle d'or FoxO). Toutes
-// les actions sont locales (DB + Drive interne). L'admin valide ensuite
-// le créneau proposé et déclenche l'envoi manuel.
+// ⚠ Aucun envoi automatique vers le client (règle d'or FoxO).
 
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
-import { getValidAccessToken } from '@/lib/google-auth';
+import { getEmailThread, downloadGmailAttachment } from '@/lib/gmail';
 import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau';
 import {
   createInterventionFolderFromMail,
@@ -33,11 +31,9 @@ import {
 } from '@/lib/drive/create-intervention-folder';
 
 export const dynamic = 'force-dynamic';
-// Pipeline Gmail + Claude + Drive + DB → 5-15s typique, plafonné à 30s.
 export const maxDuration = 30;
 
 const MODEL = 'claude-sonnet-4-6';
-const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -67,132 +63,7 @@ interface DossierInfo {
   adresse: string | null;
 }
 
-// ─── Helpers Gmail thread (locaux — gmail.ts existant ne fournit pas
-//     getThread ni download d'attachment avec attachmentId) ───────────
-
-interface RawGmailHeader { name: string; value: string }
-interface RawGmailPayload {
-  mimeType?: string;
-  filename?: string;
-  body?: { data?: string; size?: number; attachmentId?: string };
-  parts?: RawGmailPayload[];
-  headers?: RawGmailHeader[];
-}
-interface RawGmailMessage {
-  id: string;
-  threadId: string;
-  internalDate?: string;
-  payload?: RawGmailPayload;
-}
-interface RawGmailThread {
-  messages?: RawGmailMessage[];
-}
-
-interface ParsedAttachment {
-  message_id: string;
-  filename: string;
-  mime_type: string;
-  attachment_id: string | null;
-}
-
-interface ParsedMessage {
-  id: string;
-  date: string;
-  from: string;
-  body_text: string;
-  attachments: ParsedAttachment[];
-}
-
-function decodeB64Url(data: string): string {
-  try {
-    const b = data.replace(/-/g, '+').replace(/_/g, '/');
-    return Buffer.from(b, 'base64').toString('utf-8');
-  } catch {
-    return '';
-  }
-}
-
-function header(p: RawGmailPayload | undefined, name: string): string {
-  if (!p?.headers) return '';
-  const lower = name.toLowerCase();
-  return p.headers.find((h) => h.name.toLowerCase() === lower)?.value ?? '';
-}
-
-function extractText(p: RawGmailPayload | undefined): string {
-  if (!p) return '';
-  if (p.mimeType === 'text/plain' && p.body?.data) return decodeB64Url(p.body.data);
-  if (p.parts) {
-    const plain = p.parts.find((x) => x.mimeType === 'text/plain' && x.body?.data);
-    if (plain?.body?.data) return decodeB64Url(plain.body.data);
-    for (const part of p.parts) {
-      const t = extractText(part);
-      if (t) return t;
-    }
-  }
-  return '';
-}
-
-function extractAttachmentRefs(messageId: string, p: RawGmailPayload | undefined): ParsedAttachment[] {
-  if (!p) return [];
-  const out: ParsedAttachment[] = [];
-  function walk(part: RawGmailPayload) {
-    if (part.filename && part.filename.length > 0) {
-      out.push({
-        message_id: messageId,
-        filename: part.filename,
-        mime_type: part.mimeType ?? 'application/octet-stream',
-        attachment_id: part.body?.attachmentId ?? null,
-      });
-    }
-    part.parts?.forEach(walk);
-  }
-  walk(p);
-  return out;
-}
-
-function parseMessage(raw: RawGmailMessage): ParsedMessage {
-  const date = raw.internalDate ? new Date(parseInt(raw.internalDate, 10)).toISOString() : '';
-  // Tronqué à 8000 chars/message pour ne pas exploser le contexte Claude
-  // sur les threads à 30+ messages avec PJ inline.
-  return {
-    id: raw.id,
-    date,
-    from: header(raw.payload, 'From'),
-    body_text: extractText(raw.payload).slice(0, 8000),
-    attachments: extractAttachmentRefs(raw.id, raw.payload),
-  };
-}
-
-async function fetchGmailThread(token: string, threadId: string): Promise<ParsedMessage[]> {
-  const res = await fetch(`${GMAIL_API}/threads/${threadId}?format=full`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Gmail thread ${res.status} — ${detail.slice(0, 200)}`);
-  }
-  const j = (await res.json()) as RawGmailThread;
-  return (j.messages ?? []).map(parseMessage);
-}
-
-interface GmailAttachmentDownload {
-  data?: string;
-}
-async function downloadGmailAttachment(
-  token: string,
-  messageId: string,
-  attachmentId: string,
-): Promise<string | null> {
-  const res = await fetch(
-    `${GMAIL_API}/messages/${messageId}/attachments/${attachmentId}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!res.ok) return null;
-  const j = (await res.json()) as GmailAttachmentDownload;
-  return j.data ?? null;
-}
-
-// ─── Helper Nominatim (best-effort géocodage) ─────────────────────────
+// ─── Helper Nominatim (best-effort) ───────────────────────────────────
 
 interface NominatimItem { lat: string; lon: string }
 
@@ -251,18 +122,19 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   try {
-    // 2. Récupération thread Gmail
-    const auth = await getValidAccessToken();
-    if (!auth) {
-      return NextResponse.json(
-        { success: false, error: 'Google non connecté (cf. /admin/parametres).' },
-        { status: 502 },
-      );
+    // 2. Récupération thread Gmail (réutilise getEmailThread de @/lib/gmail
+    //    — l'attachment_id est désormais inclus dans GmailAttachmentRef
+    //    grâce au refacto fait en parallèle).
+    const threadRes = await getEmailThread(threadId);
+    if (!threadRes.ok) {
+      return NextResponse.json({ success: false, error: threadRes.error }, { status: 502 });
     }
-    const messages = await fetchGmailThread(auth.access_token, threadId);
+    const messages = threadRes.messages;
     if (messages.length === 0) {
       return NextResponse.json({ success: false, error: 'Thread vide ou inaccessible.' }, { status: 404 });
     }
+    // Le builder GmailMessage tronque body_text à 4000 chars/message ;
+    // pour 30 messages c'est ~120k chars max → safe pour Claude.
     const threadText = messages
       .map((m) => `--- Message du ${m.date} de ${m.from} ---\n${m.body_text}`)
       .join('\n\n');
@@ -371,15 +243,12 @@ export async function POST(request: Request) {
         .eq('ref', analyse.numero_dossier_mentionne)
         .maybeSingle();
       if (data) {
-        dossierMatchId = (data as { id: string }).id;
-        dossierInfo = {
-          id: (data as { id: string }).id,
-          ref: (data as { ref: string | null }).ref,
-          adresse: (data as { adresse: string | null }).adresse,
-        };
-        lat = (data as { lat: number | null }).lat;
-        lng = (data as { lng: number | null }).lng;
-        driveFolderId = (data as { drive_folder_id: string | null }).drive_folder_id;
+        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null; drive_folder_id: string | null };
+        dossierMatchId = d.id;
+        dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
+        lat = d.lat;
+        lng = d.lng;
+        driveFolderId = d.drive_folder_id;
       }
     }
     if (!dossierMatchId && analyse.adresse_extraite) {
@@ -392,15 +261,12 @@ export async function POST(request: Request) {
         .limit(1)
         .maybeSingle();
       if (data) {
-        dossierMatchId = (data as { id: string }).id;
-        dossierInfo = {
-          id: (data as { id: string }).id,
-          ref: (data as { ref: string | null }).ref,
-          adresse: (data as { adresse: string | null }).adresse,
-        };
-        lat = (data as { lat: number | null }).lat;
-        lng = (data as { lng: number | null }).lng;
-        driveFolderId = (data as { drive_folder_id: string | null }).drive_folder_id;
+        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null; drive_folder_id: string | null };
+        dossierMatchId = d.id;
+        dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
+        lat = d.lat;
+        lng = d.lng;
+        driveFolderId = d.drive_folder_id;
       }
     }
 
@@ -443,12 +309,9 @@ export async function POST(request: Request) {
       if (insErr) {
         errors.push(`insert intervention: ${insErr.message}`);
       } else if (inserted) {
-        dossierMatchId = (inserted as { id: string }).id;
-        dossierInfo = {
-          id: (inserted as { id: string }).id,
-          ref: (inserted as { ref: string | null }).ref,
-          adresse: (inserted as { adresse: string | null }).adresse,
-        };
+        const ins = inserted as { id: string; ref: string | null; adresse: string | null };
+        dossierMatchId = ins.id;
+        dossierInfo = { id: ins.id, ref: ins.ref, adresse: ins.adresse };
       }
     }
 
@@ -456,15 +319,13 @@ export async function POST(request: Request) {
     const pjDriveIds: string[] = [];
     let pjUploaded = 0;
     if (dossierMatchId && driveFolderId) {
-      const allAttachments = messages.flatMap((m) => m.attachments);
-      for (const att of allAttachments) {
+      // Aplati : (message_id, attachment) — on a besoin du message_id pour
+      // appeler /messages/{id}/attachments/{att_id}.
+      const flat = messages.flatMap((m) => m.attachments.map((a) => ({ message_id: m.id, ...a })));
+      for (const att of flat) {
         if (!att.attachment_id) continue;
         try {
-          const data64 = await downloadGmailAttachment(
-            auth.access_token,
-            att.message_id,
-            att.attachment_id,
-          );
+          const data64 = await downloadGmailAttachment(att.message_id, att.attachment_id);
           if (!data64) {
             errors.push(`gmail attachment ${att.filename}: download échoué`);
             continue;
@@ -502,7 +363,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // 10. UPSERT mails_analyses (toujours, même partiel — permet retry)
+    // 10. UPSERT mails_analyses (toujours, permet retry idempotent)
     try {
       const upsertPayload: Record<string, unknown> = {
         thread_id: threadId,

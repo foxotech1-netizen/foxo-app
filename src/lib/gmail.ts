@@ -6,6 +6,16 @@ import { getValidAccessToken } from '@/lib/google-auth';
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
+export interface GmailAttachmentRef {
+  filename: string;
+  mime_type: string;
+  size: number;
+  // Présent uniquement quand le message vient de getMessage(format=full)
+  // — Gmail expose `body.attachmentId` qui sert à downloadGmailAttachment.
+  // Absent / null pour les autres cas (listInboxMails metadata, …).
+  attachment_id: string | null;
+}
+
 export interface GmailMessage {
   id: string;
   thread_id: string;
@@ -15,7 +25,7 @@ export interface GmailMessage {
   date: string;            // ISO
   snippet: string;
   body_text: string;
-  attachments: { filename: string; mime_type: string; size: number }[];
+  attachments: GmailAttachmentRef[];
 }
 
 export type GmailSearchResult =
@@ -30,7 +40,7 @@ interface RawHeader { name: string; value: string }
 interface RawPayload {
   mimeType?: string;
   headers?: RawHeader[];
-  body?: { data?: string; size?: number };
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: RawPayload[];
   filename?: string;
 }
@@ -88,15 +98,16 @@ function extractHtml(p: RawPayload | undefined): string {
   return '';
 }
 
-function extractAttachments(p: RawPayload | undefined): { filename: string; mime_type: string; size: number }[] {
+function extractAttachments(p: RawPayload | undefined): GmailAttachmentRef[] {
   if (!p) return [];
-  const out: { filename: string; mime_type: string; size: number }[] = [];
+  const out: GmailAttachmentRef[] = [];
   function walk(part: RawPayload) {
     if (part.filename && part.filename.length > 0) {
       out.push({
         filename: part.filename,
         mime_type: part.mimeType ?? 'application/octet-stream',
         size: part.body?.size ?? 0,
+        attachment_id: part.body?.attachmentId ?? null,
       });
     }
     part.parts?.forEach(walk);
@@ -583,6 +594,85 @@ function base64url(input: string): string {
 // Envoie une réponse à un mail existant, avec threading correct
 // (In-Reply-To + References + threadId). Le from est implicite (le
 // compte Google connecté). Body en text/plain UTF-8.
+// Crée un brouillon Gmail rattaché à un thread existant (jumelle de
+// sendMailReply mais sans envoi). Le destinataire peut être surchargé
+// via `to` (pour cibler un occupant identifié au lieu du sender du
+// thread). Si `to` non fourni, retombe sur le From du mail original.
+//
+// Retourne le draft.id Gmail + l'URL Gmail web pour ouvrir le brouillon
+// directement dans l'interface utilisateur.
+export async function createGmailDraft(args: {
+  mailId: string;        // mail le plus récent du thread (sert d'origine pour les en-têtes)
+  body: string;
+  to?: string;           // override destinataire (sinon = From du mail origine)
+  subject?: string;      // override Subject (sinon = "Re: <Subject origine>")
+}): Promise<{ ok: true; draft_id: string; gmail_url: string } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const headRes = await fetch(
+    `${API}/messages/${args.mailId}?format=metadata&metadataHeaders=Message-ID&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=References`,
+    { headers: { Authorization: `Bearer ${auth.access_token}` } },
+  );
+  if (!headRes.ok) {
+    const t = await headRes.text();
+    return { ok: false, error: `Headers HTTP ${headRes.status} : ${t.slice(0, 200)}` };
+  }
+  const raw = (await headRes.json()) as RawMessage;
+  const origMessageId = header(raw.payload, 'Message-ID');
+  const origFrom = header(raw.payload, 'From');
+  const origSubject = header(raw.payload, 'Subject');
+  const origReferences = header(raw.payload, 'References');
+  const threadId = raw.threadId;
+
+  const replyTo = (args.to ?? '').trim() || extractEmailFromHeader(origFrom);
+  if (!replyTo) return { ok: false, error: 'Impossible de déterminer le destinataire.' };
+
+  const subjectRaw = args.subject?.trim()
+    || (/^re:\s*/i.test(origSubject) ? origSubject : `Re: ${origSubject}`);
+  const references = origReferences ? `${origReferences} ${origMessageId}` : origMessageId;
+  const bodyNormalized = args.body.replace(/\r?\n/g, '\r\n');
+
+  const subjectEncoded = /^[\x20-\x7E]*$/.test(subjectRaw)
+    ? subjectRaw
+    : `=?UTF-8?B?${Buffer.from(subjectRaw, 'utf-8').toString('base64')}?=`;
+
+  const mime = [
+    `To: ${replyTo}`,
+    `Subject: ${subjectEncoded}`,
+    `In-Reply-To: ${origMessageId}`,
+    `References: ${references}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `MIME-Version: 1.0`,
+    ``,
+    bodyNormalized,
+  ].join('\r\n');
+
+  const rawEncoded = base64url(mime);
+
+  // POST /drafts au lieu de /messages/send → le mail apparaît dans
+  // "Brouillons" Gmail au lieu d'être envoyé. L'admin valide ensuite
+  // depuis l'interface Gmail web.
+  const draftRes = await fetch(`${API}/drafts`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${auth.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message: { raw: rawEncoded, threadId } }),
+  });
+  if (!draftRes.ok) {
+    const t = await draftRes.text();
+    return { ok: false, error: `Drafts HTTP ${draftRes.status} : ${t.slice(0, 300)}` };
+  }
+  const draft = (await draftRes.json()) as { id: string };
+  return {
+    ok: true,
+    draft_id: draft.id,
+    gmail_url: `https://mail.google.com/mail/u/0/#drafts/${draft.id}`,
+  };
+}
+
 export async function sendMailReply(args: {
   mailId: string;
   body: string;
@@ -834,4 +924,22 @@ export async function getEmailThread(threadId: string): Promise<GmailThreadResul
   }
   const j = (await res.json()) as { messages?: RawMessage[] };
   return { ok: true, messages: (j.messages ?? []).map(toMessage) };
+}
+
+// Télécharge le contenu d'une pièce jointe Gmail. Retourne le base64
+// URL-safe brut (à passer tel quel à uploadAttachmentToFolder qui gère
+// le décodage). Retourne null si l'API échoue (best-effort, ne throw pas).
+export async function downloadGmailAttachment(
+  messageId: string,
+  attachmentId: string,
+): Promise<string | null> {
+  const auth = await getValidAccessToken();
+  if (!auth) return null;
+  const res = await fetch(
+    `${API}/messages/${messageId}/attachments/${attachmentId}`,
+    { headers: { Authorization: `Bearer ${auth.access_token}` } },
+  );
+  if (!res.ok) return null;
+  const j = (await res.json()) as { data?: string };
+  return j.data ?? null;
 }
