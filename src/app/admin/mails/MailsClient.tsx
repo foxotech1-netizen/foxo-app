@@ -7,6 +7,9 @@ import {
   Zap, Paperclip, Circle, Tag, Archive,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
+import type { MailAnalyse } from './MailAnalyseTypes';
+import { MailAnalyseBadges } from './MailAnalyseBadges';
+import { MailAnalyseActions } from './MailAnalyseActions';
 
 type FilterMode = 'tous' | 'unread' | 'lies' | 'trash';
 type BulkAction =
@@ -93,6 +96,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [labelsLoading, setLabelsLoading] = useState(initialConnected);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
 
+  // Analyses Claude (T5 → mails_analyses). Map thread_id → MailAnalyse.
+  // Chargée en batch après le mount des mails (1 requête pour tous les
+  // thread_id visibles) puis rafraîchie ponctuellement après chaque action
+  // (analyse-deep, draft-reply, calendar event).
+  const [analyses, setAnalyses] = useState<Map<string, MailAnalyse>>(new Map());
+
   // Modals
   const [createLabelOpen, setCreateLabelOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ ids: string[] } | null>(null);
@@ -127,6 +136,48 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
   }, [initialConnected, filter, activeLabel, refreshTick]);
+
+  // Charge les analyses Claude pour tous les thread_id visibles. Évite
+  // d'attendre le clic d'un mail pour savoir s'il a déjà été analysé
+  // (les badges TYPE / URGENT / Dossier sont visibles dans la liste).
+  // L'API retourne {} si thread_ids vide → on retombe naturellement
+  // sur une Map vide via la même branche d'écriture (pas de setState
+  // synchrone dans l'effect en cas de liste vide).
+  useEffect(() => {
+    let cancelled = false;
+    const threadIds = Array.from(new Set(mails.map((m) => m.thread_id).filter(Boolean)));
+    const url = `/api/admin/mails/analyses?thread_ids=${encodeURIComponent(threadIds.join(','))}`;
+    fetch(url, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (!data.success) return;
+        const next = new Map<string, MailAnalyse>();
+        for (const [tid, raw] of Object.entries((data.analyses ?? {}) as Record<string, unknown>)) {
+          next.set(tid, raw as MailAnalyse);
+        }
+        setAnalyses(next);
+      })
+      .catch(() => { /* silent — l'UI fonctionne sans les badges */ });
+    return () => { cancelled = true; };
+  }, [mails]);
+
+  // Refresh ciblé d'une analyse après une action (analyse-deep, draft-reply,
+  // calendar event). Met à jour la Map sans refetch global.
+  const refreshAnalyse = async (threadId: string) => {
+    try {
+      const r = await fetch(`/api/admin/mails/analyses?thread_ids=${encodeURIComponent(threadId)}`, { cache: 'no-store' });
+      const data = await r.json();
+      if (!data.success) return;
+      const fresh = (data.analyses ?? {})[threadId] as MailAnalyse | undefined;
+      if (!fresh) return;
+      setAnalyses((prev) => {
+        const next = new Map(prev);
+        next.set(threadId, fresh);
+        return next;
+      });
+    } catch { /* noop */ }
+  };
 
   // Charge les labels Gmail
   useEffect(() => {
@@ -638,6 +689,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             const checked = selectedIds.has(m.id);
             const badges = userBadgesForMail(m);
             const isImportant = m.label_ids.includes('IMPORTANT');
+            const analyse = analyses.get(m.thread_id) ?? null;
             return (
               <div
                 key={m.id}
@@ -683,6 +735,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       {badges.map((l) => (
                         <LabelBadge key={l.id} label={l} small />
                       ))}
+                    </div>
+                  )}
+                  {analyse && (
+                    <div className="mt-1.5">
+                      <MailAnalyseBadges analyse={analyse} />
                     </div>
                   )}
                   <div className="text-[11px] text-ink-muted truncate mt-0.5">
@@ -823,6 +880,21 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               >
                 {feedback.msg}
               </div>
+            )}
+
+            {/* Sprint Mails enrichis : actions 1-clic sur l'analyse Claude
+                approfondie (T5/T6). Bouton 'Analyser approfondi' si pas
+                encore analysé, sinon 3 actions (brouillon syndic / confirmer
+                occupant / event Calendar) + accordion détail. Coexiste
+                avec les boutons legacy ('Analyser avec IA' simple, 'Créer
+                une intervention') ci-dessus pour ne pas casser le flow
+                actuel. */}
+            {detail && (
+              <MailAnalyseActions
+                threadId={detail.thread_id}
+                analyse={analyses.get(detail.thread_id) ?? null}
+                onAnalyseRefresh={refreshAnalyse}
+              />
             )}
 
             {/* Panel "Répondre" */}
