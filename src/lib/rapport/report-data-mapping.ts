@@ -251,15 +251,8 @@ export function buildRefLabelValue(
 //   - 'Test de pression' / 'Mise en pression' → pression
 //   - 'Gaz traceur'                           → gaz
 //   - 'Inspection visuelle'                   → visuelle
-//
-// console.log temporaire pour débug du mapping (intervention 2026-116
-// remontée avec 0 technique cochée alors qu'elle a des observations) —
-// révèle si les test_type stockés diffèrent de la liste ci-dessus
-// (ex. apostrophe typographique " ’ " vs droite " ' ", espaces, etc.).
 export function buildTechniques(observations: ReadonlyArray<{ test_type: string }>): ReportTechniques {
-  const testTypes = observations.map((o) => o.test_type);
-  console.log('[build-docx] observations test_types:', testTypes);
-  const types = new Set(testTypes);
+  const types = new Set(observations.map((o) => o.test_type));
   return {
     capteur:    types.has("Capteur d'humidité") || types.has('Humidimètre'),
     thermique:  types.has('Thermographie'),

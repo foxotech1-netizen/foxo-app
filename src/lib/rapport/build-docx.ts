@@ -529,14 +529,15 @@ export async function buildRapportDocx(args: {
   const { data } = args;
 
   // Logo header — best-effort (si manquant, fallback texte "FoxO").
-  // Largeur cible : 280px (cohérent avec la maquette FOXO_BASE).
-  // Hauteur calculée dynamiquement depuis les vraies dimensions du PNG
-  // pour préserver le ratio et éviter une déformation visuelle si l'asset
-  // est remplacé (ex. nouveau logo "FoxO + Fox Group srl côte à côte"
-  // ratio ≈ 2.95). Fallback 280×95 si image-size échoue.
+  // Largeur cible : 200px (réduite depuis 280px pour aérer la zone
+  // header). Hauteur calculée dynamiquement depuis les vraies dimensions
+  // du PNG pour préserver le ratio et éviter une déformation visuelle si
+  // l'asset est remplacé (ex. logo "FoxO + Fox Group srl côte à côte"
+  // ratio ≈ 2.95 → height ≈ 68 à 200 de width). Fallback 200×68 si
+  // image-size échoue.
   let logoBytes: Buffer | null = null;
-  const logoWidth = 280;
-  let logoHeight = 95;
+  const logoWidth = 200;
+  let logoHeight = 68;
   try {
     const logoPath = path.join(
       process.cwd(),
@@ -689,7 +690,11 @@ export async function buildRapportDocx(args: {
               // clients Word (notamment Word for Mac et LibreOffice) tronquent
               // la bordure ou la rendent derrière l'en-tête. ALL_PAGES + PAGE
               // + FRONT garantissent un encadrement uniforme et au-dessus
-              // du contenu de l'en-tête/pied de page.
+              // du contenu de l'en-tête/pied de page. La lib docx (8.x) lit
+              // ces 3 attrs UNIQUEMENT depuis ce sous-objet `pageBorders`
+              // (cf. PageBorders dans dist/index.cjs:15935) — les mettre en
+              // siblings de pageBorderTop/etc. est ignoré silencieusement
+              // côté XML final.
               pageBorders: {
                 display:    PageBorderDisplay.ALL_PAGES,
                 offsetFrom: PageBorderOffsetFrom.PAGE,
