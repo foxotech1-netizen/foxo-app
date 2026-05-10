@@ -551,7 +551,7 @@ export async function buildRapportDocx(args: {
     const logoPath = path.join(
       process.cwd(),
       'public',
-      'foxo-logo-noir-transparent.png',
+      'foxo-logo-documents.png',
     );
     logoBytes = await fs.readFile(logoPath);
   } catch (e) {
@@ -572,7 +572,7 @@ export async function buildRapportDocx(args: {
           ? [
               new ImageRun({
                 data: logoBytes,
-                transformation: { width: 205, height: 108 },
+                transformation: { width: 280, height: 95 },
                 type: 'png',
               }),
             ]

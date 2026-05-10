@@ -42,7 +42,7 @@ export async function GET(
     console.warn('[api/admin/facture] EPC QR error:', e);
   }
 
-  const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
+  const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-documents.png');
 
   // Pour les factures : charge les avoirs ACTIFS liés (statut ≠ annulee)
   // pour que le PDF affiche le solde net dû. Pour les devis et avoirs,

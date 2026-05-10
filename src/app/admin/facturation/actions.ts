@@ -656,7 +656,7 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
           avoirsForPdf = ((linkedAvoirs ?? []) as Array<{ id: string; numero: string; montant_ttc: number | null; statut: StatutFacture }>)
             .map((a) => ({ id: a.id, numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
         }
-        const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
+        const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-documents.png');
         const pdf = await renderToBuffer(FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs: avoirsForPdf }));
         const date = facture.date_emission ? new Date(facture.date_emission) : new Date();
         await uploadFacture({ numero: facture.numero, date, bytes: new Uint8Array(pdf) });
@@ -836,7 +836,7 @@ export async function sendDocumentEmail(
       .map((a) => ({ id: a.id, numero: a.numero, montant_ttc: Number(a.montant_ttc ?? 0), statut: a.statut }));
   }
 
-  const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
+  const logoSrc = path.join(process.cwd(), 'public', 'foxo-logo-documents.png');
   let pdfBuffer: Buffer;
   try {
     pdfBuffer = await renderToBuffer(

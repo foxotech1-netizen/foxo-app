@@ -49,7 +49,9 @@ const styles = StyleSheet.create({
   // Header
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 18 },
   headerLeft: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', flex: 1 },
-  logo: { width: 80, height: 80, objectFit: 'contain' },
+  // Ratio 2.95:1 — aligné sur foxo-logo-documents.png (FoxO + Fox Group
+  // srl côte à côte). Cohérent avec le header rapport DOCX.
+  logo: { width: 140, height: 47, objectFit: 'contain' },
   vendorBlock: { fontSize: 8, lineHeight: 1.4, color: COLORS.ink },
   vendorName: { fontSize: 10, fontWeight: 700, color: COLORS.navy, marginBottom: 2 },
   clientBox: {
@@ -263,7 +265,7 @@ function termsDays(emission: string | null, echeance: string | null): number {
 export interface FactureFoxoPdfProps {
   facture: Facture;
   qrDataUrl?: string;        // data: PNG du QR EPC (généré côté serveur)
-  logoSrc?: string;          // chemin absolu vers public/foxo-logo-transparent.png
+  logoSrc?: string;          // chemin absolu vers public/foxo-logo-documents.png
   // Avoirs ACTIFS liés à cette facture (statut ≠ annulee). Affichés dans
   // un bloc en bas de page avec le solde net. Utile pour les factures
   // qui ont déjà été partiellement créditées au moment de l'envoi.
@@ -311,7 +313,7 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs }: FactureF
     ?? (newRemiseValeur === 0 && Number(facture.remise_pct ?? 0) > 0 ? 'Remise' : null);
 
   const days = termsDays(facture.date_emission, facture.date_echeance);
-  const logoPath = logoSrc ?? path.join(process.cwd(), 'public', 'foxo-logo-transparent.png');
+  const logoPath = logoSrc ?? path.join(process.cwd(), 'public', 'foxo-logo-documents.png');
 
   return (
     <Document
