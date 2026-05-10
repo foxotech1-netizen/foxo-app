@@ -1,39 +1,21 @@
-// Création d'un dossier d'intervention dans Google Drive (racine RAPPORT
-// plate, distincte de la hiérarchie RAPPORTS/[year]/ pilotée par le
-// pipeline tech — cf. src/lib/google-drive.ts).
+// Helpers Drive pour le pipeline mail → intervention.
 //
-// Usage : pipeline mail → intervention. Quand un mail entrant est validé
-// comme nouvelle demande, on alloue ici une référence "2026-NNN" en
-// scannant les dossiers existants, on crée le dossier, on rend
-// l'arborescence accessible en lecture publique pour partager le lien
-// avec le syndic / occupants, puis on y dépose éventuellement les
-// pièces jointes du mail (uploadAttachmentToFolder).
+// La création du dossier d'intervention elle-même est déléguée à
+// `createInterventionFolder` de @/lib/google-drive (structure
+// hiérarchique RAPPORTS/{year}/{ref + adresse}/photos/, idempotente
+// via ensureFolder). Ce module ne contient que les briques manquantes :
+//
+//   - uploadAttachmentToFolder : dépose une pièce jointe Gmail (base64)
+//     dans un dossier Drive existant via upload multipart.
 //
 // Implémentation REST cohérente avec src/lib/google-drive.ts (fetch +
 // getValidAccessToken depuis @/lib/google-auth, pas de SDK googleapis).
 
 import { getValidAccessToken } from '@/lib/google-auth';
-import { makeFilePublic } from '@/lib/google-drive';
 
-const FOLDER_MIME = 'application/vnd.google-apps.folder';
-const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
 
-// Année préfixe des refs FoxO : actuellement hardcodée 2026 (cf. spec
-// pipeline mail). Si la convention évolue (rotation annuelle), exposer
-// en paramètre ou dériver de new Date().getFullYear().
-const REF_YEAR = 2026;
-const REF_REGEX = /^2026-(\d{3,})\s/;
-
 // ─── Types exportés ────────────────────────────────────────────────────
-
-export interface CreateInterventionFolderResult {
-  folder_id: string;
-  folder_name: string;
-  ref: string;       // ex: "2026-148"
-  number: number;    // ex: 148
-  url: string;       // webViewLink Drive
-}
 
 export interface UploadAttachmentParams {
   folder_id: string;
@@ -55,87 +37,12 @@ interface DriveFile {
   webViewLink?: string;
 }
 
-interface DriveListResponse {
-  files?: DriveFile[];
-  nextPageToken?: string;
-}
-
-async function getRootFolderId(): Promise<string> {
-  const id = process.env.DRIVE_RAPPORT_FOLDER_ID;
-  if (!id || !id.trim()) {
-    throw new Error('Drive: DRIVE_RAPPORT_FOLDER_ID manquante (cf. .env.example).');
-  }
-  return id.trim();
-}
-
 async function getAccessToken(): Promise<string> {
   const auth = await getValidAccessToken();
   if (!auth) {
     throw new Error('Drive: token Google indisponible (compte non connecté ou refresh échoué).');
   }
   return auth.access_token;
-}
-
-// Liste paginée de tous les sous-dossiers d'un parent (sans corbeille).
-// Pas de filtre par nom ici : on doit scanner pour trouver le numéro
-// max sur le préfixe d'année courant.
-async function listChildFolders(token: string, parentId: string): Promise<DriveFile[]> {
-  const out: DriveFile[] = [];
-  let pageToken: string | undefined;
-  // Garde-fou : si plus de ~10 pages (10 000 dossiers), le scan devient
-  // suspect — la racine est probablement mal configurée.
-  for (let page = 0; page < 10; page++) {
-    const q = `'${parentId}' in parents and mimeType='${FOLDER_MIME}' and trashed=false`;
-    const params = new URLSearchParams({
-      q,
-      fields: 'nextPageToken,files(id,name)',
-      pageSize: '1000',
-    });
-    if (pageToken) params.set('pageToken', pageToken);
-    const res = await fetch(`${DRIVE_API}/files?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => '');
-      throw new Error(`Drive: list folders ${res.status} — ${detail.slice(0, 200)}`);
-    }
-    const j = (await res.json()) as DriveListResponse;
-    if (j.files) out.push(...j.files);
-    if (!j.nextPageToken) return out;
-    pageToken = j.nextPageToken;
-  }
-  return out;
-}
-
-function nextRefNumber(folders: DriveFile[]): number {
-  let max = 0;
-  for (const f of folders) {
-    const m = REF_REGEX.exec(f.name);
-    if (!m) continue;
-    const n = Number.parseInt(m[1], 10);
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return max + 1;
-}
-
-async function createFolder(
-  token: string,
-  parentId: string,
-  name: string,
-): Promise<DriveFile> {
-  const res = await fetch(`${DRIVE_API}/files?fields=id,name,webViewLink`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parentId] }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`Drive: create folder ${res.status} — ${detail.slice(0, 200)}`);
-  }
-  return (await res.json()) as DriveFile;
 }
 
 // Décodage base64 standard ou URL-safe (Gmail API renvoie de l'URL-safe).
@@ -185,51 +92,7 @@ async function uploadMultipart(
   return (await res.json()) as DriveFile;
 }
 
-function buildWebViewLink(folder: DriveFile): string {
-  return folder.webViewLink ?? `https://drive.google.com/drive/folders/${folder.id}`;
-}
-
 // ─── API publique ─────────────────────────────────────────────────────
-
-export async function createInterventionFolder(
-  adresse: string,
-): Promise<CreateInterventionFolderResult> {
-  try {
-    const cleanedAdresse = adresse.trim().replace(/\s+/g, ' ');
-    if (!cleanedAdresse) {
-      throw new Error('Drive: adresse vide — impossible de nommer le dossier.');
-    }
-
-    const [rootId, token] = await Promise.all([getRootFolderId(), getAccessToken()]);
-
-    // 1. Scanner la racine pour repérer le dernier numéro alloué.
-    const folders = await listChildFolders(token, rootId);
-    const number = nextRefNumber(folders);
-    const ref = `${REF_YEAR}-${String(number).padStart(3, '0')}`;
-    const folder_name = `${ref} ${cleanedAdresse}`;
-
-    // 2. Créer le dossier d'intervention.
-    const created = await createFolder(token, rootId, folder_name);
-
-    // 3. Rendre lisible publiquement (best-effort — partagé par lien).
-    //    makeFilePublic est noop sur erreur, donc on n'interrompt pas
-    //    la création si Drive refuse l'élévation de permissions.
-    await makeFilePublic(created.id, token);
-
-    return {
-      folder_id: created.id,
-      folder_name: created.name,
-      ref,
-      number,
-      url: buildWebViewLink(created),
-    };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'erreur inconnue';
-    console.error('[drive/create-intervention-folder] createInterventionFolder failed:', msg);
-    if (e instanceof Error && e.message.startsWith('Drive:')) throw e;
-    throw new Error(`Drive: impossible de créer le dossier — ${msg}`);
-  }
-}
 
 export async function uploadAttachmentToFolder(
   params: UploadAttachmentParams,
