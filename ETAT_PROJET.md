@@ -4,6 +4,76 @@ _Dernière mise à jour : 2026-05-08 · `main` @ `7514a08`_
 
 ---
 
+## Sprint Mails — tests manuels
+
+Procédure de validation end-to-end du pipeline mail → action 1-clic
+(routes T5-T6 + UI MailAnalyseActions). À exécuter sur un compte admin
+réel avec Google connecté + ANTHROPIC_API_KEY + TWILIO_PHONE_NUMBER en
+prod (ou env staging).
+
+**Pré-requis prod** :
+- Table `mails_analyses` créée avec colonnes `brouillon_gmail_id` +
+  `event_calendar_id`.
+- Colonne `interventions.drive_folder_id` créée.
+- Dossier Google Drive `RAPPORTS/2026/` accessible par le compte OAuth
+  FoxO (cf. `GOOGLE_DRIVE_RAPPORTS_FOLDER_ID`).
+
+### Procédure
+
+1. **Ouvrir `/admin/mails`.** Vérifier que les mails déjà analysés
+   affichent les badges (TYPE coloré, LANGUE, URGENT, lien Dossier).
+2. **Sélectionner 1 mail non analysé** (sans badge sous le snippet).
+   Cliquer sur **`Analyser approfondi`** dans le panel détail (sous
+   les boutons legacy).
+   - Vérifier le spinner pendant 5-15s.
+   - Vérifier le toast de succès.
+   - Vérifier que les badges apparaissent dans la row + dans l'accordion.
+3. **Si type='demande_intervention'** :
+   - Vérifier qu'un nouveau dossier est créé dans `interventions` (badge
+     "Dossier {ref}" apparaît).
+   - Vérifier le dossier Drive créé sous `RAPPORTS/2026/{ref Adresse}/`.
+   - Vérifier que les pièces jointes du thread sont uploadées dedans.
+   - Vérifier que le créneau est proposé dans l'accordion détail.
+4. **Tester `[Brouillon syndic]`** :
+   - Cliquer sur le bouton, attendre toast "Brouillon créé".
+   - Cliquer le lien "Ouvrir" → vérifier que le brouillon est dans
+     Gmail web (`https://mail.google.com/mail/u/0/#drafts/...`).
+   - Vérifier le contenu (signature `Christophe Mertens — FoxO`, langue
+     correcte, date du créneau mentionnée).
+5. **Tester `[Confirmer occupant ▼ → Par mail]`** :
+   - Cliquer le dropdown, sélectionner "Par mail".
+   - Vérifier le brouillon dans Gmail (langue + créneau + demande de
+     confirmation).
+6. **Tester `[Confirmer occupant ▼ → Par SMS]`** :
+   - Cliquer le dropdown, sélectionner "Par SMS".
+   - Vérifier l'ouverture de la modal avec téléphone + body pré-remplis
+     par Claude.
+   - Éditer si besoin, vérifier le compteur 160/segments.
+   - Cliquer "Envoyer maintenant" → vérifier le SMS reçu sur le téléphone
+     destinataire.
+   - Vérifier la timeline de l'intervention (event `sms_envoye`).
+7. **Tester `[Event Calendar]`** :
+   - Cliquer le bouton, vérifier le confirm dialog avec date + heure +
+     tech.
+   - Confirmer → vérifier le toast "Event créé" + lien.
+   - Vérifier l'event dans Google Calendar (date, heure, attendee tech).
+   - Vérifier que le créneau passe `statut='reserve'` dans
+     `creneaux_disponibles`.
+   - Vérifier que l'intervention passe `statut='confirmee'` avec
+     `creneau_debut` + `technicien_id` mis à jour.
+   - Vérifier que le bouton devient "Event créé ✓" (disabled).
+8. **Cas d'erreur à valider** :
+   - Mail sans `occupant_telephone` → bouton SMS absent du dropdown.
+   - Mail sans `dossier_match_id` → bouton "Brouillon syndic" absent.
+   - Mail sans `creneau_propose_id` → boutons "Confirmer occupant" et
+     "Event Calendar" absents.
+   - Re-cliquer "Analyser approfondi" sur un mail déjà analysé → UPSERT
+     idempotent (les colonnes `brouillon_gmail_id` et `event_calendar_id`
+     sont préservées si présentes — vérifier qu'elles ne sont pas reset
+     à null par une analyse répétée).
+
+---
+
 ## 1. Repère
 
 - **Branch** : `main` (synchronisée avec `origin/main`)
