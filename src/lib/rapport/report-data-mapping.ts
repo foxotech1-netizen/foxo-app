@@ -11,6 +11,7 @@
 
 import type { Acp, Intervention, Occupant, Organisation, Rapport, TypeOccupant } from '@/lib/types/database';
 import { TYPE_OCCUPANT_LABEL } from '@/lib/types/database';
+import type { ReportTechniques } from '@/lib/rapport/build-docx';
 
 // Format date court FR (jj/mm/aaaa). Centralisé ici pour que la même
 // chaîne soit utilisée partout (label "Date intervention", footer "Fait
@@ -27,14 +28,23 @@ const FOXO_REF_RE = /^\d{4}-\d{2,4}$/;
 
 // ─── Objet du rapport ────────────────────────────────────────────────
 //
-// Règle : prendre la 1ʳᵉ ligne de rapport.degats si elle est < 200 chars
-// (sert de résumé court de l'intervention). Sinon, fallback "Recherche
-// de fuite" + adresse courte (ACP ou intervention).
+// Cascade de priorité (descendante) :
+//   1. iv.description si non vide ET < 300 chars (le syndic la rédige
+//      souvent comme un mini-objet — ex. "Écoulements sporadiques au
+//      plafond de la salle de bain de l'appartement E44 – Recherche
+//      d'origine – Investigation appartement E54")
+//   2. Sinon, 1ʳᵉ ligne de rapport.degats si < 200 chars (résumé court
+//      écrit par le tech)
+//   3. Fallback : "Recherche de fuite – {acp.nom | adresse courte}"
 export function buildObjet(
   rapport: Rapport | null,
-  acp: Pick<Acp, 'adresse' | 'code_postal' | 'ville'> | null,
-  iv: Pick<Intervention, 'adresse'>,
+  acp: Pick<Acp, 'nom' | 'adresse' | 'code_postal' | 'ville'> | null,
+  iv: Pick<Intervention, 'adresse' | 'description'>,
 ): string {
+  const description = (iv.description ?? '').trim();
+  if (description.length > 0 && description.length < 300) {
+    return description;
+  }
   const degats = (rapport?.degats ?? '').trim();
   if (degats) {
     const firstLine = degats.split(/\r?\n/)[0]?.trim() ?? '';
@@ -43,7 +53,8 @@ export function buildObjet(
     }
   }
   const adresseCourte =
-    acp?.adresse?.trim()
+    acp?.nom?.trim()
+    || acp?.adresse?.trim()
     || [acp?.code_postal, acp?.ville].filter(Boolean).join(' ').trim()
     || iv.adresse?.trim()
     || '';
@@ -85,9 +96,9 @@ export interface FacturationLines {
 }
 
 export function buildFacturationLines(
-  iv: Pick<Intervention, 'nom_facturation' | 'email_facturation' | 'bce_facturation'>,
+  iv: Pick<Intervention, 'nom_facturation' | 'email_facturation' | 'bce_facturation' | 'adresse'>,
   acp: Pick<Acp, 'nom' | 'bce'> | null,
-  syndic: Pick<Organisation, 'nom' | 'adresse' | 'contact'> | null,
+  syndic: Pick<Organisation, 'nom' | 'adresse' | 'contact' | 'email'> | null,
 ): FacturationLines {
   // Ligne 1 — ACP nom + BCE (override iv.nom_facturation prioritaire).
   const acpNomBce = acp?.bce && acp?.nom
@@ -95,20 +106,56 @@ export function buildFacturationLines(
     : (acp?.nom ?? '');
   const facturation_ligne1 = (iv.nom_facturation?.trim()) || acpNomBce;
 
-  // Ligne 2 — c/o Syndic + contact. Vide si pas de syndic.
-  const facturation_ligne2 = syndic?.nom
-    ? `c/o ${syndic.nom}${syndic.contact?.trim() ? SEP_DASH + syndic.contact.trim() : ''}`
-    : '';
+  // Cas standard — un syndic est rattaché : "c/o {nom} – {contact}" L2,
+  // puis rue L3 et CP+ville L4 parsés depuis syndic.adresse.
+  if (syndic?.nom) {
+    const facturation_ligne2 =
+      `c/o ${syndic.nom}${syndic.contact?.trim() ? SEP_DASH + syndic.contact.trim() : ''}`;
+    const { rue, cpVille } = splitSyndicAdresse(syndic.adresse ?? null);
+    return {
+      facturation_ligne1,
+      facturation_ligne2,
+      facturation_ligne3: rue,
+      facturation_ligne4: cpVille,
+    };
+  }
 
-  // Lignes 3 & 4 — rue / CP+ville parsés depuis syndic.adresse.
-  const { rue, cpVille } = splitSyndicAdresse(syndic?.adresse ?? null);
+  // Fallback — pas de syndic : on remplit avec ce qu'on a sur
+  // l'intervention (override email_facturation/bce_facturation +
+  // adresse intervention) pour ne pas laisser le bloc vide.
+  const ivAdresseSplit = splitSyndicAdresse(iv.adresse ?? null);
+  const facturation_ligne2 =
+    iv.email_facturation?.trim()
+    || syndic?.email?.trim()
+    || '';
+  const facturation_ligne3 =
+    ivAdresseSplit.rue
+    || (iv.bce_facturation?.trim() ? `BCE ${iv.bce_facturation.trim()}` : '');
+  const facturation_ligne4 =
+    ivAdresseSplit.cpVille
+    || '';
 
-  return {
-    facturation_ligne1,
-    facturation_ligne2,
-    facturation_ligne3: rue,
-    facturation_ligne4: cpVille,
-  };
+  // Si rien de tout ça n'est rempli (cas extrême : aucun syndic, aucune
+  // donnée override, aucune adresse intervention), on signale au moins
+  // que c'est un client particulier — évite un bloc complètement vide
+  // dans le rapport final, qui passerait à l'œil pendant la relecture.
+  const allEmpty = !facturation_ligne1
+    && !facturation_ligne2
+    && !facturation_ligne3
+    && !facturation_ligne4;
+  return allEmpty
+    ? {
+        facturation_ligne1: 'Particulier',
+        facturation_ligne2: '',
+        facturation_ligne3: '',
+        facturation_ligne4: '',
+      }
+    : {
+        facturation_ligne1,
+        facturation_ligne2,
+        facturation_ligne3,
+        facturation_ligne4,
+      };
 }
 
 // ─── Adresse intervention (2 lignes) ─────────────────────────────────
@@ -186,4 +233,41 @@ export function buildRefLabelValue(
   }
   const date = iv.creneau_debut ? new Date(iv.creneau_debut) : today;
   return { ref_label: 'Date intervention :', ref_value: fmtDateShort(date) };
+}
+
+// ─── Techniques d'inspection (8 booleans) ─────────────────────────────
+//
+// Mappe les test_type d'observations_terrain → 8 cases à cocher du
+// template. Accepte les anciennes valeurs ('Mise en pression',
+// 'Humidimètre') ET les nouvelles (post-vocab alignment commit 7514a08)
+// pour rétro-compat avec les rows historiques.
+//
+// Test types attendus en DB :
+//   - 'Capteur d'humidité' / 'Humidimètre'   → capteur
+//   - 'Thermographie'                         → thermique
+//   - 'Caméra endoscopique'                   → camera
+//   - 'Test colorant'                         → traceur
+//   - 'Détection acoustique'                  → acoustique
+//   - 'Test de pression' / 'Mise en pression' → pression
+//   - 'Gaz traceur'                           → gaz
+//   - 'Inspection visuelle'                   → visuelle
+//
+// console.log temporaire pour débug du mapping (intervention 2026-116
+// remontée avec 0 technique cochée alors qu'elle a des observations) —
+// révèle si les test_type stockés diffèrent de la liste ci-dessus
+// (ex. apostrophe typographique " ’ " vs droite " ' ", espaces, etc.).
+export function buildTechniques(observations: ReadonlyArray<{ test_type: string }>): ReportTechniques {
+  const testTypes = observations.map((o) => o.test_type);
+  console.log('[build-docx] observations test_types:', testTypes);
+  const types = new Set(testTypes);
+  return {
+    capteur:    types.has("Capteur d'humidité") || types.has('Humidimètre'),
+    thermique:  types.has('Thermographie'),
+    camera:     types.has('Caméra endoscopique'),
+    traceur:    types.has('Test colorant'),
+    acoustique: types.has('Détection acoustique'),
+    pression:   types.has('Test de pression') || types.has('Mise en pression'),
+    gaz:        types.has('Gaz traceur'),
+    visuelle:   types.has('Inspection visuelle'),
+  };
 }

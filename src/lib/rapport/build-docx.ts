@@ -26,6 +26,9 @@ import {
   VerticalAlign,
   WidthType,
   ShadingType,
+  PageBorderDisplay,
+  PageBorderOffsetFrom,
+  PageBorderZOrder,
 } from 'docx';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -526,7 +529,14 @@ export async function buildRapportDocx(args: {
   const { data } = args;
 
   // Logo header — best-effort (si manquant, fallback texte "FoxO").
+  // Largeur cible : 280px (cohérent avec la maquette FOXO_BASE).
+  // Hauteur calculée dynamiquement depuis les vraies dimensions du PNG
+  // pour préserver le ratio et éviter une déformation visuelle si l'asset
+  // est remplacé (ex. nouveau logo "FoxO + Fox Group srl côte à côte"
+  // ratio ≈ 2.95). Fallback 280×95 si image-size échoue.
   let logoBytes: Buffer | null = null;
+  const logoWidth = 280;
+  let logoHeight = 95;
   try {
     const logoPath = path.join(
       process.cwd(),
@@ -534,6 +544,10 @@ export async function buildRapportDocx(args: {
       'foxo-logo-documents.png',
     );
     logoBytes = await fs.readFile(logoPath);
+    const dim = imageSize(logoBytes);
+    if (dim.width && dim.height) {
+      logoHeight = Math.round(logoWidth * dim.height / dim.width);
+    }
   } catch (e) {
     console.warn('[build-docx] logo introuvable:', e);
   }
@@ -552,7 +566,7 @@ export async function buildRapportDocx(args: {
           ? [
               new ImageRun({
                 data: logoBytes,
-                transformation: { width: 280, height: 95 },
+                transformation: { width: logoWidth, height: logoHeight },
                 type: 'png',
               }),
             ]
@@ -671,6 +685,16 @@ export async function buildRapportDocx(args: {
               pageBorderRight:  { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
               pageBorderBottom: { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
               pageBorderLeft:   { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
+              // Conformité FOXO_BASE.js : sans ces 3 propriétés, certains
+              // clients Word (notamment Word for Mac et LibreOffice) tronquent
+              // la bordure ou la rendent derrière l'en-tête. ALL_PAGES + PAGE
+              // + FRONT garantissent un encadrement uniforme et au-dessus
+              // du contenu de l'en-tête/pied de page.
+              pageBorders: {
+                display:    PageBorderDisplay.ALL_PAGES,
+                offsetFrom: PageBorderOffsetFrom.PAGE,
+                zOrder:     PageBorderZOrder.FRONT,
+              },
             },
           },
         },

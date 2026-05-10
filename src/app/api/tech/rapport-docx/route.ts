@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
-import { buildRapportDocx, type ReportData, type ReportTechniques } from '@/lib/rapport/build-docx';
+import { buildRapportDocx, type ReportData } from '@/lib/rapport/build-docx';
 import { uploadRapport } from '@/lib/google-drive';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
 import {
@@ -10,28 +10,12 @@ import {
   buildAdresseInterventionLine1,
   buildAdresseInterventionLine2,
   buildRefLabelValue,
+  buildTechniques,
   fmtDateShort,
 } from '@/lib/rapport/report-data-mapping';
 
 function fmtDate(d: Date): string {
   return fmtDateShort(d);
-}
-
-// Mappe les test_type observations → 8 booleans techniques du template.
-// Accepte les anciennes valeurs ('Mise en pression', 'Humidimètre') ET les
-// nouvelles (post-vocab alignment commit 7514a08) pour rétro-compat.
-function buildTechniques(observations: Array<{ test_type: string }>): ReportTechniques {
-  const types = new Set(observations.map((o) => o.test_type));
-  return {
-    capteur:    types.has("Capteur d'humidité") || types.has('Humidimètre'),
-    thermique:  types.has('Thermographie'),
-    camera:     types.has('Caméra endoscopique'),
-    traceur:    types.has('Test colorant'),
-    acoustique: types.has('Détection acoustique'),
-    pression:   types.has('Test de pression') || types.has('Mise en pression'),
-    gaz:        types.has('Gaz traceur'),
-    visuelle:   types.has('Inspection visuelle'),
-  };
 }
 
 export const dynamic = 'force-dynamic';

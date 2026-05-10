@@ -3,33 +3,17 @@ import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
 import { uploadRapport } from '@/lib/google-drive';
 import { getEmailForDoc } from '@/lib/notifications';
-import type { ReportData, ReportTechniques } from '@/lib/rapport/build-docx';
+import type { ReportData } from '@/lib/rapport/build-docx';
 import {
   buildObjet,
   buildFacturationLines,
   buildAdresseInterventionLine1,
   buildAdresseInterventionLine2,
   buildRefLabelValue,
+  buildTechniques,
   fmtDateShort,
 } from '@/lib/rapport/report-data-mapping';
 import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
-
-// Cf. route.ts pour la même logique. Mappe les test_type observations →
-// 8 booleans techniques. Accepte les 2 vocabulaires (avant/après commit
-// 7514a08) pour rétro-compat avec les rows historiques.
-function buildTechniques(observations: Array<{ test_type: string }>): ReportTechniques {
-  const types = new Set(observations.map((o) => o.test_type));
-  return {
-    capteur:    types.has("Capteur d'humidité") || types.has('Humidimètre'),
-    thermique:  types.has('Thermographie'),
-    camera:     types.has('Caméra endoscopique'),
-    traceur:    types.has('Test colorant'),
-    acoustique: types.has('Détection acoustique'),
-    pression:   types.has('Test de pression') || types.has('Mise en pression'),
-    gaz:        types.has('Gaz traceur'),
-    visuelle:   types.has('Inspection visuelle'),
-  };
-}
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
 export type BuildResult =
