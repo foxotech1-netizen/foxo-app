@@ -74,7 +74,7 @@ async function createFolder(token: string, parentId: string, name: string): Prom
   return (await res.json()) as DriveFile;
 }
 
-async function ensureFolder(token: string, parentId: string, name: string): Promise<DriveFile | null> {
+export async function ensureFolder(token: string, parentId: string, name: string): Promise<DriveFile | null> {
   const existing = await findChildFolder(token, parentId, name);
   if (existing) return existing;
   return createFolder(token, parentId, name);
