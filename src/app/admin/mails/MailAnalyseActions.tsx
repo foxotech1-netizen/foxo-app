@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { SmsModal } from './SmsModal';
+import { ConfirmCreateForm } from './ConfirmCreateForm';
 
 interface Props {
   threadId: string;
@@ -168,6 +169,24 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
   const hasOccupantPhone = !!analyse.occupant_telephone;
   const hasOccupantEmail = !!analyse.occupant_email;
   const dateFmt = analyse.creneau ? formatDateFr(analyse.creneau.date) : null;
+
+  // Cas 2 — analyse existe MAIS pas de dossier matché par analyse-deep.
+  // L'admin doit valider/corriger les infos avant la création (analyse-deep
+  // est devenu lecture seule depuis le commit 1 du sprint validation).
+  // Une fois confirmé via le formulaire, dossier_match_id est set et l'UI
+  // bascule sur le cas 1 (3 boutons d'action) au refresh de l'analyse.
+  if (analyse.type === 'demande_intervention' && !hasSyndic) {
+    return (
+      <div className="px-4 py-3 border-t space-y-3" style={{ borderColor: 'var(--color-sand-mid)' }}>
+        <ConfirmCreateForm
+          threadId={threadId}
+          analyse={analyse}
+          onConfirmed={onAnalyseRefresh}
+        />
+        {toast && <ToastInline toast={toast} />}
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 py-3 border-t space-y-3" style={{ borderColor: 'var(--color-sand-mid)' }}>
