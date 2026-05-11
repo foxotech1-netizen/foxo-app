@@ -1,29 +1,20 @@
 'use client';
 
+// Formulaire login OTP 2 étapes :
+//   1. Saisie email → envoie le code à 6 chiffres (sendOtp action)
+//   2. Saisie du code → vérifie + connexion (verifyOtp action)
+//
+// Design system FoxO appliqué — 100% tokens var(--color-*), aucun hex
+// hardcodé. Inputs sand + border sand-border, focus navy avec ring
+// navy-pale. Bouton primary navy + cream. Compatible mode sombre OS
+// car aucun dark: variant Tailwind n'est utilisé (les tokens FoxO
+// restent cohérents quel que soit le système).
+
 import { useActionState, useEffect, useRef } from 'react';
 import { Mail } from 'lucide-react';
 import { sendOtp, verifyOtp, type AuthState } from './actions';
 
 const initialState: AuthState = {};
-
-// Couleurs spécifiques à l'écran de login (carte sur fond #E2C9A1).
-// Inputs en sombre, texte cream — fort contraste, palette charte FoxO.
-const C = {
-  inputBg: '#2C2A24',
-  inputText: '#F0ECE4',
-  inputBorder: 'rgba(255,255,255,0.1)',
-  label: '#5A4A30',         // libellés des champs (brun foncé sur gold)
-  hint: '#8A8278',          // texte d'aide
-  errorBg: '#F7EDE5',
-  errorBorder: '#E8C4AF',
-  errorText: '#C4622D',
-};
-
-const inputStyle = {
-  background: C.inputBg,
-  color: C.inputText,
-  border: `1px solid ${C.inputBorder}`,
-};
 
 export function LoginForm() {
   const [sendState, sendAction, sending] = useActionState(sendOtp, initialState);
@@ -44,14 +35,22 @@ export function LoginForm() {
       <form action={verifyAction} className="text-center">
         <input type="hidden" name="email" value={sentTo} />
         <div className="flex justify-center mb-2">
-          <Mail size={32} style={{ color: '#1B3A6B' }} />
+          <Mail size={32} aria-hidden style={{ color: 'var(--color-navy)' }} />
         </div>
-        <h2 className="text-[15px] font-bold mb-1.5" style={{ color: '#1B3A6B' }}>
+        <h2
+          className="font-sora text-[15px] font-semibold mb-1.5"
+          style={{ color: 'var(--color-navy)' }}
+        >
           Code envoyé
         </h2>
-        <p className="text-xs leading-relaxed mb-4" style={{ color: C.label }}>
+        <p
+          className="text-xs leading-relaxed mb-4"
+          style={{ color: 'var(--color-ink-mid)' }}
+        >
           Entre le code à 6 chiffres reçu à<br />
-          <strong className="font-mono" style={{ color: '#1C1A16' }}>{sentTo}</strong>
+          <strong className="font-mono" style={{ color: 'var(--color-ink)' }}>
+            {sentTo}
+          </strong>
         </p>
         <input
           ref={otpRef}
@@ -62,13 +61,21 @@ export function LoginForm() {
           maxLength={6}
           autoComplete="one-time-code"
           placeholder="••••••"
-          className="w-full px-4 py-3.5 rounded-lg text-[22px] tracking-[.5em] text-center font-mono font-bold outline-none mb-2.5"
-          style={inputStyle}
+          className="login-input w-full px-4 py-3.5 rounded-lg text-[22px] tracking-[.5em] text-center font-mono font-bold outline-none mb-2.5 min-h-[48px]"
+          style={{
+            background: 'var(--color-sand)',
+            color: 'var(--color-ink)',
+            border: '1px solid var(--color-sand-border)',
+          }}
         />
         {verifyState.error && (
           <div
             className="text-xs px-3 py-2 rounded-md mb-2 font-semibold border"
-            style={{ background: C.errorBg, borderColor: C.errorBorder, color: C.errorText }}
+            style={{
+              background: 'var(--color-terra-light)',
+              borderColor: 'var(--color-terra-mid)',
+              color: 'var(--color-terra)',
+            }}
           >
             {verifyState.error}
           </div>
@@ -76,28 +83,41 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={verifying}
-          className="w-full bg-navy text-white py-3.5 rounded-lg font-bold tracking-wider hover:bg-navy-mid disabled:opacity-50 transition-colors"
+          className="login-btn w-full py-3.5 rounded-lg font-sora font-medium text-[14px] tracking-wider disabled:opacity-50 transition-colors min-h-[48px]"
+          style={{
+            background: 'var(--color-navy)',
+            color: 'var(--color-cream)',
+          }}
         >
           {verifying ? 'Vérification…' : 'Se connecter'}
         </button>
         <button
           type="button"
           onClick={() => { window.location.href = '/auth/login'; }}
-          className="mt-2.5 w-full py-2.5 rounded-lg text-xs font-semibold bg-transparent hover:bg-black/5 transition-colors border"
-          style={{ color: C.label, borderColor: 'rgba(0,0,0,0.15)' }}
+          className="login-btn-ghost mt-2.5 w-full py-2.5 rounded-lg text-xs font-semibold transition-colors border min-h-[44px]"
+          style={{
+            color: 'var(--color-ink-mid)',
+            borderColor: 'var(--color-sand-border)',
+            background: 'transparent',
+          }}
         >
           ← Utiliser une autre adresse
         </button>
-        <p className="text-[11px] mt-2.5" style={{ color: C.hint }}>
+        <p className="text-[11px] mt-2.5" style={{ color: 'var(--color-ink-muted)' }}>
           Le code expire dans 1 heure.
         </p>
+
+        <LoginFormStyles />
       </form>
     );
   }
 
   return (
     <form action={sendAction}>
-      <label className="text-xs font-semibold block mb-1.5" style={{ color: C.label }}>
+      <label
+        className="text-[11px] font-medium uppercase tracking-[0.12em] block mb-1.5"
+        style={{ color: 'var(--color-ink-mid)' }}
+      >
         Adresse email
       </label>
       <input
@@ -107,13 +127,21 @@ export function LoginForm() {
         autoComplete="email"
         required
         placeholder="vous@exemple.be"
-        className="w-full px-3.5 py-3 rounded-lg outline-none mb-3"
-        style={inputStyle}
+        className="login-input w-full px-3.5 py-3 rounded-lg outline-none mb-3 min-h-[48px] text-[14px]"
+        style={{
+          background: 'var(--color-sand)',
+          color: 'var(--color-ink)',
+          border: '1px solid var(--color-sand-border)',
+        }}
       />
       {sendState.error && (
         <div
           className="text-xs px-3 py-2 rounded-md mb-2 font-semibold border"
-          style={{ background: C.errorBg, borderColor: C.errorBorder, color: C.errorText }}
+          style={{
+            background: 'var(--color-terra-light)',
+            borderColor: 'var(--color-terra-mid)',
+            color: 'var(--color-terra)',
+          }}
         >
           {sendState.error}
         </div>
@@ -121,13 +149,48 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={sending}
-        className="w-full bg-navy text-white py-3.5 rounded-lg font-bold tracking-wider hover:bg-navy-mid disabled:opacity-50 transition-colors"
+        className="login-btn w-full py-3.5 rounded-lg font-sora font-medium text-[14px] tracking-wider disabled:opacity-50 transition-colors min-h-[48px]"
+        style={{
+          background: 'var(--color-navy)',
+          color: 'var(--color-cream)',
+        }}
       >
         {sending ? 'Envoi…' : 'Recevoir le code'}
       </button>
-      <p className="text-[11px] text-center mt-3" style={{ color: C.hint }}>
+      <p
+        className="text-[11px] text-center mt-3 italic"
+        style={{ color: 'var(--color-ink-muted)' }}
+      >
         Un code à 6 chiffres sera envoyé à votre adresse email
       </p>
+
+      <LoginFormStyles />
     </form>
+  );
+}
+
+// Styles focus / hover scopés à .login-input et .login-btn pour rester
+// dans le respect du design system (pas de modification globale).
+function LoginFormStyles() {
+  return (
+    <style>{`
+      .login-input::placeholder {
+        color: var(--color-ink-muted);
+        font-style: italic;
+      }
+      .login-input:focus {
+        border-color: var(--color-navy) !important;
+        box-shadow: 0 0 0 3px var(--color-navy-pale);
+      }
+      .login-btn {
+        cursor: pointer;
+      }
+      .login-btn:hover:not(:disabled) {
+        background: var(--color-navy-dark) !important;
+      }
+      .login-btn-ghost:hover:not(:disabled) {
+        background: var(--color-sand-hover);
+      }
+    `}</style>
   );
 }

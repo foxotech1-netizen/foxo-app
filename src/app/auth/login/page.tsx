@@ -42,25 +42,40 @@ export default async function LoginPage({
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'linear-gradient(180deg, #2C2A24 0%, #1A1814 100%)' }}
+      style={{
+        background: 'var(--color-sand)',
+        // Radial gradients FoxO standards (cf. /rdv et MainContent) —
+        // sky-foxo très subtil top-left, terra-mid encore plus subtil
+        // bottom-right. Donne de la profondeur sans casser la lisibilité.
+        backgroundImage:
+          'radial-gradient(circle at 12% -5%, rgba(168, 212, 232, 0.18) 0%, transparent 45%), radial-gradient(circle at 95% 100%, rgba(196, 98, 45, 0.05) 0%, transparent 45%)',
+      }}
     >
       <div
-        className="w-full max-w-[400px] rounded-2xl shadow-xl overflow-hidden"
-        style={{ background: '#E2C9A1' }}
+        className="w-full max-w-[420px] rounded-2xl overflow-hidden"
+        style={{
+          background: 'var(--color-cream)',
+          // Triple shadow stack signature FoxO
+          boxShadow:
+            '0 1px 2px rgba(15, 32, 64, 0.04), 0 12px 32px rgba(15, 32, 64, 0.10), 0 0 0 1px rgba(15, 32, 64, 0.06)',
+        }}
       >
-        {/* Bannière logo */}
-        <div className="py-7 flex flex-col items-center gap-2 border-b border-[rgba(0,0,0,0.12)]">
+        {/* Bannière logo + label de contexte */}
+        <div
+          className="py-7 px-5 flex flex-col items-center gap-2 border-b"
+          style={{ borderColor: 'var(--color-sand-mid)' }}
+        >
           <Logo size={84} variant="noir" priority />
           <div
-            className="text-[10px] uppercase tracking-[.15em] font-semibold"
-            style={{ color: '#7A6A50' }}
+            className="font-sora text-[11px] uppercase tracking-[0.12em] font-medium text-center"
+            style={{ color: 'var(--color-ink-mid)' }}
           >
             {label}
           </div>
         </div>
 
         {/* Formulaire */}
-        <div className="p-7 sm:p-8">
+        <div className="p-6 sm:p-8">
           <LoginForm />
         </div>
       </div>
