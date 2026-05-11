@@ -1,560 +1,313 @@
-# 🦊 FoxO — État du projet
+# FoxO — État du projet
 
-_Dernière mise à jour : 2026-05-08 · `main` @ `7514a08`_
+## 1. Identité
 
----
+- **Date du recap** : 2026-05-11
+- **HEAD git** : `c0df7b1e914f9df0c38546e4f4fcad7415d4dc20`
+- **Branche** : `main`
+- **Status** : clean (working tree propre)
 
-## Sprint Mails — tests manuels
+### Dépendances clés (`package.json`)
 
-Procédure de validation end-to-end du pipeline mail → action 1-clic
-(routes T5-T6 + UI MailAnalyseActions). À exécuter sur un compte admin
-réel avec Google connecté + ANTHROPIC_API_KEY + TWILIO_PHONE_NUMBER en
-prod (ou env staging).
+| Paquet | Version | Rôle |
+|---|---|---|
+| `next` | 16.2.4 | Framework App Router (Turbopack, Cache Components) |
+| `react` / `react-dom` | 19.2.4 | UI |
+| `@supabase/ssr` | 0.10.2 | Client Supabase server/middleware |
+| `@supabase/supabase-js` | 2.104.1 | Client Supabase admin (service-role) |
+| `@anthropic-ai/sdk` | 0.91.1 | Assistant Claude + analyse mails |
+| `resend` | 6.12.2 | Envoi email transactionnel (rapports / rappels / factures) |
+| `docx` | 9.6.1 | Génération rapports Word côté serveur |
+| `@react-pdf/renderer` | 4.5.1 | Rendu PDF factures |
+| `qrcode` | 1.5.4 | EPC QR codes paiement SEPA |
+| `leaflet` / `react-leaflet` | 1.9.4 / 5.0.0 | Carte des interventions (portail syndic) |
+| `lucide-react` | 1.14.0 | Icônes UI |
+| `image-size` | 2.0.2 | Inspection photos avant rapport |
+| `tailwindcss` | 4 | CSS (design system FoxO) |
 
-**Pré-requis prod** :
-- Table `mails_analyses` créée avec colonnes `brouillon_gmail_id` +
-  `event_calendar_id`.
-- Colonne `interventions.drive_folder_id` créée.
-- Dossier Google Drive `RAPPORTS/2026/` accessible par le compte OAuth
-  FoxO (cf. `GOOGLE_DRIVE_RAPPORTS_FOLDER_ID`).
-
-### Procédure
-
-1. **Ouvrir `/admin/mails`.** Vérifier que les mails déjà analysés
-   affichent les badges (TYPE coloré, LANGUE, URGENT, lien Dossier).
-2. **Sélectionner 1 mail non analysé** (sans badge sous le snippet).
-   Cliquer sur **`Analyser approfondi`** dans le panel détail (sous
-   les boutons legacy).
-   - Vérifier le spinner pendant 5-15s.
-   - Vérifier le toast de succès.
-   - Vérifier que les badges apparaissent dans la row + dans l'accordion.
-3. **Si type='demande_intervention'** :
-   - Vérifier qu'un nouveau dossier est créé dans `interventions` (badge
-     "Dossier {ref}" apparaît).
-   - Vérifier le dossier Drive créé sous `RAPPORTS/2026/{ref Adresse}/`.
-   - Vérifier que les pièces jointes du thread sont uploadées dedans.
-   - Vérifier que le créneau est proposé dans l'accordion détail.
-4. **Tester `[Brouillon syndic]`** :
-   - Cliquer sur le bouton, attendre toast "Brouillon créé".
-   - Cliquer le lien "Ouvrir" → vérifier que le brouillon est dans
-     Gmail web (`https://mail.google.com/mail/u/0/#drafts/...`).
-   - Vérifier le contenu (signature `Christophe Mertens — FoxO`, langue
-     correcte, date du créneau mentionnée).
-5. **Tester `[Confirmer occupant ▼ → Par mail]`** :
-   - Cliquer le dropdown, sélectionner "Par mail".
-   - Vérifier le brouillon dans Gmail (langue + créneau + demande de
-     confirmation).
-6. **Tester `[Confirmer occupant ▼ → Par SMS]`** :
-   - Cliquer le dropdown, sélectionner "Par SMS".
-   - Vérifier l'ouverture de la modal avec téléphone + body pré-remplis
-     par Claude.
-   - Éditer si besoin, vérifier le compteur 160/segments.
-   - Cliquer "Envoyer maintenant" → vérifier le SMS reçu sur le téléphone
-     destinataire.
-   - Vérifier la timeline de l'intervention (event `sms_envoye`).
-7. **Tester `[Event Calendar]`** :
-   - Cliquer le bouton, vérifier le confirm dialog avec date + heure +
-     tech.
-   - Confirmer → vérifier le toast "Event créé" + lien.
-   - Vérifier l'event dans Google Calendar (date, heure, attendee tech).
-   - Vérifier que le créneau passe `statut='reserve'` dans
-     `creneaux_disponibles`.
-   - Vérifier que l'intervention passe `statut='confirmee'` avec
-     `creneau_debut` + `technicien_id` mis à jour.
-   - Vérifier que le bouton devient "Event créé ✓" (disabled).
-8. **Cas d'erreur à valider** :
-   - Mail sans `occupant_telephone` → bouton SMS absent du dropdown.
-   - Mail sans `dossier_match_id` → bouton "Brouillon syndic" absent.
-   - Mail sans `creneau_propose_id` → boutons "Confirmer occupant" et
-     "Event Calendar" absents.
-   - Re-cliquer "Analyser approfondi" sur un mail déjà analysé → UPSERT
-     idempotent (les colonnes `brouillon_gmail_id` et `event_calendar_id`
-     sont préservées si présentes — vérifier qu'elles ne sont pas reset
-     à null par une analyse répétée).
+> ⚠️ **Pas de Twilio SDK installé.** L'envoi SMS/WhatsApp est encore en place via les variables d'env et `src/lib/sms.ts`, mais le module npm n'est pas dans `dependencies` — implémentation actuelle = fetch direct sur l'API REST Twilio.
 
 ---
 
-## 1. Repère
+## 2. Architecture
 
-- **Branch** : `main` (synchronisée avec `origin/main`)
-- **HEAD** : `7514a08 fix(vocab): Humidimètre→Capteur d'humidité, Mise en pression→Test de pression`
-- **Working tree** : clean
-
----
-
-## 2. Derniers commits (20)
+### Arborescence `src/app/` (niveau 2)
 
 ```
-7514a08 fix(vocab): Humidimètre→Capteur d'humidité, Mise en pression→Test de pression
-ec16a9c feat(facturation): articles mis à jour si existant, mode édition, coordonnées client, email copie
-abf5b78 feat(tech): retrait boutons Dicter + upload photo direct dans ObservationsPanel
-685c6d3 feat(rapport): observations terrain dans Claude + .docx, labels photos, techniques dynamiques
-a426464 feat(tech): ObservationsPanel — UI structurée test/étage/photos + GET photos observation_id
-fb38e61 feat(tech): observations terrain — API CRUD + photos link + migration
-164b62b feat(tech): rapport — légendes photos par section (label auto-save 800ms + aperçu)
-133fb03 fix(tech): rapport — bouton dicter plus grand + auto-restart silence + sélection multiple photos
-a772743 fix(tech): articles route — utiliser adminClient pour bypass RLS articles
-f27f49a feat(tech): PaiementPanel — catalogue articles + PATCH ref client + GET /api/tech/articles
-3ce24a1 feat(tech): sub-panels premium-card + section-label + emojis → Lucide + purge dark: orphelins
-3f808a4 fix(portal): dossier_sinistre numero=iv.ref + select id,ref + log error
-15144a9 fix(auth): delegues query .limit(1) avant maybeSingle pour multi-org
-b6b3a2a fix(auth): titre login dynamique — Syndic/Courtier/Expert selon next param
-799d116 fix(portal): refCompagnie optionnel expert — label + server action
-c327b3e fix(portal): expert — accent ambre + refCompagnie optionnel
-244f426 fix(portal): expert voit labels "Assuré" dans formulaire nouveau
-9f835df feat(portal): expert peut créer une demande d'intervention
-1f93885 feat(portal): routes /syndic /expert /courtier + hrefs app-hub
-c94bf11 fix(app-hub): form espace client — position relative + dismiss au clic extérieur
+src/app/
+├── admin/        # back-office FoxO (admin.foxo.be)
+│   ├── alertes/  articles/  assistant/  clients/  comptabilite/
+│   ├── courtiers/  experts/  facturation/  google/  hub/
+│   ├── interventions/  mails/  metiers/  notes-frais/
+│   ├── parametres/  planning/  sms/  syndics/  techniciens/
+│   └── utilisateurs/
+├── portal/       # portail clients (portal.foxo.be)
+│   ├── courtier/  expert/  syndic/
+│   ├── calendar/  interventions/  nouveau/
+│   └── PortalContext.tsx · PortalNav.tsx
+├── tech/         # app technicien terrain (tech.foxo.be)
+│   ├── interventions/  historique/  notes-frais/
+│   └── TechBottomNav.tsx
+├── api/          # routes serveur (cf. §7)
+├── auth/         # login OTP + logout (auth.foxo.be)
+├── app-hub/      # landing app native (page + tile)
+├── go-hub/       # landing redirections
+├── o/[token]/    # lien public occupant (confirmation RDV par token)
+└── rdv/          # prise de RDV public (RdvClient)
 ```
 
----
+### Rôle des portails (3 lignes max chacun)
 
-## 3. Architecture générale
+- **`admin/`** — Console interne FoxO. Gère interventions, planning, facturation, mails, SMS, paramètres Google/Twilio, comptes utilisateurs et assistant Claude.
+- **`portal/`** — Portail clients B2B (syndic, courtier, expert). Tableau de bord intervention, carte ACP, calendrier, création de demandes — vocabulaire adapté via `vocabFor`.
+- **`tech/`** — App mobile technicien (bottom-nav). Liste interventions du jour, RapportPanel pour saisir terrain + photos, export Word, notes de frais.
+- **`auth/`** — Login OTP 6 chiffres (envoi via Gmail API → alias `info@foxo.be`) + logout. Single point d'entrée tous portails.
+- **`o/[token]/`** — Page publique sans login : l'occupant confirme ou demande un autre créneau via token signé.
+- **`rdv/`** — Prise de RDV public (formulaire externe avec rate-limit IP).
 
-### Sous-domaines (mappés via `src/proxy.ts`)
+### Sous-domaines actifs
 
-| Host | Préfixe route | Auth | Description |
-|---|---|---|---|
-| `admin.foxo.be` | `/admin` | requise | Backoffice FoxO (interventions, facturation, etc.) |
-| `tech.foxo.be` | `/tech` | requise | App PWA technicien (mobile-first) |
-| `portal.foxo.be` | `/portal` | requise | Portail partenaires syndic/courtier/expert (auto-détecte orgType) |
-| `auth.foxo.be` | `/auth` | publique | Login OTP magic link (titre dynamique selon `next` param) |
-| `app.foxo.be` | `/app-hub` | publique | Landing publique tuiles partenaires + client + RDV |
-| `go.foxo.be` | `/go-hub` | publique* | Pivot interne admin ↔ tech (force-static) |
-
-\* `go-hub` techniquement public — l'auth se fait sur les sous-domaines cibles.
-
-### Routes publiques (bypass-proxy)
-
-- `/rdv` — landing RDV particulier (form 4 steps + calendar)
-- `/o/[token]` — confirmation occupant via lien email
-
-### Routes alias (redirect vers `/portal`)
-
-- `/portal/syndic` — redirect → `/portal` (URL avec intent depuis app-hub)
-- `/portal/expert` — redirect → `/portal`
-- `/portal/courtier` — redirect → `/portal`
-
----
-
-## 4. Modules actifs
-
-### Admin (`src/app/admin/`)
-
-| Module | Route | Statut |
-|---|---|---|
-| Layout + Topbar | `/admin/*` | ✅ |
-| Tableau de bord (Dashboard premium) | `/admin` | ✅ KPI cards, bannière, mail rows, todo headers |
-| Launcher home | `/admin/home` | ✅ icon-box teinté |
-| Hub interne | `/admin/hub` | ✅ badges urgents/factures/messages |
-| Pipeline interventions | `/admin/interventions/[id]` | ✅ drawer 5 onglets |
-| Alertes | `/admin/alertes` | ✅ |
-| Planning | `/admin/planning` | ✅ |
-| Techniciens | `/admin/techniciens` | ✅ |
-| Assistant IA | `/admin/assistant` | ✅ Claude conversationnel |
-| **Partenaires** (sidebar dépliable) | | |
-| ↳ Syndics | `/admin/syndics` | ✅ |
-| ↳ Courtiers | `/admin/courtiers` | ✅ |
-| ↳ Experts | `/admin/experts` | ✅ |
-| ↳ Métiers | `/admin/metiers` | ✅ |
-| Clients | `/admin/clients` | ✅ CRUD ACP/particulier/entreprise |
-| **Comptabilité** | `/admin/comptabilite` → `/admin/facturation` | ✅ |
-| ↳ Factures | `/admin/facturation` | ✅ |
-| ↳ Devis | `/admin/facturation/devis` | ✅ |
-| ↳ Notes de crédit | `/admin/facturation/notes-credit` | ✅ |
-| ↳ Notes de frais | `/admin/notes-frais` | ✅ catégories comptables BE |
-| ↳ Paiements | `/admin/facturation/paiements` | ✅ |
-| ↳ Rappels | `/admin/facturation/rappels` | ✅ auto + manuel + groupé |
-| ↳ Catalogue articles | `/admin/articles` | ✅ |
-| ↳ Export comptable | `/admin/facturation/export` | ✅ Yuki CSV |
-| Mails Gmail | `/admin/mails` | ✅ inbox + analyse IA |
-| Utilisateurs partenaires | `/admin/utilisateurs` | ✅ |
-| Paramètres | `/admin/parametres` | ✅ sidebar nav 12 sections + recherche debounced |
-| Google OAuth | `/admin/google` | ✅ Drive + Gmail + Calendar |
-
-### Tech (`src/app/tech/`)
-
-| Path | Route | Statut |
-|---|---|---|
-| Layout (logo blanc + topbar) | `/tech/*` | ✅ |
-| Accueil missions | `/tech` | ✅ refonte premium accent vert (#34D399) |
-| Intervention détail (page principale) | `/tech/interventions/[id]` | ✅ refonte premium + Block premium |
-| ↳ TimerPanel (chronométrage) | (sub-panel) | ✅ premium-card + section-label + Play/Square Lucide |
-| ↳ PhotosPanel (terrain libres) | (sub-panel) | ✅ premium-card + IndexedDB queue offline |
-| ↳ NotesPanel (auto-save 2s) | (sub-panel) | ✅ premium-card + dark: classes purgées |
-| ↳ **ObservationsPanel** (tests structurés) | (sub-panel) | ✅ test_type + étage/loc + notes + photos liées |
-| ↳ RapportPanel (4 sections + IA) | (sub-panel) | ✅ brief Claude + dictée silencieuse + auto-save 30s + labels photos par section |
-| ↳ PaiementPanel (catalogue + QR EPC) | (sub-panel) | ✅ catalogue articles +/- + mode édition + coordonnées client |
-| Historique missions | `/tech/historique` | ✅ refonte premium (filtres, recherche, MissionCard) |
-| Notes de frais (form + upload + soumettre) | `/tech/notes-frais` | ✅ refonte premium inputs |
-| Bottom nav PWA | (composant) | ✅ accent vert + dot indicator |
-
-### Portal partenaires (`src/app/portal/`)
-
-| Path | Route | Statut |
-|---|---|---|
-| Layout (auto-détecte orgType) | `/portal/*` | ✅ syndic / courtier / expert |
-| PortalNav (sidebar + bottom nav iOS) | (composant) | ✅ navy gradient + border-left actif bleu |
-| PortalContext (provider orgType + vocab) | (composant) | ✅ étendu à `'syndic' \| 'courtier' \| 'expert'` |
-| Dashboard | `/portal` | ✅ refonte premium (KPI cards par type) |
-| Liste interventions | `/portal/interventions` | ✅ filtres + recherche |
-| Drawer dossier | `/portal/interventions/[id]` | ✅ |
-| Création demande | `/portal/nouveau` | ✅ ouverte aux 3 orgTypes (Stratégie A) |
-| Calendrier | `/portal/calendar` | ✅ |
-| Routes alias `/portal/{syndic,expert,courtier}` | redirect | ✅ → `/portal` |
-
-### Public
-
-| Path | Route | Statut |
-|---|---|---|
-| RDV particulier | `/rdv` | ✅ refonte CSS vars (theming foxo-blue) |
-| Confirmation occupant | `/o/[token]` | ✅ refonte CSS vars |
-| Hub public | `/app-hub` (via app.foxo.be) | ✅ glass premium navy + 5 tuiles |
-| Hub interne | `/go-hub` (via go.foxo.be) | ✅ glass premium navy + 2 tuiles admin/tech |
-
-### Auth (`src/app/auth/`)
-
-| Path | Route | Statut |
-|---|---|---|
-| Login OTP | `/auth/login` | ✅ titre dynamique (Syndic/Courtier/Expert/Partenaires) selon `?next=...` |
-| Callback | `/auth/callback` | ✅ |
-| Logout | `/auth/logout` | ✅ POST |
-
-### API (`src/app/api/`)
-
-| Module | Path | Notes |
-|---|---|---|
-| Admin ACPs | `admin/acps/[id]/` + `route.ts` | GET single + POST création |
-| Admin clients | `admin/clients/` | CRUD |
-| Admin facturation | `admin/facturation/` + `admin/facture/[id]/` | PDF + envoi rappel |
-| Admin interventions | `admin/interventions/[id]/` | reanalyze, color, notify-occupants |
-| Admin mails Gmail | `admin/mails/` | List, label, inbox, unread |
-| Admin notes-frais | `admin/notes-frais/extract/` | OCR Claude vision |
-| Admin occupants | `admin/occupants/` | CRUD |
-| Admin organisations | `admin/organisations/` | CRUD 10 types |
-| Admin paramètres | `admin/parametres/` | KV + planning-couleurs |
-| Admin planning | `admin/planning/` | Créneaux dispo |
-| Admin société | `admin/societe/upload-logo` | Storage `societe-assets` |
-| Admin syndics | `admin/syndics/[org_id]/` | délégués + ACPs |
-| Admin techniciens | `admin/techniciens/` | CRUD techs |
-| Admin utilisateurs | `admin/utilisateurs/` | CRUD partenaires |
-| **Tech articles** | `tech/articles` | GET catalogue actif (admin client bypass RLS) |
-| **Tech facture POST** | `tech/facture` | Brouillon QR paiement + acceptation `articles[]` + update si existant brouillon |
-| **Tech facture PATCH** | `tech/facture/[id]` | Update reference / client_nom / client_email / client_adresse / lignes (recalcul totaux) |
-| **Tech observations CRUD** | `tech/observations` + `[id]` | GET/POST/PATCH/DELETE — auth tech + ownership |
-| **Tech observations photos** | `tech/observations/[id]/photos` | POST link / DELETE unlink (double ownership check) |
-| Tech notes-frais | `tech/notes-frais/` + `upload/` + `[id]/submit/` | GET/POST + upload + soumission |
-| Tech rapport docx | `tech/rapport-docx` | Export Word HTTP blob (reçoit observations) |
-| Tech upload-photo | `tech/upload-photo` | Drive + photos_interventions (FormData : file + intervention_id + section?) |
-| Tech photos | `tech/photos/` + `[id]` | List + patch (label inclus) |
-| Tech notes | `tech/interventions/[id]/notes` | Auto-save 2s |
-| Cron | `cron/check-mails`, `cron/rappel-j1`, `cron/renew-calendar-watch` | Vercel Cron |
-
----
-
-## 5. Sprints récemment terminés
-
-### ✅ Sprint Vocab alignment Tech (commit 7514a08)
-
-Renommage cohérent côté UI + API + .docx :
-- `'Humidimètre'` → `"Capteur d'humidité"` (alignement avec doctrine FoxO + `TECHNIQUES_FOXO`)
-- `'Mise en pression'` → `'Test de pression'`
-
-Touche : `ObservationsPanel.tsx` (TestType + TEST_TYPES + ICON_BY_TYPE), `/api/tech/observations/route.ts` (ALLOWED_TEST_TYPES POST), `/api/tech/observations/[id]/route.ts` (ALLOWED_TEST_TYPES PATCH).
-
-⚠ **SQL UPDATE à exécuter en prod** pour aligner les rows existantes (cf. §6 TODO 🔴).
-
-### ✅ Sprint Facturation tech v2 (commit ec16a9c)
-
-PaiementPanel évolué d'un mode lecture vers un éditeur complet :
-- POST `/api/tech/facture` met à jour les lignes/montants si une facture brouillon existe pour l'intervention (au lieu de la retourner inchangée)
-- Bouton "Modifier" en haut à droite de l'état C → reconstruit `selected` Map depuis `facture.lignes` (match `article_code` puis fallback `description`) → retour à la sélection
-- PATCH `/api/tech/facture/[id]` étendu avec `client_nom`, `client_email`, `client_adresse`, `lignes` (recalcul totaux)
-- Form "Informations de facturation" unifié dans l'état C : 4 inputs (référence + nom/société + adresse textarea + email copie) + 1 bouton Enregistrer
-
-### ✅ Sprint Observations terrain (commits fb38e61 + a426464 + 685c6d3 + abf5b78)
-
-Module structuré pour les tests/constatations menés sur site :
-- **DB** : table `observations_terrain` (id, intervention_id, test_type, etage, localisation, notes, ordre, created_at) + colonne `photos_interventions.observation_id` FK ON DELETE SET NULL
-- **API CRUD** : POST/GET/PATCH/DELETE + sub-route `/photos` pour POST link / DELETE unlink (double ownership check : photo et obs sur même intervention)
-- **UI** : `ObservationsPanel.tsx` premium-card avec form (test_type select + étage + loc + notes + upload photo direct), cards par observation avec icône Lucide (Beaker/Gauge/Thermometer/Eye/Camera/Droplet/HelpCircle), badge étage·localisation, photos liées + picker de photos libres
-- **Intégration rapport IA** : `generate-action.ts` charge les observations + les sérialise dans `buildContextSummary` pour Claude (5e bloc après occupants)
-- **Intégration .docx** : `build-docx.ts` reçoit `observations` en arg, ajoute section "OBSERVATIONS TERRAIN" entre Inspection et Conclusion (table 3-cols 30/25/45 sans bordure : test_type bold / étage·loc / notes italic muted), `TECHNIQUES_FOXO` checkboxes cochées dynamiquement via `Set` matching
-- **Auto-restart dictée RapportPanel** retiré (boutons Dicter supprimés du brief + sections), code SpeechRecognition conservé pour usage futur
-
-### ✅ Sprint Sub-panels premium (commit 3ce24a1)
-
-Refonte JSX des 4 sub-panels intervention tech :
-- Wrapper `bg-cream border border-sand-border rounded-2xl p-4` → `premium-card`
-- Headers `text-[10px] font-bold text-ink-muted uppercase tracking-widest` → `section-label`
-- TimerPanel : emojis `▶`/`■` → `<Play>`/`<Square>` Lucide, `transition-opacity hover:opacity-90` sur boutons
-- NotesPanel : 6 classes `dark:` orphelines purgées (le ThemeApplier CSS-vars gère désormais sans conflit)
-- PaiementPanel + PhotosPanel : pareil
-
-### ✅ Sprint Photos labels (commit 164b62b)
-
-Légendes par photo (`photos_interventions.label`) :
-- Migration `2026-05-29_photos_label.sql` (idempotent)
-- API GET `/api/tech/photos` étendu, PATCH `/api/tech/photos/[id]` accepte `label?`
-- RapportPanel : input texte sous chaque miniature (`text-[11px]` border sand) avec auto-save debounced 800ms via `labelTimersRef: useRef<Map<string, Timeout>>`
-- PreviewModal + .docx affichent la légende italique muted sous chaque image
-
-### ✅ Sprint Catalogue facturation tech (commit f27f49a)
-
-Sélection d'articles avant génération facture :
-- Migration `2026-04-29_facturation.sql` seedée avec 8 articles (DEP001 Déplacement / FOR001-005 forfaits / HEU001 Heures supp / RAP001 Rapport)
-- API GET `/api/tech/articles` (admin client pour bypass RLS — `articles` policy = is_admin only)
-- POST `/api/tech/facture` accepte `articles?: ArticleInput[]` (cap 50 + validation type-safe)
-- PaiementPanel 3 états (sélection / loading / facture) avec cards +/- quantité, fallback "Passer sans article" pour mode legacy
-
-### ✅ Sprint OrgType expert + routes alias (Stratégie A → B)
-
-Mai 2026 — bascule progressive du portail unique auto-adaptatif vers une UX courtier-équivalent pour les experts.
-
-**Phase 1 (Stratégie A — read-only)** : `OrgType` étendu à `'syndic' | 'courtier' | 'expert'`. Vocab expert avec `newRequestVerb: null` (lecture seule). Auto-détection dans `portal/layout.tsx` via `org.type`. CTAs masqués partout (sidebar, bottom nav, dashboard, liste interventions). Defensive redirect `/portal/nouveau → /portal` pour expert.
-
-**Phase 2 (Routes alias)** : 3 sous-routes `/portal/{syndic,expert,courtier}` créées (server components → `redirect('/portal')`). Tiles app-hub mises à jour avec URLs porteuses d'intent.
-
-**Phase 3 (Activation création expert)** : `newRequestVerb: '+ Confier une mission'` activé pour expert. Defensive redirect supprimé. Dans `NewRequestClient.tsx`, `isCourtier` → `isPartner` (`courtier || expert`). Accent ambre `#F59E0B` ajouté pour expert (CTA, accentBg, sidebar). `refCompagnie` rendu optionnel pour expert (label `(optionnel)` + skip validation server + skip dossiers_sinistres si vide).
-
-**Phase 4 (UX login)** : `/auth/login` lit `searchParams.next` et adapte le label du portail (Syndic/Courtier/Expert/Partenaires). Cohérent avec le routing alias.
-
-### ✅ Sprint Premium UI (admin / tech / portal / hubs)
-
-Refonte design system complet : `.premium-card` + `.kpi-value` + `.section-label` + `.row-hover` + tokens `--text-primary/-2/-3` + accents par portail (`--accent-admin/-tech/-portal`).
-
-- **Admin** : Dashboard refondu (KPI cards barre 3px par type, bannière urgences red premium, lignes mail accent ambre, todo headers palettes blue/green/amber). Launcher home avec icon-box teinté. Parametres sidebar 12 sections + recherche debounced + IntersectionObserver active tracking.
-- **Tech** : Accueil avec header gradient sombre vert `#0d2318→#1a3d2a`, mission cards premium, heure split en accent vert. Bottom nav blanc + active dot indicator vert. Sous-pages historique + notes-frais + intervention detail refondues.
-- **Portal** : Dashboard syndic premium accent bleu `#60A5FA`. PortalNav navy gradient `#0f1e35→#1a3a5c` + border-left actif bleu.
-- **Hubs (app + go)** : Glass navy avec backdrop-blur, fadeInUp staggered animations, tuiles compactes Linear/Notion-style.
-
-### ✅ Sprint Migration emojis → Lucide
-
-`✓` `✕` `🗑` etc. → Lucide icons (`Check`, `X`, `Trash2`, etc.) sur ~40 fichiers, 3 sprints. Total ~494 emojis remplacés. 17 commits.
-
----
-
-## 6. TODO / En cours
-
-### 🔴 Priorité haute
-
-- [ ] **SQL UPDATE vocab observations en prod** : exécuter dans Supabase SQL Editor pour aligner les rows existantes avec le commit `7514a08` :
-  ```sql
-  UPDATE observations_terrain SET test_type = 'Capteur d''humidité' WHERE test_type = 'Humidimètre';
-  UPDATE observations_terrain SET test_type = 'Test de pression' WHERE test_type = 'Mise en pression';
-  NOTIFY pgrst, 'reload schema';
-  ```
-- [ ] **Fix champ adresse `/rdv`** : champ adresse rendu en sombre (theme foxo-blue `var(--text)`) sur fond clair → texte illisible. Override CSS local ou propager le theme.
-- [ ] **Documents téléchargeables portail syndic** : exposer rapports PDF/Word (depuis Drive ou direct depuis l'app) dans `/portal/interventions/[id]`. Aujourd'hui le syndic reçoit un email mais pas de download depuis le dashboard.
-- [ ] **Portail Courtier réel** : aujourd'hui le vocab + l'UI sont en place mais aucune org `type='courtier'` testée end-to-end en prod. Créer une org de test + délégué, vérifier flux login → dashboard → création dossier sinistre → réception email.
-- [ ] **Tester portail Expert end-to-end** : créer org `type='expert'` + délégué actif=true, login, vérifier UI complète (titre login dynamique, dashboard accent ambre, création dossier sans ref_compagnie).
-- [ ] **Twilio SMS/WhatsApp** : env vars `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_WHATSAPP_NUMBER` à configurer Vercel. Tester envoi confirmation + rappel J1 + réception. Activer mode auto progressivement.
-- [ ] **DNS Vercel `app.foxo.be` + `go.foxo.be`** : configurer les 2 sous-domaines dans le dashboard Vercel (Settings → Domains → Add) sinon le proxy ne reçoit pas les requêtes.
-- [ ] **Migration `2026-05-27_messages.sql`** : vérifier qu'elle est appliquée en prod (table `messages` portal ↔ admin).
-- [ ] **Migration `2026-05-06_notes_frais_comptable.sql`** : à appliquer pour activer `categorie_comptable` + `taux_deductibilite` + trigger BE.
-
-### 🟠 Priorité moyenne
-
-- [ ] **PaiementPanel — pré-remplissage `refValue`** : la branche existing du POST `/api/tech/facture` ne retourne pas `factures.reference`. Si une référence client a été sauvegardée précédemment et que le tech recharge la page, l'input apparaît vide alors que la valeur existe en DB. Ajouter `reference` au select et au response shape, pré-remplir `refValue` depuis `facture.reference`.
-- [ ] **Auto-link client à la création facture** : aujourd'hui `organisation_id`, `client_nom`, `client_email`, `client_adresse` sont tous `null` à l'insert. Populater depuis `interventions.syndic_id` + ACP + organisation au moment du POST. Sinon la facture ne peut pas être envoyée automatiquement.
-- [ ] **BBA dans QR EPC** : `QrPaiement` reçoit `numero` (ex. `FV2026-100`) et l'utilise comme communication, alors que `factures.reference_structuree` (BBA `+++NNN/NNNN/NNNNN+++` pour rapprochement bancaire automatique belge) est généré en DB mais jamais passé. Étendre POST response avec `reference_structuree`, prop QrPaiement, l'utiliser dans le payload EPC.
-- [ ] **Bouton "✓ Paiement reçu"** : aujourd'hui le statut facture reste `brouillon` à vie côté tech. Ajouter dans état C de PaiementPanel un bouton qui appelle `PATCH /api/tech/facture/[id]` avec `{ statut: 'payee', date_paiement: today }`. Étendre la PATCH route pour accepter ces champs.
-- [ ] **Notifications syndic à publication rapport (Twilio)** : à `publishRapport` server action, envoyer un SMS/WhatsApp via Twilio au délégué principal de l'organisation pour signaler la disponibilité du rapport. Lié au TODO Twilio config.
-- [ ] **Templates factures/devis** : choix visuel (classique, moderne, minimaliste) dans Paramètres → Société. Aujourd'hui `react-pdf` rend un seul layout figé.
-- [ ] **`foxo-rapport.md` cleanup** : réécrire comme system prompt pur (sans Skill stack Calendar/Gmail/scripts Node.js/`validate.py`/`pdftoppm`). Le prompt actuel est artefact d'une version précédente Claude Skill, le `userMessage` patche maladroitement avec "Google Calendar et Gmail ne sont PAS disponibles ici".
-- [ ] **`Step1Courtier` rename → `Step1Partner`** : sémantiquement utilisé aussi par expert maintenant.
-- [ ] **`getCurrentSyndic()` rename → `getCurrentOrgSession()`** : nom étroit alors que la fonction gère syndic + courtier + expert.
-- [ ] **Hover desktop sidebar portal** : `.foxo-portal-desktop a:hover` reste en blanc cassé `#F0ECE4` — pourrait passer en accent bleu pour cohérence parfaite.
-- [ ] **Mobile header portal** : `.foxo-portal-mobile-header` utilise encore `var(--sidebar-logo-bg)` (theme-driven) alors que la sidebar desktop passe en gradient navy hardcodé.
-- [ ] **Sous-pages parametres** : 5 sections placeholder "Bientôt disponible" (IA, Documents, Notifications, Équipe & accès, Webhooks).
-- [ ] **Topbar admin globale** : barre recherche globale + bouton "Nouvelle intervention".
-- [ ] **Section "Actions rapides 2x2 glass"** sur tech accueil : mentionnée dans la spec étape Tech mais skip (pas de contenu défini).
-- [ ] **Filtre query param sur InterventionsClient** : KPI cards passent `?statut=en_cours` mais `en_cours` est dérivé (= confirmee + realisee). Vérifier que `InterventionsClient.tsx` lit ce param et applique le filtre virtuel.
-- [ ] **Expert sans `ref_compagnie`** : `assure_nom` est saisi côté UI mais non persisté en DB (dossiers_sinistres skip). Capturer dans `nom_facturation` ou champ dédié `intervention.assure_nom`.
-
-### 🟢 Améliorations / dette technique
-
-- [ ] **Numérotation `FV{year}-NNN` non atomique** : `lastNum + 1` dans POST `/api/tech/facture` n'est pas race-safe. 2 techs simultanés peuvent générer le même numéro. Postgres rejette le 2e via `numero unique`, mais l'erreur remonte côté client comme "Erreur facture" sans explication. Fix : fonction Postgres `generate_invoice_number(year, prefix)` SECURITY DEFINER avec `pg_advisory_xact_lock`.
-- [ ] **Validation prix article côté serveur** : `validateArticles` côté API trust le `prix_htva` envoyé par le client. Un tech malveillant peut générer une facture à 0,01€. Re-fetcher l'article par `id` dans la base canonique et utiliser sa valeur.
-- [ ] **Mode legacy "Détection de fuite hardcoded"** : avec le sprint catalogue, le mode legacy devrait disparaître ou rediriger vers `DEP001+FOR003`. Coexistence bug-prone.
-- [ ] **`utilisateurs.organisation_id`** : colonne ajoutée par migration `2026-05-28_utilisateurs_organisation_id.sql` mais absente du type TS `Utilisateur`. Synchroniser.
-- [ ] **`RoleUtilisateur` enum DB** : `'admin' | 'syndic' | 'courtier' | 'technicien'` — pas `'expert'`.
-- [ ] **`DemandeurType` enum DB** : `'particulier' | 'syndic' | 'courtier'` — pas d'expert (mappé sur `'courtier'` server-side).
-- [ ] **Schéma `organisations`, `acps`, `dossiers_sinistres`** non versionnés dans `db/migrations/` — récupérer via `pg_dump` Supabase et créer `0000_baseline.sql`.
-- [ ] **Buckets Supabase Storage** `notes-frais-photos` + `societe-assets` : création manuelle requise.
-- [ ] **Tooltip / aria-label** dans les pages refondues : vérifier que les boutons icon-only ont bien `aria-label`.
-- [ ] **Test du redirect external** `redirect('https://auth.foxo.be')` dans `/go-hub/page.tsx` quand DNS pas configuré.
-- [ ] **`react-hooks/refs`** désactivé sur `InterventionsClient.tsx` (~120 faux-positifs). Cleanup ponctuel si bug réel apparaît.
-- [ ] **3 warnings `no-unused-vars`** à localiser via `npx eslint .`.
-- [ ] **`MID_BLUE` / `DIVIDER`** jamais utilisés dans `src/lib/rapport/build-docx.ts` (`void` cast).
-- [ ] **Server-side check `org.type === 'courtier'` sur insert dossiers_sinistres** : à tester en prod avec un cas réel.
-- [ ] **Fonctions SpeechRecognition orphelines** dans RapportPanel.tsx : `startDictation` / `stopDictation` / `getRecognitionCtor` / `recognitionRef` / `activeDictationRef` / `useEffect` mirror et `rec.onend` auto-restart restent définis sans usage UI (boutons retirés au commit `abf5b78`). Conservés volontairement pour réintroduction future, mais ESLint peut warner.
-
-### 💡 Idées / roadmap
-
-- [ ] **Dashboard portail syndic — carte interactive (effet wow)** : carte de la zone du syndic avec marqueurs interventions (couleurs par statut), heatmap des fuites par immeuble, filtres temporels. Effet visuel premium pour différencier de la concurrence.
-- [ ] **Logo société dans documents** : appliquer `parametres.societe_logo_url` dans factures PDF/DOCX + entête plateforme.
-- [ ] **Améliorations Assistant IA** (`/admin/assistant` existe déjà) : mémoire conversationnelle persistante, intégration tools (chercher dans interventions, créer un brouillon de devis, etc.), historique des conversations.
-- [ ] **Sidebar admin ordre personnalisable** : drag & drop, persistance dans `parametres.sidebar_order` ou `user_preferences`.
-- [ ] **Multi-société** : actuellement `parametres.societe_*` est mono-tenant.
-- [ ] **App tech UX dictée** : réintroduction avec bouton plus grand + feedback visuel pendant enregistrement. L'infrastructure SpeechRecognition (helpers, types, refs, fonctions, auto-restart silence) est conservée dans RapportPanel.tsx.
-- [ ] **Messagerie email transactionnel** : Resend pour notifier admin/syndic des nouveaux messages.
-- [ ] **Historique rappels multi** : `factures.rappels_history jsonb` avec timeline dans `/admin/facturation/[id]`.
-- [ ] **Tuner `ACP_AUTO_THRESHOLD`** : actuellement `0.85` — évaluer faux-positifs sur 1 mois.
-- [ ] **Vérif distorsion photos docx** : `image-size` intégré, à valider sur portrait/paysage extrêmes.
-- [ ] **Champ `assure_nom` dédié sur `interventions`** : permettrait à l'expert de capturer le nom du client sans dépendre de la ref compagnie.
-- [ ] **Webhook Resend pour bounces** : actuellement les bounces email ne sont pas trackés.
-- [ ] **Notification push PWA tech** : nouvelle mission assignée → notif sur le téléphone.
-
----
-
-## 7. Stack & versions
-
-| Package | Version |
+| Sous-domaine | Cible |
 |---|---|
-| `next` | `16.2.4` |
-| `react` / `react-dom` | `19.2.4` |
-| `typescript` | `^5` |
-| `@supabase/ssr` | `^0.10.2` |
-| `@supabase/supabase-js` | `^2.104.1` |
-| `@anthropic-ai/sdk` | `^0.91.1` |
-| `@react-pdf/renderer` | `^4.5.1` |
-| `docx` | `^9.6.1` |
-| `image-size` | `^2.0.2` |
-| `qrcode` | `^1.5.4` |
-| `resend` | `^6.12.2` |
-| `next-themes` | `^0.4.6` |
-| `tailwindcss` | `^4` |
-| `lucide-react` | `1.14.0` |
-| `eslint` | `^9` |
+| `admin.foxo.be` | `/admin/*` |
+| `portal.foxo.be` | `/portal/*` |
+| `tech.foxo.be` | `/tech/*` |
+| `auth.foxo.be` | `/auth/login` + `/api/auth/send-email` (Supabase Auth Hook) |
+| `app.foxo.be` (ou racine) | `/app-hub` / `/go-hub` / `/o/[token]` / `/rdv` |
 
 ---
 
-## 8. Système de thèmes
+## 3. Modules fonctionnels (état réel)
 
-3 thèmes définis dans `src/lib/themes.ts` :
-
-| Theme | Sidebar | Accent | Usage |
-|---|---|---|---|
-| `dark-amber` | `#1A1916` (sombre) | `#C8924A` (ambre) | défaut admin |
-| `warm-light` | `#2C2118` (sombre) | `#D4862A` (orange) | défaut tech |
-| `foxo-blue` | `#1B3A5C` (navy) | `#E8A020` (orange) | défaut portal + rdv + o/[token] |
-
-CSS vars (`--card-bg`, `--text`, `--accent`, `--info-bg`, etc.) injectées dynamiquement par `ThemeApplier.tsx` via `usePathname()` + `portalDefaults`. Script blocking `<head>` (`THEME_INIT_SCRIPT`) évite le FOUC au 1er paint.
-
-Tokens premium ajoutés en `:root` (cohérents avec theme system) :
-`--page-bg`, `--card-radius`, `--card-shadow`, `--card-shadow-hover`, `--text-primary`, `--text-secondary`, `--text-muted`, `--accent-admin`, `--accent-tech`, `--accent-portal`.
-
-### Accents par orgType (portal)
-
-| Org type | Accent (CSS var + hex) |
-|---|---|
-| syndic | navy `#1B3A6B` |
-| courtier | turquoise `#1D6FA4` |
-| expert | ambre `#F59E0B` |
+| Module | État | Détails |
+|---|---|---|
+| **Auth OTP** | ✅ | Code 6 chiffres via **Gmail API** (pas OVH SMTP — alias `info@foxo.be` sur compte `foxotech1@gmail.com`). Endpoint webhook : `/api/auth/send-email` signé `SUPABASE_AUTH_HOOK_SECRET`. |
+| **RLS Supabase** | ✅ (legacy dashboard) + 🚧 (nouvelles tables) | 9 tables coeur : `utilisateurs`, `organisations`, `delegues`, `interventions`, `acps`, `occupants`, `rapports`, `clients`, `photos_interventions`. RLS de la table `user_preferences` (2026-05-30) versionnée dans `db/migrations/`. Le reste vit dans le dashboard Supabase. |
+| **Facturation — articles** | ✅ | CRUD articles via `/admin/articles`. |
+| **Facturation — EPC QR** | ✅ | Génération QR SEPA via `qrcode` à l'impression PDF (`@react-pdf/renderer`). |
+| **Facturation — import Beobank** | 🚧 | Module `comptabilite/` présent, parsing CSV à finaliser. Pas de rapprochement automatique transactions ↔ factures (cf. TODO `src/lib/ponto.ts`). |
+| **Facturation — rappels** | ✅ | `/api/admin/facturation/send-rappel/[id]` + email Resend + log SMS. |
+| **Rapports — génération .docx** | ✅ | `src/lib/rapport/build-docx.ts` (via `docx` lib) — modèle 2026-101, logo auto-ratio, photos colonne centrée. Fix logo largeur 200 (commit `e6868db`). |
+| **Rapports — upload Drive** | ✅ | `createInterventionFolderFromMail` + `uploadAttachmentToFolder` dans `src/lib/drive.ts`. Dossier `RAPPORTS/2026/{ref Adresse}/`. |
+| **Mails — pipeline → intervention** | ✅ | Cron `check-mails` lit Gmail, `analyse-deep` (Claude) extrait type + adresse + langue, `confirm-and-create` matérialise l'intervention + dossier Drive + créneau proposé. Form éditable avant création (commit `e2373a7`). |
+| **Mails — actions 1-clic** | ✅ | Brouillon syndic (`draft-reply`), confirm occupant par mail/SMS, event Calendar. |
+| **Portail syndic/courtier — `vocabFor`** | ✅ | `src/lib/portal/vocab.ts` adapte les libellés selon `OrgType` (syndic / courtier / expert). |
+| **Portail — dashboard** | ✅ | Liste interventions filtrée `syndic_id` OU `organisation_id`, carte Leaflet pinned sur ACP. |
+| **Portail — calendar** | ✅ | `/portal/calendar` — affichage interventions planifiées. |
+| **App technicien — RapportPanel** | ✅ | Saisie observations terrain (`observations_terrain`) + photos labellisées + notes (`tech_notes`). |
+| **App technicien — export Word** | ✅ | `/api/tech/rapport-docx` génère le `.docx` final côté serveur. |
+| **Assistant Claude AI** | ✅ | `/admin/assistant` + drawer global. Route `/api/admin/assistant/chat` (Anthropic SDK direct). Contexte injecté via `src/lib/assistant/context.ts`. |
+| **Google OAuth2 Drive/Gmail/Calendar** | ✅ | Flow `/api/google/auth` + `/callback`, tokens en table `google_tokens`, refresh auto dans `src/lib/google-auth.ts`. Calendar webhook + watch renewal (cron). |
+| **Twilio SMS/WhatsApp** | 🚧 | Code prêt (`src/lib/sms.ts`, routes `/api/admin/sms/*`, logs en `sms_logs`), variables d'env définies dans `.env.example` mais **non valorisées dans `.env.local`**. SDK Twilio non installé (fetch REST direct). Cron `rappel-j1` insère en `sms_logs` mais n'envoie pas tant que credentials absents. |
 
 ---
 
-## 9. ENV vars
+## 4. ENV
 
-Actives en local (`.env.local`) :
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_AUTH_HOOK_SECRET`
-- `ANTHROPIC_API_KEY`
-- `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
-- `NEXT_PUBLIC_SITE_URL`
+### Présent dans `.env.local` (sans valeurs)
 
-À activer selon environnement (cf. `.env.example`) :
-- `NEXT_PUBLIC_APP_URL`
+**Supabase**
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (vide)
+- `SUPABASE_AUTH_HOOK_SECRET` (vide)
+
+**Resend (notifications)**
+- `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL`
+
+**Anthropic (Claude)**
+- `ANTHROPIC_API_KEY` (vide)
+
+**Site**
+- `NEXT_PUBLIC_SITE_URL` (vide)
+
+### Documenté dans `.env.example` mais **absent de `.env.local`** (à provisionner)
+
+**Cron Vercel**
 - `CRON_SECRET`
-- **`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`, `TWILIO_WHATSAPP_NUMBER`** ⚠ TODO priorité haute
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- `GOOGLE_DRIVE_RAPPORTS_FOLDER_ID`, `GOOGLE_DRIVE_FACTURES_FOLDER_ID`
-- `GOOGLE_CALENDAR_WEBHOOK_TOKEN`
+
+**Twilio**
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_PHONE_NUMBER`
+- `TWILIO_WHATSAPP_NUMBER`
+
+**Google OAuth**
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_DRIVE_RAPPORTS_FOLDER_ID`
+- `GOOGLE_DRIVE_FACTURES_FOLDER_ID`
+
+**Site (compléments)**
+- `NEXT_PUBLIC_APP_URL`
 
 ---
 
-## 10. Migrations DB
+## 5. 20 derniers commits
 
-44 migrations dans `db/migrations/`. État présumé en prod :
-
-**Migrations critiques à vérifier en prod** :
-- `2026-04-29_facturation.sql` — tables factures + articles + parametres + RLS admin only + seed 8 articles
-- `2026-05-06_notes_frais_comptable.sql` — enum + colonnes catégorie_comptable + trigger taux déductibilité belge ⚠ **TODO appliquer si pas déjà fait**
-- `2026-05-16_facturation_params.sql` — paramètres facturation
-- `2026-05-25b_factures_deleted_at.sql` — soft delete brouillons
-- `2026-05-27_messages.sql` — table messages portal ↔ admin + RLS + helper SECURITY DEFINER ⚠ **TODO vérifier**
-- `2026-05-28_utilisateurs_organisation_id.sql` — colonne `utilisateurs.organisation_id`
-- `2026-05-28_photos_section.sql` — colonnes section + ordre sur photos_interventions
-- `2026-05-29_occupant_types_extended.sql` — 8 valeurs type_occupant
-- `2026-05-29_organisation_types_extended.sql` — ALTER TYPE pour 10 types orga (incluant `expert`)
-- **`2026-05-29_photos_label.sql`** — colonne `label text` sur photos_interventions (idempotent, déjà appliquée en prod)
-- **`2026-05-29_observations_terrain.sql`** — table `observations_terrain` + colonne `photos_interventions.observation_id` FK ON DELETE SET NULL (idempotent)
-- `2026-05-30_user_preferences.sql` — préférence thème par user
-- `2026-05-30_notes_frais.sql` — table notes_frais + RLS + trigger updated_at
-- `2026-05-30_sync_acps_clients.sql` — FK + trigger sync acps→clients
-
-**Buckets Supabase Storage à créer manuellement** :
-```sql
-INSERT INTO storage.buckets (id, name, public, file_size_limit)
-VALUES
-  ('notes-frais-photos', 'notes-frais-photos', true, 5242880),
-  ('societe-assets',     'societe-assets',     true, 2097152)
-ON CONFLICT (id) DO NOTHING;
-
-CREATE POLICY "public_read_notes_frais_photos"
-  ON storage.objects FOR SELECT TO public
-  USING (bucket_id = 'notes-frais-photos');
-CREATE POLICY "public_read_societe_assets"
-  ON storage.objects FOR SELECT TO public
-  USING (bucket_id = 'societe-assets');
+```
+c0df7b1 fix(auth/login): purge dark hardcoded hex + applique design system FoxO
+e2373a7 feat(mails): editable form before dossier creation
+0045e4d feat(mails): add confirm-and-create route with side-effects
+4f680c9 refactor(mails): analyse-deep read-only + stronger address extraction + type_intervention
+a3982d7 fix(mails): intervention type + robust geocoding fallback
+9d01c3e fix(mails): robust JSON extraction for deep analysis
+729fa4a docs: add Sprint Mails manual test checklist
+e992895 feat(mails): add 1-click actions on analysed mails
+4b20957 feat(api): add mail draft-reply, sms compose/send, calendar event routes
+d554254 feat(api): POST /api/admin/mails/analyse-deep — pipeline mail → intervention
+1ca0eb4 feat(drive): add generateNextRef + createInterventionFolderFromMail
+2c826a3 refactor(drive): remove duplicate createInterventionFolder
+842ffc4 chore(gitignore): track .env.example permanently
+b9d890a chore: track .env.example with DRIVE_RAPPORT_FOLDER_ID
+00fddb4 feat(drive): createInterventionFolder + uploadAttachmentToFolder pour pipeline mail
+c5d1797 feat(mails): proposeCreneau — sélection slot optimal pour intervention
+e6868db fix(rapport): logo header width 200 + retire debug log buildTechniques
+8d84778 fix(rapport): logo auto-ratio + mapping correct + bordure de page conforme FOXO_BASE
+b592217 fix(rapport): mapping ReportData — helpers partagés (objet/adresses/réf) selon modèle 2026-101
+ac82358 fix(rapport): retirer section Observations terrain + photos en colonne centrée
 ```
 
-**Schémas hors versioning (dette technique)** :
-- `organisations` (référencée dans 9 migrations ALTER mais pas de CREATE TABLE)
-- `acps` (idem)
-- `dossiers_sinistres` (totalement absente des migrations)
-- `categorie_note_frais` enum (CREATE TYPE absent)
-- `user_role` enum (CREATE TYPE absent — utilisé pour `utilisateurs.role` ET `organisations.type`)
-- `DemandeurType` check/enum (absent — TS = `'particulier' | 'syndic' | 'courtier'`)
+---
+
+## 6. TODOs ouverts
+
+### TODO marqueurs dans le code (`// TODO` / `// FIXME` / `// HACK`)
+
+- `src/lib/ponto.ts:35` — `TODO : OAuth2 client_credentials → token. Stocker en cache mémoire (TTL).`
+- `src/lib/ponto.ts:42` — `TODO : récupère les transactions sur la fenêtre [from, to] et les matche` (rapprochement Beobank ↔ factures).
+- `src/app/admin/Dashboard.tsx:14` — `TODO Sprint Brouillons IA + Briefing : réactiver BriefingIA`.
+
+### Sprints non terminés (mémoire)
+
+- **Sprint 6 — Notes de frais** : tables `notes_frais` + `notes_frais_comptable` créées (migrations 2026-05-06 / 2026-05-30), upload + extract route présents (`/api/tech/notes-frais/*`, `/api/admin/notes-frais/extract`), UI `/admin/notes-frais` + `/tech/notes-frais` en place. **À valider** : workflow complet de submission → validation comptable → export comptable.
+- **Twilio config prod** : variables non valorisées en local, comptes Twilio à brancher pour activer les rappels J-1 SMS réels (le cron tourne, les rows `sms_logs` s'insèrent mais l'envoi est no-op).
+- **Resend domain** : `RESEND_FROM_EMAIL=FoxO <noreply@foxo.be>` — vérifier que le domaine `foxo.be` est bien validé côté Resend (DKIM/SPF/DMARC) pour éviter le SPAM-folding.
+- **Briefing IA / Brouillons IA** : désactivé dans `Dashboard.tsx`, à réactiver après stabilisation du pipeline mails.
+- **Ponto / Beobank** : module créé, pas de token OAuth, pas de matching automatique. C'est le gros chantier facturation restant.
 
 ---
 
-## 11. Auth & autorisation
+## 7. Routes API (arborescence simple)
 
-### Whitelist (server-side, code dur)
-
-`src/lib/auth/roles.ts` :
-- `ADMIN_EMAILS` — liste hardcodée → `role = 'admin'` → routing `/admin`
-- `TECH_EMAILS` — idem → `role = 'tech'` → routing `/tech`
-- Tous les autres → `role = 'partner'` → routing `/portal` (auto-détection orgType via `getCurrentSyndic()`)
-
-### Cascade auth portal (`src/lib/portal/syndic.ts`)
-
-`getCurrentSyndic()` cherche en cascade :
-1. `delegues` (lookup `email + actif=true` → join `organisations`) — supporte multi-org via `.limit(1).maybeSingle()` (commit `15144a9`)
-2. `organisations.email` legacy fallback
-3. Renvoie `{ user, org, role: 'admin' | 'delegue' | null, via: 'delegue' | 'legacy' | null }`
-
-### Whitelist applicative `sendOtp` (`src/app/auth/login/actions.ts`)
-
-3-tier gate avant envoi OTP :
-1. ADMIN_EMAILS ∪ TECH_EMAILS hardcoded → bypass
-2. `utilisateurs WHERE email AND actif=true` → autorisé
-3. `delegues WHERE email AND actif=true` `.limit(1).maybeSingle()` → autorisé
-4. Sinon → "Accès non autorisé. Contactez info@foxo.be."
-
-### orgType (PortalContext)
-
-```ts
-const orgType: OrgType =
-  org?.type === 'courtier' ? 'courtier' :
-  org?.type === 'expert'   ? 'expert'   :
-  'syndic';
 ```
-
-Auto-détection dans `portal/layout.tsx`. Fallback `'syndic'` si org.type est autre chose (legacy `'assurance'`, `'plombier'`, etc. → traités comme syndic par défaut).
-
----
-
-_Fichier maintenu manuellement à jour entre les sessions. Mettre à jour HEAD + dernière section commit + TODOs au fur et à mesure._
+src/app/api/
+├── address/
+│   └── autocomplete/route.ts
+├── admin/
+│   ├── acps/
+│   │   ├── route.ts
+│   │   └── [id]/route.ts
+│   ├── assistant/chat/route.ts
+│   ├── calendar/events/route.ts
+│   ├── clients/[id]/route.ts
+│   ├── facturation/send-rappel/[id]/route.ts
+│   ├── facture/[id]/route.ts
+│   ├── interventions/
+│   │   ├── search/route.ts
+│   │   └── [id]/
+│   │       ├── route.ts
+│   │       ├── accept-counter-proposal/route.ts
+│   │       ├── apply-reanalysis/route.ts
+│   │       ├── assign/route.ts
+│   │       ├── color/route.ts
+│   │       ├── confirm-mail/route.ts
+│   │       ├── delete/route.ts
+│   │       ├── historique/route.ts
+│   │       ├── liens/route.ts
+│   │       ├── lier/route.ts
+│   │       ├── notify-occupants/route.ts
+│   │       ├── reanalyze/route.ts
+│   │       ├── recipients/route.ts
+│   │       └── schedule/route.ts
+│   ├── mails/
+│   │   ├── route.ts
+│   │   ├── analyse-deep/route.ts
+│   │   ├── analyses/route.ts
+│   │   ├── batch/route.ts
+│   │   ├── confirm-and-create/route.ts
+│   │   ├── draft-reply/route.ts
+│   │   ├── labels/route.ts
+│   │   ├── unread-count/route.ts
+│   │   └── [id]/
+│   │       ├── route.ts
+│   │       ├── analyze/route.ts
+│   │       ├── labels/route.ts
+│   │       ├── mark-traite/route.ts
+│   │       └── reply/route.ts
+│   ├── notes-frais/extract/route.ts
+│   ├── occupants/
+│   │   ├── [id]/route.ts
+│   │   └── manage/[occupant_id]/route.ts
+│   ├── organisations/
+│   │   ├── route.ts
+│   │   └── [id]/route.ts
+│   ├── parametres/planning-couleurs/route.ts
+│   ├── planning/dispos/
+│   │   ├── route.ts
+│   │   ├── bulk/route.ts
+│   │   └── resync/route.ts
+│   ├── sms/
+│   │   ├── compose/route.ts
+│   │   └── send/route.ts
+│   ├── societe/upload-logo/route.ts
+│   ├── syndics/[org_id]/
+│   │   ├── route.ts
+│   │   ├── acps/route.ts
+│   │   └── delegues/
+│   │       ├── route.ts
+│   │       └── [id]/
+│   │           ├── route.ts
+│   │           └── invite/route.ts
+│   ├── techniciens/[id]/interventions/route.ts
+│   ├── tech-summary/[id]/route.ts
+│   └── utilisateurs/
+│       ├── route.ts
+│       └── [id]/route.ts
+├── auth/send-email/route.ts
+├── cron/
+│   ├── check-mails/
+│   │   ├── route.ts
+│   │   └── preview/route.ts
+│   ├── rappel-j1/
+│   │   ├── route.ts
+│   │   └── preview/route.ts
+│   └── renew-calendar-watch/route.ts
+├── facture/[id]/route.ts
+├── google/
+│   ├── auth/route.ts
+│   ├── callback/route.ts
+│   ├── calendar-events/route.ts
+│   ├── calendar-import/route.ts
+│   ├── calendar-sync/route.ts
+│   ├── calendar-watch/
+│   │   ├── subscribe/route.ts
+│   │   └── unsubscribe/route.ts
+│   ├── calendar-webhook/route.ts
+│   └── test-drive/route.ts
+├── messages/
+│   ├── route.ts
+│   └── [id]/lu/route.ts
+├── rapport/[id]/route.ts
+└── tech/
+    ├── articles/route.ts
+    ├── facture/
+    │   ├── route.ts
+    │   └── [id]/route.ts
+    ├── interventions/[id]/notes/route.ts
+    ├── notes-frais/
+    │   ├── route.ts
+    │   ├── upload/route.ts
+    │   └── [id]/submit/route.ts
+    ├── observations/
+    │   ├── route.ts
+    │   └── [id]/
+    │       ├── route.ts
+    │       └── photos/route.ts
+    ├── photos/
+    │   ├── route.ts
+    │   └── [id]/route.ts
+    ├── rapport-docx/route.ts
+    └── upload-photo/route.ts
+```
