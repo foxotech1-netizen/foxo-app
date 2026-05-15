@@ -68,6 +68,12 @@ export type AgentRunResult<TOutput> = {
   durationMs: number;
   /** Coût estimé en centimes EUR. */
   costEurCents: number;
+  /** Valeur finale loggée (input ou override depuis run()). null si non renseignée. */
+  interventionId: string | null;
+  /** Valeur finale loggée (input ou override depuis run()). null si non renseignée. */
+  emailId: string | null;
+  /** Valeur finale loggée (input ou override depuis run()). null si non renseignée. */
+  confidenceScore: number | null;
 };
 
 export async function runAgent<TOutput>(
@@ -139,5 +145,8 @@ export async function runAgent<TOutput>(
     logId: data?.id ?? "",
     durationMs,
     costEurCents,
+    interventionId: finalInterventionId ?? null,
+    emailId:        finalEmailId ?? null,
+    confidenceScore: finalConfidence ?? null,
   };
 }

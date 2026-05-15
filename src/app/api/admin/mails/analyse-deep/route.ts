@@ -26,6 +26,7 @@ import { roleForEmail } from '@/lib/auth/roles';
 import { getEmailThread } from '@/lib/gmail';
 import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau';
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
+import { runAgent } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -290,95 +291,161 @@ export async function POST(request: Request) {
       dossiersList || '(aucun)',
     ].join('\n');
 
+    // 4-6. Appel Claude + parsing JSON + matching dossier sous observabilité.
+    //      runAgent mesure tokens/coût/durée, insère agent_logs, et propage
+    //      l'override interventionId quand le matching dossier réussit (CAS A
+    //      — modif 3b1). Le JSON parse fail est re-throw avec préfixe
+    //      "JSON parse: " + preview ; le wrapper logge tel quel.
     const client = new Anthropic({ apiKey });
-    let claudeRaw: string;
-    try {
-      const msg = await client.messages.create({
-        model: MODEL,
-        max_tokens: 1024,
-        temperature: 0,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: `Thread complet :\n${threadText}` }],
-      });
-      const block = msg.content[0];
-      claudeRaw = block && block.type === 'text' ? block.text : '';
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : 'erreur inconnue';
-      return NextResponse.json(
-        { success: false, error: `Anthropic : ${errMsg}` },
-        { status: 502 },
-      );
-    }
-
-    // Log de la réponse brute (visible dans Vercel logs) pour pouvoir
-    // diagnostiquer rapidement les drifts de format de Claude (fences,
-    // préambules, etc.) sans avoir à reproduire le mail.
-    console.log('[analyse-deep] raw response', claudeRaw.slice(0, 300));
-
-    // 5. Parsing JSON strict — passe par extractJson qui supporte les
-    //    fences ```json ... ``` et le bruit avant/après l'objet, malgré
-    //    la consigne stricte du system prompt.
     let analyse: ClaudeAnalyse;
-    try {
-      const cleaned = extractJson(claudeRaw);
-      analyse = JSON.parse(cleaned) as ClaudeAnalyse;
-    } catch (err) {
-      console.error('[analyse-deep] JSON parse failed', {
-        raw: claudeRaw.slice(0, 500),
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Claude a renvoyé un JSON invalide',
-          raw_preview: claudeRaw.slice(0, 200),
-        },
-        { status: 500 },
-      );
-    }
-
-    // 6. Matching dossier existant (lecture seule — analyse-deep ne crée
-    //    plus de nouveau dossier ; dossier_created reste donc toujours
-    //    false dans la réponse de cette route et passera à true via
-    //    confirm-and-create après validation manuelle).
     let dossierMatchId: string | null = null;
     let dossierInfo: DossierInfo | null = null;
     let dossierExisted = false;
     let lat: number | null = null;
     let lng: number | null = null;
 
-    if (analyse.numero_dossier_mentionne) {
-      const { data } = await admin
-        .from('interventions')
-        .select('id, ref, adresse, lat, lng')
-        .eq('ref', analyse.numero_dossier_mentionne)
-        .maybeSingle();
-      if (data) {
-        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
-        dossierMatchId = d.id;
-        dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
-        dossierExisted = true;
-        lat = d.lat;
-        lng = d.lng;
+    try {
+      const result = await runAgent<{
+        classification: ClaudeAnalyse;
+        matchedInterventionId: string | null;
+        dossierInfo: DossierInfo | null;
+        dossierExisted: boolean;
+        lat: number | null;
+        lng: number | null;
+      }>({
+        agentName: 'triage_mail',
+        model: MODEL,
+        emailId: null,
+        inputSummary: {
+          from_domain: messages[0]?.from?.match(/@([^>\s]+)/)?.[1] ?? null,
+          message_count: messages.length,
+          body_length: threadText.length,
+        },
+        run: async () => {
+          // (i) Appel Anthropic
+          const msg = await client.messages.create({
+            model: MODEL,
+            max_tokens: 1024,
+            temperature: 0,
+            system: systemPrompt,
+            messages: [{ role: 'user', content: `Thread complet :\n${threadText}` }],
+          });
+          const block = msg.content[0];
+          const rawText = block && block.type === 'text' ? block.text : '';
+
+          // Log de la réponse brute (visible dans Vercel logs) pour pouvoir
+          // diagnostiquer rapidement les drifts de format de Claude (fences,
+          // préambules, etc.) sans avoir à reproduire le mail.
+          console.log('[analyse-deep] raw response', rawText.slice(0, 300));
+
+          // (ii) Parsing JSON strict — passe par extractJson qui supporte les
+          //      fences ```json ... ``` et le bruit avant/après l'objet, malgré
+          //      la consigne stricte du system prompt.
+          let classification: ClaudeAnalyse;
+          try {
+            const cleaned = extractJson(rawText);
+            classification = JSON.parse(cleaned) as ClaudeAnalyse;
+          } catch (err) {
+            const preview = rawText.slice(0, 200).replace(/\s+/g, ' ');
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.error('[analyse-deep] JSON parse failed', {
+              raw: rawText.slice(0, 500),
+              error: errMsg,
+            });
+            throw new Error(`JSON parse: ${errMsg} (preview: ${preview})`);
+          }
+
+          // (iii) Matching dossier existant (lecture seule — analyse-deep ne
+          //       crée plus de nouveau dossier ; dossier_created reste donc
+          //       toujours false dans la réponse de cette route et passera à
+          //       true via confirm-and-create après validation manuelle).
+          let matchedInterventionId: string | null = null;
+          let matchedInfo: DossierInfo | null = null;
+          let matchedExisted = false;
+          let matchedLat: number | null = null;
+          let matchedLng: number | null = null;
+
+          if (classification.numero_dossier_mentionne) {
+            const { data } = await admin
+              .from('interventions')
+              .select('id, ref, adresse, lat, lng')
+              .eq('ref', classification.numero_dossier_mentionne)
+              .maybeSingle();
+            if (data) {
+              const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
+              matchedInterventionId = d.id;
+              matchedInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
+              matchedExisted = true;
+              matchedLat = d.lat;
+              matchedLng = d.lng;
+            }
+          }
+          if (!matchedInterventionId && classification.adresse_extraite) {
+            const firstWords = classification.adresse_extraite.split(/\s+/).slice(0, 3).join(' ');
+            const { data } = await admin
+              .from('interventions')
+              .select('id, ref, adresse, lat, lng')
+              .ilike('adresse', `%${firstWords}%`)
+              .neq('statut', 'cloturee')
+              .limit(1)
+              .maybeSingle();
+            if (data) {
+              const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
+              matchedInterventionId = d.id;
+              matchedInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
+              matchedExisted = true;
+              matchedLat = d.lat;
+              matchedLng = d.lng;
+            }
+          }
+
+          return {
+            message: msg,
+            output: {
+              classification,
+              matchedInterventionId,
+              dossierInfo: matchedInfo,
+              dossierExisted: matchedExisted,
+              lat: matchedLat,
+              lng: matchedLng,
+            },
+            outputSummary: {
+              classified_type: classification.type ?? null,
+              language_detected: classification.langue ?? null,
+              urgency: classification.urgence ?? null,
+              match_found: matchedInterventionId !== null,
+            },
+            interventionId: matchedInterventionId,
+          };
+        },
+      });
+
+      analyse = result.output.classification;
+      dossierMatchId = result.output.matchedInterventionId;
+      dossierInfo = result.output.dossierInfo;
+      dossierExisted = result.output.dossierExisted;
+      lat = result.output.lat;
+      lng = result.output.lng;
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : 'erreur inconnue';
+      // Préserve les codes HTTP existants : 500 + raw_preview pour JSON
+      // parse, 502 pour les autres erreurs (typiquement Anthropic SDK).
+      if (errMsg.startsWith('JSON parse:')) {
+        const previewMatch = errMsg.match(/\(preview: (.*)\)$/);
+        const rawPreview = previewMatch ? previewMatch[1] : '';
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Claude a renvoyé un JSON invalide',
+            raw_preview: rawPreview,
+          },
+          { status: 500 },
+        );
       }
-    }
-    if (!dossierMatchId && analyse.adresse_extraite) {
-      const firstWords = analyse.adresse_extraite.split(/\s+/).slice(0, 3).join(' ');
-      const { data } = await admin
-        .from('interventions')
-        .select('id, ref, adresse, lat, lng')
-        .ilike('adresse', `%${firstWords}%`)
-        .neq('statut', 'cloturee')
-        .limit(1)
-        .maybeSingle();
-      if (data) {
-        const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
-        dossierMatchId = d.id;
-        dossierInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
-        dossierExisted = true;
-        lat = d.lat;
-        lng = d.lng;
-      }
+      return NextResponse.json(
+        { success: false, error: `Anthropic : ${errMsg}` },
+        { status: 502 },
+      );
     }
 
     // 7. (LECTURE SEULE) Si demande_intervention sans match : géocoder
