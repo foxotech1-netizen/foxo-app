@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import { getFoxoSystemPrompt } from '@/lib/prompts/rapport';
 import type { Acp, Intervention, Occupant, Organisation, Utilisateur } from '@/lib/types/database';
+import { runAgent } from '@/lib/observability';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
@@ -213,28 +214,85 @@ export async function generateRapportSections(
     `- Chaque valeur est un texte en prose, plusieurs phrases par section, paragraphes simples séparés par "\\n\\n".`,
   ].join('\n');
 
-  const client = new Anthropic({ apiKey });
-
-  let raw: string;
+  // Agent 3 (rapport) — interventionId connu d'entrée (1er argument).
+  // inputSummary STRICTEMENT non-PII : aucune dictée, aucune observation,
+  // aucun nom occupant, aucune adresse. Métriques uniquement.
+  // outputSummary : indicateurs de présence des sections, jamais le texte
+  // rédigé (qui contient potentiellement des PII : occupants, adresses,
+  // descriptions de dégâts).
+  type RapportSections = { degats?: string; inspection?: string; conclusion?: string; recommandations?: string };
+  let parsed: RapportSections;
   try {
-    const msg = await client.messages.create({
+    const result = await runAgent<RapportSections>({
+      agentName: 'rapport',
       model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: getFoxoSystemPrompt(),
-      messages: [{ role: 'user', content: userMessage }],
-    });
-    const block = msg.content[0];
-    raw = block && block.type === 'text' ? block.text : '';
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Erreur inconnue';
-    console.warn('[tech/generateRapport] Anthropic error:', e);
-    return { ok: false, error: 'Anthropic : ' + message };
-  }
+      interventionId,
+      emailId: null,
+      inputSummary: {
+        ref_foxo: iv.ref ?? null,
+        intervention_type: iv.type ?? null,
+        priorite: iv.priorite ?? null,
+        brief_length: trimmed.length,
+        observations_count: observations.length,
+        occupants_count: (occRes.data ?? []).length,
+        has_acp: Boolean(acpRes.data),
+        has_syndic: Boolean(orgRes.data),
+        has_tech: Boolean(techRes.data),
+        has_started_at: Boolean(iv.started_at),
+        has_ended_at: Boolean(iv.ended_at),
+      },
+      run: async () => {
+        const client = new Anthropic({ apiKey });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          system: getFoxoSystemPrompt(),
+          messages: [{ role: 'user', content: userMessage }],
+        });
+        const block = msg.content[0];
+        const rawText = block && block.type === 'text' ? block.text : '';
 
-  const parsed = tryParseJson(raw);
-  if (!parsed) {
-    console.warn('[tech/generateRapport] JSON parse failed. Raw response:', raw.slice(0, 500));
-    return { ok: false, error: 'Réponse Claude non parsable. Réessaie ou ajuste la dictée.' };
+        const parsedRaw = tryParseJson(rawText);
+        if (!parsedRaw) {
+          console.warn('[tech/generateRapport] JSON parse failed. Raw response:', rawText.slice(0, 500));
+          const preview = rawText.slice(0, 200).replace(/\s+/g, ' ');
+          throw new Error(`JSON parse: Réponse Claude non parsable (preview: ${preview})`);
+        }
+
+        const sections: RapportSections = parsedRaw;
+        const lengths = {
+          degats: typeof sections.degats === 'string' ? sections.degats.trim().length : 0,
+          inspection: typeof sections.inspection === 'string' ? sections.inspection.trim().length : 0,
+          conclusion: typeof sections.conclusion === 'string' ? sections.conclusion.trim().length : 0,
+          recommandations: typeof sections.recommandations === 'string' ? sections.recommandations.trim().length : 0,
+        };
+        const sectionsCount = (Object.values(lengths) as number[]).filter((n) => n > 0).length;
+
+        return {
+          message: msg,
+          output: sections,
+          outputSummary: {
+            has_degats: lengths.degats > 0,
+            has_inspection: lengths.inspection > 0,
+            has_conclusion: lengths.conclusion > 0,
+            has_recommandations: lengths.recommandations > 0,
+            sections_count: sectionsCount,
+            degats_length: lengths.degats,
+            inspection_length: lengths.inspection,
+            conclusion_length: lengths.conclusion,
+            recommandations_length: lengths.recommandations,
+          },
+        };
+      },
+    });
+    parsed = result.output;
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'Erreur inconnue';
+    if (errMsg.startsWith('JSON parse:')) {
+      return { ok: false, error: 'Réponse Claude non parsable. Réessaie ou ajuste la dictée.' };
+    }
+    console.warn('[tech/generateRapport] Anthropic error:', err);
+    return { ok: false, error: 'Anthropic : ' + errMsg };
   }
 
   return {
