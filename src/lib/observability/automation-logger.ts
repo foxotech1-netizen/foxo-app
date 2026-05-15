@@ -27,12 +27,17 @@ export type AutomationRunInput<TOutput> = {
    *  - optionnel `status` : override du statut par défaut "success"
    *    (ex: "skipped" si le job a court-circuité légitimement)
    *  - optionnel `interventionId` : OVERRIDE quand connu seulement après le run.
+   *  - optionnel `action` : override sémantique de l'action réalisée. Cascade
+   *    de fallback à l'INSERT : run().action > input.action > automationName
+   *    (l'automationName étant non-null, l'expression finale satisfait toujours
+   *    la contrainte NOT NULL côté DB).
    */
   run: () => Promise<{
     output: TOutput;
     result: Record<string, unknown>;
     status?: AutomationStatus;
     interventionId?: string | null;
+    action?: string;
   }>;
 };
 
@@ -57,6 +62,7 @@ export async function logAutomationJob<TOutput>(
   let result: Record<string, unknown> = {};
   let output: TOutput | undefined;
   let finalInterventionId: string | null | undefined = input.interventionId;
+  let finalAction: string | undefined = undefined;
 
   try {
     const r = await input.run();
@@ -64,6 +70,7 @@ export async function logAutomationJob<TOutput>(
     result = r.result;
     if (r.status)                       status = r.status;
     if (r.interventionId !== undefined) finalInterventionId = r.interventionId;
+    if (r.action)                       finalAction = r.action;
   } catch (err) {
     status = "failed";
     errorMessage = err instanceof Error ? err.message : String(err);
@@ -76,7 +83,10 @@ export async function logAutomationJob<TOutput>(
     .insert({
       automation_name: input.automationName,
       intervention_id: finalInterventionId ?? null,
-      action:          input.action ?? null,
+      // Cascade : run().action > input.action > automationName. automationName
+      // étant non-null par contrat, la valeur finale est toujours NOT NULL —
+      // satisfait la contrainte DB (cf. migration 2026-05-15_align_*).
+      action:          finalAction ?? input.action ?? input.automationName,
       result,
       status,
       error_message:   errorMessage,

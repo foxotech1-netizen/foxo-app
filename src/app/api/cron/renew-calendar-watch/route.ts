@@ -87,6 +87,7 @@ async function handle(request: Request): Promise<Response> {
               channel_id: sub.subscription.channel_id,
               resource_id: sub.subscription.resource_id,
             },
+            action: 'created',
           };
         }
 
@@ -103,6 +104,7 @@ async function handle(request: Request): Promise<Response> {
               ms_remaining: state.expiry_ms - now,
             },
             status: 'skipped',
+            action: 'skipped_valid',
           };
         }
 
@@ -145,6 +147,7 @@ async function handle(request: Request): Promise<Response> {
             channel_id: sub.subscription.channel_id,
             resource_id: sub.subscription.resource_id,
           },
+          action: 'renewed',
         };
       },
     });
