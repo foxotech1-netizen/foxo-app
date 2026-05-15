@@ -584,3 +584,43 @@ export interface NoteFrais {
   approved_at: string | null;
   approved_by: string | null;
 }
+
+// ─── Observabilité IA ─────────────────────────────────────────────────────
+// Tables agent_logs / automation_jobs.
+// Cf. migration 2026-05-13_create_agent_logs_automation_jobs.sql.
+// Les valeurs CHECK SQL sont strictes — ne pas étendre sans ALTER.
+
+export type AgentName = 'triage_mail' | 'analyse_pj' | 'rapport';
+// NB: la DB utilise 'error' (pas 'failed') côté agent_logs — alignement
+// historique avec doc 03 §spec, divergent de automation_jobs.status.
+export type AgentLogStatus = 'success' | 'partial' | 'error';
+export type AutomationJobStatus = 'success' | 'failed' | 'skipped';
+
+export interface AgentLog {
+  id: string;
+  agent_name: AgentName;
+  intervention_id: string | null;
+  email_id: string | null;
+  input_summary: Record<string, unknown> | null;
+  output_summary: Record<string, unknown> | null;
+  model_used: string | null;
+  tokens_input: number | null;
+  tokens_output: number | null;
+  cost_eur_cents: number | null;
+  duration_ms: number | null;
+  status: AgentLogStatus;
+  error_message: string | null;
+  confidence_score: number | null;
+  created_at: string;
+}
+
+export interface AutomationJob {
+  id: string;
+  automation_name: string;
+  intervention_id: string | null;
+  action: string | null;
+  result: Record<string, unknown> | null;
+  status: AutomationJobStatus;
+  error_message: string | null;
+  executed_at: string;
+}
