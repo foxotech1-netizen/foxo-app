@@ -2,8 +2,8 @@
 
 ## 1. Identité
 
-- **Date du recap** : 2026-05-11
-- **HEAD git** : `c0df7b1e914f9df0c38546e4f4fcad7415d4dc20`
+- **Date du recap** : 2026-05-16
+- **HEAD git** : `0c63a84d5032491f2936074ecff6e725a2eafa77`
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
 
@@ -82,7 +82,7 @@ src/app/
 | Module | État | Détails |
 |---|---|---|
 | **Auth OTP** | ✅ | Code 6 chiffres via **Gmail API** (pas OVH SMTP — alias `info@foxo.be` sur compte `foxotech1@gmail.com`). Endpoint webhook : `/api/auth/send-email` signé `SUPABASE_AUTH_HOOK_SECRET`. |
-| **RLS Supabase** | ✅ (legacy dashboard) + 🚧 (nouvelles tables) | 9 tables coeur : `utilisateurs`, `organisations`, `delegues`, `interventions`, `acps`, `occupants`, `rapports`, `clients`, `photos_interventions`. RLS de la table `user_preferences` (2026-05-30) versionnée dans `db/migrations/`. Le reste vit dans le dashboard Supabase. |
+| **RLS Supabase** | ✅ | 33 policies sur 9 tables coeur via migrations `2026-05-11c` (P1) et `2026-05-11d` (P2, qui ajoute aussi enum `user_role`, table `dossiers_sinistres`, 14 helpers SECURITY DEFINER). Audit complet : 5 policies upgradées de `TO public` à `TO authenticated`. `FORCE ROW LEVEL SECURITY` activé sur les tables coeur. |
 | **Facturation — articles** | ✅ | CRUD articles via `/admin/articles`. |
 | **Facturation — EPC QR** | ✅ | Génération QR SEPA via `qrcode` à l'impression PDF (`@react-pdf/renderer`). |
 | **Facturation — import Beobank** | 🚧 | Module `comptabilite/` présent, parsing CSV à finaliser. Pas de rapprochement automatique transactions ↔ factures (cf. TODO `src/lib/ponto.ts`). |
@@ -99,6 +99,7 @@ src/app/
 | **Assistant Claude AI** | ✅ | `/admin/assistant` + drawer global. Route `/api/admin/assistant/chat` (Anthropic SDK direct). Contexte injecté via `src/lib/assistant/context.ts`. |
 | **Google OAuth2 Drive/Gmail/Calendar** | ✅ | Flow `/api/google/auth` + `/callback`, tokens en table `google_tokens`, refresh auto dans `src/lib/google-auth.ts`. Calendar webhook + watch renewal (cron). |
 | **Twilio SMS/WhatsApp** | 🚧 | Code prêt (`src/lib/sms.ts`, routes `/api/admin/sms/*`, logs en `sms_logs`), variables d'env définies dans `.env.example` mais **non valorisées dans `.env.local`**. SDK Twilio non installé (fetch REST direct). Cron `rappel-j1` insère en `sms_logs` mais n'envoie pas tant que credentials absents. |
+| **Observabilité IA** | ✅ | Tables `agent_logs` + `automation_jobs` (migrations `2026-05-13` + `2026-05-15`) avec `FORCE ROW LEVEL SECURITY` et policies admin-only via `is_admin()`. Module `src/lib/observability/` (`runAgent`, `logAutomationJob`, helpers `pricing`). Agents canoniques wrappés (`triage_mail` sur 3 call sites, `rapport` sur `generateRapportSections`). 3 crons instrumentés (`check_mails`, `rappel_j1`, `renew_calendar_watch`) avec statuts `success` / `skipped` / `failed`. Dashboard `/admin/observabilite` (4 KPIs 24h, filtres Tous/Réussis/Échecs, 50 dernières lignes, Server Component RLS-aware). |
 
 ---
 
