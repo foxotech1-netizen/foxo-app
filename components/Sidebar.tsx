@@ -14,6 +14,7 @@ import {
   BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
+  Activity,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -25,6 +26,7 @@ const NAV_MAIN: NavItem[] = [
   // briefing IA + les missions du jour en tête de page.
   { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
+  { href: '/admin/observabilite', Icon: Activity,  label: 'Observabilité' },
   { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
   { href: '/admin/techniciens', Icon: Wrench,      label: 'Techniciens' },
   // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA

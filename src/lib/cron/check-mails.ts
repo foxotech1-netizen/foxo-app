@@ -21,6 +21,7 @@ import {
 } from '@/lib/gmail';
 import { nextRefForYear } from '@/lib/intervention-ref';
 import { bestMatch } from '@/lib/text/similarity';
+import { runAgent } from '@/lib/observability';
 
 const MODEL = 'claude-sonnet-4-6';
 // Le JSON nested du nouveau prompt FoxO (demandeur.contacts[],
@@ -517,48 +518,92 @@ export async function analyzeMailWithClaude(
     });
   }
 
-  // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
-  const client = new Anthropic({ apiKey, timeout: CLAUDE_TIMEOUT_MS });
-  let raw: string;
-  let stopReason: string | null = null;
+  // TODO observabilité (chantier 1) : intervention_id reste null dans
+  // agent_logs pour les appels initiés par ce cron, car le matching
+  // dossier est fait par le caller (createInterventionFromMail) APRÈS
+  // le retour de cette fonction. Pour rétro-lier l'agent_log à
+  // l'intervention créée, deux options à arbitrer dans un mini-sprint
+  // ultérieur : (a) UPDATE agent_logs.intervention_id à la création
+  // de l'intervention, (b) restructurer pour que le matching ait lieu
+  // avant runAgent (cf. CAS A dans analyse-deep/route.ts).
+  let parsed: Partial<CronMailAnalysis>;
   try {
-    const msg = await client.messages.create({
+    const result = await runAgent<Partial<CronMailAnalysis>>({
+      agentName: 'triage_mail',
       model: MODEL,
-      max_tokens: MAX_TOKENS,
-      messages: [{ role: 'user', content: userMessage }],
-    });
-    const block = msg.content[0];
-    raw = block && block.type === 'text' ? block.text : '';
-    stopReason = msg.stop_reason ?? null;
-  } catch (e) {
-    console.error('[analyzeMailWithClaude] anthropic threw', e);
-    return { ok: false, error: e instanceof Error ? e.message : 'Erreur Anthropic.' };
-  }
+      interventionId: null,
+      emailId: null,
+      inputSummary: {
+        from_domain: mail.from?.match(/@([^>\s]+)/)?.[1] ?? null,
+        subject_length: mail.subject?.length ?? 0,
+        body_length: truncated.length,
+        cc_count: ccPairs.length,
+        word_count: wordCount,
+      },
+      run: async () => {
+        // timeout SDK (vrai abort, pas Promise.race) — sinon défaut 600s.
+        const client = new Anthropic({ apiKey, timeout: CLAUDE_TIMEOUT_MS });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          messages: [{ role: 'user', content: userMessage }],
+        });
+        const block = msg.content[0];
+        const rawText = block && block.type === 'text' ? block.text : '';
+        const stopReason = msg.stop_reason ?? null;
 
-  console.error('[analyzeMailWithClaude] claude raw response', {
-    raw_chars: raw.length,
-    stop_reason: stopReason,
-    raw_preview: raw.slice(0, 1500),
-    truncated: stopReason === 'max_tokens',
-  });
+        console.error('[analyzeMailWithClaude] claude raw response', {
+          raw_chars: rawText.length,
+          stop_reason: stopReason,
+          raw_preview: rawText.slice(0, 1500),
+          truncated: stopReason === 'max_tokens',
+        });
 
-  const parsed = tryParseJson(raw);
-  if (!parsed) {
-    console.error('[analyzeMailWithClaude] JSON parse failed', {
-      stop_reason: stopReason,
-      raw_chars: raw.length,
-      raw_full: raw,
+        const parsedRaw = tryParseJson(rawText);
+        if (!parsedRaw) {
+          console.error('[analyzeMailWithClaude] JSON parse failed', {
+            stop_reason: stopReason,
+            raw_chars: rawText.length,
+            raw_full: rawText,
+          });
+          const tail = rawText.slice(-200).replace(/\s+/g, ' ').trim();
+          const head = rawText.slice(0, 200).replace(/\s+/g, ' ').trim();
+          const reason = stopReason === 'max_tokens'
+            ? 'tronquée (max_tokens atteint)'
+            : 'non valide';
+          const preview = rawText.slice(0, 200).replace(/\s+/g, ' ');
+          throw new Error(`JSON parse: Réponse Claude ${reason}. Début: "${head}…" Fin: "…${tail}" (preview: ${preview})`);
+        }
+
+        return {
+          message: msg,
+          output: parsedRaw,
+          outputSummary: {
+            classified_type: (parsedRaw as { type_email?: unknown }).type_email ?? null,
+            language_detected: (parsedRaw as { langue?: unknown }).langue ?? null,
+            priorite: (parsedRaw as { priorite?: unknown }).priorite ?? null,
+            est_demande: (parsedRaw as { est_demande_intervention?: unknown }).est_demande_intervention === true,
+            occupants_count: Array.isArray((parsedRaw as { occupants?: unknown }).occupants)
+              ? (parsedRaw as { occupants: unknown[] }).occupants.length : 0,
+          },
+        };
+      },
     });
-    // Surface des info parlantes dans l'erreur (visible côté API caller)
-    const tail = raw.slice(-200).replace(/\s+/g, ' ').trim();
-    const head = raw.slice(0, 200).replace(/\s+/g, ' ').trim();
-    const reason = stopReason === 'max_tokens'
-      ? 'tronquée (max_tokens atteint)'
-      : 'non valide';
-    return {
-      ok: false,
-      error: `Réponse Claude ${reason}. Début: "${head}…" Fin: "…${tail}"`,
-    };
+    parsed = result.output;
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'Erreur Anthropic.';
+    // Préserve le contrat de retour historique : pour un JSON invalide on
+    // strippe le préfixe "JSON parse: " et le suffix "(preview: …)" pour
+    // garder le message diagnostic (Début/Fin/raison) tel que connu côté
+    // caller. Sinon (erreur SDK Anthropic), on renvoie le message brut.
+    if (errMsg.startsWith('JSON parse:')) {
+      const stripped = errMsg
+        .replace(/^JSON parse:\s*/, '')
+        .replace(/\s*\(preview: .*\)$/, '');
+      return { ok: false, error: stripped };
+    }
+    console.error('[analyzeMailWithClaude] anthropic threw', err);
+    return { ok: false, error: errMsg };
   }
   console.info('[analyzeMailWithClaude] parsed JSON', {
     est_demande: (parsed as { est_demande_intervention?: unknown }).est_demande_intervention,

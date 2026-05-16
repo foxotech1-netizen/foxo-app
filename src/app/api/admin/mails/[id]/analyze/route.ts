@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import { getMailDetail } from '@/lib/gmail';
+import { runAgent } from '@/lib/observability';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 1024;
@@ -100,24 +101,59 @@ export async function POST(
     `Aucun champ inventé : si l'info n'est pas explicite dans l'email, mets null.`,
   ].join('\n');
 
-  const client = new Anthropic({ apiKey });
-  let raw: string;
+  // CAS B léger : route POST de re-classification, aucun matching dossier
+  // fait ici. interventionId reste null (cohérent avec analyzeMailWithClaude
+  // dans check-mails.ts). emailId : pas de FK posée tant que la table emails
+  // cible n'est pas finalisée — voir TODO dans check-mails.ts.
+  let parsed: Partial<MailAnalysis>;
+  let raw = '';
   try {
-    const msg = await client.messages.create({
+    const result = await runAgent<{ parsed: Partial<MailAnalysis>; raw: string }>({
+      agentName: 'triage_mail',
       model: MODEL,
-      max_tokens: MAX_TOKENS,
-      messages: [{ role: 'user', content: userMessage }],
-    });
-    const block = msg.content[0];
-    raw = block && block.type === 'text' ? block.text : '';
-  } catch (e) {
-    const message = e instanceof Error ? e.message : 'Erreur inconnue';
-    return NextResponse.json({ ok: false, error: 'Anthropic : ' + message }, { status: 502 });
-  }
+      interventionId: null,
+      emailId: null,
+      inputSummary: {
+        from_domain: m.from?.match(/@([^>\s]+)/)?.[1] ?? null,
+        subject_length: m.subject?.length ?? 0,
+        body_length: truncated.length,
+      },
+      run: async () => {
+        const client = new Anthropic({ apiKey });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          messages: [{ role: 'user', content: userMessage }],
+        });
+        const block = msg.content[0];
+        const rawText = block && block.type === 'text' ? block.text : '';
 
-  const parsed = tryParseJson(raw);
-  if (!parsed) {
-    return NextResponse.json({ ok: false, error: 'Réponse Claude non parsable.', raw }, { status: 502 });
+        const parsedRaw = tryParseJson(rawText);
+        if (!parsedRaw) {
+          const preview = rawText.slice(0, 200).replace(/\s+/g, ' ');
+          throw new Error(`JSON parse: Réponse Claude non parsable (preview: ${preview})`);
+        }
+
+        return {
+          message: msg,
+          output: { parsed: parsedRaw, raw: rawText },
+          outputSummary: {
+            type_probleme: typeof parsedRaw.type_probleme === 'string' ? parsedRaw.type_probleme : null,
+            priorite: parsedRaw.priorite === 'urgente' || parsedRaw.priorite === 'normale' ? parsedRaw.priorite : null,
+            has_address: typeof parsedRaw.adresse === 'string' && parsedRaw.adresse.length > 0,
+            has_phone: typeof parsedRaw.telephone === 'string' && parsedRaw.telephone.length > 0,
+          },
+        };
+      },
+    });
+    parsed = result.output.parsed;
+    raw = result.output.raw;
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : 'Erreur inconnue';
+    if (errMsg.startsWith('JSON parse:')) {
+      return NextResponse.json({ ok: false, error: 'Réponse Claude non parsable.', raw }, { status: 502 });
+    }
+    return NextResponse.json({ ok: false, error: 'Anthropic : ' + errMsg }, { status: 502 });
   }
 
   const analysis: MailAnalysis = {
