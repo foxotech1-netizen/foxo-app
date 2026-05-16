@@ -3,7 +3,7 @@
 ## 1. Identité
 
 - **Date du recap** : 2026-05-16
-- **HEAD git** : `19636922dc4cfe2cb9584418af50f50a5a7b78a6`
+- **HEAD git** : `433125a7a3169781add83064a377209c465dacc0`
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
 
@@ -99,8 +99,9 @@ src/app/
 | **Assistant Claude AI** | ✅ | `/admin/assistant` + drawer global. Route `/api/admin/assistant/chat` (Anthropic SDK direct). Contexte injecté via `src/lib/assistant/context.ts`. |
 | **Google OAuth2 Drive/Gmail/Calendar** | ✅ | Flow `/api/google/auth` + `/callback`, tokens en table `google_tokens`, refresh auto dans `src/lib/google-auth.ts`. Calendar webhook + watch renewal (cron). |
 | **Twilio SMS/WhatsApp** | 🚧 | Code prêt (`src/lib/sms.ts`, routes `/api/admin/sms/*`, logs en `sms_logs`), variables d'env définies dans `.env.example` mais **non valorisées dans `.env.local`**. SDK Twilio non installé (fetch REST direct). Cron `rappel-j1` insère en `sms_logs` mais n'envoie pas tant que credentials absents. |
-| **Observabilité IA** | ✅ | Tables `agent_logs` + `automation_jobs` (migrations `2026-05-13` + `2026-05-15`) avec `FORCE ROW LEVEL SECURITY` et policies admin-only via `is_admin()`. Module `src/lib/observability/` (`runAgent`, `logAutomationJob`, helpers `pricing`). Agents canoniques wrappés (`triage_mail` sur 3 call sites, `rapport` sur `generateRapportSections`). 3 crons instrumentés (`check_mails`, `rappel_j1`, `renew_calendar_watch`) avec statuts `success` / `skipped` / `failed`. Dashboard `/admin/observabilite` (4 KPIs 24h, filtres Tous/Réussis/Échecs, 50 dernières lignes, Server Component RLS-aware). |
-| **Schéma — tables annexes** | ✅ | Tables `attachments`, `notifications`, `relances` créées en prod (migration `2026-05-16_create_relances_notifications_attachments.sql`) avec `FORCE ROW LEVEL SECURITY` et policies `TO authenticated`. Admin-only via `is_admin()` pour `attachments` et `relances` ; `notifications` ouverte au `destinataire_id` (`auth.uid()`) en SELECT et UPDATE du flag `lu`/`lu_at`, INSERT/DELETE restant admin. CHECK constraints (enum-likes, `niveau` 1-5, `size_bytes ≥ 0`), triggers `updated_at` (fonction `foxo_set_updated_at()`), indexes secondaires et FK (CASCADE / SET NULL) conformes doc 04. `attachments.email_id` sans FK tant que la table `emails` n'existe pas. En attente de consommation côté code : Agent 2 (`attachments`), workflows de relances confirmations/paiements (`relances`), dashboard d'alertes admin (`notifications`). |
+| **Observabilité IA** | ✅ | Tables `agent_logs` + `automation_jobs` (migrations `2026-05-13` + `2026-05-15`) avec `FORCE ROW LEVEL SECURITY` et policies admin-only via `is_admin()`. Module `src/lib/observability/` (`runAgent`, `logAutomationJob`, helpers `pricing`). Agents canoniques wrappés (`triage_mail` sur 3 call sites, `analyse_pj` via `analyzeOneAttachment` (chantier #3), `rapport` sur `generateRapportSections`). 3 crons instrumentés (`check_mails`, `rappel_j1`, `renew_calendar_watch`) avec statuts `success` / `skipped` / `failed`. Dashboard `/admin/observabilite` (4 KPIs 24h, filtres Tous/Réussis/Échecs, 50 dernières lignes, Server Component RLS-aware). |
+| **Agent 2 — Analyse PJ** | ✅ | Module `src/lib/agents/analyse-pj/` (`types`, `filter`, `rename`, `prompt`, `analyze-one`, `drive`, `index`) + route admin `POST /api/admin/attachments/analyse`. Modèle `claude-haiku-4-5-20251001` via `runAgent` (1 ligne `agent_logs` par PJ). Pipeline : filter déterministe (signature/vCard/ICS/taille) → LLM (PDF type `document`, images type `image`) → insert `attachments` → upload Drive best-effort via `uploadAttachmentToFolder` + UPDATE row. V0 : PDF + images analysés ; Word/Excel/autres insérés sans analyse. `target_folder` (`Communications`/`PJ_recues`/`Photos`) reste en métadonnée DB ; upload effectif à la racine du dossier intervention (aligné avec `confirm-and-create`). Test E2E validé 2026-05-16 (PDF devis 151 KB → `detected_type='devis'`, confidence 0.95, 1 ct EUR, 4.8s LLM, 7.7s côté client). Branchement Agent 1 → Agent 2 dans `analyse-deep` reporté en mini-sprint. |
+| **Schéma — tables annexes** | ✅ | Tables `attachments`, `notifications`, `relances` créées en prod (migration `2026-05-16_create_relances_notifications_attachments.sql`) avec `FORCE ROW LEVEL SECURITY` et policies `TO authenticated`. Admin-only via `is_admin()` pour `attachments` et `relances` ; `notifications` ouverte au `destinataire_id` (`auth.uid()`) en SELECT et UPDATE du flag `lu`/`lu_at`, INSERT/DELETE restant admin. CHECK constraints (enum-likes, `niveau` 1-5, `size_bytes ≥ 0`), triggers `updated_at` (fonction `foxo_set_updated_at()`), indexes secondaires et FK (CASCADE / SET NULL) conformes doc 04. `attachments.email_id` sans FK tant que la table `emails` n'existe pas. Agent 2 (`attachments`) consommé depuis le chantier #3 — cf. ligne dédiée ci-dessus. En attente côté code : workflows de relances confirmations/paiements (`relances`), dashboard d'alertes admin (`notifications`). |
 
 ---
 
@@ -149,6 +150,10 @@ src/app/
 ## 5. 20 derniers commits
 
 ```
+433125a feat(agents/analyse-pj): drive upload + row update post-analyse (chantier #3 step 3)
+35c173b feat(agents/analyse-pj): scaffold module + admin analyse API v2 (chantier #3 step 2)
+c63d435 feat(agents/analyse-pj): scaffold module + admin analyse API (chantier #3 step 2)
+a96fa26 docs(etat-projet): close chantier #2 (tables relances/notifications/attachments)
 1963692 feat(db): create relances, notifications, attachments tables (chantier #2)
 c856608 docs(etat-projet): close chantier #1 (observabilité IA) + refresh RLS state
 c0df7b1 fix(auth/login): purge dark hardcoded hex + applique design system FoxO
@@ -165,10 +170,6 @@ d554254 feat(api): POST /api/admin/mails/analyse-deep — pipeline mail → inte
 2c826a3 refactor(drive): remove duplicate createInterventionFolder
 842ffc4 chore(gitignore): track .env.example permanently
 b9d890a chore: track .env.example with DRIVE_RAPPORT_FOLDER_ID
-00fddb4 feat(drive): createInterventionFolder + uploadAttachmentToFolder pour pipeline mail
-c5d1797 feat(mails): proposeCreneau — sélection slot optimal pour intervention
-e6868db fix(rapport): logo header width 200 + retire debug log buildTechniques
-8d84778 fix(rapport): logo auto-ratio + mapping correct + bordure de page conforme FOXO_BASE
 ```
 
 ---
