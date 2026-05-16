@@ -4,9 +4,6 @@
  * Convention de nommage des PJ archivées (doc 03 skill 14) :
  *   [ref_foxo]_[type_pj]_[date].[extension]
  *   Ex : 2026-146_declaration-sinistre_2026-04-15.pdf
- *
- * Si ref_foxo absent  → "sans-ref"
- * Si date_document absent (pas extraite par le LLM) → date du jour
  */
 
 import type { DetectedType, TargetFolder } from './types';
@@ -41,7 +38,7 @@ export function buildNewFilename(args: {
   const ref = args.ref_foxo?.trim() || 'sans-ref';
   const slug = TYPE_TO_SLUG[args.detected_type];
   const date = args.date_document?.trim() || new Date().toISOString().slice(0, 10);
-  return `${ref}_${slug}_${date}.${ext}`;
+  return ref + '_' + slug + '_' + date + '.' + ext;
 }
 
 export function folderFor(detected_type: DetectedType): TargetFolder {

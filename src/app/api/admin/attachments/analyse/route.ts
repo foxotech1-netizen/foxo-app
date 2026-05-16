@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/attachments/analyse
  *
- * Déclenchement manuel de l'Agent 2 — Analyse PJ par l'admin.
+ * Déclenchement manuel de l Agent 2 — Analyse PJ par l admin.
  *
  * Body attendu :
  * {
@@ -16,10 +16,6 @@
  *     { "filename": string, "mime_type": string, "size_bytes": number, "content_base64": string }
  *   ]
  * }
- *
- * Renvoie AnalyseOutput (cf. src/lib/agents/analyse-pj/types.ts).
- * Pas d'upload Drive dans cette étape — les rows `attachments` insérées
- * ont drive_url/drive_file_id à null.
  */
 
 import { NextResponse } from 'next/server';
@@ -32,7 +28,6 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  // Auth admin
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) {
@@ -43,7 +38,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'Accès admin requis.' }, { status: 403 });
   }
 
-  // Body
   let body: AnalyseInput;
   try {
     body = (await req.json()) as AnalyseInput;
@@ -64,10 +58,14 @@ export async function POST(req: Request) {
     );
   }
   for (const a of body.attachments) {
-    if (typeof a.filename !== 'string' || typeof a.mime_type !== 'string' ||
-        typeof a.size_bytes !== 'number' || typeof a.content_base64 !== 'string') {
+    if (
+      typeof a.filename !== 'string' ||
+      typeof a.mime_type !== 'string' ||
+      typeof a.size_bytes !== 'number' ||
+      typeof a.content_base64 !== 'string'
+    ) {
       return NextResponse.json(
-        { ok: false, error: 'Champ pièce jointe invalide (filename, mime_type, size_bytes, content_base64 requis).' },
+        { ok: false, error: 'Champ pièce jointe invalide.' },
         { status: 400 },
       );
     }

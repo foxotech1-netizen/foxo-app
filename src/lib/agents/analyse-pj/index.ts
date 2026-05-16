@@ -1,9 +1,9 @@
 /**
  * src/lib/agents/analyse-pj/index.ts
  *
- * Entry point Agent 2. Orchestre filter → analyze-one (LLM) → persist (table
- * `attachments`). Pas de Drive dans cette étape — drive_url/drive_file_id
- * restent null et seront remplis à l'étape suivante.
+ * Entry point Agent 2. Orchestre filter → analyze-one (LLM) → persist
+ * dans la table `attachments`. Pas de Drive dans cette étape :
+ * drive_url et drive_file_id restent null (remplis à l étape suivante).
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -33,7 +33,6 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
       continue;
     }
 
-    // Cas office_v0_skip : on insère une row sans analyse LLM.
     if (decision.mime_class === 'office_v0_skip') {
       const { data, error } = await supabase
         .from('attachments')
@@ -51,8 +50,11 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         .select('id')
         .single();
 
-      if (error) {
-        errors.push({ original_filename: att.filename, error_message: error.message });
+      if (error || !data) {
+        errors.push({
+          original_filename: att.filename,
+          error_message: error?.message ?? 'insert attachments échoué (office_v0_skip)',
+        });
         continue;
       }
 
@@ -69,7 +71,6 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
       continue;
     }
 
-    // Cas PDF / image : appel LLM via runAgent
     try {
       const { output } = await analyzeOneAttachment({
         attachment: att,
@@ -77,13 +78,15 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         context: input.context,
       });
 
+      const dateDoc =
+        typeof output.extracted_data?.date_document === 'string'
+          ? (output.extracted_data.date_document as string)
+          : null;
+
       const newFilename = buildNewFilename({
         ref_foxo: input.context.ref_foxo ?? null,
         detected_type: output.detected_type,
-        date_document:
-          typeof output.extracted_data?.date_document === 'string'
-            ? (output.extracted_data.date_document as string)
-            : null,
+        date_document: dateDoc,
         original_filename: att.filename,
       });
       const targetFolder = folderFor(output.detected_type);
@@ -105,8 +108,11 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         .select('id')
         .single();
 
-      if (error) {
-        errors.push({ original_filename: att.filename, error_message: error.message });
+      if (error || !data) {
+        errors.push({
+          original_filename: att.filename,
+          error_message: error?.message ?? 'insert attachments échoué',
+        });
         continue;
       }
 

@@ -2,7 +2,7 @@
  * src/lib/agents/analyse-pj/types.ts
  *
  * Types d'entrée/sortie de l'Agent 2 — Analyse PJ.
- * Conformes à doc 03 §Agent 2 (inputs/outputs).
+ * Conformes à doc 03 §Agent 2.
  */
 
 export type DetectedType =
