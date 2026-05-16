@@ -15,27 +15,30 @@
 //   - Création dossier Drive (createInterventionFolderFromMail)
 //   - INSERT intervention
 //   - Réservation créneau (statut='reserve')
-//   - Upload des PJ Gmail dans le dossier Drive
+//   - Délégation Agent 2 sur les PJ Gmail (filter + LLM + insert
+//     `attachments` + upload Drive renommé) — chantier #4
 //   - UPDATE mails_analyses pour persister le lien dossier + créneau
 //
 // Si dossier_match_id fourni : pas de création, juste lien + réservation
-// créneau + upload PJ vers le dossier existant (si drive_folder_id présent).
+// créneau + délégation Agent 2 sur le dossier existant (si
+// drive_folder_id présent).
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import { getEmailThread, downloadGmailAttachment } from '@/lib/gmail';
-import {
-  createInterventionFolderFromMail,
-  uploadAttachmentToFolder,
-} from '@/lib/drive/create-intervention-folder';
+import { createInterventionFolderFromMail } from '@/lib/drive/create-intervention-folder';
 import { safeTypeIntervention } from '@/lib/mails/intervention-types';
+import { analyseAttachments } from '@/lib/agents/analyse-pj';
+import type { AttachmentInput } from '@/lib/agents/analyse-pj';
 
 export const dynamic = 'force-dynamic';
-// Pipeline plus long que analyse-deep (Drive create + uploads PJ),
-// jusqu'à 30s sur un thread avec plusieurs PJ lourdes.
-export const maxDuration = 30;
+// Pipeline plus long que analyse-deep : Drive create + Agent 2
+// (1 LLM call par PJ, ~5s/PJ) + upload Drive. Avec 3-5 PJ on dépasse
+// largement 30s — on passe à 60 (aligné sur la route de test
+// /api/admin/attachments/analyse).
+export const maxDuration = 60;
 
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
 
@@ -273,16 +276,40 @@ export async function POST(request: Request) {
     .update({ statut: 'reserve' })
     .eq('id', creneau.id);
 
-  // 6. Upload des PJ Gmail dans le dossier Drive (si drive_folder_id
-  //    disponible — un dossier existant peut ne pas en avoir).
+  // 6. Délégation Agent 2 sur les PJ Gmail (chantier #4).
+  //    Remplace l'upload Drive brut historique par un pipeline complet :
+  //    filter déterministe + classification LLM + insert row `attachments`
+  //    + upload Drive renommé selon convention [ref]_[type]_[date].
+  //    Best-effort à chaque étape — un échec Agent 2 ne casse pas la
+  //    confirmation.
+  //
+  //    La résolution du drive_folder_id se fait côté Agent 2 via
+  //    interventions.drive_folder_id (qu'on vient d'INSERT/lire à
+  //    l'étape 4). Si l'intervention n'a pas de drive_folder_id (cas
+  //    rare : dossier existant ancien sans Drive), Agent 2 fait quand
+  //    même l'insert attachments mais skippe l'upload.
+  //
+  //    Contrat sortie : pj_drive_ids[] continue à alimenter
+  //    mails_analyses comme avant — on extrait les drive_file_id non-null
+  //    des attachments_processed[] pour préserver le contrat de l'UI
+  //    mails (MailAnalyseTypes.ts et /api/admin/mails/analyses).
+  //
+  //    email_id reste null tant que la table `emails` n'existe pas
+  //    (backlog post-chantier #3).
   const pjDriveIds: string[] = [];
   let pjUploaded = 0;
-  if (driveFolderId) {
+
+  try {
     const threadRes = await getEmailThread(threadId);
-    if (threadRes.ok) {
+    if (!threadRes.ok) {
+      errors.push(`gmail thread: ${threadRes.error}`);
+    } else {
       const flat = threadRes.messages.flatMap((m) =>
         m.attachments.map((a) => ({ message_id: m.id, ...a })),
       );
+
+      // Téléchargement Gmail → AttachmentInput[] pour Agent 2.
+      const agentAttachments: AttachmentInput[] = [];
       for (const att of flat) {
         if (!att.attachment_id) continue;
         try {
@@ -291,21 +318,48 @@ export async function POST(request: Request) {
             errors.push(`gmail attachment ${att.filename}: download échoué`);
             continue;
           }
-          const up = await uploadAttachmentToFolder({
-            folder_id: driveFolderId,
+          agentAttachments.push({
             filename: att.filename,
             mime_type: att.mime_type,
-            data_base64: data64,
+            size_bytes: typeof att.size_bytes === 'number' ? att.size_bytes : 0,
+            content_base64: data64,
           });
-          pjDriveIds.push(up.file_id);
-          pjUploaded += 1;
         } catch (e) {
-          errors.push(`upload pj ${att.filename}: ${e instanceof Error ? e.message : 'inconnu'}`);
+          errors.push(`download pj ${att.filename}: ${e instanceof Error ? e.message : 'inconnu'}`);
         }
       }
-    } else {
-      errors.push(`gmail thread: ${threadRes.error}`);
+
+      // Si au moins une PJ téléchargée → délégation Agent 2.
+      if (agentAttachments.length > 0) {
+        try {
+          const result = await analyseAttachments({
+            attachments: agentAttachments,
+            context: {
+              intervention_id: dossierId,
+              email_id: null, // table `emails` pas encore créée
+              ref_foxo: dossierRef,
+            },
+          });
+
+          for (const p of result.attachments_processed) {
+            if (p.drive_file_id) pjDriveIds.push(p.drive_file_id);
+            if (p.drive_url) pjUploaded += 1;
+            if (p.drive_error) {
+              errors.push(`agent2 drive ${p.original_filename}: ${p.drive_error}`);
+            }
+          }
+          for (const e of result.errors) {
+            errors.push(`agent2 ${e.original_filename}: ${e.error_message}`);
+          }
+          // result.skipped intentionnellement non logé (signatures
+          // image / vCard / ICS / trop volumineux — comportement attendu).
+        } catch (e) {
+          errors.push(`agent2: ${e instanceof Error ? e.message : 'inconnu'}`);
+        }
+      }
     }
+  } catch (e) {
+    errors.push(`pj pipeline: ${e instanceof Error ? e.message : 'inconnu'}`);
   }
 
   // 7. UPDATE mails_analyses : persiste le lien dossier + créneau + PJ.
