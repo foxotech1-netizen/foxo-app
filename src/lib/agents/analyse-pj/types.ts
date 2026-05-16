@@ -44,6 +44,12 @@ export type AnalysedAttachment = {
   target_folder: TargetFolder | null;
   confidence: number | null;
   content_summary: string | null;
+  /** URL Drive si upload réussi, null si pas d'upload tenté ou si échec. */
+  drive_url: string | null;
+  /** File ID Drive si upload réussi, null sinon. */
+  drive_file_id: string | null;
+  /** Message d'erreur si l'upload Drive a foiré (l'analyse, elle, a réussi). */
+  drive_error: string | null;
 };
 
 export type SkippedAttachment = {

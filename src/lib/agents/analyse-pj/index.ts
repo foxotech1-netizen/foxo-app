@@ -1,15 +1,24 @@
 /**
  * src/lib/agents/analyse-pj/index.ts
  *
- * Entry point Agent 2. Orchestre filter → analyze-one (LLM) → persist
- * dans la table `attachments`. Pas de Drive dans cette étape :
- * drive_url et drive_file_id restent null (remplis à l étape suivante).
+ * Entry point Agent 2. Orchestre filter → analyze-one (LLM) → persist row
+ * `attachments` → upload Drive + UPDATE row si possible.
+ *
+ * Drive est best-effort : si l intervention n a pas de drive_folder_id
+ * ou si l upload échoue, la row attachments existe quand même avec
+ * drive_url=null et drive_error renseigné (si échec) ou null (si pas
+ * tenté). L analyse LLM, elle, a réussi — donc la PJ reste dans
+ * attachments_processed[].
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { classifyAttachment } from './filter';
 import { analyzeOneAttachment } from './analyze-one';
 import { buildNewFilename, folderFor } from './rename';
+import {
+  resolveInterventionDriveFolderId,
+  uploadAttachmentAndUpdate,
+} from './drive';
 import type {
   AnalyseInput,
   AnalyseOutput,
@@ -26,6 +35,13 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
   const skipped: SkippedAttachment[] = [];
   const errors: AttachmentError[] = [];
 
+  // Résolution one-shot du dossier Drive (si intervention_id fourni).
+  // null = pas d upload tenté pour ce batch.
+  const driveFolderId =
+    input.context.intervention_id
+      ? await resolveInterventionDriveFolderId(supabase, input.context.intervention_id)
+      : null;
+
   for (const att of input.attachments) {
     const decision = classifyAttachment(att);
     if (!decision.keep) {
@@ -33,6 +49,7 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
       continue;
     }
 
+    // ── Branche office_v0_skip : pas d analyse LLM, mais on archive Drive
     if (decision.mime_class === 'office_v0_skip') {
       const { data, error } = await supabase
         .from('attachments')
@@ -58,6 +75,27 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         continue;
       }
 
+      // Upload Drive best-effort avec original_filename.
+      let drive_url: string | null = null;
+      let drive_file_id: string | null = null;
+      let drive_error: string | null = null;
+      if (driveFolderId) {
+        try {
+          const up = await uploadAttachmentAndUpdate({
+            supabase,
+            attachmentId: data.id,
+            folderId: driveFolderId,
+            filename: att.filename,
+            mimeType: att.mime_type,
+            contentBase64: att.content_base64,
+          });
+          drive_url = up.drive_url;
+          drive_file_id = up.drive_file_id;
+        } catch (e) {
+          drive_error = e instanceof Error ? e.message : String(e);
+        }
+      }
+
       processed.push({
         attachment_id: data.id,
         original_filename: att.filename,
@@ -67,10 +105,14 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         target_folder: null,
         confidence: null,
         content_summary: 'Format non analysé en V0 (Word/Excel/autre).',
+        drive_url,
+        drive_file_id,
+        drive_error,
       });
       continue;
     }
 
+    // ── Branche PDF/image : analyse LLM puis insert + Drive
     try {
       const { output } = await analyzeOneAttachment({
         attachment: att,
@@ -116,6 +158,27 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         continue;
       }
 
+      // Upload Drive best-effort avec new_filename.
+      let drive_url: string | null = null;
+      let drive_file_id: string | null = null;
+      let drive_error: string | null = null;
+      if (driveFolderId) {
+        try {
+          const up = await uploadAttachmentAndUpdate({
+            supabase,
+            attachmentId: data.id,
+            folderId: driveFolderId,
+            filename: newFilename,
+            mimeType: att.mime_type,
+            contentBase64: att.content_base64,
+          });
+          drive_url = up.drive_url;
+          drive_file_id = up.drive_file_id;
+        } catch (e) {
+          drive_error = e instanceof Error ? e.message : String(e);
+        }
+      }
+
       processed.push({
         attachment_id: data.id,
         original_filename: att.filename,
@@ -125,6 +188,9 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
         target_folder: targetFolder,
         confidence: output.confidence,
         content_summary: output.content_summary ?? null,
+        drive_url,
+        drive_file_id,
+        drive_error,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
