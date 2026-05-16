@@ -3,7 +3,7 @@
 ## 1. Identité
 
 - **Date du recap** : 2026-05-16
-- **HEAD git** : `0c63a84d5032491f2936074ecff6e725a2eafa77`
+- **HEAD git** : `19636922dc4cfe2cb9584418af50f50a5a7b78a6`
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
 
@@ -100,6 +100,7 @@ src/app/
 | **Google OAuth2 Drive/Gmail/Calendar** | ✅ | Flow `/api/google/auth` + `/callback`, tokens en table `google_tokens`, refresh auto dans `src/lib/google-auth.ts`. Calendar webhook + watch renewal (cron). |
 | **Twilio SMS/WhatsApp** | 🚧 | Code prêt (`src/lib/sms.ts`, routes `/api/admin/sms/*`, logs en `sms_logs`), variables d'env définies dans `.env.example` mais **non valorisées dans `.env.local`**. SDK Twilio non installé (fetch REST direct). Cron `rappel-j1` insère en `sms_logs` mais n'envoie pas tant que credentials absents. |
 | **Observabilité IA** | ✅ | Tables `agent_logs` + `automation_jobs` (migrations `2026-05-13` + `2026-05-15`) avec `FORCE ROW LEVEL SECURITY` et policies admin-only via `is_admin()`. Module `src/lib/observability/` (`runAgent`, `logAutomationJob`, helpers `pricing`). Agents canoniques wrappés (`triage_mail` sur 3 call sites, `rapport` sur `generateRapportSections`). 3 crons instrumentés (`check_mails`, `rappel_j1`, `renew_calendar_watch`) avec statuts `success` / `skipped` / `failed`. Dashboard `/admin/observabilite` (4 KPIs 24h, filtres Tous/Réussis/Échecs, 50 dernières lignes, Server Component RLS-aware). |
+| **Schéma — tables annexes** | ✅ | Tables `attachments`, `notifications`, `relances` créées en prod (migration `2026-05-16_create_relances_notifications_attachments.sql`) avec `FORCE ROW LEVEL SECURITY` et policies `TO authenticated`. Admin-only via `is_admin()` pour `attachments` et `relances` ; `notifications` ouverte au `destinataire_id` (`auth.uid()`) en SELECT et UPDATE du flag `lu`/`lu_at`, INSERT/DELETE restant admin. CHECK constraints (enum-likes, `niveau` 1-5, `size_bytes ≥ 0`), triggers `updated_at` (fonction `foxo_set_updated_at()`), indexes secondaires et FK (CASCADE / SET NULL) conformes doc 04. `attachments.email_id` sans FK tant que la table `emails` n'existe pas. En attente de consommation côté code : Agent 2 (`attachments`), workflows de relances confirmations/paiements (`relances`), dashboard d'alertes admin (`notifications`). |
 
 ---
 
@@ -148,6 +149,8 @@ src/app/
 ## 5. 20 derniers commits
 
 ```
+1963692 feat(db): create relances, notifications, attachments tables (chantier #2)
+c856608 docs(etat-projet): close chantier #1 (observabilité IA) + refresh RLS state
 c0df7b1 fix(auth/login): purge dark hardcoded hex + applique design system FoxO
 e2373a7 feat(mails): editable form before dossier creation
 0045e4d feat(mails): add confirm-and-create route with side-effects
@@ -166,8 +169,6 @@ b9d890a chore: track .env.example with DRIVE_RAPPORT_FOLDER_ID
 c5d1797 feat(mails): proposeCreneau — sélection slot optimal pour intervention
 e6868db fix(rapport): logo header width 200 + retire debug log buildTechniques
 8d84778 fix(rapport): logo auto-ratio + mapping correct + bordure de page conforme FOXO_BASE
-b592217 fix(rapport): mapping ReportData — helpers partagés (objet/adresses/réf) selon modèle 2026-101
-ac82358 fix(rapport): retirer section Observations terrain + photos en colonne centrée
 ```
 
 ---
