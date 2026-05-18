@@ -321,7 +321,7 @@ export async function POST(request: Request) {
           agentAttachments.push({
             filename: att.filename,
             mime_type: att.mime_type,
-            size_bytes: typeof att.size_bytes === 'number' ? att.size_bytes : 0,
+            size_bytes: typeof att.size === 'number' ? att.size : 0,
             content_base64: data64,
           });
         } catch (e) {

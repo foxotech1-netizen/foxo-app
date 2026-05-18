@@ -27,7 +27,7 @@ import type {
   SkippedAttachment,
 } from './types';
 
-export type { AnalyseInput, AnalyseOutput } from './types';
+export type { AnalyseInput, AnalyseOutput, AttachmentInput } from './types';
 
 export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOutput> {
   const supabase = createAdminClient();
