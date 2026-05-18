@@ -337,7 +337,10 @@ export async function POST(request: Request) {
       // Téléchargement Gmail → AttachmentInput[] pour Agent 2.
       const agentAttachments: AttachmentInput[] = [];
       for (const att of flat) {
-        if (!att.attachment_id) continue;
+        if (!att.attachment_id) {
+          errors.push(`attachment_skipped: filename="${att.filename ?? '<no-filename>'}" mime_type="${att.mime_type ?? '<no-mime>'}" reason="missing attachment_id"`);
+          continue;
+        }
         try {
           const data64 = await downloadGmailAttachment(att.message_id, att.attachment_id);
           if (!data64) {
@@ -354,6 +357,8 @@ export async function POST(request: Request) {
           errors.push(`download pj ${att.filename}: ${e instanceof Error ? e.message : 'inconnu'}`);
         }
       }
+
+      errors.push(`attachments_summary: thread_total=${flat.length} downloaded=${agentAttachments.length} skipped=${flat.length - agentAttachments.length}`);
 
       // Si au moins une PJ téléchargée → délégation Agent 2.
       if (agentAttachments.length > 0) {
