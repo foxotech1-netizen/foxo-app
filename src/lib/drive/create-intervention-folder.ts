@@ -5,11 +5,11 @@
 // hiérarchique RAPPORTS/{year}/{ref + adresse}/photos/, idempotente
 // via ensureFolder). Ce module orchestre :
 //
-//   - generateNextRef : alloue la prochaine référence "AAAA-NNN" pour
-//     une année donnée en scannant les sous-dossiers de RAPPORTS/{year}/.
-//   - createInterventionFolderFromMail : wrapper one-shot qui combine
-//     generateNextRef + createInterventionFolder de google-drive.ts
-//     pour le flux mail entrant.
+//   - listDriveFolderNumbers : scanne RAPPORTS/{year}/ et retourne la
+//     liste des numéros parsés (consommé par nextRefForYear pour
+//     croiser DB + Drive — cf. src/lib/intervention-ref.ts).
+//   - createInterventionFolderFromMail : crée le dossier Drive pour
+//     une ref donnée (allouée par nextRefForYear côté caller).
 //   - uploadAttachmentToFolder : dépose une pièce jointe Gmail (base64)
 //     dans un dossier Drive existant via upload multipart.
 //
@@ -28,18 +28,10 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 // ─── Types exportés ────────────────────────────────────────────────────
 
-export interface NextRefResult {
-  ref: string;     // ex: "2026-148"
-  number: number;  // ex: 148
-}
-
 export interface CreateInterventionFolderFromMailResult {
-  folder_id: string;
+  driveFolderId: string;
+  driveUrl: string;
   folder_name: string;
-  ref: string;
-  number: number;
-  year: number;
-  url: string;
 }
 
 export interface UploadAttachmentParams {
@@ -161,60 +153,48 @@ async function uploadMultipart(
 
 // ─── API publique ─────────────────────────────────────────────────────
 
-// Alloue la prochaine référence "AAAA-NNN" pour une année donnée.
-// Scanne RAPPORTS/{year}/ (créé à la volée si absent) et parse les
-// noms de sous-dossiers '{year}-NNN ' pour trouver le numéro max.
-// Démarre à 1 si le dossier année est vide ou si aucun nom matche.
+// Scanne RAPPORTS/{yearStr}/ et retourne la liste des numéros entiers
+// parsés (sans dédoublonnage, sans tri, sans +1). Utilise la même regex
+// que l'ancien generateNextRef : `^{yearStr}-(\d{3,})\s`.
 //
-// ⚠ Concurrence : la lecture-puis-allocation n'est pas atomique côté
-// Drive. Si 2 mails sont traités en parallèle, ils peuvent se voir
-// attribuer la même ref. Acceptable pour le débit actuel (cron toutes
-// les N minutes) ; à sérialiser via un lock applicatif si on monte en
-// charge sur du temps réel.
-export async function generateNextRef(
-  year: number = new Date().getFullYear(),
-): Promise<NextRefResult> {
-  try {
-    const [rootId, token] = await Promise.all([
-      Promise.resolve(getRapportsRootId()),
-      getAccessToken(),
-    ]);
+// Consommée par nextRefForYear (src/lib/intervention-ref.ts) qui croise
+// ce résultat avec le MAX(ref) de la table interventions pour produire
+// la prochaine ref unifiée DB+Drive.
+//
+// Throw sur toute erreur Drive (token absent, root_id mal configuré,
+// échec list folders). Le caller décide du fallback DB-only.
+export async function listDriveFolderNumbers(yearStr: string): Promise<number[]> {
+  const [rootId, token] = await Promise.all([
+    Promise.resolve(getRapportsRootId()),
+    getAccessToken(),
+  ]);
 
-    const yearFolder = await ensureFolder(token, rootId, String(year));
-    if (!yearFolder) {
-      throw new Error(`Drive: échec création/accès dossier année ${year}.`);
-    }
-
-    const children = await listChildFolders(token, yearFolder.id);
-    const refRegex = new RegExp(`^${year}-(\\d{3,})\\s`);
-    let max = 0;
-    for (const f of children) {
-      const m = refRegex.exec(f.name);
-      if (!m) continue;
-      const n = Number.parseInt(m[1], 10);
-      if (Number.isFinite(n) && n > max) max = n;
-    }
-
-    const number = max + 1;
-    const ref = `${year}-${String(number).padStart(3, '0')}`;
-    return { ref, number };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'erreur inconnue';
-    console.error('[drive/create-intervention-folder] generateNextRef failed:', msg);
-    if (e instanceof Error && e.message.startsWith('Drive:')) throw e;
-    throw new Error(`Drive: impossible d'allouer la référence — ${msg}`);
+  const yearFolder = await ensureFolder(token, rootId, yearStr);
+  if (!yearFolder) {
+    throw new Error(`Drive: échec création/accès dossier année ${yearStr}.`);
   }
+
+  const children = await listChildFolders(token, yearFolder.id);
+  const refRegex = new RegExp(`^${yearStr}-(\\d{3,})\\s`);
+  const out: number[] = [];
+  for (const f of children) {
+    const m = refRegex.exec(f.name);
+    if (!m) continue;
+    const n = Number.parseInt(m[1], 10);
+    if (Number.isFinite(n)) out.push(n);
+  }
+  return out;
 }
 
-// Wrapper one-shot pour le pipeline mail entrant : alloue une ref via
-// generateNextRef puis crée le dossier d'intervention via la fonction
-// hiérarchique de @/lib/google-drive (qui gère ensureFolder year +
-// dossier intervention + sous-dossier photos/).
+// Crée le dossier d'intervention Drive pour une ref donnée. La ref est
+// allouée en amont par nextRefForYear (src/lib/intervention-ref.ts) —
+// cette fonction ne fait QUE la création du dossier hiérarchique.
 //
 // Le folder_name est reconstruit côté wrapper pour le retourner — la
 // fonction sous-jacente applique le même format
 // `${ref} ${adresse}`.trim().slice(0, 200) en interne.
 export async function createInterventionFolderFromMail(
+  ref: string,
   adresse: string,
 ): Promise<CreateInterventionFolderFromMailResult> {
   try {
@@ -222,8 +202,10 @@ export async function createInterventionFolderFromMail(
     if (!cleanedAdresse) {
       throw new Error('Drive: adresse vide — impossible de nommer le dossier.');
     }
+    if (!ref.trim()) {
+      throw new Error('Drive: ref vide — impossible de nommer le dossier.');
+    }
     const year = new Date().getFullYear();
-    const { ref, number } = await generateNextRef(year);
 
     const result = await createInterventionFolderHierarchical({ ref, adresse: cleanedAdresse, year });
     if (!result.ok) {
@@ -236,12 +218,9 @@ export async function createInterventionFolderFromMail(
     const folder_name = `${ref} ${cleanedAdresse}`.trim().slice(0, 200);
 
     return {
-      folder_id: result.folder_id,
+      driveFolderId: result.folder_id,
+      driveUrl: result.web_view_link,
       folder_name,
-      ref,
-      number,
-      year,
-      url: result.web_view_link,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'erreur inconnue';

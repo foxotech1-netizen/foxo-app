@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRdvRateLimit, getRequestIp, recordRdvAttempt } from '@/lib/rate-limit';
 import { sendRdvConfirmation, sendRdvAdminNotification, type RdvEmailData } from '@/lib/email/rdv';
+import { nextRefForYear } from '@/lib/intervention-ref';
 
 export type RdvSubmitResult =
   | { ok: true; data: { ref: string; interventionId: string } }
@@ -21,12 +22,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[\d\s+().-]{6,}$/;
 const MAX_PHOTOS = 3;
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
-
-function generateRef(): string {
-  const year = new Date().getFullYear();
-  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `${year}-${rand}`;
-}
 
 type ParsedData = {
   // Mandant (facturation)
@@ -165,7 +160,7 @@ export async function submitRdv(formData: FormData): Promise<RdvSubmitResult> {
     return { ok: false, error: 'Configuration serveur incomplète (SUPABASE_SERVICE_ROLE_KEY absente).' };
   }
 
-  const ref = generateRef();
+  const ref = await nextRefForYear();
   // L'adresse "intervention" peut différer de la facturation (mandant).
   const lieuRue = parsed.lieu_meme ? parsed.rue : parsed.lieu_rue;
   const lieuCp = parsed.lieu_meme ? parsed.code_postal : parsed.lieu_cp;

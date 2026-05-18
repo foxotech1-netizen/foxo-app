@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { notifyStatusChange } from '@/lib/email/notifications';
+import { nextRefForYear } from '@/lib/intervention-ref';
 import type { Acp } from '@/lib/types/database';
 
 // Service-role pour les inserts qui ont besoin de bypass RLS
@@ -136,12 +137,6 @@ export type RequestInput = {
   lng?: string | null;
 };
 
-function generateRef(): string {
-  const year = new Date().getFullYear();
-  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `${year}-${rand}`;
-}
-
 export async function submitRequest(input: RequestInput): Promise<ActionResult<{ id: string }>> {
   const session = await getCurrentSyndic();
   if (!session?.org) return { ok: false, error: 'Compte non lié à un partenaire.' };
@@ -210,7 +205,7 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
   const { data: iv, error } = await admin
     .from('interventions')
     .insert({
-      ref: generateRef(),
+      ref: await nextRefForYear(),
       syndic_id: session.org.id,
       acp_id: acpId,
       type: input.type,

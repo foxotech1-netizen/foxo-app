@@ -8,6 +8,7 @@ import { roleForEmail } from '@/lib/auth/roles';
 import { notifyStatusChange } from '@/lib/email/notifications';
 import { createInterventionFolder } from '@/lib/google-drive';
 import { createCalendarEvent, createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
+import { nextRefForYear } from '@/lib/intervention-ref';
 import type {
   Acp,
   Organisation,
@@ -269,26 +270,6 @@ export interface CreateInterventionFromSlotInput {
   priorite: PrioriteIntervention;
   adresse_precise?: string;
   demandeur: CreateFromSlotSyndic | CreateFromSlotParticulier;
-}
-
-async function nextRefForYear(): Promise<string> {
-  const supabase = await createClient();
-  const year = new Date().getFullYear();
-  const { data } = await supabase
-    .from('interventions')
-    .select('ref')
-    .like('ref', `${year}-%`)
-    .order('ref', { ascending: false })
-    .limit(50);
-  let next = 100;
-  for (const row of data ?? []) {
-    const m = row.ref?.match(/^\d{4}-(\d+)$/);
-    if (m) {
-      const n = parseInt(m[1], 10);
-      if (n + 1 > next) next = n + 1;
-    }
-  }
-  return `${year}-${String(next).padStart(3, '0')}`;
 }
 
 function generateOccupantToken(): string {

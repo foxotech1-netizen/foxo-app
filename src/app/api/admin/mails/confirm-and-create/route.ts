@@ -29,6 +29,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
 import { getEmailThread, downloadGmailAttachment } from '@/lib/gmail';
 import { createInterventionFolderFromMail } from '@/lib/drive/create-intervention-folder';
+import { nextRefForYear } from '@/lib/intervention-ref';
 import { safeTypeIntervention } from '@/lib/mails/intervention-types';
 import { analyseAttachments } from '@/lib/agents/analyse-pj';
 import type { AttachmentInput } from '@/lib/agents/analyse-pj';
@@ -208,65 +209,90 @@ export async function POST(request: Request) {
       })
       .eq('id', dossierId);
   } else {
-    // 4b. Branche "création nouveau dossier" — Drive + INSERT.
+    // 4b. Branche "création nouveau dossier" — Ordre DB → Drive (chantier #5).
+    //
+    //   1. nextRefForYear() alloue la ref via MAX(DB sans soft-deletes, Drive) + 1.
+    //   2. INSERT intervention avec ref + drive_folder_id=null (Drive pas
+    //      encore créé). Sur 23505 (race condition), on recompute la ref et
+    //      on retente UNE seule fois.
+    //   3. createInterventionFolderFromMail(ref, adresse) crée le dossier
+    //      Drive (best-effort).
+    //   4. UPDATE intervention.drive_folder_id avec l'id retourné.
+    //
+    //   La ref étant désormais source de vérité côté DB, Drive ne peut
+    //   plus créer une collision silencieuse (cf. chantier #5).
     const typeIntervention = safeTypeIntervention(typeRaw);
 
     // Géocodage best-effort (lat/lng nullable côté DB).
     const geo = await geocodeOnce(adresse);
     if (!geo) errors.push('geocoding: aucun résultat Nominatim');
 
-    // Drive : crée le dossier RAPPORTS/{year}/{ref + adresse}/photos/
-    // ET alloue la prochaine ref via generateNextRef.
-    let createdRef: string | null = null;
-    let createdFolderId: string | null = null;
-    let createdFolderUrl: string | null = null;
-    try {
-      const drive = await createInterventionFolderFromMail(adresse);
-      createdRef = drive.ref;
-      createdFolderId = drive.folder_id;
-      createdFolderUrl = drive.url;
-    } catch (e) {
-      errors.push(`drive: ${e instanceof Error ? e.message : 'inconnu'}`);
-    }
-
-    const insertPayload: Record<string, unknown> = {
-      ref: createdRef,
-      type: typeIntervention,
-      adresse,
-      lat: geo?.lat ?? null,
-      lng: geo?.lng ?? null,
-      drive_folder_id: createdFolderId,
-      statut: 'nouvelle',
-      source: 'mail',
-      source_mail_id: threadId,
-      creneau_debut: creneauDebutIso,
-      technicien_id: creneau.technicien_id,
+    // Helper : construit le payload INSERT pour une ref donnée. Réutilisé
+    // entre la première tentative et le retry 23505.
+    const buildInsertPayload = (ref: string): Record<string, unknown> => {
+      const p: Record<string, unknown> = {
+        ref,
+        type: typeIntervention,
+        adresse,
+        lat: geo?.lat ?? null,
+        lng: geo?.lng ?? null,
+        drive_folder_id: null,
+        statut: 'nouvelle',
+        source: 'mail',
+        source_mail_id: threadId,
+        creneau_debut: creneauDebutIso,
+        technicien_id: creneau.technicien_id,
+      };
+      if (occupantPhone) p.contact_telephone = occupantPhone;
+      if (occupantEmail) p.contact_email = occupantEmail;
+      return p;
     };
-    // contact_telephone / contact_email : insertion tolérante — si la
-    // colonne n'existe pas en DB, le retry strippe et continue. Les
-    // schémas récents ont ces colonnes ; les anciens utilisent
-    // particulier_contact (jsonb).
-    if (occupantPhone) insertPayload.contact_telephone = occupantPhone;
-    if (occupantEmail) insertPayload.contact_email = occupantEmail;
 
-    const { data: inserted, error: insErr } = await admin
+    // 4b.1 — alloc + INSERT avec retry 1x sur 23505 (collision ref).
+    let ref = await nextRefForYear(new Date().getFullYear());
+    let insertResult = await admin
       .from('interventions')
-      .insert(insertPayload)
+      .insert(buildInsertPayload(ref))
       .select('id, ref, adresse')
       .single();
-    if (insErr || !inserted) {
+    if (insertResult.error && (insertResult.error as { code?: string }).code === '23505') {
+      // Race condition : un autre flux vient de consommer la même ref.
+      // Recompute via nextRefForYear (qui voit maintenant la row insérée
+      // par l'autre flow) et retente une seule fois.
+      ref = await nextRefForYear(new Date().getFullYear());
+      insertResult = await admin
+        .from('interventions')
+        .insert(buildInsertPayload(ref))
+        .select('id, ref, adresse')
+        .single();
+    }
+    if (insertResult.error || !insertResult.data) {
       return NextResponse.json(
-        { success: false, error: `insert intervention: ${insErr?.message ?? 'échec'}` },
+        { success: false, error: `insert intervention: ${insertResult.error?.message ?? 'échec'}` },
         { status: 500 },
       );
     }
-    const ins = inserted as { id: string; ref: string | null; adresse: string | null };
+    const ins = insertResult.data as { id: string; ref: string | null; adresse: string | null };
     dossierId = ins.id;
-    dossierRef = ins.ref ?? createdRef;
+    dossierRef = ins.ref ?? ref;
     dossierAdresse = ins.adresse ?? adresse;
-    driveFolderId = createdFolderId;
-    driveUrl = createdFolderUrl;
     dossierCreated = true;
+
+    // 4b.2 — création dossier Drive (best-effort, ref déjà allouée en DB).
+    try {
+      const drive = await createInterventionFolderFromMail(dossierRef!, adresse);
+      driveFolderId = drive.driveFolderId;
+      driveUrl = drive.driveUrl;
+
+      // 4b.3 — UPDATE intervention.drive_folder_id avec la valeur retournée.
+      const { error: updErr } = await admin
+        .from('interventions')
+        .update({ drive_folder_id: driveFolderId, updated_at: new Date().toISOString() })
+        .eq('id', dossierId);
+      if (updErr) errors.push(`update drive_folder_id: ${updErr.message}`);
+    } catch (e) {
+      errors.push(`drive: ${e instanceof Error ? e.message : 'inconnu'}`);
+    }
   }
 
   // 5. UPDATE creneaux_disponibles → 'reserve' (atomique : empêche
