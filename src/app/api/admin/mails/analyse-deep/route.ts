@@ -497,6 +497,9 @@ export async function POST(request: Request) {
       // INSERT … ON CONFLICT DO UPDATE SET <colonnes du payload>).
       const upsertPayload: Record<string, unknown> = {
         thread_id: threadId,
+        sujet: messages[0]?.subject ?? null,
+        expediteur: messages[0]?.from ?? null,
+        recu_le: messages[0]?.date ?? null,
         type: analyse.type,
         urgence: analyse.urgence,
         langue: analyse.langue,
