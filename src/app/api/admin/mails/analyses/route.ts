@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
+import type { OccupantExtrait } from '@/app/admin/mails/MailAnalyseTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ interface AnalyseRow {
   resume: string | null;
   occupant_telephone: string | null;
   occupant_email: string | null;
+  occupants_extraits: OccupantExtrait[] | null;
   dossier_match_id: string | null;
   creneau_propose_id: string | null;
   fenetre_etendue: boolean | null;
@@ -55,7 +57,7 @@ export async function GET(request: Request) {
 
   const { data: analyses, error } = await admin
     .from('mails_analyses')
-    .select('thread_id, type, urgence, langue, adresse_extraite, numero_dossier_mentionne, resume, occupant_telephone, occupant_email, dossier_match_id, creneau_propose_id, fenetre_etendue, pj_drive_ids, brouillon_gmail_id, event_calendar_id, errors')
+    .select('thread_id, type, urgence, langue, adresse_extraite, numero_dossier_mentionne, resume, occupant_telephone, occupant_email, occupants_extraits, dossier_match_id, creneau_propose_id, fenetre_etendue, pj_drive_ids, brouillon_gmail_id, event_calendar_id, errors')
     .in('thread_id', ids);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 

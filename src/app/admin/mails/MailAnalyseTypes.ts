@@ -22,6 +22,30 @@ export interface MailAnalyseCreneau {
   technicien_nom: string;
 }
 
+export type OccupantExtraitType =
+  | 'occupant'
+  | 'proprietaire'
+  | 'locataire'
+  | 'concierge'
+  | 'voisin'
+  | 'gestionnaire'
+  | 'parties_communes'
+  | 'autre';
+
+// Miroir exact de AnalyseDeepOccupant émis par Agent 1
+// (analyse-deep/route.ts, via normalizeOccupants). Tous les champs sont
+// garantis présents (string vide si absent), d'où l'absence d'optionnel.
+export interface OccupantExtrait {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  appartement: string;
+  etage: string;
+  type: OccupantExtraitType;
+  remarques: string;
+}
+
 export interface MailAnalyse {
   thread_id: string;
   type: MailAnalyseType | null;
@@ -32,6 +56,7 @@ export interface MailAnalyse {
   resume: string | null;
   occupant_telephone: string | null;
   occupant_email: string | null;
+  occupants_extraits: OccupantExtrait[] | null;
   dossier_match_id: string | null;
   creneau_propose_id: string | null;
   fenetre_etendue: boolean | null;
