@@ -46,6 +46,37 @@ export interface OccupantExtrait {
   remarques: string;
 }
 
+export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
+
+// État UI éditable d'un occupant dans ConfirmCreateForm. Miroir
+// d'OccupantExtrait enrichi des champs serveur attendus par
+// safeInsertOccupants (conf est posé côté route en 1.c, pas ici).
+export interface ConfirmCreateOccupant {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  appartement: string;
+  etage: string;
+  type: OccupantExtraitType;
+  instructions: string;
+  contact_preference: ContactPreference;
+}
+
+export function emptyConfirmCreateOccupant(): ConfirmCreateOccupant {
+  return {
+    prenom: '',
+    nom: '',
+    email: '',
+    telephone: '',
+    appartement: '',
+    etage: '',
+    type: 'occupant',
+    instructions: '',
+    contact_preference: 'email',
+  };
+}
+
 export interface MailAnalyse {
   thread_id: string;
   type: MailAnalyseType | null;

@@ -20,9 +20,42 @@
 // avec un picker inline si besoin).
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
-import type { MailAnalyse } from './MailAnalyseTypes';
+import { Loader2, Search, Plus } from 'lucide-react';
+import type {
+  MailAnalyse,
+  ConfirmCreateOccupant,
+  OccupantExtrait,
+  OccupantExtraitType,
+  ContactPreference,
+} from './MailAnalyseTypes';
+import { emptyConfirmCreateOccupant } from './MailAnalyseTypes';
 import { ALLOWED_TYPES_INTERVENTION } from '@/lib/mails/intervention-types';
+
+const OCCUPANT_TYPE_LABELS: { value: OccupantExtraitType; label: string }[] = [
+  { value: 'occupant', label: 'Occupant' },
+  { value: 'proprietaire', label: 'Propriétaire' },
+  { value: 'locataire', label: 'Locataire' },
+  { value: 'concierge', label: 'Concierge' },
+  { value: 'voisin', label: 'Voisin' },
+  { value: 'gestionnaire', label: 'Gestionnaire' },
+  { value: 'parties_communes', label: 'Parties communes' },
+  { value: 'autre', label: 'Autre' },
+];
+
+const CONTACT_PREF_LABELS: { value: ContactPreference; label: string }[] = [
+  { value: 'email', label: 'Email' },
+  { value: 'sms', label: 'SMS' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'both', label: 'Les deux' },
+];
+
+// Mêmes classe/style que les inputs existants du formulaire (adresse, type…).
+const OCC_INPUT_CLASS = 'w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50';
+const OCC_INPUT_STYLE: React.CSSProperties = {
+  background: 'var(--color-cream)',
+  border: '1px solid var(--color-sand-border)',
+  color: 'var(--color-ink)',
+};
 
 interface SearchResult {
   id: string;
@@ -41,9 +74,36 @@ type SubmitState = 'idle' | 'submitting';
 export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
   const [adresse, setAdresse] = useState(analyse.adresse_extraite ?? '');
   const [typeInterv, setTypeInterv] = useState<string>('Autre');
-  const [phone, setPhone] = useState(analyse.occupant_telephone ?? '');
-  const [email, setEmail] = useState(analyse.occupant_email ?? '');
+  const [occupants, setOccupants] = useState<ConfirmCreateOccupant[]>(() => {
+    const src = analyse.occupants_extraits;
+    if (src && src.length > 0) return src.map(fromExtrait);
+    return [emptyConfirmCreateOccupant()];
+  });
   const [creneauChoice, setCreneauChoice] = useState<'primary' | 'existing' | 'other'>('primary');
+
+  function fromExtrait(o: OccupantExtrait): ConfirmCreateOccupant {
+    return {
+      prenom: o.prenom,
+      nom: o.nom,
+      email: o.email,
+      telephone: o.telephone,
+      appartement: o.appartement,
+      etage: o.etage,
+      type: o.type,
+      instructions: o.remarques,
+      contact_preference: 'email',
+    };
+  }
+
+  function addOccupant() {
+    setOccupants((a) => [...a, emptyConfirmCreateOccupant()]);
+  }
+  function removeOccupant(i: number) {
+    setOccupants((a) => (a.length > 1 ? a.filter((_, idx) => idx !== i) : a));
+  }
+  function updateOccupant(i: number, patch: Partial<ConfirmCreateOccupant>) {
+    setOccupants((a) => a.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
+  }
 
   // Autocomplete dossier existant
   const [searchQuery, setSearchQuery] = useState('');
@@ -128,8 +188,12 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
         thread_id: threadId,
         adresse: adresse.trim(),
         type_intervention: typeInterv,
-        occupant_telephone: phone.trim() || null,
-        occupant_email: email.trim() || null,
+        occupants,
+        // Rétro-compat : confirm-and-create lit encore les champs singuliers
+        // (consommation occupants[] côté serveur ajoutée en 1.c). On dérive
+        // depuis le premier occupant de la liste.
+        occupant_telephone: occupants[0]?.telephone ?? '',
+        occupant_email: occupants[0]?.email ?? '',
         // creneau_propose_id est l'ID DB du créneau primary stocké par
         // analyse-deep ; analyse.creneau ne contient que la metadata
         // formatée (date / heure / tech_nom).
@@ -209,38 +273,157 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
         </select>
       </Field>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <Field label="Tél. occupant">
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            disabled={submitState === 'submitting'}
-            placeholder="+32 ..."
-            className="w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50"
-            style={{
-              background: 'var(--color-cream)',
-              border: '1px solid var(--color-sand-border)',
-              color: 'var(--color-ink)',
-            }}
-          />
-        </Field>
-        <Field label="Email occupant">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={submitState === 'submitting'}
-            placeholder="prenom@example.be"
-            className="w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50"
-            style={{
-              background: 'var(--color-cream)',
-              border: '1px solid var(--color-sand-border)',
-              color: 'var(--color-ink)',
-            }}
-          />
-        </Field>
-      </div>
+      {/* Occupants (liste éditable, pré-remplie depuis occupants_extraits) */}
+      <Field label="Occupants">
+        <div className="space-y-2">
+          {occupants.map((o, i) => (
+            <div
+              key={i}
+              className="rounded p-2.5 space-y-2"
+              style={{ background: 'var(--color-cream)', border: '1px solid var(--color-sand-border)' }}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-[10px] font-medium uppercase tracking-wider"
+                  style={{ color: 'var(--color-ink-muted)' }}
+                >
+                  Occupant {i + 1}
+                </span>
+                {occupants.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeOccupant(i)}
+                    disabled={submitState === 'submitting'}
+                    className="text-[10px] font-medium hover:underline disabled:opacity-50"
+                    style={{ color: 'var(--color-terra)' }}
+                  >
+                    Supprimer
+                  </button>
+                )}
+              </div>
+
+              {/* Ligne 1 : Appartement | Étage | Type */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <input
+                  type="text"
+                  value={o.appartement}
+                  onChange={(e) => updateOccupant(i, { appartement: e.target.value })}
+                  disabled={submitState === 'submitting'}
+                  placeholder="Apt"
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                />
+                <input
+                  type="text"
+                  value={o.etage}
+                  onChange={(e) => updateOccupant(i, { etage: e.target.value })}
+                  disabled={submitState === 'submitting'}
+                  placeholder="Étage"
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                />
+                <select
+                  value={o.type}
+                  onChange={(e) => updateOccupant(i, { type: e.target.value as OccupantExtraitType })}
+                  disabled={submitState === 'submitting'}
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                >
+                  {OCCUPANT_TYPE_LABELS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Ligne 2 : Prénom | Nom */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  type="text"
+                  value={o.prenom}
+                  onChange={(e) => updateOccupant(i, { prenom: e.target.value })}
+                  disabled={submitState === 'submitting'}
+                  placeholder="Prénom"
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                />
+                <input
+                  type="text"
+                  value={o.nom}
+                  onChange={(e) => updateOccupant(i, { nom: e.target.value })}
+                  disabled={submitState === 'submitting'}
+                  placeholder="Nom"
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                />
+              </div>
+
+              {/* Ligne 3 : Email | Téléphone */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  type="email"
+                  value={o.email}
+                  onChange={(e) => updateOccupant(i, { email: e.target.value })}
+                  disabled={submitState === 'submitting'}
+                  placeholder="prenom@example.be"
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                />
+                <input
+                  type="tel"
+                  value={o.telephone}
+                  onChange={(e) => updateOccupant(i, { telephone: e.target.value })}
+                  disabled={submitState === 'submitting'}
+                  placeholder="+32 ..."
+                  className={OCC_INPUT_CLASS}
+                  style={OCC_INPUT_STYLE}
+                />
+              </div>
+
+              {/* Ligne 4 : Mode de contact préféré */}
+              <div className="flex flex-wrap items-center gap-3">
+                {CONTACT_PREF_LABELS.map((p) => (
+                  <label
+                    key={p.value}
+                    className="inline-flex items-center gap-1.5 cursor-pointer text-[12px]"
+                    style={{ color: 'var(--color-ink)' }}
+                  >
+                    <input
+                      type="radio"
+                      name={`contact-pref-${i}`}
+                      value={p.value}
+                      checked={o.contact_preference === p.value}
+                      onChange={() => updateOccupant(i, { contact_preference: p.value })}
+                      disabled={submitState === 'submitting'}
+                    />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+
+              {/* Ligne 5 : Instructions */}
+              <textarea
+                value={o.instructions}
+                onChange={(e) => updateOccupant(i, { instructions: e.target.value })}
+                disabled={submitState === 'submitting'}
+                rows={2}
+                placeholder="Instructions (digicode, accès, clés…)"
+                className={`${OCC_INPUT_CLASS} resize-y`}
+                style={OCC_INPUT_STYLE}
+              />
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={addOccupant}
+          disabled={submitState === 'submitting'}
+          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold disabled:opacity-50"
+          style={{ background: 'var(--color-sand-mid)', color: 'var(--color-ink-mid)' }}
+        >
+          <Plus size={14} aria-hidden /> Ajouter un occupant
+        </button>
+      </Field>
 
       {/* Créneau (radios) */}
       <Field label="Créneau">
