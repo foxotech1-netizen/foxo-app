@@ -33,6 +33,8 @@ import { nextRefForYear } from '@/lib/intervention-ref';
 import { safeTypeIntervention } from '@/lib/mails/intervention-types';
 import { analyseAttachments } from '@/lib/agents/analyse-pj';
 import type { AttachmentInput } from '@/lib/agents/analyse-pj';
+import { safeInsertOccupants, type OccupantInsertRow } from '@/lib/cron/check-mails';
+import type { ConfirmCreateOccupant } from '@/app/admin/mails/MailAnalyseTypes';
 
 export const dynamic = 'force-dynamic';
 // Pipeline plus long que analyse-deep : Drive create + Agent 2
@@ -49,6 +51,7 @@ interface ConfirmBody {
   type_intervention?: unknown;
   occupant_telephone?: unknown;
   occupant_email?: unknown;
+  occupants?: unknown;
   creneau_id?: unknown;
   dossier_match_id?: unknown;
 }
@@ -98,6 +101,9 @@ export async function POST(request: Request) {
   const matchId = typeof body.dossier_match_id === 'string' && body.dossier_match_id.trim()
     ? body.dossier_match_id.trim()
     : null;
+  const bodyOccupants: ConfirmCreateOccupant[] = Array.isArray(body.occupants)
+    ? (body.occupants as ConfirmCreateOccupant[])
+    : [];
 
   if (!threadId || !creneauId) {
     return NextResponse.json(
@@ -295,6 +301,73 @@ export async function POST(request: Request) {
     }
   }
 
+  // 4c. Insertion des occupants (chantier 1.c). Source = occupants[] du body
+  //     (1.b.2). Fallback rétro-compat : si occupants[] absent mais
+  //     occupant_telephone/occupant_email présents, on reconstitue une seule
+  //     ligne. Best-effort — un échec d'insert n'annule pas l'intervention
+  //     (déjà créée/liée). conf='en_attente' posé ici ; mapping type → type_occupant.
+  function resolveOccupantsToInsert(
+    list: ConfirmCreateOccupant[],
+    fallback: { telephone: string; email: string },
+  ): Omit<OccupantInsertRow, 'intervention_id'>[] {
+    const isEmpty = (o: ConfirmCreateOccupant) =>
+      !o.prenom?.trim() && !o.nom?.trim() && !o.email?.trim() && !o.telephone?.trim();
+
+    const source: ConfirmCreateOccupant[] = list.length > 0
+      ? list
+      : (fallback.telephone || fallback.email)
+        ? [{
+            prenom: '', nom: '',
+            email: fallback.email || '',
+            telephone: fallback.telephone || '',
+            appartement: '', etage: '',
+            type: 'occupant',
+            instructions: '',
+            contact_preference: 'email',
+          }]
+        : [];
+
+    return source
+      .filter((o) => !isEmpty(o))
+      .map((o) => ({
+        appartement: o.appartement,
+        etage: o.etage,
+        prenom: o.prenom,
+        nom: o.nom,
+        email: o.email,
+        telephone: o.telephone,
+        conf: 'en_attente' as const,
+        contact_preference: o.contact_preference,
+        instructions: o.instructions,
+        type_occupant: o.type,
+      }));
+  }
+
+  const occupantsBaseRows = resolveOccupantsToInsert(bodyOccupants, {
+    telephone: occupantPhone ?? '',
+    email: occupantEmail ?? '',
+  });
+
+  let occupantsInsertResult: Awaited<ReturnType<typeof safeInsertOccupants>> | null = null;
+  let occupantsInsertError: string | null = null;
+
+  if (occupantsBaseRows.length > 0) {
+    const rows: OccupantInsertRow[] = occupantsBaseRows.map((r) => ({
+      ...r,
+      intervention_id: dossierId,
+    }));
+    try {
+      occupantsInsertResult = await safeInsertOccupants(rows);
+      if (!occupantsInsertResult.ok) {
+        occupantsInsertError = occupantsInsertResult.error;
+        console.error('[confirm-and-create] occupants insert failed:', occupantsInsertError, { intervention_id: dossierId, rows_count: rows.length });
+      }
+    } catch (e) {
+      occupantsInsertError = e instanceof Error ? e.message : String(e);
+      console.error('[confirm-and-create] occupants insert threw:', occupantsInsertError);
+    }
+  }
+
   // 5. UPDATE creneaux_disponibles → 'reserve' (atomique : empêche
   //    un autre admin de réserver le même créneau si on a coursé).
   await admin
@@ -422,6 +495,8 @@ export async function POST(request: Request) {
       tech_nom: techNom,
     },
     pj_uploaded: pjUploaded,
+    occupants_inserted: occupantsInsertResult?.ok ? occupantsInsertResult.inserted : 0,
+    occupants_insert_error: occupantsInsertError,
     errors: errors.length > 0 ? errors : undefined,
   });
 }
