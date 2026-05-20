@@ -44,6 +44,60 @@ type AnalyseType =
   | 'accuse_reception'
   | 'spam_commercial';
 
+const ALLOWED_OCCUPANT_TYPES = [
+  'occupant',
+  'proprietaire',
+  'locataire',
+  'concierge',
+  'voisin',
+  'gestionnaire',
+  'parties_communes',
+  'autre',
+] as const;
+type OccupantType = (typeof ALLOWED_OCCUPANT_TYPES)[number];
+
+interface AnalyseDeepOccupant {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  appartement: string;
+  etage: string;
+  type: OccupantType;
+  remarques: string;
+}
+
+function normalizeOccupants(raw: unknown): AnalyseDeepOccupant[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((o): AnalyseDeepOccupant | null => {
+      if (!o || typeof o !== 'object') return null;
+      const r = o as Record<string, unknown>;
+      const str = (v: unknown) => (typeof v === 'string' ? v : '');
+      const tRaw = str(r.type);
+      const type: OccupantType = (ALLOWED_OCCUPANT_TYPES as readonly string[]).includes(tRaw)
+        ? (tRaw as OccupantType)
+        : 'occupant';
+      const remarquesRaw = str(r.remarques) || str(r.notes);
+      const occ: AnalyseDeepOccupant = {
+        prenom: str(r.prenom),
+        nom: str(r.nom),
+        email: str(r.email),
+        telephone: str(r.telephone),
+        appartement: str(r.appartement),
+        etage: str(r.etage),
+        type,
+        remarques: remarquesRaw.slice(0, 300),
+      };
+      const hasContact = Boolean(occ.email || occ.telephone);
+      const hasZone = occ.type === 'parties_communes' && (occ.appartement || occ.nom);
+      const hasIdentity = Boolean(occ.nom || occ.appartement);
+      if (!hasContact && !hasZone && !hasIdentity) return null;
+      return occ;
+    })
+    .filter((x): x is AnalyseDeepOccupant => x !== null);
+}
+
 interface ClaudeAnalyse {
   type: AnalyseType;
   type_intervention: TypeIntervention | null;
@@ -54,6 +108,7 @@ interface ClaudeAnalyse {
   resume: string;
   occupant_telephone: string | null;
   occupant_email: string | null;
+  occupants?: AnalyseDeepOccupant[];
 }
 
 interface DossierInfo {
@@ -253,7 +308,8 @@ export async function POST(request: Request) {
       `  "numero_dossier_mentionne": string | null,`,
       `  "resume": string,`,
       `  "occupant_telephone": string | null,`,
-      `  "occupant_email": string | null`,
+      `  "occupant_email": string | null,`,
+      `  "occupants": Array<{ prenom, nom, email, telephone, appartement, etage, type, remarques }>`,
       `}`,
       ``,
       `Règles :`,
@@ -283,6 +339,39 @@ export async function POST(request: Request) {
       `- numero_dossier_mentionne : pattern "2026-XXX" ou null`,
       `- resume : max 200 caractères, en français`,
       `- Si forward avec historique, considère le contexte complet du thread`,
+      ``,
+      `- occupants : tableau (peut être vide) des occupants identifiés dans le mail.`,
+      `  Lis TOUT le corps du mail ET la liste des destinataires CC pour identifier les occupants.`,
+      `  Croise les CC avec les occupants mentionnés dans le corps : si un nom dans un CC`,
+      `  correspond à un occupant cité dans le corps, son email lui est attribué.`,
+      `  N'invente JAMAIS un email — soit tu trouves un match dans les CC, soit tu laisses "".`,
+      `  IGNORE les CC internes : foxo.be, le sender lui-même, le syndic.`,
+      ``,
+      `  Structure de chaque occupant :`,
+      `  {`,
+      `    "prenom": string ou "",`,
+      `    "nom": string ou "",`,
+      `    "email": string ou "",`,
+      `    "telephone": string ou "",`,
+      `    "appartement": string ou "",`,
+      `    "etage": string ou "",`,
+      `    "type": "occupant" | "proprietaire" | "locataire" | "concierge" | "voisin" | "gestionnaire" | "parties_communes" | "autre",`,
+      `    "remarques": string courte ou ""`,
+      `  }`,
+      ``,
+      `  Valeurs du champ "type" :`,
+      `   "occupant"         = résident principal de l'appartement (défaut si non précisé)`,
+      `   "proprietaire"     = propriétaire bailleur qui ne réside pas`,
+      `   "locataire"        = locataire identifié distinct du résident`,
+      `   "concierge"        = concierge / loge`,
+      `   "voisin"           = voisin sollicité pour accès`,
+      `   "gestionnaire"     = gestionnaire d'immeuble / régie`,
+      `   "parties_communes" = zone commune sans résident (escaliers, hall, parking…)`,
+      `   "autre"            = ne rentre dans aucune catégorie ci-dessus`,
+      ``,
+      `  Si occupant_telephone et/ou occupant_email correspondent à un occupant identifié,`,
+      `  cet occupant DOIT aussi figurer dans occupants[] avec ses coordonnées complètes.`,
+      `  Si aucun occupant identifiable, retourne occupants: [].`,
       ``,
       `Syndics connus (pour info matching) :`,
       syndicsList || '(aucun)',
@@ -325,7 +414,7 @@ export async function POST(request: Request) {
           // (i) Appel Anthropic
           const msg = await client.messages.create({
             model: MODEL,
-            max_tokens: 1024,
+            max_tokens: 2048,
             temperature: 0,
             system: systemPrompt,
             messages: [{ role: 'user', content: `Thread complet :\n${threadText}` }],
@@ -508,6 +597,7 @@ export async function POST(request: Request) {
         resume: analyse.resume,
         occupant_telephone: analyse.occupant_telephone,
         occupant_email: analyse.occupant_email,
+        occupants_extraits: normalizeOccupants(analyse.occupants),
         dossier_match_id: dossierMatchId,
         creneau_propose_id: creneauPropose?.creneau_id ?? null,
         fenetre_etendue: fenetreEtendue,
