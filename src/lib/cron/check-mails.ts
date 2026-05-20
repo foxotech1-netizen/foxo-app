@@ -31,10 +31,11 @@ const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
 
 // Limites runtime — calibrées pour rester sous maxDuration=60s côté
-// Vercel. 5 mails × (10s Gmail + 30s Claude + 5s écriture) ≈ 45s pire cas.
-const MAX_MAILS_PER_RUN = 5;
+// Vercel. 2 mails × 20s = 40s pire cas, marge confortable sous le plafond
+// Vercel Hobby 60s.
+const MAX_MAILS_PER_RUN = 2;
 const GMAIL_TIMEOUT_MS = 10_000;
-const CLAUDE_TIMEOUT_MS = 30_000;
+const CLAUDE_TIMEOUT_MS = 20_000;
 
 // Wrapper timeout Promise.race — sert pour les appels où on n'a pas
 // d'AbortController natif (ex: helpers Gmail qui n'exposent pas de
