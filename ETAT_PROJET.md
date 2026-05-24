@@ -1,9 +1,9 @@
 # État du projet FoxO — snapshot fin de session 2026-05-24
 
 - **Date du recap** : 2026-05-24
-- **HEAD git** : `f16f351e9774203b99d8ea9d62b0bd5c7f493f43`
-- **Branche** : `claude/friendly-euler-KFC8s`
-- **Status** : clean (aligné `origin/claude/friendly-euler-KFC8s`)
+- **HEAD git** : `6197e84172a2d7c39da4276cb261f981e211b6b0`
+- **Branche** : `main`
+- **Status** : clean (working tree propre)
 
 ## ✅ CE QUI A ÉTÉ FAIT
 
