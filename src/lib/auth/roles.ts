@@ -1,6 +1,26 @@
 // Whitelists et routage par rôle.
 // Source unique de vérité — toute redirection ou autorisation passe par ici.
 
+/**
+ * Type `Role` — abstraction de ROUTAGE applicatif.
+ *
+ * IMPORTANT : ce type a TROIS valeurs ('admin' | 'tech' | 'partner') et il est
+ * dérivé de l'EMAIL de l'utilisateur via `roleForEmail()`. Il sert uniquement
+ * à décider où router (`/admin`, `/tech`, `/portal`) et quel sous-domaine
+ * activer (`SUBDOMAIN_FOR_ROLE`).
+ *
+ * Ce type N'EST PAS un miroir de la colonne `utilisateurs.role` côté base.
+ * Ne jamais comparer `utilisateurs.role` (enum Postgres `user_role`, 12 valeurs
+ * incluant `'technicien'` et `'syndic'`) à `'tech'` ou `'partner'` :
+ *   - `'tech'`   n'existe PAS dans l'enum DB (l'enum a `'technicien'`).
+ *   - `'partner'` n'existe PAS dans l'enum DB.
+ *
+ * Voir `RoleUtilisateur` dans `src/lib/types/database.ts` pour le miroir TS
+ * de la colonne DB (4 valeurs humaines : admin, syndic, courtier, technicien).
+ *
+ * Historique : ce trio de vocabulaires a été figé après le Chantier #4 (2026-05-24).
+ */
+
 export const ADMIN_EMAILS = [
   'info@foxo.be',
   'foxotech1@gmail.com',

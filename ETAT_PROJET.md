@@ -245,5 +245,20 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 - Aucune policy RLS modifiée, signatures et types de retour inchangés. 0 impact code TypeScript (aucun appel `.rpc()` sur ces helpers).
 - Pattern de référence appliqué : `current_utilisateur_id()` (migration `2026-05-11b`).
 - Sujets latents identifiés par l'audit mais NON traités ici (reportés à des chantiers dédiés) :
-  - Drift entre l'enum `user_role` (12 valeurs : `admin`, `technicien`, `syndic`, `courtier`…) et la colonne `utilisateurs.role` (CHECK à 3 valeurs : `admin`, `tech`, `partner`). `mon_role()` lit le texte mais retourne l'enum — risque d'erreurs de cast silencieuses en prod.
+  - Drift entre l'enum `user_role` et la colonne `utilisateurs.role` (initialement soupçonné). **Infirmé le 2026-05-24** : la colonne est en réalité typée enum `user_role` en prod (migration de bascule `2026-05-23b_fix_role_constraint.sql`, idempotente, déjà appliquée). Voir Chantier #4 pour la cartographie complète des 3 vocabulaires de rôle.
   - Liste d'emails admin hardcodée dans `is_admin()` (`info@foxo.be`, `foxotech1@gmail.com`).
+
+### Chantier #4 — Drift user_role / utilisateurs.role : exploration et clôture — clos le 2026-05-24
+- Drift soupçonné par l'audit du Chantier #3. Vérifications Supabase + audit code → **drift inexistant**.
+- État réel constaté en prod (vérifié via 4 requêtes Supabase) :
+  - `utilisateurs.role` est typée `USER-DEFINED user_role` (enum), pas `text`.
+  - Aucun CHECK constraint sur la colonne.
+  - Valeurs présentes : `technicien` (2), `syndic` (1). Toutes conformes à l'enum.
+  - Cast `user_role` réussi sans erreur.
+- Migration de bascule présente et versionnée : `db/migrations/2026-05-23b_fix_role_constraint.sql` (idempotente, cas A = déjà enum / cas B = text à convertir, avec normalisation `tech` → `technicien` et `partner` → null).
+- **Cartographie des 3 vocabulaires de rôle** (séparés par conception, à ne jamais croiser) :
+  - Enum Postgres `user_role` (12 valeurs : `admin`, `syndic`, `courtier`, `technicien`, `assurance`, `expert`, `entrepreneur`, `plombier`, `electricien`, `toiturier`, `chauffagiste`, `autre_metier`) — **persistance** dans `utilisateurs.role`.
+  - Type TS `RoleUtilisateur` (4 valeurs : `admin`, `syndic`, `courtier`, `technicien`) — **miroir TS volontairement restreint au sous-ensemble humain** (les autres valeurs sont métier et n'ont pas de comptes utilisateurs aujourd'hui).
+  - Type TS `Role` dans `src/lib/auth/roles.ts` (3 valeurs : `admin`, `tech`, `partner`) — **abstraction de routage** dérivée de l'email, sans lien avec la DB. Détermine `pathForRole` et `SUBDOMAIN_FOR_ROLE`.
+- Code TS audité : aucune comparaison ne confronte `utilisateurs.role` à `'tech'` ou `'partner'`. Tous les `role === 'tech'` portent sur la sortie de `roleForEmail()`.
+- Action préventive : commentaire-pivot ajouté en tête de `src/lib/auth/roles.ts` pour expliciter la séparation.
