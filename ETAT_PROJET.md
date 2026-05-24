@@ -1,7 +1,7 @@
 # État du projet FoxO — snapshot fin de session 2026-05-24
 
 - **Date du recap** : 2026-05-24
-- **HEAD git** : `e35be32701833071d4fedf57c8ec2bdfa5942db9`
+- **HEAD git** : `c25f05a`
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
 
@@ -229,7 +229,7 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
   - `src/lib/agents/analyse-pj/analyze-one.ts:86` (analyse_pj)
   - `src/app/tech/interventions/[id]/generate-action.ts:226` (rapport)
 - Aucun cast, aucun `as any`, aucun `@ts-ignore` autour des call sites.
-- Note : 2 conventions de prompt coexistent pour `triage_mail` (avec/sans `system:` séparé, avec/sans `temperature`). Harmonisation reportée à un chantier ultérieur.
+- Note historique : 2 conventions de prompt coexistaient initialement pour `triage_mail`. Harmonisation traitée et close dans le Chantier #5 (2026-05-24).
 
 ### Chantier #2 — Tables relances/notifications/attachments — clos le 2026-05-24
 - Migration `db/migrations/2026-05-16_create_relances_notifications_attachments.sql` appliquée en production le 2026-05-24 (vérifié via Supabase SQL Editor).
@@ -262,3 +262,14 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
   - Type TS `Role` dans `src/lib/auth/roles.ts` (3 valeurs : `admin`, `tech`, `partner`) — **abstraction de routage** dérivée de l'email, sans lien avec la DB. Détermine `pathForRole` et `SUBDOMAIN_FOR_ROLE`.
 - Code TS audité : aucune comparaison ne confronte `utilisateurs.role` à `'tech'` ou `'partner'`. Tous les `role === 'tech'` portent sur la sortie de `roleForEmail()`.
 - Action préventive : commentaire-pivot ajouté en tête de `src/lib/auth/roles.ts` pour expliciter la séparation.
+
+### Chantier #5 — Harmonisation conventions prompt triage_mail — clos le 2026-05-24
+- État entrant : 2 conventions de prompt coexistaient sur les 3 call sites `triage_mail` (audit révélé : divergences sur `system` séparé vs embarqué, `temperature` absente sur 2/3 sites, `max_tokens` hétérogène 4096/2048/1024). Note résiduelle laissée ouverte à la clôture du Chantier #1.
+- Convention cible adoptée : `model = claude-sonnet-4-6`, `max_tokens = 4096`, `temperature = 0`, `system:` séparé (consignes statiques + schéma JSON), `user:` réduit aux données runtime (mail brut + métadonnées).
+- 3 commits, un par call site :
+  - `5f96b9a` — CS3 `src/app/api/admin/mails/[id]/analyze/route.ts` : `max_tokens 1024 → 4096`, split system/user, `temperature: 0`.
+  - `ef4f81b` — CS1 `src/lib/cron/check-mails.ts` (`analyzeMailWithClaude`) : split system/user (persona + contacts récurrents + règles + few-shot + schéma JSON → `system`), `temperature: 0`, adaptation du bloc de logging verbose (`system_chars`/`user_chars` au lieu de `prompt_chars`).
+  - `c25f05a` — CS2 `src/app/api/admin/mails/analyse-deep/route.ts` : `max_tokens 2048 → 4096` (CS2 était déjà conforme sur `system` séparé et `temperature: 0`).
+- Aucun changement de schéma de sortie JSON, aucun changement de parser (`tryParseJson` / `extractJson` inchangés), aucun changement de signature `runAgent`, aucun changement d'`inputSummary` pour les logs `agent_logs`.
+- Bénéfices : extraction déterministe (rejouable, testable), prompt caching côté Anthropic activé via `system` séparé, plafond `max_tokens` uniforme à 4096 (marge confortable, JSON ne sera plus tronqué).
+- Protocole appliqué : audit lecture seule avant chaque patch (1 audit global + 2 micro-audits CS1/CS2), patch chirurgical par `str_replace`, typecheck + diff + validation visuelle avant chaque commit, 1 commit par call site.
