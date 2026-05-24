@@ -149,7 +149,7 @@ ORDER BY i.ref, o.created_at;
 - Dette identifiée à résoudre plus tard : naming alphabétique inverse
   (`c` avant `d`) vs ordre de dépendance d'exécution.
 
-### 2026-05-13 → 2026-05-17 — Chantier #1 AI Observability (en cours)
+### 2026-05-13 → 2026-05-17 — Chantier #1 AI Observability (clos le 2026-05-24)
 - Migration `2026-05-13_create_agent_logs_automation_jobs.sql`
   appliquée : tables `agent_logs` + `automation_jobs` avec RLS
   `FORCE` et politiques `is_admin()`.
