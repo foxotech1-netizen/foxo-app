@@ -624,3 +624,88 @@ export interface AutomationJob {
   error_message: string | null;
   executed_at: string;
 }
+
+// ─── Schéma cible doc 04 — relances / notifications / attachments ──────────
+// Tables créées par migration 2026-05-16_create_relances_notifications_attachments.sql
+// (appliquée en prod le 2026-05-24). Les valeurs CHECK SQL sont strictes —
+// ne pas étendre les unions sans ALTER.
+
+// Relances — suivi des relances envoyées (occupant, paiement, transmission rapport).
+export type RelanceType =
+  | 'confirmation_occupant'
+  | 'paiement'
+  | 'transmission_rapport';
+
+export type RelanceCanal = 'email' | 'sms' | 'appel_telephonique';
+
+export type RelanceEfficacite =
+  | 'confirme'
+  | 'paye'
+  | 'pas_de_reponse'
+  | 'refuse';
+
+export interface Relance {
+  id: string;
+  intervention_id: string | null;
+  facture_id: string | null;
+  occupant_id: string | null;
+  type: RelanceType;
+  niveau: number;                    // 1..5 (CHECK en DB)
+  canal: RelanceCanal;
+  langue: string;
+  contenu: string;
+  envoye_at: string;                 // timestamptz
+  efficacite: RelanceEfficacite | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Notifications — alertes pour les utilisateurs internes (admin, technicien, …).
+export type NotificationType =
+  | 'urgence'
+  | 'confirmation_recue'
+  | 'validation_requise'
+  | 'agent_alerte'
+  | 'info';
+
+export interface Notification {
+  id: string;
+  destinataire_id: string;           // FK utilisateurs(id)
+  intervention_id: string | null;
+  type: NotificationType;
+  titre: string;
+  message: string;
+  lien: string | null;
+  lu: boolean;
+  lu_at: string | null;
+  created_at: string;
+}
+
+// Attachments — pièces jointes liées aux interventions et aux mails entrants.
+export type AttachmentTypeDetecte =
+  | 'declaration_sinistre'
+  | 'pv_constat'
+  | 'photo_degat'
+  | 'devis'
+  | 'rapport_tiers'
+  | 'courrier'
+  | 'autre';
+
+export interface Attachment {
+  id: string;
+  intervention_id: string | null;
+  email_id: string | null;           // pas de FK : table emails non finalisée
+  original_filename: string;
+  new_filename: string | null;
+  mime_type: string;
+  size_bytes: number;                // bigint NOT NULL (CHECK >= 0)
+  drive_url: string | null;
+  drive_file_id: string | null;
+  type_detecte: AttachmentTypeDetecte | null;
+  target_folder: string | null;
+  extracted_data: unknown;           // jsonb NOT NULL (défaut '{}') — typer plus finement plus tard
+  content_summary: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}

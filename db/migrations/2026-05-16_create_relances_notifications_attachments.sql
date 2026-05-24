@@ -2,6 +2,7 @@
 -- Migration 2026-05-16 — Création des tables relances / notifications / attachments
 -- ============================================================================
 -- Chantier #2 : combler le schéma cible (doc 04) avec les 3 tables manquantes.
+-- Appliquée en production le 2026-05-24.
 -- Convention : FORCE ROW LEVEL SECURITY, policies TO authenticated, idempotent.
 -- ============================================================================
 

@@ -10,6 +10,7 @@
 | Module | État | Détail |
 |---|---|---|
 | **Observabilité IA (agent_logs)** | ✅ | Wrapper `runAgent` posé dans `src/lib/observability/`. 5 call sites instrumentés sur les 3 agents canoniques (`triage_mail` ×3, `rapport` ×1, `analyse_pj` ×1). Table `agent_logs` + `automation_jobs` en prod avec RLS hardenée. Conforme à la règle doc 02 §10. |
+| **Schéma cible doc 04 — relances/notifications/attachments** | ✅ | 3 tables créées en prod par migration `2026-05-16_create_relances_notifications_attachments.sql`. RLS `FORCE`, policies admin (et par destinataire pour `notifications`). Types TypeScript miroir dans `src/lib/types/database.ts`. |
 
 ## ✅ CE QUI A ÉTÉ FAIT
 
@@ -228,3 +229,10 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
   - `src/app/tech/interventions/[id]/generate-action.ts:226` (rapport)
 - Aucun cast, aucun `as any`, aucun `@ts-ignore` autour des call sites.
 - Note : 2 conventions de prompt coexistent pour `triage_mail` (avec/sans `system:` séparé, avec/sans `temperature`). Harmonisation reportée à un chantier ultérieur.
+
+### Chantier #2 — Tables relances/notifications/attachments — clos le 2026-05-24
+- Migration `db/migrations/2026-05-16_create_relances_notifications_attachments.sql` appliquée en production le 2026-05-24 (vérifié via Supabase SQL Editor).
+- 3 tables créées avec RLS `ENABLE` + `FORCE ROW LEVEL SECURITY`, policies admin via `is_admin()`, policies par destinataire pour `notifications`, triggers `foxo_set_updated_at()`, CHECK constraints multi-colonnes, index partiels.
+- Compte effectif en prod : attachments (16 col, 1 policy, 5 index), notifications (10 col, 4 policies, 4 index), relances (13 col, 1 policy, 5 index).
+- Types TypeScript miroir ajoutés dans `src/lib/types/database.ts` : `Relance`, `Notification`, `Attachment` + unions `RelanceType`, `RelanceCanal`, `RelanceEfficacite`, `NotificationType`, `AttachmentTypeDetecte`.
+- Aucun code applicatif ne consomme encore ces tables — chantiers futurs : module rappels (relances), notifications admin (notifications), pipeline PJ post-mail (attachments).
