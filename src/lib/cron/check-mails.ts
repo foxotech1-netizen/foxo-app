@@ -341,7 +341,7 @@ export async function analyzeMailWithClaude(
     ? ccPairs.map((p) => `- "${p.name}" <${p.email}>`).join('\n')
     : '(aucun)';
 
-  const userMessage = [
+  const systemPrompt = [
     `Tu es l'assistant opérationnel de FoxO, spécialisé dans la détection de fuites pour des résidences gérées par des syndics à Bruxelles.`,
     ``,
     `Analyse ce mail et extrait TOUTES les informations en JSON strict. Lis TOUT le corps du mail et les CC.`,
@@ -407,18 +407,6 @@ export async function analyzeMailWithClaude(
     `- "syndic" : copropriété, ACP, immeuble, AG, parties communes, gestionnaire`,
     `- "courtier" : assurance, sinistre, police, compagnie, expertise, dégât assuré`,
     `- "particulier" : demande personnelle, maison/appartement perso`,
-    ``,
-    `## EMAIL`,
-    `From    : ${mail.from}`,
-    `Sujet   : ${mail.subject}`,
-    `Date    : ${mail.date}`,
-    `Mots    : ${wordCount}`,
-    ``,
-    `## CC`,
-    ccBlock,
-    ``,
-    `## CORPS DU MAIL`,
-    truncated,
     ``,
     `## SORTIE — UNIQUEMENT ce JSON sans markdown ni backticks`,
     `{`,
@@ -498,6 +486,20 @@ export async function analyzeMailWithClaude(
     `   "autre"            = ne rentre dans aucune catégorie ci-dessus.`,
   ].join('\n');
 
+  const userMessage = [
+    `## EMAIL`,
+    `From    : ${mail.from}`,
+    `Sujet   : ${mail.subject}`,
+    `Date    : ${mail.date}`,
+    `Mots    : ${wordCount}`,
+    ``,
+    `## CC`,
+    ccBlock,
+    ``,
+    `## CORPS DU MAIL`,
+    truncated,
+  ].join('\n');
+
   // Log diagnostique — prompt complet + meta du mail. Activable via
   // CHECK_MAILS_VERBOSE=1 (en prod, garde uniquement les versions
   // résumées pour ne pas saturer Vercel runtime logs).
@@ -509,7 +511,9 @@ export async function analyzeMailWithClaude(
       cc_pairs_count: ccPairs.length,
       body_chars: truncated.length,
       word_count: wordCount,
-      prompt_chars: userMessage.length,
+      system_chars: systemPrompt.length,
+      user_chars: userMessage.length,
+      system: systemPrompt,
       prompt: userMessage,
     });
   } else {
@@ -520,7 +524,8 @@ export async function analyzeMailWithClaude(
       cc_preview: ccBlock.slice(0, 300),
       body_chars: truncated.length,
       word_count: wordCount,
-      prompt_chars: userMessage.length,
+      system_chars: systemPrompt.length,
+      user_chars: userMessage.length,
     });
   }
 
@@ -552,6 +557,8 @@ export async function analyzeMailWithClaude(
         const msg = await client.messages.create({
           model: MODEL,
           max_tokens: MAX_TOKENS,
+          temperature: 0,
+          system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }],
         });
         const block = msg.content[0];
