@@ -11,6 +11,7 @@
 |---|---|---|
 | **Observabilité IA (agent_logs)** | ✅ | Wrapper `runAgent` posé dans `src/lib/observability/`. 5 call sites instrumentés sur les 3 agents canoniques (`triage_mail` ×3, `rapport` ×1, `analyse_pj` ×1). Table `agent_logs` + `automation_jobs` en prod avec RLS hardenée. Conforme à la règle doc 02 §10. |
 | **Schéma cible doc 04 — relances/notifications/attachments** | ✅ | 3 tables créées en prod par migration `2026-05-16_create_relances_notifications_attachments.sql`. RLS `FORCE`, policies admin (et par destinataire pour `notifications`). Types TypeScript miroir dans `src/lib/types/database.ts`. |
+| **Hardening RLS — helpers SECURITY DEFINER** | ✅ | `mon_role()` et `mon_organisation_id()` durcis (STABLE + `SET search_path TO 'public'` + tables préfixées `public.`). Migration `2026-05-24_harden_rls_helpers.sql`. Vulnérabilité d'élévation de privilèges via search_path fermée. |
 
 ## ✅ CE QUI A ÉTÉ FAIT
 
@@ -236,3 +237,13 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 - Compte effectif en prod : attachments (16 col, 1 policy, 5 index), notifications (10 col, 4 policies, 4 index), relances (13 col, 1 policy, 5 index).
 - Types TypeScript miroir ajoutés dans `src/lib/types/database.ts` : `Relance`, `Notification`, `Attachment` + unions `RelanceType`, `RelanceCanal`, `RelanceEfficacite`, `NotificationType`, `AttachmentTypeDetecte`.
 - Aucun code applicatif ne consomme encore ces tables — chantiers futurs : module rappels (relances), notifications admin (notifications), pipeline PJ post-mail (attachments).
+
+### Chantier #3 — Hardening RLS helpers — clos le 2026-05-24
+- Migration `db/migrations/2026-05-24_harden_rls_helpers.sql` appliquée en production le 2026-05-24 (vérifié via Supabase SQL Editor).
+- 2 fonctions durcies : `mon_role()` et `mon_organisation_id()` désormais `STABLE SECURITY DEFINER SET search_path TO 'public'` avec table `public.utilisateurs` explicitement préfixée.
+- `is_admin()` était déjà conforme (vérifié à l'audit) — non touchée par ce chantier.
+- Aucune policy RLS modifiée, signatures et types de retour inchangés. 0 impact code TypeScript (aucun appel `.rpc()` sur ces helpers).
+- Pattern de référence appliqué : `current_utilisateur_id()` (migration `2026-05-11b`).
+- Sujets latents identifiés par l'audit mais NON traités ici (reportés à des chantiers dédiés) :
+  - Drift entre l'enum `user_role` (12 valeurs : `admin`, `technicien`, `syndic`, `courtier`…) et la colonne `utilisateurs.role` (CHECK à 3 valeurs : `admin`, `tech`, `partner`). `mon_role()` lit le texte mais retourne l'enum — risque d'erreurs de cast silencieuses en prod.
+  - Liste d'emails admin hardcodée dans `is_admin()` (`info@foxo.be`, `foxotech1@gmail.com`).
