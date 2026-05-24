@@ -1,9 +1,15 @@
 # État du projet FoxO — snapshot fin de session 2026-05-24
 
 - **Date du recap** : 2026-05-24
-- **HEAD git** : `6197e84172a2d7c39da4276cb261f981e211b6b0`
+- **HEAD git** : `e35be32701833071d4fedf57c8ec2bdfa5942db9`
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
+
+## 3. Modules fonctionnels (état réel)
+
+| Module | État | Détail |
+|---|---|---|
+| **Observabilité IA (agent_logs)** | ✅ | Wrapper `runAgent` posé dans `src/lib/observability/`. 5 call sites instrumentés sur les 3 agents canoniques (`triage_mail` ×3, `rapport` ×1, `analyse_pj` ×1). Table `agent_logs` + `automation_jobs` en prod avec RLS hardenée. Conforme à la règle doc 02 §10. |
 
 ## ✅ CE QUI A ÉTÉ FAIT
 
@@ -206,3 +212,19 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
    paramètres pré-mai (MAX=5, CLAUDE=30s, cron */30).
 3. Instrumenter `safeInsertOccupants` avec un compteur de strip
    pour mesurer la fréquence réelle des cascades PGRST204 en prod.
+
+## Chantiers clos
+
+### Chantier #1 — AI Observability — clos le 2026-05-24
+- Tables `agent_logs` et `automation_jobs` créées en prod (migration `2026-05-13_create_agent_logs_automation_jobs.sql`, idempotente), RLS `FORCE ROW LEVEL SECURITY`, policy `admin_select` `TO authenticated`.
+- Wrapper `runAgent<TOutput>` dans `src/lib/observability/agent-logger.ts` — signature : `(input: AgentRunInput<TOutput>) => Promise<AgentRunResult<TOutput>>`. Dégradation gracieuse si insert log échoue (logId = '', pas de throw).
+- Pricing helper : `src/lib/observability/pricing.ts` (`estimateCostEurCents`, `MODEL_PRICING`).
+- Miroir TypeScript dans `src/lib/types/database.ts` (interfaces `AgentLog`, `AutomationJob`, types `AgentName`, `AgentLogStatus`, `AutomationJobStatus`).
+- 5 call sites Agent canoniques instrumentés :
+  - `src/lib/cron/check-mails.ts:537` (triage_mail, cron)
+  - `src/app/api/admin/mails/[id]/analyze/route.ts:111` (triage_mail, manuel admin)
+  - `src/app/api/admin/mails/analyse-deep/route.ts:397` (triage_mail, deep analysis)
+  - `src/lib/agents/analyse-pj/analyze-one.ts:86` (analyse_pj)
+  - `src/app/tech/interventions/[id]/generate-action.ts:226` (rapport)
+- Aucun cast, aucun `as any`, aucun `@ts-ignore` autour des call sites.
+- Note : 2 conventions de prompt coexistent pour `triage_mail` (avec/sans `system:` séparé, avec/sans `temperature`). Harmonisation reportée à un chantier ultérieur.
