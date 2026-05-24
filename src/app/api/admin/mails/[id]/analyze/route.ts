@@ -6,7 +6,7 @@ import { getMailDetail } from '@/lib/gmail';
 import { runAgent } from '@/lib/observability';
 
 const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 1024;
+const MAX_TOKENS = 4096;
 
 export const dynamic = 'force-dynamic';
 
@@ -76,15 +76,8 @@ export async function POST(
   const bodyText = m.body_text?.trim() ? m.body_text : stripHtml(m.body_html ?? '');
   const truncated = bodyText.slice(0, 6000);
 
-  const userMessage = [
+  const systemPrompt = [
     `Analyse cet email reçu chez FoxO (détection de fuites en Belgique) et extrais les informations utiles pour ouvrir une intervention.`,
-    ``,
-    `## EMAIL`,
-    `From : ${m.from}`,
-    `Sujet : ${m.subject}`,
-    `Date : ${m.date}`,
-    ``,
-    truncated,
     ``,
     `## INSTRUCTIONS DE SORTIE`,
     `Retourne UNIQUEMENT du JSON pur, sans backticks, sans markdown autour, avec ces clés (toutes optionnelles, mets null si absent) :`,
@@ -99,6 +92,15 @@ export async function POST(
     `  "resume": "1-2 phrases pour décrire le problème"`,
     `}`,
     `Aucun champ inventé : si l'info n'est pas explicite dans l'email, mets null.`,
+  ].join('\n');
+
+  const userMessage = [
+    `## EMAIL`,
+    `From : ${m.from}`,
+    `Sujet : ${m.subject}`,
+    `Date : ${m.date}`,
+    ``,
+    truncated,
   ].join('\n');
 
   // CAS B léger : route POST de re-classification, aucun matching dossier
@@ -123,6 +125,8 @@ export async function POST(
         const msg = await client.messages.create({
           model: MODEL,
           max_tokens: MAX_TOKENS,
+          temperature: 0,
+          system: systemPrompt,
           messages: [{ role: 'user', content: userMessage }],
         });
         const block = msg.content[0];
