@@ -414,7 +414,7 @@ export async function POST(request: Request) {
           // (i) Appel Anthropic
           const msg = await client.messages.create({
             model: MODEL,
-            max_tokens: 2048,
+            max_tokens: 4096,
             temperature: 0,
             system: systemPrompt,
             messages: [{ role: 'user', content: `Thread complet :\n${threadText}` }],
