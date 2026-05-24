@@ -30,12 +30,17 @@ const MODEL = 'claude-sonnet-4-6';
 // plusieurs occupants. 1024 → réponse tronquée → unparsable.
 const MAX_TOKENS = 4096;
 
-// Limites runtime — calibrées pour rester sous maxDuration=60s côté
-// Vercel. 2 mails × 20s = 40s pire cas, marge confortable sous le plafond
-// Vercel Hobby 60s.
-const MAX_MAILS_PER_RUN = 2;
+// Limites runtime — chaque étape du pipeline est bornée par un timeout pour
+// rester sous le plafond Vercel Hobby (maxDuration=60s) et éviter le 504
+// FUNCTION_INVOCATION_TIMEOUT. Hotfix 504 récurrent : 1 seul mail par run.
+const MAX_MAILS_PER_RUN = 1;
 const GMAIL_TIMEOUT_MS = 10_000;
 const CLAUDE_TIMEOUT_MS = 20_000;
+// Borne la phase DB de createInterventionFromMail (N round-trips Supabase +
+// cascades de retry interventions×5 / occupants×6) qui n'était protégée par
+// aucun timeout. Sur dépassement : on log, on NE labellise PAS le mail (pas
+// de FOXO_TRAITE) et on continue — le mail est repris au run suivant.
+const DB_TIMEOUT_MS = 30_000;
 
 // Wrapper timeout Promise.race — sert pour les appels où on n'a pas
 // d'AbortController natif (ex: helpers Gmail qui n'exposent pas de
@@ -2001,10 +2006,42 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
       }
 
       if (analysis.est_demande_intervention) {
-        const createRes = await createInterventionFromMail(
-          { id: m.id, from: m.from, subject: m.subject },
-          analysis,
-        );
+        // createInterventionFromMail enchaîne N round-trips DB séquentiels
+        // (match org/délégué/acp/client, detectDoublon, insert intervention
+        // retry ×5, safeInsertOccupants retry ×6) sans abort natif. On le
+        // borne via withTimeout : sur dépassement, withTimeout rejette
+        // `Timeout 30000ms: createInterventionFromMail`.
+        let createRes: Awaited<ReturnType<typeof createInterventionFromMail>>;
+        try {
+          createRes = await withTimeout(
+            createInterventionFromMail(
+              { id: m.id, from: m.from, subject: m.subject },
+              analysis,
+            ),
+            DB_TIMEOUT_MS,
+            'createInterventionFromMail',
+          );
+        } catch (e) {
+          // Deux cas, même issue : on `continue` SANS appeler addLabelToMail,
+          // donc le mail n'est PAS labellisé FOXO_TRAITE et reste is:unread →
+          // requalifié naturellement au prochain run. On distingue le timeout
+          // (message normalisé 'createInterventionFromMail timeout') d'une
+          // exception DB inattendue, uniquement pour le niveau de log.
+          const isTimeout = e instanceof Error
+            && e.message === `Timeout ${DB_TIMEOUT_MS}ms: createInterventionFromMail`;
+          const errMsg = isTimeout
+            ? 'createInterventionFromMail timeout'
+            : (e instanceof Error ? e.message : 'Erreur createInterventionFromMail');
+          if (isTimeout) {
+            console.error('[check-mails] createInterventionFromMail TIMEOUT — mail non labellisé, repris au prochain run', { id: m.id, ms: DB_TIMEOUT_MS });
+          } else {
+            console.error('[check-mails] createInterventionFromMail threw', { id: m.id, msg: errMsg });
+          }
+          result.errors++;
+          result.items.push({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: errMsg });
+          await logMailEntry({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: errMsg });
+          continue;
+        }
         if (!createRes.ok) {
           result.errors++;
           result.items.push({ mail_id: m.id, from: m.from, subject: m.subject, action: 'error', error: createRes.error });
