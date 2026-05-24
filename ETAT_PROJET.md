@@ -1,9 +1,9 @@
-# État du projet FoxO — snapshot fin de session 2026-05-21
+# État du projet FoxO — snapshot fin de session 2026-05-24
 
-- **Date du recap** : 2026-05-21
-- **HEAD git** : `7ddff395df8aba050f69a0751df710a0b8ae3971`
-- **Branche** : `main`
-- **Status** : clean (aligné `origin/main`)
+- **Date du recap** : 2026-05-24
+- **HEAD git** : `f16f351e9774203b99d8ea9d62b0bd5c7f493f43`
+- **Branche** : `claude/friendly-euler-KFC8s`
+- **Status** : clean (aligné `origin/claude/friendly-euler-KFC8s`)
 
 ## ✅ CE QUI A ÉTÉ FAIT
 
@@ -132,3 +132,77 @@ WHERE i.source = 'mail'
   AND i.created_at > NOW() - INTERVAL '24 hours'
 ORDER BY i.ref, o.created_at;
 ```
+
+## 8. Journal des chantiers (depuis 2026-05-11)
+
+### 2026-05-11 → 2026-05-13 — Hardening RLS Supabase
+- Audit RLS complet sur 9 tables coeur, 5 policies upgradées de
+  `TO public` → `TO authenticated` (migration `2026-05-11c`).
+- Création de 14 helpers SECURITY DEFINER + enum `user_role` + table
+  `dossiers_sinistres` (migration `2026-05-11d`).
+- Dette identifiée à résoudre plus tard : naming alphabétique inverse
+  (`c` avant `d`) vs ordre de dépendance d'exécution.
+
+### 2026-05-13 → 2026-05-17 — Chantier #1 AI Observability (en cours)
+- Migration `2026-05-13_create_agent_logs_automation_jobs.sql`
+  appliquée : tables `agent_logs` + `automation_jobs` avec RLS
+  `FORCE` et politiques `is_admin()`.
+- Fichiers TS créés sous `src/lib/observability/` (pricing, agent-logger,
+  automation-logger, index) sur le pattern `createAdminClient`.
+- 8 sites d'appel Anthropic API identifiés : 3 sur Agent 1 (Triage Mail)
+  restent à instrumenter pour satisfaire doc 02 §10.
+
+### 2026-05-17 → 2026-05-20 — Pipeline mails multi-occupants
+- Colonne `mails_analyses.occupants_extraits` (jsonb) ajoutée.
+- `analyse-deep` extrait désormais la liste `occupants[]` typée.
+- UI admin : `ConfirmCreateForm` éditable, `analyses/route` expose
+  `occupants_extraits`, `confirm-and-create` insère via
+  `safeInsertOccupants` (auto-strip cascade ×6 sur colonnes manquantes).
+- Colonnes prod confirmées : 20/20 sur `interventions`, 11/11 sur
+  `occupants` (audit du 2026-05-24).
+
+### 2026-05-20 — Premier fix cron check-mails (commit `7cee927`)
+- 504 FUNCTION_INVOCATION_TIMEOUT sur le cron Vercel.
+- Fix initial : `MAX_MAILS_PER_RUN` 5→2, `CLAUDE_TIMEOUT_MS` 30s→20s,
+  schedule cron `*/30` → `*/10`.
+- Limite identifiée : le fix ne bornait que Claude + Gmail, pas la
+  phase DB (`createInterventionFromMail`).
+
+### 2026-05-24 — Hotfix 504 récurrent (commit `f16f351`)
+**Contexte** : récurrence du 504 sur run #313 malgré le fix de mai. Run
+de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
+
+**Diagnostic** :
+- Cause racine : `createInterventionFromMail` (src/lib/cron/check-mails.ts
+  ligne ~2004) n'avait aucun `withTimeout` contrairement aux 3 autres
+  étapes du pipeline (`getMailDetail`, `analyzeMailWithClaude`,
+  `addLabelToMail`).
+- Amplificateur : cascades de retry sans backoff sur les inserts
+  `interventions` (×5) et `occupants` (×6), déclenchables par
+  PGRST204 (cache PostgREST obsolète après `ALTER TABLE`, fréquent
+  en prod transitoirement post-migration).
+- Schéma prod audité : 20/20 colonnes `interventions` et 11/11 colonnes
+  `occupants` confirmées — pas de colonne manquante.
+
+**Patch** :
+- `MAX_MAILS_PER_RUN` 2 → 1 (marge défensive pendant le drain)
+- Nouvelle constante `DB_TIMEOUT_MS = 30_000`
+- `createInterventionFromMail` enveloppée dans `withTimeout` avec
+  catch local différencié (timeout normalisé vs exception DB
+  inattendue).
+- Sur timeout : log + errors++ + items.push + logMailEntry + continue
+  sans label Gmail → le mail reste `is:unread` et est repris au run
+  suivant.
+
+**Budget post-patch (pire cas par mail)** :
+- getMailDetail 10s + Claude 20s + DB 30s + Label 10s = 70s théorique
+- En pratique Gmail/Label finissent en ~1s → plafond réel ~52s,
+  largement sous les 60s Vercel Hobby.
+
+**TODOs ouverts post-hotfix** :
+1. Remonter `MAX_MAILS_PER_RUN` à 2 après 24-48h de stabilité auto.
+2. Décision business : upgrade Vercel Hobby → Pro ($20/mois) qui
+   ouvrirait `maxDuration = 300s` et permettrait de revert aux
+   paramètres pré-mai (MAX=5, CLAUDE=30s, cron */30).
+3. Instrumenter `safeInsertOccupants` avec un compteur de strip
+   pour mesurer la fréquence réelle des cascades PGRST204 en prod.
