@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { sendEmail } from '@/lib/gmail';
 import { sendSMS, sendWhatsApp, logSmsSend } from '@/lib/sms';
 import { updateCalendarEvent } from '@/lib/google-calendar';
@@ -78,7 +78,7 @@ export async function POST(
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
   const { id: interventionId } = await params;

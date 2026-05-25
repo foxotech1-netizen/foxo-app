@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { sendSMS, sendWhatsApp, logSmsSend, applyTemplateVars } from '@/lib/sms';
 
 export type ActionResult<T = void> =
@@ -12,7 +12,7 @@ export type ActionResult<T = void> =
 async function assertAdmin(): Promise<{ ok: true; email: string | null } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { ok: false, error: 'Accès refusé.' };
   }
   return { ok: true, email: user.email ?? null };

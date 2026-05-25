@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { UtilisateursClient, type UtilisateurRow } from './UtilisateursClient';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export default async function UtilisateursPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     console.warn('[admin/utilisateurs] désynchro auth — layout admin aurait dû filtrer.');
   }
 

@@ -22,7 +22,7 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { getEmailThread } from '@/lib/gmail';
 import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau';
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
@@ -223,7 +223,7 @@ export async function POST(request: Request) {
   // 1. Guard admin
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ success: false, error: 'Accès refusé.' }, { status: 401 });
   }
 

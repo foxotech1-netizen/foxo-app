@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,8 @@ async function authorize(): Promise<
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const role = roleForEmail(user?.email);
-  const isTech = role === 'tech' || role === 'admin';
+  const isAdmin = await isAdminUser();
+  const isTech = role === 'tech' || isAdmin;
   const isTechDB = user
     ? await supabase
         .from('utilisateurs')
@@ -36,7 +38,7 @@ async function authorize(): Promise<
   if (!user || (!isTech && !isTechDB)) {
     return { ok: false, status: 403, error: 'Accès refusé.' };
   }
-  return { ok: true, email: (user.email ?? '').toLowerCase(), isAdmin: role === 'admin' };
+  return { ok: true, email: (user.email ?? '').toLowerCase(), isAdmin };
 }
 
 // GET /api/tech/notes-frais?statut=brouillon

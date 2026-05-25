@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail, pathForRole } from '@/lib/auth/roles';
+import { pathForRole } from '@/lib/auth/roles';
+import { roleForUser } from "@/lib/auth/server";
 import { Logo } from '@/components/Logo';
 import { LoginForm } from './LoginForm';
 
@@ -30,7 +31,7 @@ export default async function LoginPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
-    const role = roleForEmail(user.email);
+    const role = await roleForUser();
     redirect(role ? pathForRole(role) : '/portal');
   }
 

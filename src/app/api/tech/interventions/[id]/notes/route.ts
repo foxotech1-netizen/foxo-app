@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,7 @@ export async function PATCH(
   // utilisateur dont la row utilisateurs porte role = 'technicien'
   // (techs créés en DB sans être hardcodés dans roles.ts).
   const role = roleForEmail(user?.email);
-  const isTech = role === 'tech' || role === 'admin';
+  const isTech = role === 'tech' || (await isAdminUser());
   const isTechDB = user
     ? await supabase
         .from('utilisateurs')

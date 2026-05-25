@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dispatchRapportToSyndic } from '@/lib/rapport/dispatch';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { generateFacturePdf } from '@/lib/pdf/generateFacture';
 import { computeTotals, type FactureItem } from '@/lib/pdf/FacturePdf';
 import { VENDOR } from '@/lib/constants/vendor';
@@ -118,7 +118,7 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024;
 export async function uploadInterventionDocument(formData: FormData): Promise<ActionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { error: 'Accès refusé.' };
   }
 
@@ -179,7 +179,7 @@ export async function deleteInterventionDocument(
 ): Promise<ActionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { error: 'Accès refusé.' };
   }
 
@@ -257,7 +257,7 @@ export async function saveRapportDraftFromAdmin(
 ): Promise<ActionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { error: 'Accès refusé.' };
   }
   if (!interventionId) return { error: 'ID manquant.' };
@@ -284,7 +284,7 @@ export async function saveRapportDraftFromAdmin(
 export async function resendRapportToSyndic(interventionId: string): Promise<ActionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { error: 'Accès refusé.' };
   }
   const res = await dispatchRapportToSyndic(interventionId);
@@ -309,7 +309,7 @@ export type EmitFactureResult =
 export async function emitFacture(input: EmitFactureInput): Promise<EmitFactureResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { error: 'Accès refusé.' };
   }
 
@@ -425,7 +425,7 @@ export async function searchAcpsForIntervention(args: {
 }): Promise<{ ok: true; data: Pick<Acp, 'id' | 'nom' | 'adresse' | 'ville' | 'code_postal'>[] } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { ok: false, error: 'Accès refusé.' };
   }
   const q = (args.query ?? '').trim();

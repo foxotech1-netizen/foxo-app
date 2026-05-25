@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { roleForUser } from "@/lib/auth/server";
 import type { StatutIntervention } from '@/lib/types/database';
 
 // Statuts qui rendent le rapport "publié" — visible par les non-staff.
@@ -94,7 +94,7 @@ export async function checkRapportAccess(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, status: 401, error: 'Authentification requise.' };
 
-  const role = roleForEmail(user.email);
+  const role = await roleForUser();
 
   if (role === 'admin') {
     return { ok: true, statut, via: 'admin' };

@@ -3,6 +3,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { getFoxoSystemPrompt } from '@/lib/prompts/rapport';
 import type { Acp, Intervention, Occupant, Organisation, Utilisateur } from '@/lib/types/database';
 import { runAgent } from '@/lib/observability';
@@ -17,7 +18,7 @@ export type GenerateResult =
 async function assertTechOwner(interventionId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || (roleForEmail(user.email) !== 'tech' && roleForEmail(user.email) !== 'admin')) return { ok: false, error: 'Accès refusé.' };
+  if (!user || (roleForEmail(user.email) !== 'tech' && !(await isAdminUser()))) return { ok: false, error: 'Accès refusé.' };
 
   const { data: u } = await supabase
     .from('utilisateurs')

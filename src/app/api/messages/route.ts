@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ async function resolveCaller(): Promise<
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return { ok: false, error: 'Non connecté.', status: 401 };
 
-  if (roleForEmail(user.email) === 'admin') {
+  if (await isAdminUser()) {
     return { ok: true, isAdmin: true, email: user.email };
   }
 
