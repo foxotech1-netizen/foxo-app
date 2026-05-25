@@ -46,3 +46,66 @@ export async function isAdminUser(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Role applicatif utilisé par la couche routage (proxy, layouts, redirections).
+ * Le mapping depuis utilisateurs.role est :
+ *   'admin'      → 'admin'
+ *   'technicien' → 'tech'
+ *   tout autre, ou pas de row dans utilisateurs (cas partenaire syndic/courtier
+ *   qui vit dans `delegues`)
+ *                → 'partner'
+ */
+export type Role = "admin" | "tech" | "partner";
+
+/**
+ * roleForUser — équivalent DB-backed de roleForEmail() pour la couche routage.
+ *
+ * Répond à : "quel est le rôle applicatif de l'utilisateur de la session courante ?"
+ * en consultant utilisateurs.role (source de vérité, alignée avec public.is_admin()).
+ *
+ * - Retourne 'partner' (défaut sûr) si non connecté, erreur de lecture, ou
+ *   aucune row utilisateurs (cas des partenaires qui vivent dans `delegues`).
+ * - Ne lance jamais d'exception.
+ * - Utilise le client SSR pour récupérer auth.uid() (cookies), puis le client
+ *   admin (service-role) pour lire utilisateurs.role.
+ *
+ * Cette fonction remplace progressivement roleForEmail() dans la couche routage
+ * (proxy, page d'accueil, redirect post-OTP, layouts) — voir sous-étape 3.4b.
+ * roleForEmail reste consommée pour le check 'tech' via TECH_EMAILS, hors scope
+ * du chantier is_admin().
+ *
+ * Note de perf : 1 round-trip DB par appel. Acceptable au regard du trafic
+ * actuel de FoxO. Un futur chantier pourra basculer sur un JWT claim
+ * (app_metadata.role peuplé par un hook Supabase) si la latence le justifie.
+ */
+export async function roleForUser(): Promise<Role> {
+  try {
+    const supabaseSSR = await createServerClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseSSR.auth.getUser();
+
+    if (userError || !user) {
+      return "partner";
+    }
+
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("utilisateurs")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      return "partner";
+    }
+
+    if (data.role === "admin") return "admin";
+    if (data.role === "technicien") return "tech";
+    return "partner";
+  } catch {
+    return "partner";
+  }
+}
