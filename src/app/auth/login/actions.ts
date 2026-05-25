@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { ADMIN_EMAILS, TECH_EMAILS, pathForRole } from '@/lib/auth/roles';
+import { TECH_EMAILS, pathForRole } from '@/lib/auth/roles';
 import { roleForUserId } from "@/lib/auth/server";
 
 export type AuthState = { error?: string; sentTo?: string };
@@ -44,16 +44,14 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
   // Whitelist applicative — bloque les signups sauvages, indépendamment du
   // toggle Supabase « Allow new users to sign up » (qu'on peut donc laisser
   // activé). Trois sources d'autorité, dans l'ordre :
-  //   1. Whitelists hardcodées de roles.ts (admins + techniciens) — court-
-  //      circuit, jamais bloqués (bouclier de récupération).
+  //   1. Whitelist hardcodée de roles.ts (techniciens uniquement — les admins
+  //      passent par le gate DB ci-dessous) — court-circuit (bouclier tech).
   //   2. Table public.utilisateurs filtrée sur actif=true. Soft delete via
   //      le toggle « Désactiver » d'/admin/techniciens → bloqué au login.
   //   3. Table public.delegues filtrée sur actif=true — partenaire
   //      désactivé = bloqué au login (toggle dans le drawer syndic).
   // shouldCreateUser reste à true : la whitelist DB est le seul gate.
-  const isHardcoded =
-    (ADMIN_EMAILS as readonly string[]).includes(email)
-    || (TECH_EMAILS as readonly string[]).includes(email);
+  const isHardcoded = (TECH_EMAILS as readonly string[]).includes(email);
   if (!isHardcoded) {
     const admin = createAdminClient();
     // 2. utilisateurs (techniciens et autres comptes internes)
