@@ -20,7 +20,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { analyseAttachments } from '@/lib/agents/analyse-pj';
 import type { AnalyseInput } from '@/lib/agents/analyse-pj';
 
@@ -33,8 +33,7 @@ export async function POST(req: Request) {
   if (!user?.email) {
     return NextResponse.json({ ok: false, error: 'Non authentifié.' }, { status: 401 });
   }
-  const role = await roleForEmail(user.email);
-  if (role !== 'admin') {
+  if (!(await isAdminUser())) {
     return NextResponse.json({ ok: false, error: 'Accès admin requis.' }, { status: 403 });
   }
 
