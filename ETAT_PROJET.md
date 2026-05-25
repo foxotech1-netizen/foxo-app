@@ -1,9 +1,10 @@
-# État du projet FoxO — snapshot fin de session 2026-05-24
+# État du projet FoxO — snapshot fin de session 2026-05-25
 
-- **Date du recap** : 2026-05-24
-- **HEAD git** : `c25f05a`
+- **Date du recap** : 2026-05-25
+- **HEAD git** : `3312cac` (merge commit PR #3)
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
+- **Production** : déployée par Vercel sur push `main`, validée runtime sur deux Previews (post-3.4b et post-3.5)
 
 ## 3. Modules fonctionnels (état réel)
 
@@ -77,26 +78,26 @@ Décisions structurantes :
 ## 🧾 20 DERNIERS COMMITS
 
 ```
-7ddff39 feat(mails): wire confirm-and-create to insert occupants via safeInsertOccupants
-31470ee feat(mails): editable occupants list in ConfirmCreateForm
-77deb63 feat(mails): expose occupants_extraits to admin UI via analyses route
-68b6727 docs(state): snapshot end of session 2026-05-20 — A1 + 1.a livrées, plan global 4 étapes
-05a8a3b feat(mails): extract occupants[] in analyse-deep and store in occupants_extraits
-9698d36 feat(db): add mails_analyses.occupants_extraits jsonb column
-565e5a7 fix(mails): write sujet/expediteur/recu_le on mails_analyses upsert in analyse-deep
-53e42d8 chore(db): version mails_analyses sujet/expediteur/recu_le columns (already in prod)
-5c310d7 feat(devops): pre-push hook tsc --noEmit (Husky v9)
-c920958 feat(observability): structured trace in errors[] for PJ pipeline (chantier #4, doc 02 §11)
-afdda98 chore(db): version partial unique index on interventions.ref (chantier #5)
-a162776 refactor(interventions/ref): single source of truth via nextRefForYear (chantier #5)
-d7ecf25 fix(mails/chantier#4): unblock Vercel build for Agent 1 -> Agent 2 wiring
-91f03ab feat(db): add contact_telephone and contact_email on interventions
-8102bc2 feat(mails): branchement Agent 1 -> Agent 2 dans confirm-and-create (chantier #4)
-b50c5b8 docs(etat-projet): close chantier #3 (Agent 2 — Analyse PJ)
-433125a feat(agents/analyse-pj): drive upload + row update post-analyse (chantier #3 step 3)
-35c173b feat(agents/analyse-pj): scaffold module + admin analyse API v2 (chantier #3 step 2)
-c63d435 feat(agents/analyse-pj): scaffold module + admin analyse API (chantier #3 step 2)
-a96fa26 docs(etat-projet): close chantier #2 (tables relances/notifications/attachments)
+3312cac Merge pull request #3 from foxotech1-netizen/claude/lucid-ritchie-cqKIY
+57a22a9 refactor(auth): remove ADMIN_EMAILS + SUBDOMAIN_FOR_ROLE, migrate tech||admin checks
+f56d688 refactor(auth): remove ADMIN_EMAILS from sendOtp's isHardcoded gate shortcut
+f1fe5e8 refactor(auth): migrate 5 routing/access call-sites to roleForUser/roleForUserId
+315a019 feat(auth): add roleForUserId(userId) middleware-compatible helper
+a7fe5e9 feat(auth): add roleForUser() server helper backed by utilisateurs.role
+f203001 refactor(auth): migrate 3 atypical admin gates missed by 3.3b grep
+ecc62f5 refactor(auth): migrate inline roleForEmail!=='admin' checks to isAdminUser()
+c2c9d32 refactor(auth): 10 local assertAdmin functions now check via isAdminUser()
+e0d4ba2 refactor(auth): assertAdmin() now uses isAdminUser() instead of ADMIN_EMAILS whitelist
+9e1cde0 feat(auth): add isAdminUser() server helper backed by utilisateurs.role
+df8898b feat(db): switch is_admin() from email whitelist to utilisateurs.role
+5e252da feat(db): seed 2 admin users in utilisateurs table
+fd287fb docs(audits): archive audit is_admin() refacto (2026-05-24)
+62fdc9b docs(etat): clôture Chantier #5 — harmonisation conventions prompt triage_mail
+c25f05a refactor(mails): align CS2 analyse-deep max_tokens 2048 -> 4096 (triage_mail convention)
+ef4f81b refactor(mails): align CS1 check-mails on triage_mail prompt convention
+5f96b9a refactor(mails): align CS3 analyze on triage_mail prompt convention
+8b2596e docs(roles): clôture Chantier #4 — drift user_role infirmé + cartographie 3 vocabulaires
+7b7a94f feat(rls): harden mon_role/mon_organisation_id avec STABLE + search_path figé
 ```
 
 ## 🔁 RAPPEL PROTOCOLE
@@ -273,3 +274,35 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 - Aucun changement de schéma de sortie JSON, aucun changement de parser (`tryParseJson` / `extractJson` inchangés), aucun changement de signature `runAgent`, aucun changement d'`inputSummary` pour les logs `agent_logs`.
 - Bénéfices : extraction déterministe (rejouable, testable), prompt caching côté Anthropic activé via `system` séparé, plafond `max_tokens` uniforme à 4096 (marge confortable, JSON ne sera plus tronqué).
 - Protocole appliqué : audit lecture seule avant chaque patch (1 audit global + 2 micro-audits CS1/CS2), patch chirurgical par `str_replace`, typecheck + diff + validation visuelle avant chaque commit, 1 commit par call site.
+
+### Chantier #6 — Refacto `is_admin()` : retrait de la whitelist ADMIN_EMAILS — clos le 2026-05-25
+
+- **État entrant** : autorisation admin dérivée d'une whitelist d'emails en dur (`ADMIN_EMAILS`, `SUBDOMAIN_FOR_ROLE`) répandue sur ~80 call-sites côté TS et dans la fonction SQL `public.is_admin()`. Source de vérité dupliquée et non testable.
+
+- **Cible** : table `utilisateurs.role` comme unique source de vérité pour toute décision d'autorisation admin, côté SQL et côté TS.
+
+- **Ce qui a été fait** :
+  - Migration SQL `db/migrations/2026-05-25_switch_is_admin_to_utilisateurs_role.sql` — bascule `public.is_admin()` sur `utilisateurs.role = 'admin'` (commit `df8898b`).
+  - Nouveau helper `src/lib/auth/server.ts` — `isAdminUser()` + `roleForUser()` + `roleForUserId(userId)` middleware-compatible (commits `9e1cde0`, `a7fe5e9`, `315a019`).
+  - `assertAdmin()` consomme désormais `isAdminUser()` (commit `e0d4ba2`).
+  - 10 fonctions locales `assertAdmin` migrées par effet de levier (~70 call-sites, commit `c2c9d32`).
+  - 64 checks inline `roleForEmail !== 'admin'` migrés vers `isAdminUser()` (commit `ecc62f5`).
+  - 3 gates admin atypiques manqués par le grep mécanique, attrapés par audit C.3 (commit `f203001`).
+  - 5 consommateurs routage migrés vers `roleForUser` / `roleForUserId` : proxy, page racine, login actions/page, accès rapport (commit `f1fe5e8`).
+  - Login OTP gate ne consulte plus `ADMIN_EMAILS` (commit `f56d688`).
+  - Retrait final `ADMIN_EMAILS` + `SUBDOMAIN_FOR_ROLE` + migration `tech||admin` sur 15 fichiers (commit `57a22a9`).
+  - Merge dans `main` via PR #3 le 2026-05-25 (merge commit `3312cac`).
+
+- **Défense en profondeur post-merge** : plus aucune whitelist d'emails admin en dur dans le codebase. Tous les chemins admin lisent `utilisateurs.role` :
+  - SQL `public.is_admin()` → `utilisateurs.role = 'admin'`
+  - TS `isAdminUser()` → `utilisateurs.role = 'admin'`
+  - TS `roleForUser()` / `roleForUserId()` → `utilisateurs.role` mappé en `Role`
+  - Login OTP gate → `utilisateurs WHERE email AND actif = true`
+
+- **Validation** : `tsc --noEmit` vert (hook pre-push), `next build` vert (validation bundle middleware post-3.4a-bis), deux tests runtime sur Preview Vercel (post-3.4b et post-3.5, login admin → `/admin` accessible).
+
+- **Note opérationnelle** : le break-glass admin par variable d'env est mort. Recovery en cas de désactivation accidentelle de tous les admins dans `utilisateurs` = re-exécuter `db/migrations/2026-05-24b_seed_admin_users.sql` depuis le SQL Editor Supabase (idempotent).
+
+- **Hors-scope laissés explicitement de côté** : `roleForEmail` dérive encore `'tech'` via `TECH_EMAILS` (chantier équivalent à faire pour les techs si on veut zéro whitelist email) ; JWT claim `app_metadata.role` pour éliminer le round-trip DB du proxy (optimisation perf, pas de besoin actuel).
+
+- **Protocole appliqué** : 4 audits lecture seule défensifs avant chaque étape risquée, contre-vérification exhaustive C.3, validation `next build` séparée de `tsc --noEmit` pour le middleware, deux validations runtime Preview Vercel avant merge. 11 commits granulaires, 0 régression détectée.
