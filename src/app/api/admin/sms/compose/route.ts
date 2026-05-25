@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import { formatBelgianPhone } from '@/lib/sms';
+import { runAgent } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -133,19 +134,41 @@ export async function POST(request: Request) {
 
   let smsBody: string;
   try {
-    const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
+    const { output } = await runAgent<string>({
+      agentName: 'sms_compose',
+      agentKind: 'utility',
       model: MODEL,
-      max_tokens: 200,
-      temperature: 0.3,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      interventionId: analyse.dossier_match_id ?? null,
+      inputSummary: {
+        has_creneau:        creneauInfo !== null,
+        has_adresse:        dossierAdresse !== null,
+        prompt_user_chars:  userPrompt.length,
+      },
+      run: async () => {
+        const client = new Anthropic({ apiKey });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: 200,
+          temperature: 0.3,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        });
+        const block = msg.content[0];
+        let text = block && block.type === 'text' ? block.text.trim() : '';
+        if (!text) throw new Error('Réponse Claude vide.');
+        // Strip guillemets éventuels (Claude en met parfois malgré la consigne)
+        text = text.replace(/^["']|["']$/g, '').trim();
+        return {
+          message: msg,
+          output: text,
+          outputSummary: {
+            sms_chars:       text.length,
+            sms_over_limit:  text.length > 160,
+          },
+        };
+      },
     });
-    const block = msg.content[0];
-    smsBody = block && block.type === 'text' ? block.text.trim() : '';
-    if (!smsBody) throw new Error('Réponse Claude vide.');
-    // Strip guillemets éventuels (Claude en met parfois malgré la consigne)
-    smsBody = smsBody.replace(/^["']|["']$/g, '').trim();
+    smsBody = output;
   } catch (e) {
     return NextResponse.json(
       { success: false, error: `Anthropic : ${e instanceof Error ? e.message : 'inconnu'}` },
