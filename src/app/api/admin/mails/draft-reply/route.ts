@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import { getEmailThread, createGmailDraft } from '@/lib/gmail';
+import { runAgent } from '@/lib/observability';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -182,17 +183,45 @@ export async function POST(request: Request) {
 
   let bodyText: string;
   try {
-    const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
+    const { output } = await runAgent<string>({
+      agentName: 'draft_reply',
+      agentKind: 'utility',
       model: MODEL,
-      max_tokens: 600,
-      temperature: 0.5,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      interventionId: analyse.dossier_match_id ?? null,
+      inputSummary: {
+        target,
+        langue:             langueSpoken,
+        has_dossier:        dossier !== null,
+        has_creneau:        creneauInfo !== null,
+        has_syndic_nom:     syndicNom !== null,
+        has_resume:         analyse.resume !== null && analyse.resume !== '',
+        prompt_user_chars:  userPrompt.length,
+      },
+      run: async () => {
+        const client = new Anthropic({ apiKey });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: 600,
+          temperature: 0.5,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        });
+        const block = msg.content[0];
+        const text = block && block.type === 'text' ? block.text.trim() : '';
+        if (!text) throw new Error('Réponse Claude vide.');
+        const wordCount = text.split(/\s+/).filter(Boolean).length;
+        return {
+          message: msg,
+          output: text,
+          outputSummary: {
+            body_chars:         text.length,
+            body_words:         wordCount,
+            body_over_150_words: wordCount > 150,
+          },
+        };
+      },
     });
-    const block = msg.content[0];
-    bodyText = block && block.type === 'text' ? block.text.trim() : '';
-    if (!bodyText) throw new Error('Réponse Claude vide.');
+    bodyText = output;
   } catch (e) {
     return NextResponse.json(
       { success: false, error: `Anthropic : ${e instanceof Error ? e.message : 'inconnu'}` },
