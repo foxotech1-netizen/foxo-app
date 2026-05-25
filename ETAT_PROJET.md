@@ -307,7 +307,7 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 
 - **Protocole appliqué** : 4 audits lecture seule défensifs avant chaque étape risquée, contre-vérification exhaustive C.3, validation `next build` séparée de `tsc --noEmit` pour le middleware, deux validations runtime Preview Vercel avant merge. 11 commits granulaires, 0 régression détectée.
 
-### Chantier #7 — AI Observability étendue — code complet 2026-05-25, PR en cours
+### Chantier #7 — AI Observability étendue — clos le 2026-05-25
 
 **Branche** : `claude/observ-utility-agents` — HEAD `4e6c361` (7 commits depuis `main`, PR à ouvrir → `main`)
 
