@@ -21,3 +21,5 @@ export type {
   AutomationRunResult,
   AutomationStatus,
 } from "./automation-logger";
+
+export * from "./queries";

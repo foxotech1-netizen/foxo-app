@@ -1,16 +1,22 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { fmtDateTime } from '@/lib/format';
+import {
+  getObservabilityStats,
+  type ObservabilityPeriod,
+} from '@/lib/observability/queries';
 import type { AgentLog, AutomationJob } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
 
-// URL filtres (valeurs DB littérales) :
-//   ?agent=<triage_mail|analyse_pj|rapport>&agent_status=<success|error|partial|all>
-//   ?automation=<check_mails|rappel_j1|renew_calendar_watch>&auto_status=<success|failed|skipped|all>
+// URL filtres :
+//   ?period=<7d|30d|90d|all>                       (défaut 7d, scope global de la page)
+//   ?agent=<triage_mail|analyse_pj|rapport|...>    (filtre table brute Agents IA)
+//   ?agent_status=<success|error|partial|all>      (filtre statut table brute Agents IA)
+//   ?automation=<check_mails|rappel_j1|...>        (filtre table Automatisations)
+//   ?auto_status=<success|failed|skipped|all>      (filtre statut table Automatisations)
 // NB DB : agent_logs.status utilise 'error' (pas 'failed'), automation_jobs
-// utilise 'failed'. Le lien "Échecs" sous chaque tableau pointe sur la
-// valeur DB correspondante.
+// utilise 'failed'. Le lien "Échecs" sous chaque tableau pointe sur la valeur DB.
 
 const fmtCostEur = (cents: number) =>
   new Intl.NumberFormat('fr-BE', { style: 'currency', currency: 'EUR' }).format(cents / 100);
@@ -37,7 +43,18 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// Lien de filtre : actif → fond navy-pale + navy gras ; inactif → ink-muted.
+function KindBadge({ kind }: { kind: 'canonical' | 'utility' }) {
+  const cls =
+    kind === 'canonical'
+      ? 'bg-navy-pale text-navy'
+      : 'bg-sand-mid text-ink-muted';
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>
+      {kind}
+    </span>
+  );
+}
+
 function FilterLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
   const base = 'px-2.5 py-1 rounded-md text-xs transition-colors';
   const cls = active
@@ -46,14 +63,36 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
   return <Link href={href} className={cls}>{children}</Link>;
 }
 
-// Normalise un searchParam Next 16 (qui peut être string | string[] | undefined)
-// en string | undefined — on prend la 1re valeur si tableau.
 function param(v: string | string[] | undefined): string | undefined {
   if (Array.isArray(v)) return v[0];
   return v;
 }
 
+function parsePeriod(v: string | undefined): ObservabilityPeriod {
+  if (v === '30d' || v === '90d' || v === 'all') return v;
+  return '7d';
+}
+
+function periodLabel(p: ObservabilityPeriod): string {
+  switch (p) {
+    case '7d': return '7 derniers jours';
+    case '30d': return '30 derniers jours';
+    case '90d': return '90 derniers jours';
+    case 'all': return 'depuis le début';
+  }
+}
+
+function periodCutoffIso(p: ObservabilityPeriod): string | null {
+  switch (p) {
+    case '7d': return new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+    case '30d': return new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+    case '90d': return new Date(Date.now() - 90 * 24 * 3600_000).toISOString();
+    case 'all': return null;
+  }
+}
+
 type SearchParamsRaw = {
+  period?: string | string[];
   agent?: string | string[];
   agent_status?: string | string[];
   automation?: string | string[];
@@ -66,20 +105,22 @@ export default async function ObservabilitePage({
   searchParams: Promise<SearchParamsRaw>;
 }) {
   const sp = await searchParams;
+  const period = parsePeriod(param(sp.period));
   const agentFilter = param(sp.agent);
   const agentStatus = param(sp.agent_status);
   const automationFilter = param(sp.automation);
   const autoStatus = param(sp.auto_status);
 
   const supabase = await createClient();
-  const cutoff24h = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const cutoffIso = periodCutoffIso(period);
 
-  // Tableau agents — filtres URL appliqués si présents.
+  // Tableau agents (brut) — filtres URL appliqués si présents + scope période.
   let agentLogsQuery = supabase
     .from('agent_logs')
     .select('id, agent_name, intervention_id, email_id, input_summary, output_summary, model_used, tokens_input, tokens_output, cost_eur_cents, duration_ms, status, error_message, confidence_score, created_at')
     .order('created_at', { ascending: false })
     .limit(50);
+  if (cutoffIso) agentLogsQuery = agentLogsQuery.gte('created_at', cutoffIso);
   if (agentFilter && agentFilter !== 'all') {
     agentLogsQuery = agentLogsQuery.eq('agent_name', agentFilter);
   }
@@ -87,12 +128,13 @@ export default async function ObservabilitePage({
     agentLogsQuery = agentLogsQuery.eq('status', agentStatus);
   }
 
-  // Tableau automations — filtres URL appliqués si présents.
+  // Tableau automations — filtres URL appliqués si présents + scope période.
   let autoJobsQuery = supabase
     .from('automation_jobs')
     .select('id, automation_name, intervention_id, action, result, status, error_message, executed_at')
     .order('executed_at', { ascending: false })
     .limit(50);
+  if (cutoffIso) autoJobsQuery = autoJobsQuery.gte('executed_at', cutoffIso);
   if (automationFilter && automationFilter !== 'all') {
     autoJobsQuery = autoJobsQuery.eq('automation_name', automationFilter);
   }
@@ -100,29 +142,22 @@ export default async function ObservabilitePage({
     autoJobsQuery = autoJobsQuery.eq('status', autoStatus);
   }
 
-  // 4 requêtes parallèles : 2 datasets KPI 24h + 2 tableaux filtrés.
-  // Les KPIs sont réduits côté JS (PostgREST ne supporte pas SUM nativement
-  // sans RPC, et fetch les rows reste cheap sur 24h).
-  const [kpiAgentsRes, kpiAutosRes, agentLogsRes, autoJobsRes] = await Promise.all([
-    supabase
-      .from('agent_logs')
-      .select('status, cost_eur_cents')
-      .gte('created_at', cutoff24h),
-    supabase
-      .from('automation_jobs')
-      .select('status')
-      .gte('executed_at', cutoff24h),
+  // 1 lecture agrégée (queries.ts) + 1 KPI autos + 2 tableaux filtrés.
+  const [statsAgents, kpiAutosRes, agentLogsRes, autoJobsRes] = await Promise.all([
+    getObservabilityStats(period),
+    cutoffIso
+      ? supabase.from('automation_jobs').select('status').gte('executed_at', cutoffIso)
+      : supabase.from('automation_jobs').select('status'),
     agentLogsQuery,
     autoJobsQuery,
   ]);
 
-  const kpiAgents = (kpiAgentsRes.data ?? []) as { status: string; cost_eur_cents: number | null }[];
   const kpiAutos = (kpiAutosRes.data ?? []) as { status: string }[];
 
-  const agentTotal = kpiAgents.length;
-  const agentErrors = kpiAgents.filter((r) => r.status !== 'success').length;
+  const agentTotal = statsAgents.total_calls;
+  const agentErrors = statsAgents.total_errors;
   const agentErrorRate = agentTotal === 0 ? 0 : Math.round((agentErrors / agentTotal) * 100);
-  const agentCostCents = kpiAgents.reduce((sum, r) => sum + (r.cost_eur_cents ?? 0), 0);
+  const agentCostCents = statsAgents.total_cost_eur_cents;
 
   const autoTotal = kpiAutos.length;
   const autoFailed = kpiAutos.filter((r) => r.status === 'failed').length;
@@ -131,15 +166,19 @@ export default async function ObservabilitePage({
   const agentLogs = (agentLogsRes.data ?? []) as AgentLog[];
   const autoJobs = (autoJobsRes.data ?? []) as AutomationJob[];
 
-  // Helpers de construction d'URL préservant les autres params.
-  function buildHref(overrides: Partial<{ agent: string; agent_status: string; automation: string; auto_status: string }>): string {
+  // Construit une URL préservant TOUS les params, à l'exception de ceux overridés.
+  function buildHref(
+    overrides: Partial<{ period: ObservabilityPeriod; agent: string; agent_status: string; automation: string; auto_status: string }>,
+  ): string {
     const params = new URLSearchParams();
     const merged = {
+      period: 'period' in overrides ? overrides.period : period,
       agent: 'agent' in overrides ? overrides.agent : agentFilter,
       agent_status: 'agent_status' in overrides ? overrides.agent_status : agentStatus,
       automation: 'automation' in overrides ? overrides.automation : automationFilter,
       auto_status: 'auto_status' in overrides ? overrides.auto_status : autoStatus,
     };
+    if (merged.period && merged.period !== '7d') params.set('period', merged.period);
     if (merged.agent && merged.agent !== 'all') params.set('agent', merged.agent);
     if (merged.agent_status && merged.agent_status !== 'all') params.set('agent_status', merged.agent_status);
     if (merged.automation && merged.automation !== 'all') params.set('automation', merged.automation);
@@ -158,24 +197,89 @@ export default async function ObservabilitePage({
           <h1 className="fxs-page-title mb-1">Observabilité IA</h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            Fenêtre 24h • {agentTotal} appels agents • {autoTotal} jobs autos
+            {periodLabel(period)} • {agentTotal} appels agents • {autoTotal} jobs autos
           </div>
+        </div>
+        <div className="flex gap-1">
+          <FilterLink href={buildHref({ period: '7d' })} active={period === '7d'}>7j</FilterLink>
+          <FilterLink href={buildHref({ period: '30d' })} active={period === '30d'}>30j</FilterLink>
+          <FilterLink href={buildHref({ period: '90d' })} active={period === '90d'}>90j</FilterLink>
+          <FilterLink href={buildHref({ period: 'all' })} active={period === 'all'}>tout</FilterLink>
         </div>
       </div>
 
       <div className="space-y-6">
         {/* Bandeau KPI */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Appels agents 24h" value={String(agentTotal)} />
-          <KpiCard label="Taux erreur agents 24h" value={`${agentErrorRate}%`} accent={agentErrorRate > 10 ? 'red' : 'neutral'} />
-          <KpiCard label="Coût agents 24h" value={fmtCostEur(agentCostCents)} />
-          <KpiCard label="Taux failed autos 24h" value={`${autoFailedRate}%`} accent={autoFailedRate > 10 ? 'red' : 'neutral'} />
+          <KpiCard label="Appels agents" value={String(agentTotal)} />
+          <KpiCard label="Taux erreur agents" value={`${agentErrorRate}%`} accent={agentErrorRate > 10 ? 'red' : 'neutral'} />
+          <KpiCard label="Coût agents" value={fmtCostEur(agentCostCents)} />
+          <KpiCard label="Taux failed autos" value={`${autoFailedRate}%`} accent={autoFailedRate > 10 ? 'red' : 'neutral'} />
         </div>
 
-        {/* Section Agents IA */}
+        {/* Section : Stats par agent (NOUVEAU) */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-ink">Agents IA</h2>
+            <h2 className="text-base font-bold text-ink">Par agent</h2>
+            <span className="text-[10px] text-ink-muted italic">
+              Tous les agents connus apparaissent, même à 0 sur la période.
+            </span>
+          </div>
+
+          <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-sand">
+                  {['Agent', 'Type', 'Appels', 'Erreurs', 'Taux erreur', 'Coût', 'Durée moy.'].map((h) => (
+                    <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {statsAgents.by_agent.map((row) => {
+                  const taux = row.nb_calls === 0
+                    ? null
+                    : Math.round((row.nb_errors / row.nb_calls) * 100);
+                  return (
+                    <tr key={row.agent_name} className="border-b border-sand-mid hover:bg-sand-hover">
+                      <td className="px-3.5 py-3 text-[12px] font-mono">
+                        <Link
+                          href={buildHref({ agent: row.agent_name, agent_status: 'all' })}
+                          className="hover:underline text-navy"
+                        >
+                          {row.agent_name}
+                        </Link>
+                      </td>
+                      <td className="px-3.5 py-3"><KindBadge kind={row.agent_kind} /></td>
+                      <td className="px-3.5 py-3 text-[12px] font-mono text-ink whitespace-nowrap">{row.nb_calls}</td>
+                      <td className="px-3.5 py-3 text-[12px] font-mono whitespace-nowrap">
+                        <span className={row.nb_errors > 0 ? 'text-[var(--color-terra)] font-semibold' : 'text-ink-mid'}>
+                          {row.nb_errors}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                        {taux == null ? '—' : `${taux}%`}
+                      </td>
+                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                        {fmtCostEur(row.total_cost_eur_cents)}
+                      </td>
+                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                        {row.avg_duration_ms == null ? '—' : `${row.avg_duration_ms}ms`}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Section Agents IA (table brute) */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold text-ink">Agents IA (détails)</h2>
             <div className="flex gap-1">
               <FilterLink href={buildHref({ agent_status: 'all' })} active={agentStatusActive === 'all'}>Tous</FilterLink>
               <FilterLink href={buildHref({ agent_status: 'success' })} active={agentStatusActive === 'success'}>Réussis</FilterLink>
@@ -234,7 +338,7 @@ export default async function ObservabilitePage({
               </table>
             </div>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes.</p>
+          <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
         </section>
 
         {/* Section Automatisations */}
@@ -296,7 +400,7 @@ export default async function ObservabilitePage({
               </table>
             </div>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes.</p>
+          <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
         </section>
       </div>
     </>
