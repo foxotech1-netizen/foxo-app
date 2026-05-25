@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { uploadPhoto } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   // utilisateur dont la row utilisateurs porte role = 'technicien'
   // (techs créés en DB sans être hardcodés dans roles.ts).
   const role = roleForEmail(user?.email);
-  const isTech = role === 'tech' || role === 'admin';
+  const isTech = role === 'tech' || (await isAdminUser());
   const isTechDB = user
     ? await supabase
         .from('utilisateurs')

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
   // utilisateur dont la row utilisateurs porte role = 'technicien'
   // (techs créés en DB sans être hardcodés dans roles.ts).
   const role = roleForEmail(user?.email);
-  const isTech = role === 'tech' || role === 'admin';
+  const isAdmin = await isAdminUser();
+  const isTech = role === 'tech' || isAdmin;
   const isTechDB = user
     ? await supabase
         .from('utilisateurs')
@@ -109,7 +111,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Note introuvable.' }, { status: 404 });
     }
     const owner = (noteRow.technicien_email as string | null ?? '').toLowerCase();
-    if (owner !== email && role !== 'admin') {
+    if (owner !== email && !isAdmin) {
       return NextResponse.json({ ok: false, error: 'Note non assignée.' }, { status: 403 });
     }
     const { error: patchErr } = await admin

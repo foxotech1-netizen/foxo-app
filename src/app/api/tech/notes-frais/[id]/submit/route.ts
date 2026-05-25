@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,8 @@ export async function POST(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const role = roleForEmail(user?.email);
-  const isTech = role === 'tech' || role === 'admin';
+  const isAdmin = await isAdminUser();
+  const isTech = role === 'tech' || isAdmin;
   const isTechDB = user
     ? await supabase
         .from('utilisateurs')
@@ -42,7 +44,7 @@ export async function POST(
     .eq('id', id)
     .maybeSingle();
   if (!row) return NextResponse.json({ ok: false, error: 'Note introuvable.' }, { status: 404 });
-  if (role !== 'admin' && (row.technicien_email as string | null ?? '').toLowerCase() !== email) {
+  if (!isAdmin && (row.technicien_email as string | null ?? '').toLowerCase() !== email) {
     return NextResponse.json({ ok: false, error: 'Note non assignée.' }, { status: 403 });
   }
   if (row.statut !== 'brouillon') {

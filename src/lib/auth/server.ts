@@ -15,8 +15,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *   puis le client admin (service-role) pour lire utilisateurs.role
  *   afin d'éviter toute dépendance RLS récursive.
  *
- * Cette fonction sera consommée par assertAdmin() (sous-étape 3.2) et
- * remplace progressivement les checks inline `roleForEmail(...) !== 'admin'`.
+ * Consommée par assertAdmin() et par les checks d'autorisation admin des
+ * routes/actions, qui s'appuyaient auparavant sur une whitelist d'emails en
+ * dur (désormais retirée).
  */
 export async function isAdminUser(): Promise<boolean> {
   try {

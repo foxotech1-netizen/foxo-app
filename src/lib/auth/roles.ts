@@ -2,12 +2,16 @@
 // Source unique de vérité — toute redirection ou autorisation passe par ici.
 
 /**
- * Type `Role` — abstraction de ROUTAGE applicatif.
+ * Type `Role` — abstraction de ROUTAGE applicatif (3 valeurs :
+ * 'admin' | 'tech' | 'partner'). Sert uniquement à décider où router
+ * (`/admin`, `/tech`, `/portal`).
  *
- * IMPORTANT : ce type a TROIS valeurs ('admin' | 'tech' | 'partner') et il est
- * dérivé de l'EMAIL de l'utilisateur via `roleForEmail()`. Il sert uniquement
- * à décider où router (`/admin`, `/tech`, `/portal`) et quel sous-domaine
- * activer (`SUBDOMAIN_FOR_ROLE`).
+ * Source du rôle :
+ *   - 'admin' : dérivé de la DB (utilisateurs.role = 'admin') via
+ *     isAdminUser() / roleForUser() / roleForUserId() dans
+ *     `src/lib/auth/server.ts` — aligné avec la fonction SQL public.is_admin().
+ *   - 'tech' / 'partner' : routage legacy via roleForEmail() ci-dessous
+ *     (TECH_EMAILS, sinon 'partner').
  *
  * Ce type N'EST PAS un miroir de la colonne `utilisateurs.role` côté base.
  * Ne jamais comparer `utilisateurs.role` (enum Postgres `user_role`, 12 valeurs
@@ -21,11 +25,6 @@
  * Historique : ce trio de vocabulaires a été figé après le Chantier #4 (2026-05-24).
  */
 
-export const ADMIN_EMAILS = [
-  'info@foxo.be',
-  'foxotech1@gmail.com',
-] as const;
-
 export const TECH_EMAILS = [
   'tech1@foxo.be',
   'tech2@foxo.be',
@@ -33,10 +32,14 @@ export const TECH_EMAILS = [
 
 export type Role = 'admin' | 'tech' | 'partner';
 
-export function roleForEmail(email: string | null | undefined): Role | null {
-  if (!email) return null;
+// Routage legacy : dérive UNIQUEMENT 'tech' (via TECH_EMAILS) ou 'partner'.
+// La dérivation 'admin' a été déplacée vers isAdminUser() / roleForUser() /
+// roleForUserId() (src/lib/auth/server.ts), qui lisent utilisateurs.role
+// (aligné avec la fonction SQL public.is_admin()). Encore consommée par les
+// checks tech-only / tech||admin (un futur chantier 'tech routing' la retirera).
+export function roleForEmail(email: string | null | undefined): Role {
+  if (!email) return 'partner';
   const e = email.trim().toLowerCase();
-  if ((ADMIN_EMAILS as readonly string[]).includes(e)) return 'admin';
   if ((TECH_EMAILS as readonly string[]).includes(e)) return 'tech';
   return 'partner';
 }
@@ -50,9 +53,3 @@ export function pathForRole(role: Role): string {
     case 'partner': return '/portal';
   }
 }
-
-export const SUBDOMAIN_FOR_ROLE: Record<Role, string> = {
-  admin:   'admin.foxo.be',
-  tech:    'tech.foxo.be',
-  partner: 'portal.foxo.be',
-};
