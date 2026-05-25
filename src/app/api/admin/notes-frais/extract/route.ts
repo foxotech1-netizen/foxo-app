@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminUser } from "@/lib/auth/server";
+import { isAdminUser } from '@/lib/auth/server';
+import { runAgent } from '@/lib/observability';
 import type { NoteFrais } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,12 @@ interface ExtractedFields {
   description?: string;
 }
 
+interface AgentOutput {
+  rawText: string;
+  parsed: ExtractedFields | null;
+  parseError: boolean;
+}
+
 // Score 0.9 si tous les champs structurés sont présents, 0.7 si seul
 // le montant_ttc l'est (cas le plus fréquent — ticket flou), 0.4 sinon.
 function computeConfidence(e: ExtractedFields): number {
@@ -38,6 +45,12 @@ function computeConfidence(e: ExtractedFields): number {
   if (count >= 4) return 0.9;
   if (present(e.montant_ttc)) return 0.7;
   return 0.4;
+}
+
+function countFieldsPresent(e: ExtractedFields): number {
+  const present = (v: unknown): boolean => v !== undefined && v !== null && v !== '';
+  return [e.montant_htva, e.taux_tva, e.montant_ttc, e.fournisseur, e.date_depense, e.description]
+    .filter(present).length;
 }
 
 // POST /api/admin/notes-frais/extract
@@ -84,76 +97,112 @@ export async function POST(request: Request) {
   if (!note.photo_url) {
     return NextResponse.json({ ok: false, error: 'Aucune photo à extraire.' }, { status: 400 });
   }
+  const photoUrl: string = note.photo_url;
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ ok: false, error: 'ANTHROPIC_API_KEY manquante.' }, { status: 500 });
   }
 
+  let agentResult: AgentOutput;
   try {
-    const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
+    const { output } = await runAgent<AgentOutput>({
+      agentName: 'notes_frais_extract',
+      agentKind: 'utility',
       model: MODEL,
-      max_tokens: 500,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'url', url: note.photo_url } },
-            { type: 'text', text: 'Extrais les champs structurés du ticket joint.' },
+      interventionId: null,
+      inputSummary: {
+        has_photo_url: true,
+        statut: note.statut,
+      },
+      run: async () => {
+        const client = new Anthropic({ apiKey });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: 500,
+          system: SYSTEM_PROMPT,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'url', url: photoUrl } },
+                { type: 'text', text: 'Extrais les champs structurés du ticket joint.' },
+              ],
+            },
           ],
-        },
-      ],
+        });
+
+        const textBlock = msg.content.find((b) => b.type === 'text');
+        if (!textBlock || textBlock.type !== 'text') {
+          throw new Error('Réponse Anthropic sans texte.');
+        }
+
+        const rawText = textBlock.text;
+        let parsed: ExtractedFields | null = null;
+        let parseError = false;
+        try {
+          // Claude peut parfois entourer le JSON de balises markdown — on nettoie.
+          const cleaned = rawText.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+          parsed = JSON.parse(cleaned) as ExtractedFields;
+        } catch {
+          parseError = true;
+        }
+
+        const fieldsPresent = parsed ? countFieldsPresent(parsed) : 0;
+        const confidence = parsed ? computeConfidence(parsed) : 0;
+
+        return {
+          message: msg,
+          output: { rawText, parsed, parseError },
+          outputSummary: {
+            raw_chars: rawText.length,
+            parse_error: parseError,
+            fields_present_count: fieldsPresent,
+            confidence,
+          },
+        };
+      },
     });
-
-    const textBlock = msg.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      return NextResponse.json({ ok: false, error: 'Réponse Anthropic sans texte.' }, { status: 502 });
-    }
-
-    let parsed: ExtractedFields;
-    try {
-      // Claude peut parfois entourer le JSON de balises markdown — on nettoie.
-      const cleaned = textBlock.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-      parsed = JSON.parse(cleaned) as ExtractedFields;
-    } catch {
-      return NextResponse.json({
-        ok: false,
-        error: 'JSON IA invalide.',
-        raw: textBlock.text.slice(0, 300),
-      }, { status: 502 });
-    }
-
-    const confidence = computeConfidence(parsed);
-    const patch: Record<string, unknown> = {
-      ia_raw: parsed,
-      ia_confiance: confidence,
-    };
-
-    // Pré-remplissage seulement si la note est encore éditable.
-    if (note.statut === 'brouillon') {
-      if (typeof parsed.montant_htva === 'number') patch.montant_htva = parsed.montant_htva;
-      if (typeof parsed.taux_tva === 'number')     patch.taux_tva     = parsed.taux_tva;
-      if (typeof parsed.montant_ttc === 'number')  patch.montant_ttc  = parsed.montant_ttc;
-      if (typeof parsed.fournisseur === 'string')  patch.fournisseur  = parsed.fournisseur;
-      if (typeof parsed.date_depense === 'string') patch.date_depense = parsed.date_depense;
-      if (typeof parsed.description === 'string')  patch.description  = parsed.description;
-    }
-
-    const { data: updated, error: uErr } = await admin
-      .from('notes_frais')
-      .update(patch)
-      .eq('id', id)
-      .select()
-      .single();
-    if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
-
-    return NextResponse.json({ ok: true, data: updated as NoteFrais });
+    agentResult = output;
   } catch (e) {
     return NextResponse.json({
       ok: false,
       error: e instanceof Error ? e.message : 'Erreur Anthropic.',
     }, { status: 502 });
   }
+
+  if (agentResult.parseError || !agentResult.parsed) {
+    return NextResponse.json({
+      ok: false,
+      error: 'JSON IA invalide.',
+      raw: agentResult.rawText.slice(0, 300),
+    }, { status: 502 });
+  }
+
+  const parsed = agentResult.parsed;
+  const confidence = computeConfidence(parsed);
+  const patch: Record<string, unknown> = {
+    ia_raw: parsed,
+    ia_confiance: confidence,
+  };
+
+  // Pré-remplissage seulement si la note est encore éditable.
+  if (note.statut === 'brouillon') {
+    if (typeof parsed.montant_htva === 'number') patch.montant_htva = parsed.montant_htva;
+    if (typeof parsed.taux_tva === 'number')     patch.taux_tva     = parsed.taux_tva;
+    if (typeof parsed.montant_ttc === 'number')  patch.montant_ttc  = parsed.montant_ttc;
+    if (typeof parsed.fournisseur === 'string')  patch.fournisseur  = parsed.fournisseur;
+    if (typeof parsed.date_depense === 'string') patch.date_depense = parsed.date_depense;
+    if (typeof parsed.description === 'string')  patch.description  = parsed.description;
+  }
+
+  const { data: updated, error: uErr } = await admin
+    .from('notes_frais')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single();
+  if (uErr) return NextResponse.json({ ok: false, error: uErr.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true, data: updated as NoteFrais });
 }

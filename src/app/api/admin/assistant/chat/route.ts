@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
-import { isAdminUser } from "@/lib/auth/server";
+import { isAdminUser } from '@/lib/auth/server';
 import { buildGlobalContext, buildInterventionContext } from '@/lib/assistant/context';
+import { runAgent } from '@/lib/observability';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
@@ -127,21 +128,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Le dernier message doit être de l\'utilisateur.' }, { status: 400 });
   }
 
-  const client = new Anthropic({ apiKey });
+  const lastUserChars = messages[messages.length - 1].content.length;
+  const formatRequested = body.format ?? 'text';
 
   let raw: string;
   try {
-    const msg = await client.messages.create({
+    const { output } = await runAgent<string>({
+      agentName: 'assistant_chat',
+      agentKind: 'utility',
       model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system,
-      messages,
+      interventionId: body.mode === 'intervention' ? (body.interventionId ?? null) : null,
+      inputSummary: {
+        mode: body.mode,
+        format_requested: formatRequested,
+        messages_count: messages.length,
+        last_user_chars: lastUserChars,
+        context_chars: contextBlock.length,
+      },
+      run: async () => {
+        const client = new Anthropic({ apiKey });
+        const msg = await client.messages.create({
+          model: MODEL,
+          max_tokens: MAX_TOKENS,
+          system,
+          messages,
+        });
+        const block = msg.content[0];
+        const text = block && block.type === 'text' ? block.text : '';
+        return {
+          message: msg,
+          output: text,
+          outputSummary: {
+            raw_chars: text.length,
+            mode: body.mode,
+            format_requested: formatRequested,
+          },
+        };
+      },
     });
-    const block = msg.content[0];
-    raw = block && block.type === 'text' ? block.text : '';
+    raw = output;
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Erreur inconnue';
-    console.warn('[admin/assistant] Anthropic error:', e);
     return NextResponse.json({ ok: false, error: 'Anthropic : ' + message }, { status: 502 });
   }
 
