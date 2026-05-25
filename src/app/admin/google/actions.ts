@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { clearTokens, getValidAccessToken, loadTokens } from '@/lib/google-auth';
 import { testDriveConnection } from '@/lib/google-drive';
 import { getCalendarEvents } from '@/lib/google-calendar';
@@ -12,7 +12,7 @@ type R<T = void> = { ok: true; data?: T } | { ok: false; error: string };
 async function assertAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { ok: false, error: 'Accès refusé.' };
   }
   return { ok: true };

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { notifyStatusChange } from '@/lib/email/notifications';
 import { createInterventionFolder } from '@/lib/google-drive';
 import { createCalendarEvent, createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
@@ -27,7 +27,7 @@ export type ActionResult<T = void> =
 async function assertAdmin(): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return { ok: false, error: 'Accès refusé.' };
   }
   return { ok: true };
