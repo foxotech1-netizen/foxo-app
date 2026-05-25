@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { roleForEmail, pathForRole } from '@/lib/auth/roles';
+import { pathForRole } from '@/lib/auth/roles';
+import { roleForUserId } from "@/lib/auth/server";
 
 // Mapping sous-domaine → préfixe de route. En dev (localhost) on n'applique
 // aucun rewrite : on accède directement aux paths /admin, /portal, /tech, /auth.
@@ -110,7 +111,7 @@ export async function proxy(request: NextRequest) {
 
   // 4. Autorisation : un user connecté hors de son périmètre est routé chez lui
   if (user) {
-    const role = roleForEmail(user.email);
+    const role = await roleForUserId(user.id);
     const expected = role ? pathForRole(role) : null;
     if (
       expected &&

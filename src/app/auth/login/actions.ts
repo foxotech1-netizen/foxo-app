@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { ADMIN_EMAILS, TECH_EMAILS, roleForEmail, pathForRole } from '@/lib/auth/roles';
+import { ADMIN_EMAILS, TECH_EMAILS, pathForRole } from '@/lib/auth/roles';
+import { roleForUserId } from "@/lib/auth/server";
 
 export type AuthState = { error?: string; sentTo?: string };
 
@@ -102,7 +103,7 @@ export async function verifyOtp(_prev: AuthState, formData: FormData): Promise<A
   if (!OTP_RE.test(token)) return { error: 'Code à 6 chiffres requis.', sentTo: email };
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
   if (error) {
     console.warn('[auth/verifyOtp] failed for', email, ':', {
       message: error.message,
@@ -113,6 +114,6 @@ export async function verifyOtp(_prev: AuthState, formData: FormData): Promise<A
   }
 
   // Routage selon rôle. En prod, le proxy rewrite admin.foxo.be → /admin etc.
-  const role = roleForEmail(email);
+  const role = data.user ? await roleForUserId(data.user.id) : 'partner';
   redirect(role ? pathForRole(role) : '/portal');
 }
