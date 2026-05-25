@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { FOXO_SLOTS, FOXO_DAYS, dayNameToIdx } from '@/lib/foxo-slots';
 import { createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
 
@@ -55,7 +55,7 @@ function parseStartDate(input: unknown): Date | null {
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 
@@ -246,7 +246,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import path from 'node:path';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { FactureFoxoPdf } from '@/lib/facturation/FactureFoxoPdf';
 import { generateEpcQrDataUrl } from '@/lib/facturation/epc-qr';
 import { VENDOR } from '@/lib/constants/vendor';
@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 });
   }
 

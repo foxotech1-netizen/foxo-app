@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { buildAuthUrl, googleConfigured, saveOAuthState } from '@/lib/google-auth';
 
 // Lance l'authent Google : guard admin + persiste le state CSRF en DB
@@ -18,7 +18,7 @@ import { buildAuthUrl, googleConfigured, saveOAuthState } from '@/lib/google-aut
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ error: 'Accès refusé.' }, { status: 403 });
   }
   if (!googleConfigured()) {

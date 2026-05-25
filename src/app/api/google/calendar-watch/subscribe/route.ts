@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { subscribeCalendarWatch } from '@/lib/google-calendar';
 import { saveWatchState } from '@/lib/calendar-watch-state';
 
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 

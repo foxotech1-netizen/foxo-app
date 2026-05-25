@@ -26,7 +26,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { getEmailThread, downloadGmailAttachment } from '@/lib/gmail';
 import { createInterventionFolderFromMail } from '@/lib/drive/create-intervention-folder';
 import { nextRefForYear } from '@/lib/intervention-ref';
@@ -83,7 +83,7 @@ async function geocodeOnce(query: string): Promise<{ lat: number; lng: number } 
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ success: false, error: 'Accès refusé.' }, { status: 401 });
   }
 

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import Sidebar from '@components/Sidebar';
 import { MainContent } from '@components/layout/MainContent';
 
@@ -13,7 +13,7 @@ export default async function AdminLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect('/auth/login');
-  if (roleForEmail(user.email) !== 'admin') {
+  if (!(await isAdminUser())) {
     redirect('/auth/login?error=forbidden');
   }
 

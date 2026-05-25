@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import { getEmailThread, createGmailDraft } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
@@ -27,7 +27,7 @@ interface DraftReplyBody {
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     return NextResponse.json({ success: false, error: 'Accès refusé.' }, { status: 401 });
   }
 

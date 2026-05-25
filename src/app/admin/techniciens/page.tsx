@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { isAdminUser } from "@/lib/auth/server";
 import type { Utilisateur } from '@/lib/types/database';
 import { TechniciensClient } from './TechniciensClient';
 
@@ -11,7 +11,7 @@ export default async function TechniciensPage() {
 
   // Le layout admin garantit déjà l'accès, mais on log un warning en cas
   // de désynchro (ex: sessions exotiques).
-  if (!user || roleForEmail(user.email) !== 'admin') {
+  if (!user || !(await isAdminUser())) {
     console.warn('[admin/techniciens] désynchro auth détectée — layout admin aurait dû filtrer.');
   }
 
