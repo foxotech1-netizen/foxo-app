@@ -1,12 +1,19 @@
 /**
  * src/lib/observability/agent-logger.ts
  *
- * Wrapper d'observabilité pour les 3 agents canoniques (Triage Mail, Analyse PJ,
- * Rapport). Mesure tokens / coût / durée, insère une ligne dans `agent_logs`,
- * et propage l'output au caller.
+ * Wrapper d'observabilité pour tous les appels Anthropic. Mesure tokens /
+ * coût / durée, insère une ligne dans `agent_logs`, et propage l'output au
+ * caller.
  *
- * Règle non-négociable (doc 02 §10) : tout appel Anthropic depuis un agent
- * canonique DOIT passer par `runAgent`. Aucune exception.
+ * Deux familles d'agents (cf. agent_kind) :
+ *  - canonical : Triage Mail, Analyse PJ, Rapport (doc 03). Objectif 99%
+ *    précision, alertes si dérive.
+ *  - utility   : agents utilitaires (rédaction SMS, brouillons de mail,
+ *    extraction notes de frais, assistant chat admin). Monitoring de coût
+ *    et de fiabilité, pas d'objectif de précision strict.
+ *
+ * Règle non-négociable (doc 02 §10) : TOUT appel Anthropic depuis le code
+ * applicatif DOIT passer par `runAgent`. Aucune exception.
  *
  * RGPD (doc 02 §8) : `inputSummary` et `outputSummary` doivent être SANS PII
  * (pas de from, sujet brut, body, noms, adresses). Le caller est responsable
@@ -21,7 +28,18 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { estimateCostEurCents } from "./pricing";
 
-export type AgentName = "triage_mail" | "analyse_pj" | "rapport";
+export type AgentName =
+  // Canoniques (doc 03)
+  | "triage_mail"
+  | "analyse_pj"
+  | "rapport"
+  // Utilitaires (chantier #7)
+  | "draft_reply"
+  | "sms_compose"
+  | "notes_frais_extract"
+  | "assistant_chat";
+
+export type AgentKind = "canonical" | "utility";
 
 /** Forme minimale attendue de la réponse Anthropic pour extraire les tokens. */
 type AnthropicUsageEnvelope = {
@@ -30,6 +48,12 @@ type AnthropicUsageEnvelope = {
 
 export type AgentRunInput<TOutput> = {
   agentName: AgentName;
+  /**
+   * Famille de l'agent (default 'canonical' pour backward-compat).
+   * Doit être 'utility' pour les agents utilitaires (sms_compose, draft_reply,
+   * notes_frais_extract, assistant_chat).
+   */
+  agentKind?: AgentKind;
   /** Chaîne modèle telle qu'elle sera loggée en agent_logs.model_used. */
   model: string;
   /** UUID intervention si connu à l'entrée (override possible via run()). */
@@ -113,6 +137,7 @@ export async function runAgent<TOutput>(
     .from("agent_logs")
     .insert({
       agent_name:       input.agentName,
+      agent_kind:       input.agentKind ?? "canonical",
       intervention_id:  finalInterventionId ?? null,
       email_id:         finalEmailId ?? null,
       input_summary:    input.inputSummary,

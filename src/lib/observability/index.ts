@@ -10,6 +10,7 @@ export type { Pricing } from "./pricing";
 export { runAgent } from "./agent-logger";
 export type {
   AgentName,
+  AgentKind,
   AgentRunInput,
   AgentRunResult,
 } from "./agent-logger";
