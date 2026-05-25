@@ -306,3 +306,30 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 - **Hors-scope laissés explicitement de côté** : `roleForEmail` dérive encore `'tech'` via `TECH_EMAILS` (chantier équivalent à faire pour les techs si on veut zéro whitelist email) ; JWT claim `app_metadata.role` pour éliminer le round-trip DB du proxy (optimisation perf, pas de besoin actuel).
 
 - **Protocole appliqué** : 4 audits lecture seule défensifs avant chaque étape risquée, contre-vérification exhaustive C.3, validation `next build` séparée de `tsc --noEmit` pour le middleware, deux validations runtime Preview Vercel avant merge. 11 commits granulaires, 0 régression détectée.
+
+### Chantier #7 — AI Observability étendue — code complet 2026-05-25, PR en cours
+
+**Branche** : `claude/observ-utility-agents` — HEAD `4e6c361` (7 commits depuis `main`, PR à ouvrir → `main`)
+
+**Objectif** — Étendre le wrapper `runAgent` de `src/lib/observability/` aux 4 agents utilitaires (non-canoniques) du codebase, en plus des 3 agents canoniques (`triage_mail`, `analyse_pj`, `rapport`) déjà instrumentés au chantier précédent. Tous les appels Anthropic du code applicatif (9 call sites) passent désormais par `runAgent`.
+
+**Décisions d'architecture** — Option B-prime retenue : ajout d'une colonne SQL `agent_kind` (`'canonical' | 'utility'`, DEFAULT `'canonical'`) sur `agent_logs`, et élargissement du CHECK `agent_name` à 7 valeurs (3 canoniques + 4 utilitaires). Côté TypeScript : union `AgentName` étendue à 7 valeurs, type `AgentKind` exporté, champ optionnel `agentKind` dans `AgentRunInput` (default `'canonical'` runtime). Permet de filtrer le futur dashboard admin entre agents critiques (objectif précision 99 %) et utilitaires (monitoring coût/durée seulement).
+
+**Périmètre instrumenté (4 nouveaux sites)** :
+
+| Agent | Fichier | Modèle |
+|---|---|---|
+| `draft_reply` | `src/app/api/admin/mails/draft-reply/route.ts` | `claude-sonnet-4-6` |
+| `sms_compose` | `src/app/api/admin/sms/compose/route.ts` | `claude-sonnet-4-6` |
+| `notes_frais_extract` | `src/app/api/admin/notes-frais/extract/route.ts` | `claude-sonnet-4-20250514` |
+| `assistant_chat` | `src/app/api/admin/assistant/chat/route.ts` | `claude-sonnet-4-6` |
+
+**Migration SQL** — `db/migrations/2026-05-25_add_agent_kind_and_extend_agent_name.sql`, appliquée en prod le 2026-05-25 et versionnée. Lignes `agent_logs` préexistantes auto-marquées `'canonical'` par DEFAULT — aucune migration de données nécessaire.
+
+**Pricing** — Ajout de `claude-sonnet-4-20250514` à `MODEL_PRICING` (mêmes tarifs que `claude-sonnet-4-6`, famille Sonnet 4.x). Tous les modèles utilisés sont désormais tarifés.
+
+**Garanties préservées** — Comportement HTTP : chaque route conserve ses codes et payloads d'origine (incluant les 2 modes 502 de `notes_frais_extract` et le `warning` de fallback `rapport_json` d'`assistant_chat`). Zéro PII : `inputSummary` et `outputSummary` ne contiennent que booléens, longueurs, comptes et variantes — jamais de contenu de message, contexte, adresse, montant, nom, etc. Doc 02 §10 : tous les appels Anthropic du code applicatif sont désormais loggés.
+
+**Reste à faire (post-merge PR)** — Test runtime de chaque route utilitaire après déploiement : vérifier qu'une ligne `agent_logs` avec `agent_kind='utility'` est bien créée par appel. Construction du dashboard admin de monitoring (`/admin/observability` — non démarré).
+
+**Dette technique repérée hors-périmètre** — Lint global du repo : 67 problèmes pré-existants (42 erreurs, 25 warnings) dans `FactureFoxoPdf.tsx`, `google-calendar.ts`, `ponto.ts`, `sms.ts`, etc. Non bloquants (le gate CI est `tsc --noEmit`, pas le lint). À traiter dans un chantier dédié si on veut un jour gater sur lint.
