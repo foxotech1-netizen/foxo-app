@@ -32,6 +32,8 @@ export const MODEL_PRICING: Record<string, Pricing> = {
   "claude-opus-4-6":             { input: 1380, output: 6900 },
   // Sonnet 4.6 — $3  / $15 par M tokens
   "claude-sonnet-4-6":           { input:  276, output: 1380 },
+  // Sonnet 4 (daté 2025-05-14) — même tarif que Sonnet 4.6
+  "claude-sonnet-4-20250514":    { input:  276, output: 1380 },
   // Haiku 4.5 — $0.80 / $4 par M tokens
   "claude-haiku-4-5":            { input:   74, output:  368 },
   "claude-haiku-4-5-20251001":   { input:   74, output:  368 },
