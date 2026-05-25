@@ -333,3 +333,29 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 **Reste à faire (post-merge PR)** — Test runtime de chaque route utilitaire après déploiement : vérifier qu'une ligne `agent_logs` avec `agent_kind='utility'` est bien créée par appel. Construction du dashboard admin de monitoring (`/admin/observability` — non démarré).
 
 **Dette technique repérée hors-périmètre** — Lint global du repo : 67 problèmes pré-existants (42 erreurs, 25 warnings) dans `FactureFoxoPdf.tsx`, `google-calendar.ts`, `ponto.ts`, `sms.ts`, etc. Non bloquants (le gate CI est `tsc --noEmit`, pas le lint). À traiter dans un chantier dédié si on veut un jour gater sur lint.
+
+### Chantier #8 — Dashboard observabilité — clos le 2026-05-25
+
+**Branche** : `claude/observability-dashboard` (mergée via PR #5, merge commit `9ad35c2`).
+
+**Objectif** — Construire l'UI de monitoring des appels Anthropic instrumentés aux chantiers #6 + #7. Le wrapper `runAgent` produit déjà des lignes dans `agent_logs` ; il manquait une page pour les exploiter.
+
+**Découverte d'audit** — Une page `/admin/observabilite` (FR) de 314 lignes existait déjà, mais était orpheline (pas dans la Sidebar, accessible uniquement par URL directe), figée sur une fenêtre 24h, et lisait `agent_logs` en direct sans couche data. Décision : enrichir l'existant plutôt que créer un doublon `/admin/observability` en anglais. Cohérent avec la convention FR du repo (utilisateurs, facturation, comptabilite, interventions...).
+
+**Périmètre livré** :
+
+| Fichier | Action |
+|---|---|
+| `src/lib/observability/queries.ts` | nouveau (281 lignes) — `getObservabilityStats(period)`, `getAgentLogsList(options)`, `ALL_AGENT_NAMES`, `AGENT_KIND_BY_NAME`, `ObservabilityPeriod` |
+| `src/lib/observability/index.ts` | +1 ligne (`export * from "./queries"`) pour cohérence du module |
+| `src/app/admin/observabilite/page.tsx` | refactor (+144 / −38, 418 lignes au total) — sélecteur de période 7j/30j/90j/tout, nouvelle section « Par agent » (7 agents toujours présents même à 0), KPIs branchés sur `getObservabilityStats` |
+
+**Architecture** — La couche data est server-only via `createAdminClient`. Agrégation côté JS plutôt qu'en RPC SQL tant que le volume reste petit (<10k lignes/période). La liste `ALL_AGENT_NAMES` garantit que tous les agents apparaissent dans la table « Par agent » même quand 0 appel sur la période, ce qui permet de voir d'un coup d'œil quels agents tournent et lesquels dorment.
+
+**Garanties préservées** — La table brute Agents IA et la table Automatisations existantes fonctionnent exactement comme avant ; seule la fenêtre passe de 24h-figé à période sélectionnable. URLs rétrocompatibles : `/admin/observabilite?agent_status=error` reste valide. Nouveau paramètre `?period=` indépendant et optionnel (défaut `7d`). Aucun vocabulaire métier hardcodé (conforme doc 02).
+
+**Notes typing** — Pendant le refactor, un cast `as [...]` sur `Promise.all` a été retiré car `Awaited<ReturnType<typeof autoJobsQuery>>` échouait à compiler (typeof d'un PostgrestFilterBuilder n'est pas une fonction). TypeScript infère correctement le tuple sans annotation. Import `type ObservabilityStats` retiré dans la foulée (devenu orphelin).
+
+**Sanity check pré-merge** — `tsc --noEmit` vert, `npm run build` vert (page marquée Dynamic `ƒ` comme attendu), 0 erreur lint sur les fichiers modifiés, aucun TODO/FIXME résiduel.
+
+**Reste à faire (hors-périmètre)** — Test runtime visuel en prod par Foxo après déploiement (ouvrir `/admin/observabilite`, vérifier les 4 périodes, vérifier que les 7 agents apparaissent dans la table « Par agent »). Câblage Sidebar (route reste orpheline). Étape 8.4 différée : brancher la table brute Agents IA sur `getAgentLogsList` et restreindre le filtre `?agent=` à `ALL_AGENT_NAMES`. Aucun blocage.
