@@ -91,11 +91,44 @@ export async function roleForUser(): Promise<Role> {
       return "partner";
     }
 
-    const admin = createAdminClient();
+    return roleForUserId(user.id);
+  } catch {
+    return "partner";
+  }
+}
+
+/**
+ * roleForUserId — variante de roleForUser() qui prend un userId déjà connu.
+ *
+ * Utilise UNIQUEMENT createAdminClient (pas de next/headers), donc compatible
+ * middleware/proxy où cookies() de next/headers n'est pas disponible.
+ *
+ * Le proxy (src/proxy.ts) construit son propre client Supabase via les
+ * request.cookies du middleware, en extrait user.id, puis appelle ce helper.
+ *
+ * - Retourne 'partner' (défaut sûr) si erreur, ou rôle non reconnu.
+ * - Ne lance jamais d'exception.
+ * - Logge explicitement les erreurs de création du client admin : un échec
+ *   silencieux sur cette voie verrouillerait l'admin sans laisser de trace.
+ *
+ * Source de vérité : utilisateurs.role (aligné avec public.is_admin() SQL).
+ */
+export async function roleForUserId(userId: string): Promise<Role> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (err) {
+    // SUPABASE_SERVICE_ROLE_KEY absent ou createAdminClient en échec.
+    // Loggé explicitement parce qu'un silence ici = lockout admin en prod.
+    console.error("[roleForUserId] createAdminClient failed:", err);
+    return "partner";
+  }
+
+  try {
     const { data, error } = await admin
       .from("utilisateurs")
       .select("role")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
 
     if (error || !data) {
