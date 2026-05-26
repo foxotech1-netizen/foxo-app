@@ -10,7 +10,7 @@ import { generateBBA } from '@/lib/facturation/bba';
 import { computeFactureTotals, FactureFoxoPdf } from '@/lib/facturation/FactureFoxoPdf';
 import { generateEpcQrDataUrl } from '@/lib/facturation/epc-qr';
 import { uploadFacture } from '@/lib/google-drive';
-import { VENDOR } from '@/lib/constants/vendor';
+import { VENDOR, VENDOR_BILLING_FROM } from '@/lib/constants/vendor';
 import type {
   Article,
   Client,
@@ -1184,7 +1184,7 @@ export async function sendComptableEmail(from: string, to: string): Promise<Acti
   const resend = new Resend(apiKey);
   try {
     await resend.emails.send({
-      from: `${VENDOR.name} <info@foxo.be>`,
+      from: VENDOR_BILLING_FROM,
       to: [emailComptable],
       subject: `Export facturation ${from} → ${to} (${csvRes.data!.count} factures)`,
       text: `Bonjour,\n\nVous trouverez ci-joint l'export comptable des factures émises entre le ${from} et le ${to}.\n\nNombre de factures : ${csvRes.data!.count}\n\nCordialement,\n${VENDOR.name}`,

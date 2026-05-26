@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { VENDOR } from '@/lib/constants/vendor';
+import { VENDOR, VENDOR_BILLING_FROM } from '@/lib/constants/vendor';
 
 export type SendResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -62,7 +62,7 @@ export async function sendRappelJ1Email(args: RappelJ1Args): Promise<SendResult>
 
   try {
     const res = await resend.emails.send({
-      from: `FoxO <${VENDOR.email}>`,
+      from: VENDOR_BILLING_FROM,
       to: [args.to],
       subject,
       html,

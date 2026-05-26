@@ -31,7 +31,7 @@ function buildHtml(args: SendRapportArgs): string {
             <a href="https://portal.foxo.be" style="color:#1B3A6B">portal.foxo.be</a>.
           </p>
           <div style="height:1px;background:#DDD8CC;margin:20px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique<br>noreply@foxo.be</p>
+          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique<br>noreply@send.foxo.be</p>
         </td></tr>
       </table>
     </td></tr>

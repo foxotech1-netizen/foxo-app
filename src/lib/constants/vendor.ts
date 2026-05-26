@@ -13,3 +13,5 @@ export const VENDOR = {
   PAYMENT_TERMS_DAYS: 30,
   DEFAULT_VAT_RATE: 21,
 }
+
+export const VENDOR_BILLING_FROM = 'FoxO <facturation@send.foxo.be>'
