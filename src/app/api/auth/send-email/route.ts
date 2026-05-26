@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sendEmail } from '@/lib/gmail';
+import { Resend } from 'resend';
 
 // Auth Hook Supabase — Send Email (Standard Webhooks)
 // Configuration : Supabase Dashboard → Authentication → Hooks → Send Email Hook
@@ -180,47 +180,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid_payload' }, { status: 400 });
   }
 
-  const from = process.env.AUTH_HOOK_FROM_EMAIL ?? 'FoxO <info@foxo.be>';
   const subject = SUBJECTS[email_data.email_action_type] ?? 'Code FoxO';
   const html = buildHtml(email_data.token, email_data.email_action_type);
+  const action = email_data.email_action_type;
 
-  console.info('[send-email] sending via Gmail API', {
-    to: user.email,
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('[auth/send-email] RESEND_API_KEY manquant');
+    return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
+  }
+  const resend = new Resend(apiKey);
+  const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
+
+  // BYPASS RESEND — 2026-05-26 — Migration Workspace foxo.be a cassé l'alias Gmail.
+  // À retirer quand on rebranche Gmail API sur la boîte Workspace info@foxo.be (Option 1).
+  const { data, error } = await resend.emails.send({
     from,
-    action: email_data.email_action_type,
+    to: [user.email],
+    subject,
+    html,
   });
 
-  let result: Awaited<ReturnType<typeof sendEmail>>;
-  try {
-    result = await sendEmail({ to: user.email, subject, html, from });
-  } catch (e) {
-    console.error('[send-email] gmail send threw', e);
-    return NextResponse.json(
-      {
-        error: 'send_threw',
-        detail: e instanceof Error ? e.message : String(e),
-      },
-      { status: 502 },
-    );
+  if (error) {
+    console.error('[auth/send-email] Resend error:', error);
+    return NextResponse.json({ error: 'Failed to send OTP email' }, { status: 502 });
   }
 
-  if (!result.ok) {
-    // Cas spécifique : aucun token Google connecté → 503 (service
-    // indisponible — l'admin doit reconnecter Google).
-    if (result.error === 'Google non connecté.') {
-      console.error('[send-email] no Google tokens — connect Google in /admin/parametres');
-      return NextResponse.json(
-        { error: 'google_not_connected', detail: result.error },
-        { status: 503 },
-      );
-    }
-    console.error('[send-email] gmail error', { error: result.error, from, to: user.email });
-    return NextResponse.json(
-      { error: 'send_failed', gmail_error: result.error, from },
-      { status: 502 },
-    );
-  }
-
-  console.info('[send-email] sent', { id: result.id, to: user.email, action: email_data.email_action_type });
-  return NextResponse.json({ ok: true, id: result.id });
+  console.log('[auth/send-email] OTP envoyé via Resend', { to: user.email, action, id: data?.id });
+  return NextResponse.json({ ok: true });
 }
