@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import { sendEmail } from '@/lib/gmail';
+import { sendEmailResend } from '@/lib/email/resend';
 import type { Delegue, Organisation } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -83,7 +83,7 @@ export async function POST(
     portalUrl,
   });
 
-  const send = await sendEmail({
+  const send = await sendEmailResend({
     to: delegue.email,
     subject: `Votre accès au portail FoxO — ${organisation.nom}`,
     html,
