@@ -89,9 +89,6 @@ export async function POST(
     html,
   });
   if (!send.ok) {
-    if (send.error === 'Google non connecté.') {
-      return NextResponse.json({ ok: false, error: send.error, code: 'google_not_connected' }, { status: 503 });
-    }
     return NextResponse.json({ ok: false, error: send.error }, { status: 502 });
   }
 

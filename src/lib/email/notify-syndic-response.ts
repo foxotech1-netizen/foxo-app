@@ -1,7 +1,5 @@
-// Notifie le syndic (ou le destinataire 'communication' en cascade) lorsqu'un
-// occupant a répondu à un lien de confirmation. Utilise Gmail (sendEmail), à
-// la différence du flux Resend de `lib/email/notifications.ts` qui sert au
-// dispatcher de changements de statut.
+// Notifie le destinataire 'communication' en cascade (syndic le plus souvent)
+// lorsqu'un occupant a répondu à un lien de confirmation.
 //
 // Le helper est strictement best-effort : il n'échoue jamais (return en cas
 // de problème, log via console.warn). Les Server Actions appelantes ne
@@ -209,9 +207,9 @@ export async function notifySyndicOccupantResponse(args: {
   try {
     const r = await sendEmailResend({ to: recipient.email, subject, html });
     if (!r.ok) {
-      console.warn('[notify-syndic-response] sendEmail KO:', r.error);
+      console.warn('[notify-syndic-response] sendEmailResend KO:', r.error);
     }
   } catch (e) {
-    console.warn('[notify-syndic-response] sendEmail throw:', e);
+    console.warn('[notify-syndic-response] sendEmailResend throw:', e);
   }
 }
