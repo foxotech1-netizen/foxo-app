@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { sendEmailResend, type SendResult } from '@/lib/email/resend';
 
 export type SendRapportArgs = {
   to: string;
@@ -9,7 +9,7 @@ export type SendRapportArgs = {
   pdfBuffer: Buffer;
 };
 
-export type SendResult = { ok: true; id?: string } | { ok: false; error: string };
+export type { SendResult };
 
 function buildHtml(args: SendRapportArgs): string {
   return `<!DOCTYPE html><html><body style="margin:0;background:#F5F2EC;font-family:'DM Sans',Arial,sans-serif;color:#1C1A16">
@@ -44,15 +44,8 @@ function escapeHtml(s: string): string {
 }
 
 export async function sendRapportEmail(args: SendRapportArgs): Promise<SendResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY non configurée.' };
-
-  const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
-
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [args.to],
+  const send = await sendEmailResend({
+    to: args.to,
     subject: `Rapport d'intervention — ${args.acpNom} (${args.ref})`,
     html: buildHtml(args),
     attachments: [
@@ -64,9 +57,8 @@ export async function sendRapportEmail(args: SendRapportArgs): Promise<SendResul
     ],
   });
 
-  if (error) {
-    console.error('[email/rapport] Resend error:', error);
-    return { ok: false, error: error.message ?? 'send failed' };
+  if (!send.ok) {
+    console.error('[email/rapport] Resend error:', send.error);
   }
-  return { ok: true, id: data?.id };
+  return send;
 }
