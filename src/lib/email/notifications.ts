@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { sendEmailResend } from '@/lib/email/resend';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dispatchRapportToSyndic } from '@/lib/rapport/dispatch';
 import { VENDOR } from '@/lib/constants/vendor';
@@ -29,26 +29,14 @@ function buildShell(inner: string): string {
 }
 
 async function sendOne(args: { to: string; subject: string; html: string; attachments?: Array<{ filename: string; content: Buffer; contentType?: string }> }): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn('[notifications] RESEND_API_KEY absente, email non envoyé.');
-    return false;
-  }
-  const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
-  const { error } = await resend.emails.send({
-    from,
-    to: [args.to],
+  const send = await sendEmailResend({
+    to: args.to,
     subject: args.subject,
     html: args.html,
-    attachments: args.attachments?.map((a) => ({
-      filename: a.filename,
-      content: a.content,
-      contentType: a.contentType ?? 'application/pdf',
-    })),
+    attachments: args.attachments,
   });
-  if (error) {
-    console.warn('[notifications] Resend error:', error);
+  if (!send.ok) {
+    console.warn('[notifications] Resend error:', send.error);
     return false;
   }
   return true;
