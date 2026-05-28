@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { sendEmailResend, type SendResult } from '@/lib/email/resend';
 import { VENDOR } from '@/lib/constants/vendor';
 
 const ADMIN_NOTIF_EMAIL = 'info@foxo.be';
@@ -108,31 +108,8 @@ function buildAdminHtml(d: RdvEmailData): string {
 </body></html>`;
 }
 
-type SendResult = { ok: true; id?: string } | { ok: false; error: string };
-
-async function sendOne(args: {
-  to: string;
-  subject: string;
-  html: string;
-}): Promise<SendResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY absente' };
-
-  const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
-
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [args.to],
-    subject: args.subject,
-    html: args.html,
-  });
-  if (error) return { ok: false, error: error.message ?? 'send failed' };
-  return { ok: true, id: data?.id };
-}
-
 export async function sendRdvConfirmation(d: RdvEmailData): Promise<SendResult> {
-  return sendOne({
+  return sendEmailResend({
     to: d.email,
     subject: 'FoxO — Votre demande a bien été reçue',
     html: buildClientHtml(d),
@@ -141,7 +118,7 @@ export async function sendRdvConfirmation(d: RdvEmailData): Promise<SendResult> 
 
 export async function sendRdvAdminNotification(d: RdvEmailData): Promise<SendResult> {
   const subject = `Nouvelle demande particulier — ${d.prenom} ${d.nom} — ${d.adresse} — ${d.type}`;
-  return sendOne({
+  return sendEmailResend({
     to: ADMIN_NOTIF_EMAIL,
     subject,
     html: buildAdminHtml(d),
