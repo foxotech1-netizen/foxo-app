@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import { sendEmail } from '@/lib/gmail';
+import { sendEmailResend } from '@/lib/email/resend';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { Acp, Intervention, Organisation, ParticulierContact, Utilisateur } from '@/lib/types/database';
 
@@ -128,7 +128,7 @@ export async function POST(
     type: intervention.type ?? '',
   });
 
-  const send = await sendEmail({
+  const send = await sendEmailResend({
     to: clientEmail,
     subject: `FoxO — Confirmation intervention ${intervention.ref ?? ''}`,
     html,

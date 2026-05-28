@@ -8,7 +8,7 @@
 // doivent pas dépendre de son résultat.
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendEmail } from '@/lib/gmail';
+import { sendEmailResend } from '@/lib/email/resend';
 import { getEmailForDoc } from '@/lib/notifications';
 import type {
   Acp,
@@ -207,7 +207,7 @@ export async function notifySyndicOccupantResponse(args: {
   });
 
   try {
-    const r = await sendEmail({ to: recipient.email, subject, html });
+    const r = await sendEmailResend({ to: recipient.email, subject, html });
     if (!r.ok) {
       console.warn('[notify-syndic-response] sendEmail KO:', r.error);
     }

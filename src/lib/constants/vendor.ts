@@ -15,3 +15,5 @@ export const VENDOR = {
 }
 
 export const VENDOR_BILLING_FROM = 'FoxO <facturation@send.foxo.be>'
+
+export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@send.foxo.be>'

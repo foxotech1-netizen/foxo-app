@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
-import { sendEmail } from '@/lib/gmail';
+import { sendEmailResend } from '@/lib/email/resend';
+import { VENDOR_BILLING_FROM } from '@/lib/constants/vendor';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { Facture } from '@/lib/types/database';
 
@@ -110,13 +111,14 @@ export async function POST(
     ${escapeHtml(body).replace(/\n/g, '<br>')}
   </div>`;
 
-  // Envoie via Gmail API (depuis info@foxo.be, alias configuré dans Gmail)
-  const send = await sendEmail({
+  // Envoie via Resend (domaine send.foxo.be — l'alias Gmail info@foxo.be
+  // est HS depuis la migration Workspace).
+  const send = await sendEmailResend({
     to: targetEmail,
     subject,
     html,
     text: body,
-    from: 'FoxO <info@foxo.be>',
+    from: VENDOR_BILLING_FROM,
   });
   if (!send.ok) {
     return NextResponse.json({ ok: false, error: send.error }, { status: 500 });

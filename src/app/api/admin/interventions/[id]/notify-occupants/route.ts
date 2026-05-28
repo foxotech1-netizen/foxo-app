@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import { sendEmail } from '@/lib/gmail';
+import { sendEmailResend } from '@/lib/email/resend';
 import { sendSMS, sendWhatsApp, logSmsSend, applyTemplateVars } from '@/lib/sms';
 import type { ContactPreference, Intervention, ParticulierContact } from '@/lib/types/database';
 
@@ -176,7 +176,7 @@ export async function POST(
             continue;
           }
           const html = buildEmailHtml({ prenom, date: dateFr, heure: heureFr, adresse: adresseStr, lien });
-          const send = await sendEmail({
+          const send = await sendEmailResend({
             to: o.email,
             subject: 'FoxO — Confirmation de votre intervention',
             html,

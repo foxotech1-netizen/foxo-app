@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import { sendEmail } from '@/lib/gmail';
+import { sendEmailResend } from '@/lib/email/resend';
 import { sendSMS, sendWhatsApp, logSmsSend } from '@/lib/sms';
 import { updateCalendarEvent } from '@/lib/google-calendar';
 import type { ContactPreference } from '@/lib/types/database';
@@ -219,7 +219,7 @@ export async function POST(
       if (ch === 'email') {
         if (!occ.email) { notifs.push({ channel: 'email', ok: false, error: 'pas d\'email' }); continue; }
         const html = buildAcceptedEmail({ prenom, startIso: newStartIso, endIso: newEndIso });
-        const r = await sendEmail({
+        const r = await sendEmailResend({
           to: occ.email,
           subject: 'FoxO — Votre créneau a été accepté',
           html,
