@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import { sendEmailResend } from '@/lib/email/resend';
 
 // Auth Hook Supabase — Send Email (Standard Webhooks)
 // Configuration : Supabase Dashboard → Authentication → Hooks → Send Email Hook
 //   URL    : https://auth.foxo.be/api/auth/send-email
 //   Secret : généré par Supabase, à coller dans SUPABASE_AUTH_HOOK_SECRET
 //
-// Envoi via Gmail API (compte foxotech1@gmail.com avec alias d'envoi
-// info@foxo.be). Le token OAuth est partagé via getValidAccessToken
-// dans lib/google-auth — donc l'admin doit avoir connecté Google
-// dans /admin/parametres pour que l'envoi fonctionne.
+// Envoi via Resend (domaine send.foxo.be) depuis noreply@send.foxo.be.
+// Le helper sendEmailResend gère la clé API et le from par défaut.
 //
 // Format du payload : { user, email_data: { token, token_hash, redirect_to,
 // email_action_type, site_url, ... } }
@@ -184,28 +182,17 @@ export async function POST(request: Request) {
   const html = buildHtml(email_data.token, email_data.email_action_type);
   const action = email_data.email_action_type;
 
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.error('[auth/send-email] RESEND_API_KEY manquant');
-    return NextResponse.json({ error: 'Email service not configured' }, { status: 500 });
-  }
-  const resend = new Resend(apiKey);
-  const from = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@foxo.be>';
-
-  // BYPASS RESEND — 2026-05-26 — Migration Workspace foxo.be a cassé l'alias Gmail.
-  // À retirer quand on rebranche Gmail API sur la boîte Workspace info@foxo.be (Option 1).
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [user.email],
+  const send = await sendEmailResend({
+    to: user.email,
     subject,
     html,
   });
 
-  if (error) {
-    console.error('[auth/send-email] Resend error:', error);
+  if (!send.ok) {
+    console.error('[auth/send-email] Resend error:', send.error);
     return NextResponse.json({ error: 'Failed to send OTP email' }, { status: 502 });
   }
 
-  console.log('[auth/send-email] OTP envoyé via Resend', { to: user.email, action, id: data?.id });
+  console.log('[auth/send-email] OTP envoyé via Resend', { to: user.email, action, id: send.id });
   return NextResponse.json({ ok: true });
 }
