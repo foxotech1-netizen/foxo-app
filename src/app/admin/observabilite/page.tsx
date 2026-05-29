@@ -143,16 +143,27 @@ export default async function ObservabilitePage({
   }
 
   // 1 lecture agrégée (queries.ts) + 1 KPI autos + 2 tableaux filtrés.
-  const [statsAgents, kpiAutosRes, agentLogsRes, autoJobsRes] = await Promise.all([
+  const confBase = supabase
+    .from('agent_logs')
+    .select('confidence_score')
+    .not('confidence_score', 'is', null);
+  const confQuery = cutoffIso ? confBase.gte('created_at', cutoffIso) : confBase;
+
+  const [statsAgents, kpiAutosRes, agentLogsRes, autoJobsRes, confRes] = await Promise.all([
     getObservabilityStats(period),
     cutoffIso
       ? supabase.from('automation_jobs').select('status').gte('executed_at', cutoffIso)
       : supabase.from('automation_jobs').select('status'),
     agentLogsQuery,
     autoJobsQuery,
+    confQuery,
   ]);
 
   const kpiAutos = (kpiAutosRes.data ?? []) as { status: string }[];
+  const confScores = (confRes.data ?? []) as { confidence_score: number | null }[];
+  const lowConfCount = confScores.filter(
+    (r) => r.confidence_score != null && r.confidence_score < 0.7,
+  ).length;
 
   const agentTotal = statsAgents.total_calls;
   const agentErrors = statsAgents.total_errors;
@@ -210,10 +221,11 @@ export default async function ObservabilitePage({
 
       <div className="space-y-6">
         {/* Bandeau KPI */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <KpiCard label="Appels agents" value={String(agentTotal)} />
           <KpiCard label="Taux erreur agents" value={`${agentErrorRate}%`} accent={agentErrorRate > 10 ? 'red' : 'neutral'} />
           <KpiCard label="Coût agents" value={fmtCostEur(agentCostCents)} />
+          <KpiCard label="Confiance < 0.7" value={String(lowConfCount)} accent={lowConfCount > 0 ? 'red' : 'neutral'} />
           <KpiCard label="Taux failed autos" value={`${autoFailedRate}%`} accent={autoFailedRate > 10 ? 'red' : 'neutral'} />
         </div>
 
@@ -296,7 +308,7 @@ export default async function ObservabilitePage({
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-sand">
-                    {['Quand', 'Agent', 'Modèle', 'Statut', 'Tokens in/out', 'Coût', 'Durée', 'Intervention', 'Erreur'].map((h) => (
+                    {['Quand', 'Agent', 'Modèle', 'Statut', 'Tokens in/out', 'Coût', 'Durée', 'Confiance', 'Intervention', 'Erreur'].map((h) => (
                       <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                         {h}
                       </th>
@@ -318,6 +330,15 @@ export default async function ObservabilitePage({
                       </td>
                       <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                         {log.duration_ms != null ? `${log.duration_ms}ms` : '—'}
+                      </td>
+                      <td className="px-3.5 py-3 text-[11px] font-mono whitespace-nowrap">
+                        {log.confidence_score != null ? (
+                          <span className={log.confidence_score < 0.7 ? 'text-[var(--color-terra)] font-semibold' : 'text-ink-mid'}>
+                            {log.confidence_score.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-ink-mid">—</span>
+                        )}
                       </td>
                       <td className="px-3.5 py-3 text-[11px]">
                         {log.intervention_id ? (
