@@ -1,6 +1,7 @@
-// Gmail — implémentation REST via fetch(). Lecture seule (scope
-// gmail.readonly). Sert principalement à enrichir le contexte de
-// génération de rapport par l'assistant Claude.
+// Gmail — implémentation REST via fetch(). Accès complet au compte
+// (scope https://mail.google.com/ : lecture, envoi, modification de labels).
+// Sert à enrichir le contexte de génération de rapport et à envoyer
+// les réponses-mail déclenchées depuis l'admin.
 
 import { getValidAccessToken } from '@/lib/google-auth';
 
