@@ -416,7 +416,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
               <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px]">
                 <div className="inline-flex items-start gap-1.5">
                   <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
-                  <span>Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (scope <code>gmail.readonly</code>) et fais un test à blanc :</span>
+                  <span>Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (accès Gmail complet) et fais un test à blanc :</span>
                 </div>
                 <code className="block mt-1 font-mono text-[10px] break-all">
                   GET /api/cron/check-mails/preview?secret={'<CRON_SECRET>'}
