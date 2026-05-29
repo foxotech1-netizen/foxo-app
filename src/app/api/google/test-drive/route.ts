@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 
 const REQUIRED_SCOPES = [
   'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/gmail.readonly',
+  // Accès Gmail complet : doit matcher GOOGLE_SCOPES (mail.google.com couvre lecture + envoi + labels).
+  'https://mail.google.com/',
   'https://www.googleapis.com/auth/calendar',
 ];
 
