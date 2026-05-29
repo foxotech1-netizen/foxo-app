@@ -1,10 +1,75 @@
-# État du projet FoxO — snapshot fin de session 2026-05-25
+# État du projet FoxO — snapshot fin de session 2026-05-29
 
-- **Date du recap** : 2026-05-25
-- **HEAD git** : `3312cac` (merge commit PR #3)
+- **Date du recap** : 2026-05-29 23:01
+- **HEAD git** : `928d342` (merge commit PR #12)
 - **Branche** : `main`
 - **Status** : clean (working tree propre)
-- **Production** : déployée par Vercel sur push `main`, validée runtime sur deux Previews (post-3.4b et post-3.5)
+- **Production** : déployée par Vercel sur push `main`.
+
+### Travaux récents (depuis 2026-05-25)
+- **Migration email Gmail → Resend (`send.foxo.be`)** (PR #8 + #9) : l'alias Gmail `info@foxo.be` étant HS, tous les envois (auth OTP `auth/send-email`, notify-occupants, confirm-mail, invite délégué, accept-counter-proposal, notify-syndic-response, rappel facture, rapport, rdv, notifications) passent désormais par `sendEmailResend` (`src/lib/email/resend.ts`), avec support des pièces jointes (PDF facture/rapport). Commits `cefd4f9` → `68332b5`.
+- **PR #10 — Observabilité IA `confidence_score`** (`5229f3b`) : `/admin/observabilite` affiche désormais une carte KPI « Confiance < 0.7 » + une colonne « Confiance » dans la table détaillée. Le dashboard observabilité lui-même était déjà implémenté.
+- **PR #11 — Textes trompeurs scope Gmail** (`a981923`) : commentaire d'en-tête de `gmail.ts` + texte UI `ParametresClient.tsx` corrigés (« lecture seule / gmail.readonly » → accès complet `https://mail.google.com/`).
+- **PR #12 — Faux négatif de scope test-drive** (`5e39604`) : `REQUIRED_SCOPES` de `/api/google/test-drive` comparait `gmail.readonly` en égalité stricte → signalait Gmail manquant à tort. Aligné sur `https://mail.google.com/`.
+- **Cron mails** : garde-fous = **constantes en dur** dans `src/lib/cron/check-mails.ts` (`MAX_MAILS_PER_RUN=1`, `CLAUDE_TIMEOUT_MS=20s`, `DB_TIMEOUT_MS=30s`, `maxDuration=60`) — PAS des env vars Vercel. Cron piloté par **GitHub Actions** (`.github/workflows/cron-check-mails.yml`, `*/10`), pas Vercel. Régression 504 corrigée (hotfix `f16f351`), prod saine.
+- **Backlog ouvert (priorité basse)** : `getAgentLogsList` exporté mais inutilisé ; DNS OVH 2 doublons orphelins zone `foxo.be` ; décision auth previews Vercel ; TODO `check-mails.ts:532` (intervention_id null en observabilité).
+
+## 2. Cartographie src/app (arborescence, niveau 2)
+
+```
+src/app
+src/app/admin
+src/app/admin/alertes
+src/app/admin/articles
+src/app/admin/assistant
+src/app/admin/clients
+src/app/admin/comptabilite
+src/app/admin/courtiers
+src/app/admin/experts
+src/app/admin/facturation
+src/app/admin/google
+src/app/admin/hub
+src/app/admin/interventions
+src/app/admin/mails
+src/app/admin/metiers
+src/app/admin/notes-frais
+src/app/admin/observabilite
+src/app/admin/parametres
+src/app/admin/planning
+src/app/admin/sms
+src/app/admin/syndics
+src/app/admin/techniciens
+src/app/admin/utilisateurs
+src/app/api
+src/app/api/address
+src/app/api/admin
+src/app/api/auth
+src/app/api/cron
+src/app/api/facture
+src/app/api/google
+src/app/api/messages
+src/app/api/rapport
+src/app/api/tech
+src/app/app-hub
+src/app/auth
+src/app/auth/login
+src/app/auth/logout
+src/app/go-hub
+src/app/o
+src/app/o/[token]
+src/app/portal
+src/app/portal/calendar
+src/app/portal/courtier
+src/app/portal/expert
+src/app/portal/interventions
+src/app/portal/nouveau
+src/app/portal/syndic
+src/app/rdv
+src/app/tech
+src/app/tech/historique
+src/app/tech/interventions
+src/app/tech/notes-frais
+```
 
 ## 3. Modules fonctionnels (état réel)
 
@@ -70,34 +135,33 @@ Décisions structurantes :
 
 ## 🛠 ÉTAT DB / REPO
 
-- **HEAD** : `7ddff39` (feat(mails): wire confirm-and-create to insert occupants via safeInsertOccupants)
-- **Branche** : `main`, working tree clean, aligné `origin/main`.
+- **Branche** : `main`, working tree clean, aligné `origin/main`. (HEAD : voir §1 Identité — source unique.)
 - **`mails_analyses`** : colonnes mail metadata + `occupants_extraits` désormais peuplées par Agent 1 à chaque analyse fraîche. Le champ `occupants_extraits` est remonté jusqu'à l'UI (route analyses + type `MailAnalyse`).
 - **`occupants`** : alimentée par `confirm-and-create` (flux mail) en plus du cron `check-mails` et de `/admin/planning`. Insertion via `safeInsertOccupants` (auto-strip cascade anti-drift).
 
 ## 🧾 20 DERNIERS COMMITS
 
 ```
-3312cac Merge pull request #3 from foxotech1-netizen/claude/lucid-ritchie-cqKIY
-57a22a9 refactor(auth): remove ADMIN_EMAILS + SUBDOMAIN_FOR_ROLE, migrate tech||admin checks
-f56d688 refactor(auth): remove ADMIN_EMAILS from sendOtp's isHardcoded gate shortcut
-f1fe5e8 refactor(auth): migrate 5 routing/access call-sites to roleForUser/roleForUserId
-315a019 feat(auth): add roleForUserId(userId) middleware-compatible helper
-a7fe5e9 feat(auth): add roleForUser() server helper backed by utilisateurs.role
-f203001 refactor(auth): migrate 3 atypical admin gates missed by 3.3b grep
-ecc62f5 refactor(auth): migrate inline roleForEmail!=='admin' checks to isAdminUser()
-c2c9d32 refactor(auth): 10 local assertAdmin functions now check via isAdminUser()
-e0d4ba2 refactor(auth): assertAdmin() now uses isAdminUser() instead of ADMIN_EMAILS whitelist
-9e1cde0 feat(auth): add isAdminUser() server helper backed by utilisateurs.role
-df8898b feat(db): switch is_admin() from email whitelist to utilisateurs.role
-5e252da feat(db): seed 2 admin users in utilisateurs table
-fd287fb docs(audits): archive audit is_admin() refacto (2026-05-24)
-62fdc9b docs(etat): clôture Chantier #5 — harmonisation conventions prompt triage_mail
-c25f05a refactor(mails): align CS2 analyse-deep max_tokens 2048 -> 4096 (triage_mail convention)
-ef4f81b refactor(mails): align CS1 check-mails on triage_mail prompt convention
-5f96b9a refactor(mails): align CS3 analyze on triage_mail prompt convention
-8b2596e docs(roles): clôture Chantier #4 — drift user_role infirmé + cartographie 3 vocabulaires
-7b7a94f feat(rls): harden mon_role/mon_organisation_id avec STABLE + search_path figé
+928d342 Merge pull request #12 from foxotech1-netizen/fix/test-drive-scope-gmail
+5e39604 fix: aligne le scope Gmail attendu du test-drive sur mail.google.com (corrige faux négatif)
+87042e4 Merge pull request #11 from foxotech1-netizen/fix/scope-gmail-textes-trompeurs
+a981923 fix: corrige le texte trompeur sur le scope Gmail (accès complet, pas readonly)
+59b9eb0 Merge pull request #10 from foxotech1-netizen/claude/gallant-brahmagupta-AknOA
+5229f3b feat(observabilite): affiche confidence_score (KPI < 0.7 + colonne table agents)
+0d2095f Merge pull request #9 from foxotech1-netizen/claude/sweet-bell-ku3Ey
+68332b5 chore(email): cleanup post-migration Resend (code mort google_not_connected + labels)
+39a4719 refactor(email): notifications passe par sendEmailResend (sendOne local délègue au helper)
+803c0f9 refactor(email): rapport passe par sendEmailResend (utilise attachments du helper)
+2980225 refactor(email): rdv passe par sendEmailResend (supprime sendOne local)
+534caf6 refactor(email): auth/send-email passe par sendEmailResend (cleanup BYPASS + commentaire obsolète)
+f500aed feat(email): sendEmailResend supporte attachments (PDF facture, rapport, …)
+627e536 Merge pull request #8 from foxotech1-netizen/claude/env-example-resend-send-subdomain
+92c51fc fix(email): migre notify-syndic-response vers Resend send.foxo.be (remplace Gmail info@foxo.be HS)
+b011a33 fix(email): migre notify-occupants vers Resend send.foxo.be (remplace Gmail info@foxo.be HS)
+5931489 fix(email): migre confirm-mail vers Resend send.foxo.be (remplace Gmail info@foxo.be HS)
+b8ef1da fix(email): migre accept-counter-proposal vers Resend send.foxo.be (remplace Gmail info@foxo.be HS)
+3484ffe fix(email): migre invite délégué vers Resend send.foxo.be (remplace Gmail info@foxo.be HS)
+cefd4f9 fix(facturation): rappel facture via Resend send.foxo.be (remplace Gmail info@foxo.be HS)
 ```
 
 ## 🔁 RAPPEL PROTOCOLE
@@ -140,6 +204,111 @@ JOIN public.interventions i ON i.id = o.intervention_id
 WHERE i.source = 'mail'
   AND i.created_at > NOW() - INTERVAL '24 hours'
 ORDER BY i.ref, o.created_at;
+```
+
+## 6. Marqueurs TODO/FIXME/HACK (live)
+
+```
+src/app/admin/Dashboard.tsx:14:// TODO Sprint Brouillons IA + Briefing : réactiver BriefingIA
+src/lib/ponto.ts:35:// TODO : OAuth2 client_credentials → token. Stocker en cache mémoire (TTL).
+src/lib/ponto.ts:42:// TODO : récupère les transactions sur la fenêtre [from, to] et les matche
+src/lib/cron/check-mails.ts:532:  // TODO observabilité (chantier 1) : intervention_id reste null dans
+```
+
+## 7. Routes API (`route.ts`)
+
+```
+src/app/api/address/autocomplete/route.ts
+src/app/api/admin/acps/[id]/route.ts
+src/app/api/admin/acps/route.ts
+src/app/api/admin/assistant/chat/route.ts
+src/app/api/admin/attachments/analyse/route.ts
+src/app/api/admin/calendar/events/route.ts
+src/app/api/admin/clients/[id]/route.ts
+src/app/api/admin/facturation/send-rappel/[id]/route.ts
+src/app/api/admin/facture/[id]/route.ts
+src/app/api/admin/interventions/[id]/accept-counter-proposal/route.ts
+src/app/api/admin/interventions/[id]/apply-reanalysis/route.ts
+src/app/api/admin/interventions/[id]/assign/route.ts
+src/app/api/admin/interventions/[id]/color/route.ts
+src/app/api/admin/interventions/[id]/confirm-mail/route.ts
+src/app/api/admin/interventions/[id]/delete/route.ts
+src/app/api/admin/interventions/[id]/historique/route.ts
+src/app/api/admin/interventions/[id]/liens/route.ts
+src/app/api/admin/interventions/[id]/lier/route.ts
+src/app/api/admin/interventions/[id]/notify-occupants/route.ts
+src/app/api/admin/interventions/[id]/reanalyze/route.ts
+src/app/api/admin/interventions/[id]/recipients/route.ts
+src/app/api/admin/interventions/[id]/route.ts
+src/app/api/admin/interventions/[id]/schedule/route.ts
+src/app/api/admin/interventions/search/route.ts
+src/app/api/admin/mails/[id]/analyze/route.ts
+src/app/api/admin/mails/[id]/labels/route.ts
+src/app/api/admin/mails/[id]/mark-traite/route.ts
+src/app/api/admin/mails/[id]/reply/route.ts
+src/app/api/admin/mails/[id]/route.ts
+src/app/api/admin/mails/analyse-deep/route.ts
+src/app/api/admin/mails/analyses/route.ts
+src/app/api/admin/mails/batch/route.ts
+src/app/api/admin/mails/confirm-and-create/route.ts
+src/app/api/admin/mails/draft-reply/route.ts
+src/app/api/admin/mails/labels/route.ts
+src/app/api/admin/mails/route.ts
+src/app/api/admin/mails/unread-count/route.ts
+src/app/api/admin/notes-frais/extract/route.ts
+src/app/api/admin/occupants/[id]/route.ts
+src/app/api/admin/occupants/manage/[occupant_id]/route.ts
+src/app/api/admin/organisations/[id]/route.ts
+src/app/api/admin/organisations/route.ts
+src/app/api/admin/parametres/planning-couleurs/route.ts
+src/app/api/admin/planning/dispos/bulk/route.ts
+src/app/api/admin/planning/dispos/resync/route.ts
+src/app/api/admin/planning/dispos/route.ts
+src/app/api/admin/sms/compose/route.ts
+src/app/api/admin/sms/send/route.ts
+src/app/api/admin/societe/upload-logo/route.ts
+src/app/api/admin/syndics/[org_id]/acps/route.ts
+src/app/api/admin/syndics/[org_id]/delegues/[id]/invite/route.ts
+src/app/api/admin/syndics/[org_id]/delegues/[id]/route.ts
+src/app/api/admin/syndics/[org_id]/delegues/route.ts
+src/app/api/admin/syndics/[org_id]/route.ts
+src/app/api/admin/tech-summary/[id]/route.ts
+src/app/api/admin/techniciens/[id]/interventions/route.ts
+src/app/api/admin/utilisateurs/[id]/route.ts
+src/app/api/admin/utilisateurs/route.ts
+src/app/api/auth/send-email/route.ts
+src/app/api/cron/check-mails/preview/route.ts
+src/app/api/cron/check-mails/route.ts
+src/app/api/cron/rappel-j1/preview/route.ts
+src/app/api/cron/rappel-j1/route.ts
+src/app/api/cron/renew-calendar-watch/route.ts
+src/app/api/facture/[id]/route.ts
+src/app/api/google/auth/route.ts
+src/app/api/google/calendar-events/route.ts
+src/app/api/google/calendar-import/route.ts
+src/app/api/google/calendar-sync/route.ts
+src/app/api/google/calendar-watch/subscribe/route.ts
+src/app/api/google/calendar-watch/unsubscribe/route.ts
+src/app/api/google/calendar-webhook/route.ts
+src/app/api/google/callback/route.ts
+src/app/api/google/test-drive/route.ts
+src/app/api/messages/[id]/lu/route.ts
+src/app/api/messages/route.ts
+src/app/api/rapport/[id]/route.ts
+src/app/api/tech/articles/route.ts
+src/app/api/tech/facture/[id]/route.ts
+src/app/api/tech/facture/route.ts
+src/app/api/tech/interventions/[id]/notes/route.ts
+src/app/api/tech/notes-frais/[id]/submit/route.ts
+src/app/api/tech/notes-frais/route.ts
+src/app/api/tech/notes-frais/upload/route.ts
+src/app/api/tech/observations/[id]/photos/route.ts
+src/app/api/tech/observations/[id]/route.ts
+src/app/api/tech/observations/route.ts
+src/app/api/tech/photos/[id]/route.ts
+src/app/api/tech/photos/route.ts
+src/app/api/tech/rapport-docx/route.ts
+src/app/api/tech/upload-photo/route.ts
 ```
 
 ## 8. Journal des chantiers (depuis 2026-05-11)
@@ -309,7 +478,7 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 
 ### Chantier #7 — AI Observability étendue — clos le 2026-05-25
 
-**Branche** : `claude/observ-utility-agents` — HEAD `4e6c361` (7 commits depuis `main`, PR à ouvrir → `main`)
+**Branche** : `claude/observ-utility-agents` — HEAD `4e6c361`. ✅ **Mergé dans `main`** (commit `4e6c361` présent dans l'historique de `main`).
 
 **Objectif** — Étendre le wrapper `runAgent` de `src/lib/observability/` aux 4 agents utilitaires (non-canoniques) du codebase, en plus des 3 agents canoniques (`triage_mail`, `analyse_pj`, `rapport`) déjà instrumentés au chantier précédent. Tous les appels Anthropic du code applicatif (9 call sites) passent désormais par `runAgent`.
 
@@ -330,7 +499,7 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 
 **Garanties préservées** — Comportement HTTP : chaque route conserve ses codes et payloads d'origine (incluant les 2 modes 502 de `notes_frais_extract` et le `warning` de fallback `rapport_json` d'`assistant_chat`). Zéro PII : `inputSummary` et `outputSummary` ne contiennent que booléens, longueurs, comptes et variantes — jamais de contenu de message, contexte, adresse, montant, nom, etc. Doc 02 §10 : tous les appels Anthropic du code applicatif sont désormais loggés.
 
-**Reste à faire (post-merge PR)** — Test runtime de chaque route utilitaire après déploiement : vérifier qu'une ligne `agent_logs` avec `agent_kind='utility'` est bien créée par appel. Construction du dashboard admin de monitoring (`/admin/observability` — non démarré).
+**Reste à faire (post-merge PR)** — Test runtime de chaque route utilitaire après déploiement : vérifier qu'une ligne `agent_logs` avec `agent_kind='utility'` est bien créée par appel. ✅ Dashboard admin de monitoring : **construit au Chantier #8** (`/admin/observabilite`, FR — pas `/admin/observability`).
 
 **Dette technique repérée hors-périmètre** — Lint global du repo : 67 problèmes pré-existants (42 erreurs, 25 warnings) dans `FactureFoxoPdf.tsx`, `google-calendar.ts`, `ponto.ts`, `sms.ts`, etc. Non bloquants (le gate CI est `tsc --noEmit`, pas le lint). À traiter dans un chantier dédié si on veut un jour gater sur lint.
 
@@ -358,4 +527,4 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 
 **Sanity check pré-merge** — `tsc --noEmit` vert, `npm run build` vert (page marquée Dynamic `ƒ` comme attendu), 0 erreur lint sur les fichiers modifiés, aucun TODO/FIXME résiduel.
 
-**Reste à faire (hors-périmètre)** — Test runtime visuel en prod par Foxo après déploiement (ouvrir `/admin/observabilite`, vérifier les 4 périodes, vérifier que les 7 agents apparaissent dans la table « Par agent »). Câblage Sidebar (route reste orpheline). Étape 8.4 différée : brancher la table brute Agents IA sur `getAgentLogsList` et restreindre le filtre `?agent=` à `ALL_AGENT_NAMES`. Aucun blocage.
+**Reste à faire (hors-périmètre)** — Test runtime visuel en prod par Foxo après déploiement (ouvrir `/admin/observabilite`, vérifier les 4 périodes, vérifier que les 7 agents apparaissent dans la table « Par agent »). Câblage Sidebar (route reste orpheline). Étape 8.4 différée : brancher la table brute Agents IA sur `getAgentLogsList` et restreindre le filtre `?agent=` à `ALL_AGENT_NAMES`. Aucun blocage. **Mise à jour (PR #10, `5229f3b`)** : ✅ affichage `confidence_score` ajouté (KPI « Confiance < 0.7 » + colonne dédiée). `getAgentLogsList` reste exporté mais toujours non câblé.
