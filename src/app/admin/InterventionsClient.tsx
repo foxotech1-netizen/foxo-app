@@ -35,6 +35,7 @@ import {
   Trash2,
   User,
   Users,
+  UserX,
   X,
   XCircle,
   Zap,
@@ -830,6 +831,20 @@ export function InterventionsClient({
         alert(data.error ?? 'Échec suppression.');
         return;
       }
+      cancelOccupantForm();
+      await refreshOccupants();
+    } finally {
+      setOccupantSaving(false);
+    }
+  }
+
+  async function eraseOccupant(occId: string) {
+    if (!confirm("EFFACEMENT RGPD - action irreversible.\n\nLes donnees personnelles de cet occupant (nom, contacts, messages SMS) seront definitivement anonymisees dans toute la plateforme. L'historique de l'intervention est conserve.\n\nConfirmer l'effacement ?")) return;
+    setOccupantSaving(true);
+    try {
+      const r = await fetch(`/api/admin/occupants/manage/${occId}/erase`, { method: 'POST' });
+      const data = await r.json();
+      if (!data.ok) { alert(data.error ?? "Echec de l'effacement RGPD."); return; }
       cancelOccupantForm();
       await refreshOccupants();
     } finally {
@@ -2029,6 +2044,7 @@ export function InterventionsClient({
                                 onSave={saveOccupant}
                                 onCancel={cancelOccupantForm}
                                 onDelete={() => deleteOccupant(o.id)}
+                                onErase={() => eraseOccupant(o.id)}
                                 saving={occupantSaving}
                               />
                             );
@@ -2968,13 +2984,14 @@ type OccupantEditForm = {
 };
 
 function OccupantEditCard({
-  form, onChange, onSave, onCancel, onDelete, saving,
+  form, onChange, onSave, onCancel, onDelete, onErase, saving,
 }: {
   form: OccupantEditForm;
   onChange: (next: OccupantEditForm) => void;
   onSave: () => void;
   onCancel: () => void;
   onDelete?: () => void;
+  onErase?: () => void;
   saving: boolean;
 }) {
   const cls = 'w-full px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid';
@@ -3047,6 +3064,18 @@ function OccupantEditCard({
             className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
           >
             <Trash2 size={12} />Supprimer
+          </button>
+        )}
+        {onErase && (
+          <button
+            type="button"
+            onClick={onErase}
+            disabled={saving}
+            className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+            title="Effacer definitivement les donnees personnelles (RGPD)"
+          >
+            <UserX size={12} />
+            Effacer (RGPD)
           </button>
         )}
         <button
