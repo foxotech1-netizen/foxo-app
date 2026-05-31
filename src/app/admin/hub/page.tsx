@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Logo } from '@/components/Logo';
+import { getValidationTotal } from '@/lib/admin/validation-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,7 +62,7 @@ export default async function HubPage() {
       return 0;
     }
   };
-  const [urgentCount, overdueCount, unreadCount] = await Promise.all([
+  const [urgentCount, overdueCount, unreadCount, aValiderCount] = await Promise.all([
     safeCount(
       supabase
         .from('interventions')
@@ -86,6 +87,8 @@ export default async function HubPage() {
         .eq('lu_admin', false)
         .in('auteur_type', ['syndic', 'courtier']),
     ),
+    // File de validation (5 sources) — module partagé ; tolérant comme safeCount.
+    getValidationTotal(supabase).catch(() => 0),
   ]);
   const totalNotifs = urgentCount + overdueCount + unreadCount;
 
@@ -195,7 +198,7 @@ export default async function HubPage() {
 
       {/* Détail des notifications (visible si > 0) — chips cliquables
           vers le module concerné. */}
-      {totalNotifs > 0 && (
+      {(totalNotifs > 0 || aValiderCount > 0) && (
         <div className="px-6 pb-10">
           <div className="max-w-[400px] mx-auto bg-cream border border-sand-border rounded-xl p-4">
             <div className="text-[10px] uppercase tracking-wider font-bold text-ink-muted mb-2">
@@ -227,6 +230,15 @@ export default async function HubPage() {
                 >
                   <span className="text-ink">Messages non lus</span>
                   <span className="text-terra font-bold">{unreadCount}</span>
+                </Link>
+              )}
+              {aValiderCount > 0 && (
+                <Link
+                  href="/admin/validation"
+                  className="flex items-center justify-between hover:underline"
+                >
+                  <span className="text-ink">À valider</span>
+                  <span className="text-terra font-bold">{aValiderCount}</span>
                 </Link>
               )}
             </div>
