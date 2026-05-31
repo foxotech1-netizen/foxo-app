@@ -20,6 +20,13 @@ import {
   type Intervention,
   type NoteFrais,
 } from '@/lib/types/database';
+import {
+  applyMailsAConfirmer,
+  applyRapportsAValider,
+  applyFacturesBrouillon,
+  applyNotesFraisSoumises,
+  getSuspensCount,
+} from '@/lib/admin/validation-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,52 +55,32 @@ type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse'>;
 export default async function ValidationPage() {
   const supabase = await createClient();
 
-  const [analysesRes, rapportsRes, facturesRes, notesRes, ivsRes] = await Promise.all([
+  // Prédicats centralisés dans @/lib/admin/validation-queue (source unique).
+  const [analysesRes, rapportsRes, facturesRes, notesRes, suspensCount] = await Promise.all([
     // 1. Analyses mails à confirmer : demande d'intervention sans dossier lié.
-    supabase
-      .from('mails_analyses')
-      .select('thread_id, sujet, expediteur, recu_le, urgence')
-      .eq('type', 'demande_intervention')
-      .is('dossier_match_id', null)
-      .order('recu_le', { ascending: false }),
+    applyMailsAConfirmer(
+      supabase.from('mails_analyses').select('thread_id, sujet, expediteur, recu_le, urgence'),
+    ).order('recu_le', { ascending: false }),
     // 2. Rapports à valider : interventions au statut 'rapport'.
-    supabase
-      .from('interventions')
-      .select('id, ref, statut, adresse, acp_id, updated_at')
-      .eq('statut', 'rapport')
-      .is('deleted_at', null)
-      .order('updated_at', { ascending: false }),
+    applyRapportsAValider(
+      supabase.from('interventions').select('id, ref, statut, adresse, acp_id, updated_at'),
+    ).order('updated_at', { ascending: false }),
     // 3. Factures / devis en brouillon.
-    supabase
-      .from('factures')
-      .select('id, numero, montant_ttc, client_nom, statut, type')
-      .eq('statut', 'brouillon')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false }),
+    applyFacturesBrouillon(
+      supabase.from('factures').select('id, numero, montant_ttc, client_nom, statut, type'),
+    ).order('created_at', { ascending: false }),
     // 4. Notes de frais à approuver : statut 'soumise'.
-    supabase
-      .from('notes_frais')
-      .select('id, technicien_nom, technicien_email, montant_ttc, date_depense, statut')
-      .eq('statut', 'soumise')
-      .order('date_depense', { ascending: false }),
-    // 5. Interventions en suspens : on charge le minimum pour appliquer le
-    // prédicat en mémoire (cf. plus bas).
-    supabase
-      .from('interventions')
-      .select('statut, technicien_id')
-      .is('deleted_at', null),
+    applyNotesFraisSoumises(
+      supabase.from('notes_frais').select('id, technicien_nom, technicien_email, montant_ttc, date_depense, statut'),
+    ).order('date_depense', { ascending: false }),
+    // 5. Interventions en suspens : compteur via le module partagé.
+    getSuspensCount(supabase),
   ]);
 
   const analyses = (analysesRes.data ?? []) as MailAnalyseRow[];
   const rapports = (rapportsRes.data ?? []) as RapportRow[];
   const factures = (facturesRes.data ?? []) as FactureRow[];
   const notes = (notesRes.data ?? []) as NoteFraisRow[];
-
-  // TODO consolidation : prédicat dupliqué depuis layout.tsx alertCount, à factoriser à l'étape 2
-  const ivs = (ivsRes.data ?? []) as Pick<Intervention, 'statut' | 'technicien_id'>[];
-  const suspensCount = ivs.filter(
-    (i) => i.statut === 'en_suspens' || (i.statut === 'nouvelle' && !i.technicien_id),
-  ).length;
 
   // ACP (nom/adresse) pour les lignes "Rapports à valider".
   const acpIds = Array.from(new Set(rapports.map((r) => r.acp_id).filter(Boolean) as string[]));
