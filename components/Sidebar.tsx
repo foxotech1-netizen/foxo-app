@@ -14,7 +14,7 @@ import {
   BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
-  Activity,
+  Activity, ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -26,6 +26,7 @@ const NAV_MAIN: NavItem[] = [
   // briefing IA + les missions du jour en tête de page.
   { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
+  { href: '/admin/validation',  Icon: ClipboardCheck, label: 'À valider', badge: true },
   { href: '/admin/observabilite', Icon: Activity,  label: 'Observabilité' },
   { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
   { href: '/admin/techniciens', Icon: Wrench,      label: 'Techniciens' },
@@ -180,9 +181,11 @@ const S = {
 export default function Sidebar({
   alertCount = 0,
   recentResponsesCount = 0,
+  validationCount = 0,
 }: {
   alertCount?: number
   recentResponsesCount?: number
+  validationCount?: number
 }) {
   const pathname = usePathname()
   const router   = useRouter()
@@ -260,6 +263,7 @@ export default function Sidebar({
   const BOTTOM_NAV: NavItem[] = [
     { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
     { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
+    { href: '/admin/validation', Icon: ClipboardCheck, label: 'À valider' },
     { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
     { href: '/admin/techniciens', Icon: Wrench,  label: 'Techniciens' },
     // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA
@@ -291,8 +295,11 @@ export default function Sidebar({
                 <item.Icon size={16} aria-hidden />
                 <span>{item.label}</span>
               </span>
-              {item.badge && alertCount > 0 && (
+              {item.href === '/admin/alertes' && alertCount > 0 && (
                 <span style={S.badge}>{alertCount}</span>
+              )}
+              {item.href === '/admin/validation' && validationCount > 0 && (
+                <span style={S.badge}>{validationCount}</span>
               )}
               {item.href === '/admin' && recentResponsesCount > 0 && (
                 <span
@@ -417,6 +424,22 @@ export default function Sidebar({
                 minWidth: 16,
                 textAlign: 'center',
               }}>{alertCount}</span>
+            )}
+            {item.href === '/admin/validation' && validationCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: 6,
+                right: '50%',
+                transform: 'translateX(8px)',
+                background: 'var(--color-amber-foxo)',
+                color: 'var(--color-cream)',
+                borderRadius: 20,
+                fontSize: 9,
+                fontWeight: 600,
+                padding: '0 5px',
+                minWidth: 16,
+                textAlign: 'center',
+              }}>{validationCount}</span>
             )}
           </Link>
           )

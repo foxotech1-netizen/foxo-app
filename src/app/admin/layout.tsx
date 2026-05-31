@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
 import Sidebar from '@components/Sidebar';
 import { MainContent } from '@components/layout/MainContent';
+import { getValidationTotal } from '@/lib/admin/validation-queue';
 
 export default async function AdminLayout({
   children,
@@ -18,7 +19,7 @@ export default async function AdminLayout({
   }
 
   const cutoff48h = new Date(Date.now() - 48 * 3600_000).toISOString();
-  const [ivsRes, recentRespRes] = await Promise.all([
+  const [ivsRes, recentRespRes, validationCount] = await Promise.all([
     supabase
       .from('interventions')
       .select('statut, technicien_id')
@@ -31,6 +32,8 @@ export default async function AdminLayout({
       .from('occupants')
       .select('id', { count: 'exact', head: true })
       .gte('confirmed_at', cutoff48h),
+    // Compteur de la file de validation (5 sources) — module partagé.
+    getValidationTotal(supabase),
   ]);
 
   const ivs = ivsRes.data ?? [];
@@ -41,7 +44,7 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar alertCount={alertCount} recentResponsesCount={recentResponsesCount} />
+      <Sidebar alertCount={alertCount} recentResponsesCount={recentResponsesCount} validationCount={validationCount} />
       {/* Right column en flex-col : topbar (sticky) + MainContent (Design
           System FoxO — sand bg + radial gradients). Le `<main>` sémantique
           est porté par MainContent, donc cette div extérieure reste un
