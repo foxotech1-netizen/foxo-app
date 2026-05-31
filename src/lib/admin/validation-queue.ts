@@ -2,8 +2,8 @@
 //
 // Les fonctions apply* posent les filtres d'UNE source sur un query builder
 // Supabase. Elles sont réutilisables pour LISTER (.select(colonnes)) OU
-// COMPTER (.select('*', { count: 'exact', head: true })) : le type concret du
-// builder est préservé via le `this` polymorphe de FilterableQuery.
+// COMPTER (.select('*', { count: 'exact', head: true })) : le générique Q
+// préserve le type concret du builder en entrée/sortie.
 // getSuspensCount / getValidationTotal s'appuient dessus pour rester alignés
 // avec les listes affichées par la page.
 
