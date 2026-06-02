@@ -22,6 +22,11 @@ import {
 import { nextRefForYear } from '@/lib/intervention-ref';
 import { bestMatch } from '@/lib/text/similarity';
 import { runAgent } from '@/lib/observability';
+import {
+  toCanonicalClassification,
+  gmailLabelForClassification,
+  CLASSIFICATION_TO_LABEL,
+} from '@/lib/mail/categories';
 
 const MODEL = 'claude-sonnet-4-6';
 // Le JSON nested du nouveau prompt FoxO (demandeur.contacts[],
@@ -136,6 +141,9 @@ export type CronMailType =
 export interface CronMailAnalysis {
   est_demande_intervention: boolean;
   type_email: CronMailType | null;
+  // Classification canonique FoxO (cf. src/lib/mail/categories.ts). Optionnel :
+  // alimenté par le parsing de la réponse Claude, pilote le label Gmail.
+  classification?: string | null;
   // Champs aplatis (rétrocompat avec le code aval qui les lit).
   // Ils sont populés depuis demandeur/acp/intervention par le parser.
   nom_client: string | null;
@@ -403,6 +411,18 @@ export async function analyzeMailWithClaude(
     `- "assurance" : mail courtier (sinistre, police, expertise) sur dossier existant`,
     `- "autre" : tout le reste (spam, newsletter, fournisseur, interne…)`,
     ``,
+    `## classification (taxonomie canonique FoxO — pilote le label Gmail)`,
+    `Choisis EXACTEMENT une valeur parmi :`,
+    `["nouvelle_demande","relance_syndic","reponse_occupant","demande_rapport","question_facturation","urgence","demarchage","autre"]`,
+    `- nouvelle_demande : nouvelle demande d'intervention`,
+    `- relance_syndic : suivi / relance sur un dossier existant`,
+    `- reponse_occupant : occupant ou syndic qui répond (confirmation, annulation, contre-proposition)`,
+    `- demande_rapport : on réclame un rapport`,
+    `- question_facturation : question ou relance sur une facture`,
+    `- urgence : sinistre urgent en cours`,
+    `- demarchage : publicité, prospection commerciale, spam`,
+    `- autre : tout le reste`,
+    ``,
     `## demandeur.type`,
     `- "syndic" : copropriété, ACP, immeuble, AG, parties communes, gestionnaire`,
     `- "courtier" : assurance, sinistre, police, compagnie, expertise, dégât assuré`,
@@ -412,6 +432,7 @@ export async function analyzeMailWithClaude(
     `{`,
     `  "est_demande_intervention": true | false,`,
     `  "type_email": "nouvelle_demande" | "suivi_dossier" | "confirmation_rdv" | "annulation" | "rapport_demande" | "assurance" | "autre",`,
+    `  "classification": "nouvelle_demande" | "relance_syndic" | "reponse_occupant" | "demande_rapport" | "question_facturation" | "urgence" | "demarchage" | "autre",`,
     ``,
     `  "demandeur": {`,
     `    "type": "syndic" | "courtier" | "particulier" | null,`,
@@ -839,6 +860,9 @@ export async function analyzeMailWithClaude(
   const analysis: CronMailAnalysis = {
     est_demande_intervention: parsed.est_demande_intervention === true,
     type_email,
+    classification: typeof (parsed as { classification?: unknown }).classification === 'string'
+      ? (parsed as { classification: string }).classification
+      : null,
     nom_client,
     adresse,
     type_probleme,
@@ -2056,9 +2080,9 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
           continue;
         }
         await withTimeout(
-          addLabelToMail({ mailId: m.id, labelName: 'FOXO_TRAITE', removeUnread: true }),
+          addLabelToMail({ mailId: m.id, labelName: CLASSIFICATION_TO_LABEL.nouvelle_demande, removeUnread: true }),
           GMAIL_TIMEOUT_MS,
-          `addLabel:FOXO_TRAITE:${m.id}`,
+          `addLabel:${CLASSIFICATION_TO_LABEL.nouvelle_demande}:${m.id}`,
         );
         await logMailEntry({
           mail_id: m.id, from: m.from, subject: m.subject,
@@ -2074,10 +2098,16 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
           analysis,
         });
       } else {
+        // Pas une demande d'intervention : le label suit la classification
+        // canonique (classification > type_email hérité en fallback). Garde-fou :
+        // jamais FoxO/Intervention ici puisque aucune intervention n'a été créée.
+        const canonicalCat = toCanonicalClassification(analysis.classification ?? analysis.type_email);
+        let labelCat = gmailLabelForClassification(canonicalCat);
+        if (labelCat === CLASSIFICATION_TO_LABEL.nouvelle_demande) labelCat = CLASSIFICATION_TO_LABEL.autre;
         await withTimeout(
-          addLabelToMail({ mailId: m.id, labelName: 'FOXO_LU', removeUnread: true }),
+          addLabelToMail({ mailId: m.id, labelName: labelCat, removeUnread: true }),
           GMAIL_TIMEOUT_MS,
-          `addLabel:FOXO_LU:${m.id}`,
+          `addLabel:${labelCat}:${m.id}`,
         );
         await logMailEntry({ mail_id: m.id, from: m.from, subject: m.subject, action: 'labeled_lu' });
         result.labeled_lu++;
