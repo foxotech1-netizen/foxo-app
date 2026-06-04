@@ -1,3 +1,48 @@
+## Snapshot 2026-06-04 (soir) — Clôture chantier mails : dette label, validation, lot E
+
+### HEAD git
+`c2ee320` — Merge pull request #21 feat/lot-e-cron-errors → main
+
+### Livré et mergé depuis le snapshot 2026-06-04 (Unité 4)
+
+| PR | Merge | Sujet |
+|----|-------|-------|
+| #19 | `d19751a` | Retrait de la dette `FOXO_TRAITE`/`FOXO_LU` |
+| #20 | `b464862` | File de validation `/admin/validation` (5 sources agrégées) |
+| #21 | `c2ee320` | Surface des erreurs du cron mails (lot E) |
+
+**PR #19 — Dette label `FOXO_TRAITE`/`FOXO_LU` (`e42486d`)**
+- Décision produit : l'action manuelle « Marquer traité » devient **« Archiver »** (remove `INBOX` + `UNREAD`).
+- Writers hérités supprimés : route `[id]/mark-traite` + `markMailTraite()` (`gmail.ts`) ; action batch `'traite'` (`ensureLabel('FOXO_TRAITE')`).
+- Cron : query `'in:inbox is:unread'` (clauses `-label:FOXO_*` vestigiales retirées — `is:unread` suffit puisque la labellisation `FoxO/*` retire `UNREAD`).
+- Doc Paramètres corrigée (mention `FoxO/*` au lieu de `FOXO_TRAITE`/`FOXO_LU`). −116/+32, 1 route supprimée.
+- ⚠ Les labels `FOXO_TRAITE`/`FOXO_LU` existent encore côté Gmail sur d'anciens mails (non re-étiquetés) ; jamais re-posés. Nettoyage manuel Gmail possible si souhaité.
+
+**PR #20 — File de validation (`106c1f6`→`9db17fb`)**
+- `src/lib/admin/validation-queue.ts` : source unique des prédicats. Générique `Q` non contraint → `apply*` réutilisables en LISTE et en COUNT (`head:true`) ; contrat `FilterableQuery` minimal pour éviter le TS2589.
+- `src/app/admin/validation/page.tsx` : page V1, 5 sections (mails à confirmer, rapports à valider, factures/devis brouillon, notes de frais soumises, interventions en suspens → compteur + lien Alertes).
+- Entrée menu « À valider » + badge `validationCount` (Sidebar desktop + bottom-nav) ; chip dans le hub (`.catch(() => 0)`). Lecture seule, aucune migration.
+
+**PR #21 — Lot E : erreurs cron surfacées (`09471bc`)**
+- Diagnostic : le texte d'erreur du cron était produit (`result.items[].error`) et persisté dans `sms_logs` (`sent_by='cron:check-mails'`, `status='failed'`), mais l'admin ne voyait qu'un compteur « N erreur(s) » nu — `triggerCheckMailsNow` droppait `items`, et `automation_jobs.result` ne garde que les compteurs.
+- Paramètres : `triggerCheckMailsNow` renvoie `errorItems` (sujet + raison) ; le feedback liste les causes et passe en rouge si `errors>0`.
+- Observabilité : nouvelle section « Erreurs cron mails » lisant `sms_logs` (20 dernières, filtre période), couvre aussi les runs automatiques. Lecture seule.
+
+### État chantier « Refonte mails »
+- ✅ U1 — `categories.ts` source de vérité unique (8 valeurs canoniques + labels Gmail)
+- ✅ U2 — Colonne `mails_analyses.classification` en prod
+- ✅ U3 — Cron pose les labels `FoxO/*` (booléen-autorité)
+- ✅ U4 — Agent deep écrit `classification` ; UI lit + filtre par classification
+- ✅ Dette label `FOXO_TRAITE`/`FOXO_LU` retirée (#19)
+- ✅ File de validation `/admin/validation` (#20)
+- ✅ Lot E — erreurs cron observables (#21)
+
+### Backlog mail restant
+1. **Calibrage prompt cron** (seul item actif) : observer les labels `FoxO/*` sur de vrais mails ; remonter les écarts (sujet + label obtenu + attendu) pour ajuster le few-shot dans `check-mails.ts`. Désormais outillé par la section « Erreurs cron mails » d'Observabilité.
+2. **Émission canonique native** (itération ultérieure) : faire émettre directement les 8 valeurs canoniques par le prompt deep (aujourd'hui : dérivation serveur `toCanonicalClassification(type)`).
+3. **Lot C** (perf, non prioritaire) : synchro `historyId`/`history.list`.
+4. **Dette résiduelle** : clamp silencieux à 500 dans `batchModifyMails` (`gmail.ts`).
+
 ## Snapshot 2026-06-04 — Unité 4 : classification canonique (PR #17)
 
 ### HEAD git
