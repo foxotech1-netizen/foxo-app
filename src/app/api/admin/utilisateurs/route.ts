@@ -117,18 +117,27 @@ export async function POST(request: Request) {
   if (usersErr) {
     return NextResponse.json({ ok: false, error: usersErr.message }, { status: 500 });
   }
-  const userAuth = usersData?.users.find(
+  let userAuth = usersData?.users.find(
     (u) => (u.email ?? '').toLowerCase() === email,
   );
   if (!userAuth) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'no_auth_account',
-        message: "Cet email n'a pas encore de compte. Demandez à la personne de se connecter une fois sur portal.foxo.be puis revenez ici.",
-      },
-      { status: 404 },
-    );
+    // Aucun compte Auth existant pour cet email : on le cree directement
+    // (email confirme d'office, connexion ensuite par OTP). Plus besoin que
+    // la personne se connecte d'abord sur portal.foxo.be.
+    const { data: createdData, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (createErr || !createdData?.user) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: createErr?.message ?? "Echec de creation du compte d'authentification.",
+        },
+        { status: 500 },
+      );
+    }
+    userAuth = createdData.user;
   }
 
   // ── 2. INSERT public.utilisateurs ──
