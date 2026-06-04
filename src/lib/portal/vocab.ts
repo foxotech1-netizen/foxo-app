@@ -11,7 +11,7 @@ export type PortalVocab = {
   interventionsCap: string;       // pluriel capitalisé
   myInterventions: string;        // "Mes interventions" / "Mes dossiers"
   acpLabel: string;               // "ACP" / "Assuré"
-  newRequestVerb: string | null;  // null = portail en lecture seule (expert)
+  newRequestVerb: string | null;  // null = portail en lecture seule (aucun type ne l'utilise aujourd'hui)
   emptyList: string;              // "Aucune intervention" / "Aucun dossier"
   countSuffix: string;            // "intervention(s)" / "dossier(s)"
   accent: string;                 // hex couleur accent spécifique

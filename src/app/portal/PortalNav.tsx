@@ -159,8 +159,9 @@ export function PortalNav() {
     { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
   ];
 
-  // Bottom nav iOS — 3 ou 4 items selon orgType (l'item "Nouveau" est
-  // masqué pour les experts qui n'ont pas le droit de créer une demande).
+  // Bottom nav iOS — 3 ou 4 items selon orgType. L'item "Nouveau" n'apparaît
+  // que si le vocab de l'org expose un verbe de création (newRequestVerb non
+  // null). Aujourd'hui les 3 types (syndic, courtier, expert) peuvent créer.
   const BOTTOM_NAV: NavItem[] = [
     { href: '/portal',               icon: Home,            label: 'Accueil' },
     { href: '/portal/interventions', icon: ClipboardList,   label: 'Interventions' },

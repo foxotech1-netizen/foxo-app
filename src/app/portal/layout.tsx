@@ -15,7 +15,9 @@ export default async function PortalLayout({
   const { user, org } = session;
 
   // Type d'organisation : par défaut syndic (rétro-compat avec org sans type).
-  // Étendu pour supporter expert (lecture seule, pas de création de demande).
+  // Étendu pour courtier et expert — ces deux partagent le vocabulaire
+  // "dossier sinistre / assuré" et peuvent créer une demande (cf. submitRequest,
+  // branche isExpert qui assouplit la référence compagnie).
   const orgType: OrgType =
     org?.type === 'courtier' ? 'courtier' :
     org?.type === 'expert'   ? 'expert'   :
