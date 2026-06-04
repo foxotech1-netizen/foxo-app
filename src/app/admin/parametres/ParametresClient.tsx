@@ -125,7 +125,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [smsAutoRappel, setSmsAutoRappel] = useState(initial.sms_auto_rappel_24h === 'true');
   const [mailAutoAnalyse, setMailAutoAnalyse] = useState(initial.mail_auto_analyse === 'true');
   const [mailLastCheck, setMailLastCheck] = useState<string | null>(initial.mail_last_check || null);
-  const [mailCheckResult, setMailCheckResult] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [mailCheckResult, setMailCheckResult] = useState<{ kind: 'ok' | 'err'; msg: string; details?: string[] } | null>(null);
 
   // Calendar Watch
   const [watch, setWatch] = useState<CalendarWatchStatus | null>(null);
@@ -437,8 +437,9 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                     }
                     const d = res.data!;
                     setMailCheckResult({
-                      kind: 'ok',
+                      kind: d.errors > 0 ? 'err' : 'ok',
                       msg: `Vérification OK — ${d.created} créé(s), ${d.labeled_lu} non-demande(s), ${d.skipped} ignoré(s), ${d.errors} erreur(s).`,
+                      details: d.errorItems.map((it) => `${it.subject} — ${it.error}`),
                     });
                     const r = await getMailLastCheck();
                     if (r.ok) setMailLastCheck(r.data?.value ?? null);
@@ -462,6 +463,13 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                   : 'bg-terra-light border-terra-mid text-terra')
               }>
                 {mailCheckResult.msg}
+                {mailCheckResult.details && mailCheckResult.details.length > 0 && (
+                  <ul className="mt-1.5 space-y-1 font-normal list-disc pl-4">
+                    {mailCheckResult.details.map((d, i) => (
+                      <li key={i} className="break-words">{d}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
 

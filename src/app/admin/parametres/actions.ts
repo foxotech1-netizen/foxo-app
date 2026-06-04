@@ -24,6 +24,7 @@ async function assertAdmin(): Promise<{ ok: true } | { ok: false; error: string 
 // PAS contrôlé ici : l'admin a explicitement cliqué.
 export async function triggerCheckMailsNow(): Promise<ActionResult<{
   processed: number; created: number; labeled_lu: number; skipped: number; errors: number;
+  errorItems: { subject: string; error: string }[];
 }>> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
@@ -40,6 +41,14 @@ export async function triggerCheckMailsNow(): Promise<ActionResult<{
         labeled_lu: result.labeled_lu,
         skipped: result.skipped,
         errors: result.errors,
+        // Détail des erreurs (sujet + raison) pour affichage immédiat dans
+        // l'UI — sans ça l'admin ne voit qu'un compteur « N erreur(s) » nu.
+        errorItems: result.items
+          .filter((it) => it.action === 'error')
+          .map((it) => ({
+            subject: it.subject || '(sans sujet)',
+            error: it.error ?? 'Erreur inconnue',
+          })),
       },
     };
   } catch (e) {

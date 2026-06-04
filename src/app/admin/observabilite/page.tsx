@@ -149,7 +149,20 @@ export default async function ObservabilitePage({
     .not('confidence_score', 'is', null);
   const confQuery = cutoffIso ? confBase.gte('created_at', cutoffIso) : confBase;
 
-  const [statsAgents, kpiAutosRes, agentLogsRes, autoJobsRes, confRes] = await Promise.all([
+  // Erreurs du cron mails (lot E) — la phase per-mail journalise l'échec dans
+  // sms_logs (sent_by='cron:check-mails', status='failed'), seul endroit qui
+  // garde le TEXTE de l'erreur (automation_jobs ne stocke que les compteurs).
+  // Couvre runs manuels ET automatiques (Vercel cron).
+  const cronErrBase = supabase
+    .from('sms_logs')
+    .select('id, created_at, message, error, twilio_sid')
+    .eq('sent_by', 'cron:check-mails')
+    .eq('status', 'failed')
+    .order('created_at', { ascending: false })
+    .limit(20);
+  const cronErrQuery = cutoffIso ? cronErrBase.gte('created_at', cutoffIso) : cronErrBase;
+
+  const [statsAgents, kpiAutosRes, agentLogsRes, autoJobsRes, confRes, cronErrRes] = await Promise.all([
     getObservabilityStats(period),
     cutoffIso
       ? supabase.from('automation_jobs').select('status').gte('executed_at', cutoffIso)
@@ -157,10 +170,14 @@ export default async function ObservabilitePage({
     agentLogsQuery,
     autoJobsQuery,
     confQuery,
+    cronErrQuery,
   ]);
 
   const kpiAutos = (kpiAutosRes.data ?? []) as { status: string }[];
   const confScores = (confRes.data ?? []) as { confidence_score: number | null }[];
+  const cronErrors = (cronErrRes.data ?? []) as {
+    id: string; created_at: string; message: string | null; error: string | null; twilio_sid: string | null;
+  }[];
   const lowConfCount = confScores.filter(
     (r) => r.confidence_score != null && r.confidence_score < 0.7,
   ).length;
@@ -422,6 +439,52 @@ export default async function ObservabilitePage({
             </div>
           )}
           <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
+        </section>
+
+        {/* Section Erreurs cron mails (lot E) — détail texte depuis sms_logs */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold text-ink">Erreurs cron mails</h2>
+            <span className="text-[10px] text-ink-muted">{cronErrors.length} récente(s)</span>
+          </div>
+
+          {cronErrors.length === 0 ? (
+            <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
+              Aucune erreur du cron mails sur la période.
+            </p>
+          ) : (
+            <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-sand">
+                    {['Quand', 'Sujet', 'Erreur'].map((h) => (
+                      <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cronErrors.map((e) => {
+                    // message = "[error] <sujet>" → on retire le préfixe d'action.
+                    const sujet = (e.message ?? '').replace(/^\[[^\]]*\]\s*/, '') || '—';
+                    return (
+                      <tr key={e.id} className="border-b border-sand-mid hover:bg-sand-hover">
+                        <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDateTime(e.created_at)}</td>
+                        <td className="px-3.5 py-3 text-[12px] max-w-[200px] truncate" title={sujet}>{sujet}</td>
+                        <td className="px-3.5 py-3 text-[11px] text-terra max-w-md break-words" title={e.error ?? undefined}>
+                          {e.error ?? '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-[10px] text-ink-muted mt-2 italic">
+            Source : <code>sms_logs</code> (<code>sent_by=cron:check-mails</code>, <code>status=failed</code>). 20 dernières sur la période.
+          </p>
         </section>
       </div>
     </>
