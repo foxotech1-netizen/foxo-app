@@ -3,19 +3,13 @@
 // BriefingIA — card du Tableau de bord admin présentant le briefing
 // quotidien généré par Claude FoxO.
 //
-// ⚠ Sprint 1 : contenu STATIQUE (placeholder hardcodé). Au Sprint 2,
-// le body sera remplacé par le résultat d'un appel server action
-// `getBriefing(userId)` (Anthropic SDK). Conserver l'API du composant
-// (props + classes) pour minimiser le diff lors du branchement.
+// Le texte (`briefingText`) est produit côté serveur par getBriefing()
+// (src/lib/assistant/briefing.ts) à partir du contexte FoxO temps réel,
+// mis en cache 1 h. Ce composant n'affiche que du contenu réel — plus
+// aucun placeholder statique.
 
 import { useSyncExternalStore } from 'react';
 import { Mail, AlertTriangle, Calendar, type LucideIcon } from 'lucide-react';
-
-export interface BriefingCounts {
-  interventionsToday: number;
-  urgences: number;
-  mailsNonLus: number;
-}
 
 interface QuickAction {
   Icon: LucideIcon;
@@ -30,7 +24,9 @@ const QUICK_ACTIONS: QuickAction[] = [
 ];
 
 interface BriefingIAProps {
-  counts: BriefingCounts;
+  briefingText: string;
+  // Réservé pour d'éventuels ajustements responsive ; le texte étant déjà
+  // concis, le rendu est identique mobile/desktop pour l'instant.
   compact?: boolean;
 }
 
@@ -43,11 +39,11 @@ const getClientTime = () =>
   new Date().toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
 const getServerTime = () => '';
 
-export function BriefingIA({ counts, compact = false }: BriefingIAProps) {
+export function BriefingIA({ briefingText }: BriefingIAProps) {
   const generatedAt = useSyncExternalStore(NOOP_SUBSCRIBE, getClientTime, getServerTime);
 
   function handleAction(key: string) {
-    // Sprint 1 : log pur. Sprint 2 : router push / server action.
+    // Quick actions non branchées pour l'instant (log pur).
     console.log('[BriefingIA] action déclenchée :', key);
   }
 
@@ -94,12 +90,10 @@ export function BriefingIA({ counts, compact = false }: BriefingIAProps) {
           )}
         </div>
 
-        {/* Body — placeholder statique, deux variantes selon compact */}
-        {compact ? (
-          <BriefingBodyMobile counts={counts} />
-        ) : (
-          <BriefingBodyDesktop counts={counts} />
-        )}
+        {/* Body — texte réel généré par Claude */}
+        <p className="text-[13px] text-[var(--color-ink)] leading-relaxed m-0 whitespace-pre-line">
+          {briefingText}
+        </p>
 
         {/* Quick actions — pills navy-pale, hover navy plein */}
         <div className="flex flex-wrap gap-1.5 mt-3">
@@ -136,47 +130,7 @@ export function BriefingIA({ counts, compact = false }: BriefingIAProps) {
           color: var(--color-cream) !important;
           border-color: var(--color-navy) !important;
         }
-        .briefing-ref {
-          font-family: var(--font-sora), ui-sans-serif, sans-serif;
-          color: var(--color-navy);
-          font-weight: 600;
-          letter-spacing: 0.01em;
-        }
       `}</style>
-    </div>
-  );
-}
-
-function BriefingBodyMobile({ counts }: { counts: BriefingCounts }) {
-  return (
-    <p className="text-[13px] text-[var(--color-ink)] leading-relaxed m-0">
-      Tu as <strong>{counts.interventionsToday}</strong> intervention{counts.interventionsToday > 1 ? 's' : ''} confirmée{counts.interventionsToday > 1 ? 's' : ''} aujourd&apos;hui.{' '}
-      <strong>{counts.urgences}</strong> urgence{counts.urgences > 1 ? 's' : ''} en attente méritent ton attention.{' '}
-      <strong>{counts.mailsNonLus}</strong> mail{counts.mailsNonLus > 1 ? 's' : ''} sans réponse depuis +24h.{' '}
-      Météo : pluie prévue cet après-midi.
-    </p>
-  );
-}
-
-function BriefingBodyDesktop({ counts }: { counts: BriefingCounts }) {
-  return (
-    <div className="space-y-2 text-[13px] text-[var(--color-ink)] leading-relaxed">
-      <p className="m-0">
-        Tu as <strong>{counts.interventionsToday}</strong> intervention{counts.interventionsToday > 1 ? 's' : ''} confirmée{counts.interventionsToday > 1 ? 's' : ''} aujourd&apos;hui (Belfius 9h, IG Syndic 11h30, Regimo 14h).{' '}
-        <strong>{counts.urgences}</strong> urgence{counts.urgences > 1 ? 's' : ''} en attente depuis +48h méritent ton attention avant 10h&nbsp;:{' '}
-        <span className="briefing-ref">Flagey II</span> et <span className="briefing-ref">ACP A10</span>.
-      </p>
-      <ul className="m-0 pl-4 space-y-1 list-disc text-[13px] text-[var(--color-ink-mid)]">
-        <li>
-          <strong className="text-[var(--color-ink)]">{counts.mailsNonLus}</strong> mail{counts.mailsNonLus > 1 ? 's' : ''} sans réponse depuis +24h — 1 du syndic Regimo qui menace de rebasculer chez la concurrence si pas de réponse aujourd&apos;hui.
-        </li>
-        <li>
-          Facture <span className="briefing-ref">FACT-049</span> Belfius 1&nbsp;240&nbsp;€ en retard de 7 jours — relance recommandée maintenant.
-        </li>
-        <li>
-          Pluie prévue cet après-midi : conditions idéales pour la détection par humidité sur le dossier <span className="briefing-ref">2026-123</span>.
-        </li>
-      </ul>
     </div>
   );
 }

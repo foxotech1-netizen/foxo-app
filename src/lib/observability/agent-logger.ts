@@ -37,7 +37,9 @@ export type AgentName =
   | "draft_reply"
   | "sms_compose"
   | "notes_frais_extract"
-  | "assistant_chat";
+  | "assistant_chat"
+  // Briefing quotidien du Tableau de bord (chantier Briefing IA)
+  | "briefing";
 
 export type AgentKind = "canonical" | "utility";
 

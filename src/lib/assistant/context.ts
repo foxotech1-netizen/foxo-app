@@ -6,6 +6,7 @@
 //                 syndics actifs, retards, urgentes)
 //   - intervention : dossier complet d'une intervention donnée
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { searchEmailsByDossier } from '@/lib/gmail';
 import type {
@@ -21,8 +22,12 @@ import type {
 
 // ─── Mode global ─────────────────────────────────────────────────────────
 
-export async function buildGlobalContext(): Promise<string> {
-  const supabase = await createClient();
+// `client` optionnel : par défaut le client cookie-bound (RLS) utilisé par
+// l'Assistant chat. Le briefing du Tableau de bord passe le client admin
+// (service role) car il tourne dans un scope `unstable_cache` où `cookies()`
+// est interdit — voir src/lib/assistant/briefing.ts.
+export async function buildGlobalContext(client?: SupabaseClient): Promise<string> {
+  const supabase = client ?? await createClient();
   const now = Date.now();
 
   const [ivRes, syndicsRes, techsRes] = await Promise.all([
