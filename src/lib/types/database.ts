@@ -208,6 +208,10 @@ export interface Intervention {
   notes_tech: string | null;
   action_requise: string | null;
   assureur: {
+    // Nom de l'assuré / sinistré lui-même (courtier ET expert). Capturé
+    // systématiquement à la création pour ne jamais le perdre, y compris
+    // quand aucun dossiers_sinistres n'est créé (expert sans réf compagnie).
+    assure: string | null;
     nom: string | null;
     email: string | null;
     telephone: string | null;

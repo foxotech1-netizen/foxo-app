@@ -27,7 +27,8 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
   const confirmedCount = occupants.filter((o) => o.conf === 'confirme').length;
   const appartements = iv.appartements_concernes ?? [];
   const showCourtierBlock = isSinistre && (
-    iv.assureur?.nom
+    iv.assureur?.assure
+    || iv.assureur?.nom
     || iv.assureur?.reference_sinistre
     || iv.assureur?.reference_police
     || iv.action_requise
@@ -246,6 +247,9 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
             <Landmark size={14} /> Informations assurance
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+            {iv.assureur?.assure && (
+              <CourtierField label="Assuré" value={iv.assureur.assure} />
+            )}
             {iv.assureur?.nom && (
               <CourtierField label="Compagnie d'assurance" value={iv.assureur.nom} />
             )}
