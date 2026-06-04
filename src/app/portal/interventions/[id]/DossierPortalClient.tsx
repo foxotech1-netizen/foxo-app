@@ -19,13 +19,13 @@ const CONF_INFO: Record<NonNullable<Occupant['conf']>, { label: string; fg: stri
 export function DossierPortalClient({ data }: { data: DossierData }) {
   const v = useVocab();
   const { orgEmail } = usePortalContext();
-  const { intervention: iv, acp, occupants, technicien: tech, isCourtier, hasReport } = data;
+  const { intervention: iv, acp, occupants, technicien: tech, isSinistre, hasReport } = data;
 
   const adresseFull = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ');
   const techNom = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ').trim() : null;
   const confirmedCount = occupants.filter((o) => o.conf === 'confirme').length;
   const appartements = iv.appartements_concernes ?? [];
-  const showCourtierBlock = isCourtier && (
+  const showCourtierBlock = isSinistre && (
     iv.assureur?.nom
     || iv.assureur?.reference_sinistre
     || iv.assureur?.reference_police

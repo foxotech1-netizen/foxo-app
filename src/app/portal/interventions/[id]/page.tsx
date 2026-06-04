@@ -11,7 +11,9 @@ export type DossierData = {
   acp: Acp | null;
   occupants: Occupant[];
   technicien: Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
-  isCourtier: boolean;
+  // Vrai pour les orgs "dossier sinistre" (courtier ET expert) — pilote
+  // l'affichage du bloc Assuré / assureur dans DossierPortalClient.
+  isSinistre: boolean;
   hasReport: boolean;
 };
 
@@ -57,7 +59,7 @@ export default async function InterventionDetail({
     acp: (acpRes.data as Acp | null) ?? null,
     occupants: (occRes.data as Occupant[] | null) ?? [],
     technicien: (techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null) ?? null,
-    isCourtier: org.type === 'courtier',
+    isSinistre: org.type === 'courtier' || org.type === 'expert',
     hasReport: intervention.statut === 'rapport' || intervention.statut === 'cloturee',
   };
 
