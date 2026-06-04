@@ -116,8 +116,9 @@ export default async function InterventionFullPage({
   }
 
   // Vue deep-link sur une intervention spécifique : la carte "réponses
-  // récentes" du dashboard est non pertinente ici — on passe une liste vide.
-  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses: [] };
+  // récentes" et le briefing du jour ne sont pas pertinents ici — liste vide
+  // et briefing null (la carte Briefing est alors masquée).
+  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses: [], briefingText: null };
   const serverNowIso = new Date().toISOString();
 
   return (

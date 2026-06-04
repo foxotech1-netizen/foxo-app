@@ -11,11 +11,6 @@ import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-// TODO Sprint Brouillons IA + Briefing : réactiver BriefingIA
-// quand le composant sera branché sur Claude API avec données
-// réelles (cron + Gmail + Calendar). Pour l'instant masqué car
-// les placeholders statiques inventaient des chiffres factices.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { BriefingIA } from '@/components/admin/BriefingIA';
 import { ChatIA } from '@/components/admin/ChatIA';
 import { NextMissions } from '@/components/admin/NextMissions';
@@ -241,10 +236,13 @@ export function Dashboard({
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {/* BriefingIA masqué en attendant le branchement Claude API
-          (cf. TODO sur l'import) — les placeholders statiques inventaient
-          des chiffres factices ([ref] Flagey II, FACT-049, etc.) qui
-          peuvent induire en erreur l'utilisateur. */}
+      {/* Briefing du jour — texte réel généré par Claude (cache 1 h côté
+          serveur). Masqué si la génération est indisponible (briefingText
+          null) pour ne jamais afficher de carte vide. Pleine largeur, en
+          tête du Dashboard. */}
+      {dashboard.briefingText && (
+        <BriefingIA briefingText={dashboard.briefingText} compact={isMobile} />
+      )}
 
       {/* Mobile + Tablet : Missions du jour + Chat express en tête.
           En desktop ces composants migrent dans la colonne droite. */}
