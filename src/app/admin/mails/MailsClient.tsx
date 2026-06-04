@@ -10,8 +10,15 @@ import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { MailAnalyseBadges } from './MailAnalyseBadges';
 import { MailAnalyseActions } from './MailAnalyseActions';
+import {
+  MAIL_CLASSIFICATIONS,
+  CLASSIFICATION_LABEL_FR,
+  toCanonicalClassification,
+  type MailClassification,
+} from '@/lib/mail/categories';
 
 type FilterMode = 'tous' | 'unread' | 'lies' | 'trash';
+type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'traite' | 'archive'
   | 'label' | 'important' | 'trash' | 'restore' | 'delete-permanent';
@@ -73,6 +80,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterMode>('tous');
+  // Filtre métier par classification canonique (U4). Purement client :
+  // croise la Map des analyses (thread_id → MailAnalyse). 'toutes' = pas
+  // de filtre. Un mail non analysé est exclu dès qu'une catégorie précise
+  // est sélectionnée.
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('toutes');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MailDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -231,9 +243,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (!matches) return false;
       }
       if (filter === 'lies' && !hasInterventionRef(m)) return false;
+      if (categoryFilter !== 'toutes') {
+        const analyse = analyses.get(m.thread_id);
+        // Pas d'analyse → pas de classification → exclu du filtre métier.
+        if (!analyse) return false;
+        const cat = toCanonicalClassification(analyse.classification ?? analyse.type);
+        if (cat !== categoryFilter) return false;
+      }
       return true;
     });
-  }, [mails, query, filter]);
+  }, [mails, query, filter, categoryFilter, analyses]);
 
   const labelById = useMemo(() => {
     const m = new Map<string, GmailLabel>();
@@ -556,6 +575,25 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </button>
             ))}
           </div>
+          {/* Filtre par catégorie métier (classification canonique U4). */}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+            aria-label="Filtrer par catégorie"
+            className={
+              'w-full px-2 py-1.5 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
+              (categoryFilter !== 'toutes'
+                ? 'bg-navy text-white border-navy'
+                : 'bg-white text-ink-mid border-sand-border')
+            }
+          >
+            <option value="toutes">Toutes les catégories</option>
+            {MAIL_CLASSIFICATIONS.map((c) => (
+              <option key={c} value={c}>
+                {CLASSIFICATION_LABEL_FR[c]}
+              </option>
+            ))}
+          </select>
           <button
             ref={refreshRef}
             type="button"
