@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 // fonction ne fait que résoudre l'identité.
 async function resolveCaller(): Promise<
   | { ok: true; isAdmin: true; email: string }
-  | { ok: true; isAdmin: false; email: string; orgType: 'syndic' | 'courtier' }
+  | { ok: true; isAdmin: false; email: string; orgType: 'syndic' | 'courtier' | 'expert' }
   | { ok: false; error: string; status: number }
 > {
   const supabase = await createClient();
@@ -26,7 +26,11 @@ async function resolveCaller(): Promise<
   if (!session?.org) {
     return { ok: false, error: 'Compte non lié à un partenaire.', status: 403 };
   }
-  const orgType: 'syndic' | 'courtier' = session.org.type === 'courtier' ? 'courtier' : 'syndic';
+  // Mapping explicite des 3 types partenaires. Tout type inattendu retombe
+  // sur 'syndic' (défensif), mais expert/courtier sont désormais distincts.
+  const t = session.org.type;
+  const orgType: 'syndic' | 'courtier' | 'expert' =
+    t === 'courtier' ? 'courtier' : t === 'expert' ? 'expert' : 'syndic';
   return { ok: true, isAdmin: false, email: user.email, orgType };
 }
 

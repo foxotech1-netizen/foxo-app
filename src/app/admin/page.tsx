@@ -117,7 +117,7 @@ export default async function AdminPipelinePage() {
       .from('messages')
       .select('intervention_id')
       .eq('lu_admin', false)
-      .in('auteur_type', ['syndic', 'courtier']);
+      .in('auteur_type', ['syndic', 'courtier', 'expert']);
     for (const r of (unreadRows ?? []) as { intervention_id: string }[]) {
       unreadByIv.set(r.intervention_id, (unreadByIv.get(r.intervention_id) ?? 0) + 1);
     }
