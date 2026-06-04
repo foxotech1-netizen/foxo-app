@@ -3,14 +3,16 @@
 //
 // Workflow par mail :
 //   1. Liste les mails INBOX is:unread
-//   2. Skip si déjà labelisé FOXO_TRAITE (sécurité — Gmail filtre déjà
-//      via la query, mais double-check côté code)
-//   3. Charge le détail (body)
-//   4. Claude → JSON { ..., est_demande_intervention: bool }
-//   5a. Si oui : crée intervention statut='nouvelle' source='mail'
-//       + label FOXO_TRAITE + retire UNREAD + insert timeline
-//   5b. Sinon : label FOXO_LU + retire UNREAD (pas une demande)
-//   6. Insert sms_logs.type='mail_entrant'
+//   2. Charge le détail (body)
+//   3. Claude → JSON { ..., est_demande_intervention: bool }
+//   4a. Si oui : crée intervention statut='nouvelle' source='mail'
+//       + label FoxO/Intervention + retire UNREAD + insert timeline
+//   4b. Sinon : label FoxO/* dérivé de la classification + retire UNREAD
+//   5. Insert sms_logs.type='mail_entrant'
+//
+// Le retrait de UNREAD à l'étape de labellisation suffit à exclure un mail
+// déjà traité du run suivant (la query filtre is:unread). Aucun marqueur
+// FOXO_TRAITE/FOXO_LU n'est posé — le tri se fait via les labels FoxO/*.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -44,7 +46,8 @@ const CLAUDE_TIMEOUT_MS = 20_000;
 // Borne la phase DB de createInterventionFromMail (N round-trips Supabase +
 // cascades de retry interventions×5 / occupants×6) qui n'était protégée par
 // aucun timeout. Sur dépassement : on log, on NE labellise PAS le mail (pas
-// de FOXO_TRAITE) et on continue — le mail est repris au run suivant.
+// de label FoxO/*, UNREAD conservé) et on continue — le mail est repris au
+// run suivant.
 const DB_TIMEOUT_MS = 30_000;
 
 // Wrapper timeout Promise.race — sert pour les appels où on n'a pas
@@ -1956,8 +1959,10 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
     return result;
   }
 
-  // Filtre Gmail : non lus, pas déjà traités, pas déjà labelisés "lu non-demande"
-  const q = 'in:inbox is:unread -label:FOXO_TRAITE -label:FOXO_LU';
+  // Filtre Gmail : non lus en boîte de réception. Le cron retire UNREAD dès
+  // qu'il labelise un mail (FoxO/*), donc is:unread exclut déjà tout mail
+  // traité — pas besoin d'exclure des labels explicitement.
+  const q = 'in:inbox is:unread';
   let list: Awaited<ReturnType<typeof listInboxMails>>;
   try {
     list = await withTimeout(
@@ -2054,7 +2059,7 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
           );
         } catch (e) {
           // Deux cas, même issue : on `continue` SANS appeler addLabelToMail,
-          // donc le mail n'est PAS labellisé FOXO_TRAITE et reste is:unread →
+          // donc le mail n'est PAS labellisé (pas de FoxO/*) et reste is:unread →
           // requalifié naturellement au prochain run. On distingue le timeout
           // (message normalisé 'createInterventionFromMail timeout') d'une
           // exception DB inattendue, uniquement pour le niveau de log.

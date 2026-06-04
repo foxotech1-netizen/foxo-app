@@ -466,7 +466,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             )}
 
             <p className="text-[11px] text-ink-muted mt-2 italic">
-              Mails labelisés <code>FOXO_TRAITE</code> (demande convertie) ou <code>FOXO_LU</code> (pas une demande) après passage. Aucun mail n&apos;est traité deux fois.
+              Après passage, chaque mail reçoit un label métier <code>FoxO/*</code> (Intervention, Rapport, Comptable, Occupant, Démarchage, Autre) selon sa catégorie, et <code>UNREAD</code> est retiré. Aucun mail n&apos;est traité deux fois.
             </p>
           </Section>
         </section>

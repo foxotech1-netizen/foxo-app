@@ -20,7 +20,7 @@ import {
 type FilterMode = 'tous' | 'unread' | 'lies' | 'trash';
 type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
-  | 'read' | 'unread' | 'traite' | 'archive'
+  | 'read' | 'unread' | 'archive'
   | 'label' | 'important' | 'trash' | 'restore' | 'delete-permanent';
 
 interface MailAnalysis {
@@ -90,7 +90,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [detailLoading, setDetailLoading] = useState(false);
   const [analysis, setAnalysis] = useState<MailAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [traiteLoading, setTraiteLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const refreshRef = useRef<HTMLButtonElement>(null);
 
@@ -309,7 +308,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       window.dispatchEvent(new Event('foxo:mails-updated'));
       // Update optimiste
       setMails((arr) => {
-        if (action === 'archive' || action === 'traite' || action === 'trash' || action === 'delete-permanent') {
+        if (action === 'archive' || action === 'trash' || action === 'delete-permanent') {
           // Le mail disparaît de la vue actuelle
           return arr.filter((m) => !selectedIds.has(m.id));
         }
@@ -343,7 +342,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       const labelMap: Record<BulkAction, string> = {
         read: 'marqué(s) comme lu',
         unread: 'marqué(s) comme non lu',
-        traite: 'marqué(s) FOXO_TRAITE',
         archive: 'archivé(s)',
         label: 'libellé appliqué',
         important: 'marqué(s) important',
@@ -374,26 +372,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       }
     } finally {
       setAnalysisLoading(false);
-    }
-  }
-
-  async function markTraite() {
-    if (!detail) return;
-    setTraiteLoading(true);
-    setFeedback(null);
-    try {
-      const r = await fetch(`/api/admin/mails/${detail.id}/mark-traite`, { method: 'POST' });
-      const data = await r.json();
-      if (!data.ok) {
-        setFeedback({ kind: 'err', msg: data.error ?? 'Échec marquage.' });
-      } else {
-        setFeedback({ kind: 'ok', msg: 'Mail marqué FOXO_TRAITE' });
-        setMails((arr) => arr.filter((m) => m.id !== detail.id));
-        setSelectedId(null);
-        window.dispatchEvent(new Event('foxo:mails-updated'));
-      }
-    } finally {
-      setTraiteLoading(false);
     }
   }
 
@@ -866,12 +844,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </button>
               <button
                 type="button"
-                onClick={markTraite}
-                disabled={traiteLoading || !detail}
+                onClick={() => detail && applyBulkActionForOne(detail.id, 'archive')}
+                disabled={bulkLoading || !detail}
                 className="bg-[#A17244] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
               >
-                <CheckCircle2 size={14} />
-                {traiteLoading ? 'Marquage…' : 'Marquer traité'}
+                <Archive size={14} />
+                Archiver
               </button>
               {/* Actions trash spécifiques au mail courant */}
               {inTrash && detail && (
@@ -1120,7 +1098,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       setMails((arr) => arr.filter((m) => m.id !== id));
       setSelectedId(null);
       window.dispatchEvent(new Event('foxo:mails-updated'));
-      setFeedback({ kind: 'ok', msg: action === 'restore' ? 'Mail restauré' : 'Action appliquée' });
+      setFeedback({
+        kind: 'ok',
+        msg: action === 'restore' ? 'Mail restauré' : action === 'archive' ? 'Mail archivé' : 'Action appliquée',
+      });
     } finally {
       setBulkLoading(false);
     }

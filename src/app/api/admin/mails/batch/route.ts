@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
-import { batchModifyMails, batchDeletePermanently, ensureLabel } from '@/lib/gmail';
+import { batchModifyMails, batchDeletePermanently } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 
 type BatchAction =
   | 'read'
   | 'unread'
-  | 'traite'
   | 'archive'
   | 'label'
   | 'important'
@@ -23,7 +22,7 @@ interface BatchBody {
 }
 
 const ALLOWED_ACTIONS: BatchAction[] = [
-  'read', 'unread', 'traite', 'archive',
+  'read', 'unread', 'archive',
   'label', 'important', 'trash', 'restore', 'delete-permanent',
 ];
 
@@ -67,11 +66,6 @@ export async function POST(request: Request) {
     removeLabelIds = ['UNREAD'];
   } else if (action === 'unread') {
     addLabelIds = ['UNREAD'];
-  } else if (action === 'traite') {
-    const ensured = await ensureLabel('FOXO_TRAITE');
-    if (!ensured.ok) return NextResponse.json({ ok: false, error: ensured.error }, { status: 502 });
-    addLabelIds = [ensured.label_id];
-    removeLabelIds = ['UNREAD'];
   } else if (action === 'archive') {
     removeLabelIds = ['INBOX'];
   } else if (action === 'important') {

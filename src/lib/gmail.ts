@@ -383,49 +383,6 @@ export async function mailHasLabel(mailId: string, labelName: string): Promise<b
   return (j.labelIds ?? []).includes(ensured.label_id);
 }
 
-// Crée le label FOXO_TRAITE s'il n'existe pas, puis l'ajoute au mail
-// (et retire UNREAD pour décrocher la pastille). Idempotent.
-export async function markMailTraite(id: string): Promise<{ ok: true; label_id: string } | { ok: false; error: string }> {
-  const auth = await getValidAccessToken();
-  if (!auth) return { ok: false, error: 'Google non connecté.' };
-
-  // 1. Liste les labels existants
-  const labelsRes = await fetch(`${API}/labels`, {
-    headers: { Authorization: `Bearer ${auth.access_token}` },
-  });
-  if (!labelsRes.ok) return { ok: false, error: `Labels list HTTP ${labelsRes.status}` };
-  const labelsJson = (await labelsRes.json()) as { labels?: { id: string; name: string }[] };
-  let labelId = labelsJson.labels?.find((l) => l.name === 'FOXO_TRAITE')?.id;
-
-  // 2. Crée FOXO_TRAITE si absent
-  if (!labelId) {
-    const createRes = await fetch(`${API}/labels`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'FOXO_TRAITE',
-        labelListVisibility: 'labelShow',
-        messageListVisibility: 'show',
-      }),
-    });
-    if (!createRes.ok) return { ok: false, error: `Label create HTTP ${createRes.status}` };
-    const j = (await createRes.json()) as { id: string };
-    labelId = j.id;
-  }
-
-  // 3. Modify le mail : add FOXO_TRAITE, remove UNREAD
-  const modRes = await fetch(`${API}/messages/${id}/modify`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ addLabelIds: [labelId], removeLabelIds: ['UNREAD'] }),
-  });
-  if (!modRes.ok) {
-    const t = await modRes.text();
-    return { ok: false, error: `Modify HTTP ${modRes.status} : ${t.slice(0, 200)}` };
-  }
-  return { ok: true, label_id: labelId };
-}
-
 // ─── Labels (page /admin/mails) ──────────────────────────────────────────
 
 interface RawGmailLabel {
@@ -439,8 +396,8 @@ interface RawGmailLabel {
 
 // Liste tous les labels Gmail. Retourne uniquement les labels utilisateur
 // (type=user) — exclut les labels système comme INBOX, UNREAD, IMPORTANT,
-// SENT, DRAFT, SPAM, TRASH, CHAT, STARRED, CATEGORY_*. FOXO_TRAITE et
-// FOXO_LU sont des labels utilisateur, donc inclus.
+// SENT, DRAFT, SPAM, TRASH, CHAT, STARRED, CATEGORY_*. Les labels métier
+// FoxO/* (posés par le cron) sont des labels utilisateur, donc inclus.
 //
 // Les compteurs messagesUnread ne sont pas renvoyés par labels.list — on
 // fait un labels.get par label en parallèle pour les obtenir.
