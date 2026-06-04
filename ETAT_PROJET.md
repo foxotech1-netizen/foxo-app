@@ -1,3 +1,41 @@
+## Snapshot 2026-06-04 — Unité 4 : classification canonique (PR #17)
+
+### HEAD git
+`10b9ad4` — Merge pull request #17 feat/unit4-classification → main
+
+### Ce qui a été livré (Unité 4)
+
+**Objectif** : aligner l'agent d'analyse deep et l'UI mails sur la classification canonique 8 valeurs déjà en base (`mails_analyses.classification`, migration U2).
+
+**Approche retenue** : dérivation serveur via `toCanonicalClassification()` de `categories.ts` — le prompt Claude du deep est inchangé, zéro risque de régression cron.
+
+| Commit | Fichier | Changement |
+|--------|---------|------------|
+| `0d0b86e` | `src/app/api/admin/mails/analyse-deep/route.ts` | UPSERT écrit `classification: toCanonicalClassification(analyse.type)` — seul writer de la colonne |
+| `447c5d2` | `src/app/api/admin/mails/analyses/route.ts` | `classification` ajouté au SELECT + à `AnalyseRow`, propagé au client |
+| `e24395b` | `src/app/admin/mails/MailAnalyseTypes.ts` + `MailAnalyseBadges.tsx` | Champ `classification: MailClassification | null` sur `MailAnalyse` ; badge piloté par le canonique avec fallback `toCanonicalClassification(classification ?? type)` pour les anciennes lignes NULL |
+| `450a8a0` | `src/app/admin/mails/MailsClient.tsx` | Filtre liste par classification : dropdown 8 valeurs canoniques + option « Toutes », croise `analyses.get(thread_id)` avec fallback |
+
+### Invariants respectés
+- `categories.ts` reste l'unique endroit du mapping classification ↔ label ↔ héritage
+- Le cron `check-mails.ts` est inchangé
+- Le flux `confirm-and-create` est inchangé
+- Aucune migration SQL (colonne `classification` déjà en prod depuis U2)
+- `tsc --noEmit` ✅ — 3 erreurs lint préexistantes sur `MailsClient.tsx` antérieures à cette PR
+
+### État chantier « Refonte mails »
+- ✅ U1 — `categories.ts` source de vérité unique (8 valeurs canoniques + mapping labels Gmail)
+- ✅ U2 — Colonne `mails_analyses.classification` créée en prod
+- ✅ U3 — Cron pose les labels `FoxO/*` via la classification canonique
+- ✅ U4 — Agent deep écrit `classification` ; UI lit + filtre par classification
+
+### Backlog mail actif (par priorité)
+1. **Calibrage prompt cron** : observer les labels `FoxO/*` sur de vrais mails, remonter les erreurs (sujet + label obtenu + label attendu) pour ajuster le few-shot dans `check-mails.ts`.
+2. **Dette label** : 3 chemins posent encore `FOXO_TRAITE` ; clamp silencieux à 500 dans `batchModifyMails` ; clauses `-label:FOXO_*` vestigiales dans la query cron.
+3. **Lot E** : diagnostiquer le « 1 erreur(s) » du cron (via `agent_logs` Supabase).
+4. **Émission canonique native** : faire émettre directement les 8 valeurs canoniques par le prompt deep (aujourd'hui : dérivation serveur du type hérité). Itération ultérieure.
+5. **File de validation** (`feat/file-validation`, non mergé) : fix NULL sur `sujet`/`expediteur`/`recu_le` (lignes mail) et `client_nom` (brouillons factures), puis PR.
+
 # État du projet FoxO — snapshot 2026-06-02
 
 - **Date du recap** : 2026-06-02
