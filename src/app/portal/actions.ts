@@ -151,6 +151,7 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
   let adresseLigne: string | null = null;
   let dossierFields: { assure: string; ref_courtier: string } | null = null;
   let assureurJson: {
+    assure: string | null;
     nom: string | null;
     email: string | null;
     telephone: string | null;
@@ -169,29 +170,29 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       return { ok: false, error: 'Référence compagnie requise.' };
     }
     adresseLigne = `${c.sinistre_rue.trim()}, ${c.sinistre_code_postal.trim()} ${c.sinistre_ville.trim()}`;
-    // Si la référence compagnie est vide (cas expert), on ne crée pas
-    // de dossier_sinistres — l'intervention seule suffit. assureNom est
-    // perdu côté DB (TODO : capturer dans particulier_contact ou un
-    // champ dédié si besoin métier).
+    // Si la référence compagnie est vide (cas expert), on ne crée pas de
+    // dossiers_sinistres — l'intervention seule suffit. Le nom de l'assuré
+    // n'est donc PAS perdu : il est capturé dans le JSONB assureur.assure
+    // ci-dessous, systématiquement pour courtier ET expert.
     const refCourtier = c.ref_compagnie?.trim() || null;
     if (refCourtier !== null) {
       dossierFields = { assure: c.assure_nom.trim(), ref_courtier: refCourtier };
     }
 
-    // Si l'un des deux champs assurance est rempli, on alimente le JSONB
-    // interventions.assureur (sinon on laisse à null pour ne pas créer de
-    // ligne vide).
+    // JSONB interventions.assureur : on capture TOUJOURS le nom de l'assuré
+    // (assure), plus la compagnie / référence sinistre quand elles sont
+    // fournies. Garantit que l'assuré est lisible côté portail (liste +
+    // détail) même sans dossiers_sinistres.
     const refSinistre = c.reference_sinistre?.trim() || null;
     const compagnieNom = c.compagnie_assurance?.trim() || null;
-    if (refSinistre || compagnieNom) {
-      assureurJson = {
-        nom: compagnieNom,
-        email: null,
-        telephone: null,
-        reference_sinistre: refSinistre,
-        reference_police: null,
-      };
-    }
+    assureurJson = {
+      assure: c.assure_nom.trim(),
+      nom: compagnieNom,
+      email: null,
+      telephone: null,
+      reference_sinistre: refSinistre,
+      reference_police: null,
+    };
   } else {
     if (!input.acp_id) return { ok: false, error: 'Immeuble non sélectionné.' };
     acpId = input.acp_id;

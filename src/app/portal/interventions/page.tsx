@@ -15,8 +15,9 @@ export type InterventionPortalItem = {
   creneau_debut: string | null;
   created_at: string;
   updated_at: string;
-  // Localisation : nom + adresse + BCE de l'ACP. acp_nom porte aussi
-  // le nom de l'assuré pour les courtiers (cf. dossiers_sinistres ci-dessous).
+  // Localisation : nom + adresse + BCE de l'ACP. acp_nom porte aussi le nom
+  // de l'assuré pour les courtiers ET experts (JSONB assureur.assure, avec
+  // fallback dossiers_sinistres pour les rows courtier legacy).
   acp_id: string | null;
   acp_nom: string | null;
   acp_adresse: string | null;
@@ -58,6 +59,9 @@ export default async function InterventionsPage({
   }
 
   const isCourtier = org.type === 'courtier';
+  // Orgs "dossier sinistre" (courtier ET expert) : acp_nom porte le nom de
+  // l'assuré plutôt que le nom de l'ACP (qu'ils n'ont pas).
+  const isSinistre = org.type === 'courtier' || org.type === 'expert';
   const supabase = await createClient();
 
   // Accepte les 2 liens : syndic_id (legacy) OU organisation_id (nouveau).
@@ -119,7 +123,12 @@ export default async function InterventionsPage({
       created_at: iv.created_at,
       updated_at: iv.updated_at,
       acp_id: iv.acp_id,
-      acp_nom: isCourtier ? (dossier?.assure ?? null) : (acp?.nom ?? null),
+      // Sinistre (courtier/expert) : nom de l'assuré, priorité au JSONB
+      // assureur.assure (nouvelle écriture, couvre l'expert) puis fallback
+      // dossiers_sinistres (rows courtier legacy). Sinon nom de l'ACP.
+      acp_nom: isSinistre
+        ? (iv.assureur?.assure || dossier?.assure || null)
+        : (acp?.nom ?? null),
       acp_adresse: acp?.adresse ?? null,
       acp_bce: acp?.bce ?? null,
       adresse: iv.adresse,
