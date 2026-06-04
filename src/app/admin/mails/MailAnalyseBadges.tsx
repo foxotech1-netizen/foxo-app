@@ -8,24 +8,26 @@
 
 import Link from 'next/link';
 import { Zap } from 'lucide-react';
-import type { MailAnalyse, MailAnalyseType } from './MailAnalyseTypes';
+import type { MailAnalyse } from './MailAnalyseTypes';
+import {
+  CLASSIFICATION_LABEL_FR,
+  toCanonicalClassification,
+  type MailClassification,
+} from '@/lib/mail/categories';
 
-const TYPE_LABEL: Record<MailAnalyseType, string> = {
-  demande_intervention: 'Demande intervention',
-  relance_rapport:      'Relance rapport',
-  suivi_dossier:        'Suivi dossier',
-  question_generale:    'Question',
-  accuse_reception:     'Accusé réception',
-  spam_commercial:      'Spam commercial',
-};
-
-const TYPE_PALETTE: Record<MailAnalyseType, { bg: string; fg: string }> = {
-  demande_intervention: { bg: 'var(--color-amber-light)',     fg: 'var(--color-amber-foxo)' },
-  relance_rapport:      { bg: 'var(--color-terra-light)',     fg: 'var(--color-terra)' },
-  suivi_dossier:        { bg: 'var(--color-sky-light-foxo)',  fg: 'var(--color-navy)' },
-  question_generale:    { bg: 'var(--color-sand-mid)',        fg: 'var(--color-ink)' },
-  accuse_reception:     { bg: 'var(--color-ok-light)',        fg: 'var(--color-ok)' },
-  spam_commercial:      { bg: 'var(--color-sand-border)',     fg: 'var(--color-ink-mid)' },
+// U4 : le badge est désormais piloté par la classification canonique
+// (categories.ts), plus par le vocabulaire hérité MailAnalyseType. La
+// palette couvre les 8 valeurs canoniques ; les libellés FR viennent de
+// CLASSIFICATION_LABEL_FR (source de vérité unique).
+const CLASSIFICATION_PALETTE: Record<MailClassification, { bg: string; fg: string }> = {
+  nouvelle_demande:     { bg: 'var(--color-amber-light)',     fg: 'var(--color-amber-foxo)' },
+  relance_syndic:       { bg: 'var(--color-sky-light-foxo)',  fg: 'var(--color-navy)' },
+  reponse_occupant:     { bg: 'var(--color-ok-light)',        fg: 'var(--color-ok)' },
+  demande_rapport:      { bg: 'var(--color-terra-light)',     fg: 'var(--color-terra)' },
+  question_facturation: { bg: 'var(--color-sand-mid)',        fg: 'var(--color-ink)' },
+  urgence:              { bg: 'var(--color-terra-light)',     fg: 'var(--color-terra)' },
+  demarchage:           { bg: 'var(--color-sand-border)',     fg: 'var(--color-ink-mid)' },
+  autre:                { bg: 'var(--color-sand)',            fg: 'var(--color-ink-mid)' },
 };
 
 interface Props {
@@ -34,14 +36,20 @@ interface Props {
 }
 
 export function MailAnalyseBadges({ analyse, className = '' }: Props) {
-  const type = analyse.type;
-  const typePalette = type ? TYPE_PALETTE[type] : null;
-  const typeLabel = type ? TYPE_LABEL[type] : null;
+  // Lit classification en priorité ; fallback toCanonicalClassification(type)
+  // pour les anciennes lignes analysées avant U4 (classification null).
+  // Si ni l'un ni l'autre n'est posé (mail non analysé), pas de badge type.
+  const hasAnalyse = analyse.classification != null || analyse.type != null;
+  const classification: MailClassification | null = hasAnalyse
+    ? toCanonicalClassification(analyse.classification ?? analyse.type)
+    : null;
+  const typePalette = classification ? CLASSIFICATION_PALETTE[classification] : null;
+  const typeLabel = classification ? CLASSIFICATION_LABEL_FR[classification] : null;
   const langue = analyse.langue && analyse.langue !== 'other' ? analyse.langue.toUpperCase() : null;
 
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`.trim()}>
-      {type && typePalette && typeLabel && (
+      {classification && typePalette && typeLabel && (
         <span
           className="font-sora inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-[0.01em]"
           style={{ background: typePalette.bg, color: typePalette.fg }}

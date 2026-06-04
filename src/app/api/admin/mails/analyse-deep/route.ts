@@ -27,6 +27,7 @@ import { getEmailThread } from '@/lib/gmail';
 import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau';
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
 import { runAgent } from '@/lib/observability';
+import { toCanonicalClassification } from '@/lib/mail/categories';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -590,6 +591,12 @@ export async function POST(request: Request) {
         expediteur: messages[0]?.from ?? null,
         recu_le: messages[0]?.date ?? null,
         type: analyse.type,
+        // U4 : classification canonique dérivée du type hérité émis par
+        // Claude (toCanonicalClassification mappe le vocabulaire deep vers
+        // les 8 valeurs canoniques de categories.ts). analyse-deep est le
+        // SEUL writer de cette colonne. type est conservé tel quel pour
+        // traçabilité / fallback des anciennes lignes.
+        classification: toCanonicalClassification(analyse.type),
         urgence: analyse.urgence,
         langue: analyse.langue,
         adresse_extraite: analyse.adresse_extraite,

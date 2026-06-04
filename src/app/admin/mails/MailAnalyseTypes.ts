@@ -1,6 +1,8 @@
 // Types partagés entre MailsClient et les sous-composants
 // MailAnalyseBadges / MailAnalyseActions / SmsModal.
 
+import type { MailClassification } from '@/lib/mail/categories';
+
 export type MailAnalyseType =
   | 'demande_intervention'
   | 'relance_rapport'
@@ -80,6 +82,10 @@ export function emptyConfirmCreateOccupant(): ConfirmCreateOccupant {
 export interface MailAnalyse {
   thread_id: string;
   type: MailAnalyseType | null;
+  // U4 : classification canonique (categories.ts), écrite par analyse-deep.
+  // Peut être null pour les anciennes lignes analysées avant U4 — l'UI
+  // retombe alors sur toCanonicalClassification(type).
+  classification: MailClassification | null;
   urgence: boolean | null;
   langue: 'fr' | 'nl' | 'en' | 'other' | null;
   adresse_extraite: string | null;
