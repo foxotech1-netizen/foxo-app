@@ -1,3 +1,28 @@
+## Snapshot 2026-06-04 — Portail : alignement expert créateur (PR #23) + data gap assuré
+
+### HEAD git
+`2f4e78e` — Merge pull request #23 fix/portal-expert-readonly → main
+
+### Livré (PR #23, `e3f9afc`)
+Audit du portail syndic/courtier/expert. Constat : 3 commentaires affirmaient « expert = lecture seule » alors que le code traite l'expert comme **créateur** de façon délibérée (branche `isExpert` dans `submitRequest` qui assouplit la réf. compagnie, formulaire `NewRequestClient` dédié, `vocab.expert.newRequestVerb` non-null). Le code est la vérité.
+- Corrige les 3 commentaires périmés : `vocab.ts` (doc `newRequestVerb`), `PortalNav.tsx` (logique item « Nouveau »), `layout.tsx` (rôle expert).
+- Élargit le bloc Assuré du dossier détaillé : `DossierData.isCourtier` → `isSinistre` (courtier **OU** expert) dans `interventions/[id]/page.tsx` + `DossierPortalClient`. L'expert voit désormais le bloc assureur quand les données existent.
+
+### Architecture portail (rappel)
+Portail unique auto-adaptatif (« Stratégie A ») : un seul code, vocabulaire commuté par `orgType` via `src/lib/portal/vocab.ts` (syndic / courtier / expert). Routes alias `/portal/{type}` → redirect `/portal`. Mutations via server actions `portal/actions.ts` (pas de routes `/api/portal/*`). Public : `/rdv` (RDV particuliers), `/app-hub`, `/go-hub`.
+
+### ⚠️ Backlog ouvert — Data gap « nom de l'assuré » (expert) — NON traité (décision : documenter)
+Dans la liste `/portal/interventions`, la colonne `acp_nom` affiche `—` pour les **experts**, pour deux raisons cumulées :
+1. **Lecture** (`interventions/page.tsx`) : `isCourtier = type==='courtier'` strict exclut l'expert du lookup `dossiers_sinistres` ; et l'expert a `acp_id = null` → fallback `acp?.nom` null aussi.
+2. **Écriture** (`submitRequest`) : `dossiers_sinistres` n'est créé **que si `ref_compagnie` est rempli**. Expert sans réf compagnie → aucun dossier → `assure_nom` **perdu en DB** (TODO déjà dans le code). `interventions.assureur` (JSONB) n'a pas de champ pour l'assuré.
+
+**Options identifiées (pour quand on y reviendra)** :
+- **A (reco)** — ajouter `assure` au JSONB `interventions.assureur` ; le poser pour courtier+expert dans `submitRequest` ; le lire en priorité dans la liste (fallback dossier→acp). Aucune migration, corrige écriture + lecture, couvre tous les experts.
+- **B** — toujours créer `dossiers_sinistres` pour partenaires (retirer le guard `ref!==null`) ; risque contrainte NOT NULL sur `ref_courtier` à vérifier.
+- **C** — élargir seulement `isCourtier`→`isSinistre` en lecture ; partiel (ne corrige pas la perte écriture).
+
+Note connexe : `InterventionsPortalClient.tsx` utilise `isCourtier` strict pour l'accent/placeholder (cosmétique, non bloquant).
+
 ## Snapshot 2026-06-04 (soir) — Clôture chantier mails : dette label, validation, lot E
 
 ### HEAD git
