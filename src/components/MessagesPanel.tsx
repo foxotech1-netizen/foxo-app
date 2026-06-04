@@ -4,17 +4,25 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 
 // Une bulle = un message. auteur_type 'admin' = côté FoxO, le reste
-// (syndic/courtier) = côté partenaire.
+// (syndic/courtier/expert) = côté partenaire.
 export interface Message {
   id: string;
   intervention_id: string;
-  auteur_type: 'admin' | 'syndic' | 'courtier';
+  auteur_type: 'admin' | 'syndic' | 'courtier' | 'expert';
   auteur_email: string;
   contenu: string;
   created_at: string;
   lu_admin: boolean;
   lu_syndic: boolean;
 }
+
+// Libellé de rôle affiché sous chaque bulle.
+const AUTEUR_LABEL: Record<Message['auteur_type'], string> = {
+  admin: 'FoxO',
+  syndic: 'Syndic',
+  courtier: 'Courtier',
+  expert: 'Expert',
+};
 
 const POLL_MS = 30_000;
 
@@ -175,9 +183,9 @@ export function MessagesPanel({
                       'text-[10px] text-ink-muted mt-0.5 dark:text-[#8A8278] ' +
                       (alignRight ? 'text-right' : 'text-left')
                     }
-                    title={new Date(m.created_at).toLocaleString('fr-BE')}
+                    title={`${m.auteur_email} · ${new Date(m.created_at).toLocaleString('fr-BE')}`}
                   >
-                    {isFromAdmin ? 'FoxO' : (m.auteur_email.split('@')[0])} · {relTime(m.created_at, now)}
+                    {AUTEUR_LABEL[m.auteur_type]} · {relTime(m.created_at, now)}
                   </div>
                 </div>
               </div>

@@ -85,7 +85,7 @@ export default async function HubPage() {
         .from('messages')
         .select('id', { count: 'exact', head: true })
         .eq('lu_admin', false)
-        .in('auteur_type', ['syndic', 'courtier']),
+        .in('auteur_type', ['syndic', 'courtier', 'expert']),
     ),
     // File de validation (5 sources) — module partagé ; tolérant comme safeCount.
     getValidationTotal(supabase).catch(() => 0),
