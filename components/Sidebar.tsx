@@ -30,9 +30,7 @@ const NAV_MAIN: NavItem[] = [
   { href: '/admin/observabilite', Icon: Activity,  label: 'Observabilité' },
   { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
   { href: '/admin/techniciens', Icon: Wrench,      label: 'Techniciens' },
-  // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA
-  // dédiée sera fonctionnelle (chat plein écran avec historique).
-  // { href: '/admin/assistant',   Icon: Sparkles,    label: 'Assistant'   },
+  { href: '/admin/assistant',   Icon: Sparkles,    label: 'Assistant'   },
 ]
 
 // NAV_GESTION ne contient PLUS Syndics — celui-ci est désormais le 1er
@@ -258,17 +256,14 @@ export default function Sidebar({
   // ── Mobile bottom nav — 4 items fixes ──────────────────────────────────
   // Item "Menu" (qui pointait vers /admin/home, retiré Sprint 1) supprimé.
   // L'accès aux pages secondaires (clients, comptabilité, …) se fait via
-  // /admin/hub depuis le sélecteur de portail. Item Assistant masqué le
-  // temps que la page /admin/assistant soit re-développée (Sprint 3).
+  // /admin/hub depuis le sélecteur de portail.
   const BOTTOM_NAV: NavItem[] = [
     { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
     { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
     { href: '/admin/validation', Icon: ClipboardCheck, label: 'À valider' },
     { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
     { href: '/admin/techniciens', Icon: Wrench,  label: 'Techniciens' },
-    // TODO Sprint 3 : réactiver l'item "Assistant" quand la page IA
-    // dédiée sera fonctionnelle (chat plein écran avec historique).
-    // { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
+    { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
   ]
 
   return (
