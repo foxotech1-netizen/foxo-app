@@ -9,7 +9,7 @@
   - Route `/api/messages` : `resolveCaller` mappe `expert`/`courtier`/`syndic` distinctement.
   - `MessagesPanel` : la bulle affiche le **rôle** (FoxO / Syndic / Courtier / Expert) au lieu du préfixe email ; email conservé en tooltip.
   - Badge non-lus **admin** : les requêtes (`admin/page.tsx` + `hub/page.tsx`) filtraient `auteur_type in ('syndic','courtier')` et **ignoraient les messages d'expert** ; `'expert'` ajouté → ils comptent désormais dans le badge 💬 admin.
-- ⚠️ Migration **à confirmer/appliquer en prod** avant déploiement (sinon insert expert échoue sur le CHECK). Rows historiques experts déjà enregistrés `'syndic'` non rétro-corrigés.
+- ✅ Migration **appliquée en prod le 2026-06-04** (insert expert OK sur le CHECK). Rows historiques experts déjà enregistrés `'syndic'` non rétro-corrigés.
 
 ### PR #29 — Bouton « Demander une suite / révision » (`feat/portal-demande-suite`, merge `d0c4d33`)
 - Portail détail intervention : Block dédié (entre Rapport et messagerie) visible uniquement si `hasReport` (statut `rapport` ou `cloturee`).
@@ -63,7 +63,7 @@
 
 **Validations** : `tsc --noEmit` ✅, `next build` ✅ (Next 16.2.4 / Turbopack, 0 erreur, 0 warning), zéro nouvelle erreur lint (les 3 erreurs `page.tsx` `Date.now`/`prefer-const` préexistent à l'identique sur `main`).
 
-**⚠️ À appliquer en prod** : jouer `2026-06-04_extend_agent_name_briefing.sql` **avant** déploiement, sinon les inserts `agent_logs` du briefing échouent sur le CHECK. Idempotente.
+**✅ Appliquée en prod le 2026-06-04** : `2026-06-04_extend_agent_name_briefing.sql` jouée ; les inserts `agent_logs` du briefing passent le CHECK. Idempotente.
 
 **Point d'attention restant** : smoke-test runtime (appel Claude réel + rendu visuel) non effectué en container — à valider sur Vercel Preview ou en local avec `ANTHROPIC_API_KEY`. Sans clé, la carte est simplement masquée (`briefingText` null).
 
