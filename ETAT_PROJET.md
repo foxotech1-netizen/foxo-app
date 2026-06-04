@@ -1,3 +1,36 @@
+## Snapshot 2026-06-04 (soir) — PR #28 + #29 + #30
+
+- **HEAD git** : `ee7ce09` (merge PR #30) · **Branche** : `main` · **Status** : clean
+
+### PR #28 — Fix messages expert (`feat/revisite-expert-messages`, merge `24754ef`)
+- Problème : l'org type `expert` retombait silencieusement sur `auteur_type='syndic'` (mapping `resolveCaller` ne traitait que `courtier`). Message d'expert mal étiqueté en base, indistinguable d'un syndic.
+- Fix bout en bout :
+  - Migration `2026-06-04_extend_messages_auteur_type_expert.sql` (idempotente) : CHECK `auteur_type` + index partiel `idx_messages_unread_admin` + RLS `syndic_insert_messages` élargis à `'expert'`.
+  - Route `/api/messages` : `resolveCaller` mappe `expert`/`courtier`/`syndic` distinctement.
+  - `MessagesPanel` : la bulle affiche le **rôle** (FoxO / Syndic / Courtier / Expert) au lieu du préfixe email ; email conservé en tooltip.
+  - Badge non-lus **admin** : les requêtes (`admin/page.tsx` + `hub/page.tsx`) filtraient `auteur_type in ('syndic','courtier')` et **ignoraient les messages d'expert** ; `'expert'` ajouté → ils comptent désormais dans le badge 💬 admin.
+- ⚠️ Migration **à confirmer/appliquer en prod** avant déploiement (sinon insert expert échoue sur le CHECK). Rows historiques experts déjà enregistrés `'syndic'` non rétro-corrigés.
+
+### PR #29 — Bouton « Demander une suite / révision » (`feat/portal-demande-suite`, merge `d0c4d33`)
+- Portail détail intervention : Block dédié (entre Rapport et messagerie) visible uniquement si `hasReport` (statut `rapport` ou `cloturee`).
+- Action : POST d'un message pré-formaté vers `/api/messages` (réutilise l'infra PR #28). **Zéro migration, zéro nouvel endpoint.**
+- UX : état `idle→sending→sent`, confirmation inline. Limite assumée : pas de flag « déjà demandé » (le bouton réapparaît au reload, trace dans le fil).
+
+### PR #30 — Fix data gap assuré (`fix/assure-nom-data-gap`, merge `ee7ce09`)
+- Clôt le backlog documenté au snapshot PR #23. Option A (JSONB, **aucune migration**).
+- Type `interventions.assureur` : nouveau champ `assure`.
+- `submitRequest` : capture **toujours** `assure_nom` dans le JSONB pour courtier ET expert (même sans réf compagnie / sans `dossiers_sinistres`) → plus jamais perdu.
+- Liste portail : `isSinistre` (courtier OU expert) ; `acp_nom` priorise `assureur.assure` (JSONB) puis fallback `dossiers_sinistres`. Détail : champ « Assuré » ajouté au bloc Assurance.
+- ⚠️ **Rows historiques** : interventions expert antérieures (sans dossier ni `assure` JSONB) **restent `—`** — non rétro-corrigeables. Seules les **nouvelles** demandes sont couvertes ; courtiers legacy gardent le fallback `dossiers_sinistres.assure`.
+- ✅ Backlog « data gap assuré » (snapshot PR #23) → **RÉSOLU par #30**.
+
+### Smoke-test en attente
+- **BriefingIA (PR #26)** : rendu visuel + qualité texte Claude non vérifiés en runtime (pas d'`ANTHROPIC_API_KEY` en container). À valider sur Vercel Preview / local.
+
+### Backlog ouvert
+- Badge non-lus **côté portail partenaire** : inexistant (le partenaire ne voit pas de compteur dans sa liste) — chantier futur.
+- `InterventionsPortalClient` : `isCourtier` strict pour accent/placeholder — cosmétique, non bloquant.
+
 ## Snapshot — PR #25 + PR #26 — 2026-06-04
 
 **HEAD `main`** : `b8857f3` (merge PR #26)
