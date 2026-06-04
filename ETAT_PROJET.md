@@ -1,3 +1,48 @@
+# État du projet FoxO — snapshot 2026-06-02
+
+- **Date du recap** : 2026-06-02
+- **HEAD git** : `295769b` (merge PR #15 — labels FoxO/* par catégorie)
+- **Branche** : `main`
+- **Status** : déployé en prod par Vercel (foxo-app Ready).
+
+## Chantier en cours — Refonte gestion des mails (Gmail = source de vérité)
+
+**Objectif** : section Mails type Gmail/Outlook, Gmail comme source de vérité unique, triage en vraies catégories métier posées comme labels Gmail (fin du binaire FOXO_TRAITE/FOXO_LU).
+
+**Constats d'audit (acquis)**
+- Lecture déjà conforme : la liste lit Gmail en direct (`/api/admin/mails` → `listInboxMails`, no-store). Aucun miroir Supabase de l'état mail. Supabase stocke seulement `mails_analyses` (analyse IA, clé thread_id) et `intervention_mails` (lien).
+- Couche d'action déjà native (`batch` : lu/non-lu via UNREAD, archive −INBOX, trash, restore, important, label, reply via threadId).
+- Pas de `historyId`/`history.list` → détection par query Gmail. Synchro Gmail→plateforme assurée par re-fetch live → `historyId` = backlog perf, non requis.
+- **3 taxonomies divergentes** écrivaient le même champ : cron `type_email` (7 val.), deep `MailAnalyseType` (6 val.), spec doc 03 (7 val.). Le cron N'ÉCRIT PAS `mails_analyses` (seul le deep UI le fait). Seul le booléen `est_demande_intervention` pilotait le label.
+
+**Décisions actées**
+- Fusion : classification canonique = spec doc 03 + `demarchage` (8 val.) ; label Gmail `FoxO/*` dérivé.
+- Source de vérité unique = `src/lib/mail/categories.ts` ; AUCUN mapping recopié en SQL.
+- Booléen `est_demande_intervention` = autorité (intervention créée → `FoxO/Intervention` toujours) ; sinon label dérivé, jamais Intervention sans intervention derrière.
+- Remplacement (pas de cohabitation) de `FOXO_TRAITE`/`FOXO_LU` ; anciens mails non re-étiquetés.
+- Cron n'ajoute aucune écriture DB (plafond Vercel 60 s, `MAX_MAILS_PER_RUN=1` intact).
+
+**Livré et mergé (PR #15, merge `295769b`, déployé)**
+- U1 `src/lib/mail/categories.ts` (`4858b98`) — classification canonique (8 val.), mapping → 6 labels `FoxO/*`, `toCanonicalClassification()` réconcilie cron+deep.
+- U2 `db/migrations/2026-06-02_mails_analyses_classification.sql` (`1905bfd`) — colonne `classification` (idempotente, additive) — DÉJÀ APPLIQUÉE en prod.
+- U3 `src/lib/cron/check-mails.ts` (`149166e`) — cron pose les labels `FoxO/*` (règle booléen-autorité).
+
+**Mapping de réconciliation (dans categories.ts)**
+- Canonique → label : nouvelle_demande/relance_syndic/urgence → Intervention ; demande_rapport → Rapport ; question_facturation → Comptable ; reponse_occupant → Occupant ; demarchage → Démarchage ; autre → Autre.
+- Hérité cron : suivi_dossier→relance_syndic, confirmation_rdv/annulation→reponse_occupant, rapport_demande→demande_rapport, assurance→autre.
+- Hérité deep : demande_intervention→nouvelle_demande, relance_rapport→demande_rapport, suivi_dossier→relance_syndic, question_generale/accuse_reception→autre, spam_commercial→demarchage.
+
+**Prochaines étapes**
+1. Observer les labels sur de vrais mails (Gmail info@) ; remonter erreurs (sujet + obtenu + attendu) → calibrer le prompt cron.
+2. Unité 4 : aligner l'agent deep + l'UI sur le canonique. Le deep doit ÉCRIRE `mails_analyses.classification` (seul writer) ; l'UI doit LIRE/filtrer par classification (fallback `toCanonicalClassification(type)` pour anciennes lignes).
+
+**Backlog (non prioritaire)**
+- Lot C : synchro `historyId`/`history.list` (perf).
+- Dette label : 3 chemins posent encore `FOXO_TRAITE` (markMailTraite/addLabelToMail/ensureLabel) ; clamp silencieux à 500 dans `batchModifyMails` ; clauses `-label:FOXO_*` de la query cron devenues vestigiales.
+- Lot E : diagnostiquer « 1 erreur(s) » cron (via `agent_logs`).
+
+---
+
 # État du projet FoxO — snapshot fin de session 2026-05-29
 
 - **Date du recap** : 2026-05-29 23:01
