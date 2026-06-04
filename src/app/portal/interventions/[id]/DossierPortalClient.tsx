@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Zap, MapPin, FileText, Receipt, Landmark } from 'lucide-react';
+import { ArrowLeft, Zap, MapPin, FileText, Receipt, Landmark, RotateCcw } from 'lucide-react';
 import { StatutBadge } from '@/components/StatutBadge';
 import { DownloadButton } from '@/components/DownloadButton';
 import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
@@ -34,6 +35,40 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
   const showFacturationBlock = !!(
     iv.nom_facturation || iv.email_facturation || iv.bce_facturation || iv.ref_bon_commande
   );
+
+  // Demande de suite / révision — visible une fois l'intervention aboutie
+  // (hasReport = statut 'rapport' ou 'cloturee'). Réutilise la messagerie :
+  // poste un message pré-formaté via /api/messages, l'auteur_type est dérivé
+  // de la session côté serveur (syndic / courtier / expert).
+  const [followUpState, setFollowUpState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
+
+  async function requestFollowUp() {
+    if (followUpState === 'sending') return;
+    setFollowUpState('sending');
+    setFollowUpError(null);
+    try {
+      const r = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          intervention_id: iv.id,
+          contenu:
+            'Demande de suite / révision sur ce dossier. Merci de me recontacter à ce sujet.',
+        }),
+      });
+      const d = await r.json();
+      if (!d.ok) {
+        setFollowUpError(d.error ?? 'Échec de l\'envoi de la demande.');
+        setFollowUpState('idle');
+        return;
+      }
+      setFollowUpState('sent');
+    } catch (e) {
+      setFollowUpError(e instanceof Error ? e.message : 'Erreur réseau.');
+      setFollowUpState('idle');
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -157,6 +192,42 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           </p>
         )}
       </Block>
+
+      {/* Demande de suite / révision — uniquement quand l'intervention a
+          abouti (rapport disponible ou dossier clôturé). Poste un message
+          pré-formaté dans le fil ci-dessous via /api/messages. */}
+      {hasReport && (
+        <Block title="Demander une suite">
+          {followUpState === 'sent' ? (
+            <p className="text-[13px] text-ink-mid">
+              Demande envoyée — l&apos;équipe FoxO a été notifiée et vous répondra
+              via la messagerie ci-dessous.
+            </p>
+          ) : (
+            <>
+              <p className="text-[13px] text-ink-mid mb-3">
+                Un problème persiste ou vous souhaitez un nouveau passage sur ce
+                dossier ? Envoyez une demande de suite : elle est transmise à
+                l&apos;équipe FoxO et apparaît dans la messagerie ci-dessous.
+              </p>
+              {followUpError && (
+                <div className="mb-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
+                  {followUpError}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={requestFollowUp}
+                disabled={followUpState === 'sending'}
+                className="inline-flex items-center gap-1.5 bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+              >
+                <RotateCcw size={14} />
+                {followUpState === 'sending' ? 'Envoi…' : 'Demander une suite / révision'}
+              </button>
+            </>
+          )}
+        </Block>
+      )}
 
       {/* Messagerie syndic ↔ admin (panel partagé, polling 30s) */}
       <MessagesPanel
