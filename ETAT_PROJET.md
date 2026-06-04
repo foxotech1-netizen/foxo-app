@@ -1,3 +1,40 @@
+## Snapshot — PR #25 + PR #26 — 2026-06-04
+
+**HEAD `main`** : `b8857f3` (merge PR #26)
+
+### PR #25 — Réactivation item Assistant sidebar — mergée 2026-06-04
+- Item « Assistant » réactivé dans la sidebar admin (`components/Sidebar.tsx`, à la **racine** du repo — pas `src/components/`) aux **deux** endroits : nav desktop (`NAV_PRINCIPAL`) + bottom-nav mobile (`BOTTOM_NAV`).
+- TODO « Sprint 3 » périmé retiré : la page `/admin/assistant` était déjà complète et fonctionnelle (UI `AssistantChat` + `buildGlobalContext` + API `runAgent('assistant_chat')`). Le commentaire mentait sur l'état réel du code (même nature de dette que PR #23).
+- Note : la bottom-nav mobile passe de 5 à 6 items — ajustement responsive éventuel à prévoir séparément.
+
+### PR #26 — Briefing IA branché sur Claude — mergée 2026-06-04
+**Objectif** : remplacer les placeholders hardcodés de `BriefingIA.tsx` (syndics fictifs, factures inventées, météo fabriquée — masqués à raison) par un briefing réel généré par Claude à partir des données Supabase live.
+
+**Livré** :
+| Fichier | Changement |
+|---|---|
+| `db/migrations/2026-06-04_extend_agent_name_briefing.sql` *(nouveau)* | Migration idempotente — `'briefing'` ajouté au CHECK `agent_logs.agent_name` |
+| `src/lib/observability/agent-logger.ts` | Union `AgentName` étendue à `'briefing'` |
+| `src/lib/observability/queries.ts` | `ALL_AGENT_NAMES` + `AGENT_KIND_BY_NAME` (`briefing: 'utility'`) |
+| `src/lib/assistant/context.ts` | `buildGlobalContext(client?)` — paramètre optionnel, rétro-compatible (Assistant chat inchangé) |
+| `src/lib/assistant/briefing.ts` *(nouveau)* | `getBriefing()` : `unstable_cache` 1h → `buildGlobalContext(adminClient)` → `runAgent('briefing')`. Renvoie `null` sans empoisonner le cache en cas d'échec |
+| `src/app/admin/page.tsx` | `DashboardData.briefingText` peuplé via `getBriefing()` |
+| `src/components/admin/BriefingIA.tsx` | Props `{ briefingText }`, bodies hardcodés supprimés, header/pills/style conservés |
+| `src/app/admin/Dashboard.tsx` | Carte `BriefingIA` rendue en tête, masquée si `briefingText` null ; TODO périmé retiré |
+| `src/app/admin/interventions/[id]/page.tsx` | `briefingText: null` au constructeur `DashboardData` de la vue deep-link |
+
+**Décisions d'architecture** :
+- Agent `'briefing'` dédié (pas réutilisation `assistant_chat`) → observabilité propre, coûts/tokens isolés dans `/admin/observabilite`.
+- `unstable_cache` 1h (déprécié v16 mais fonctionnel) plutôt que `'use cache'` (éviterait d'activer `cacheComponents` globalement) ou `revalidate` page (figerait tout le Dashboard).
+- Lecture via **client admin** car `cookies()` est interdit dans un scope `unstable_cache` ; légitime, la page `/admin` est déjà gardée par `isAdminUser`.
+
+**Validations** : `tsc --noEmit` ✅, `next build` ✅ (Next 16.2.4 / Turbopack, 0 erreur, 0 warning), zéro nouvelle erreur lint (les 3 erreurs `page.tsx` `Date.now`/`prefer-const` préexistent à l'identique sur `main`).
+
+**⚠️ À appliquer en prod** : jouer `2026-06-04_extend_agent_name_briefing.sql` **avant** déploiement, sinon les inserts `agent_logs` du briefing échouent sur le CHECK. Idempotente.
+
+**Point d'attention restant** : smoke-test runtime (appel Claude réel + rendu visuel) non effectué en container — à valider sur Vercel Preview ou en local avec `ANTHROPIC_API_KEY`. Sans clé, la carte est simplement masquée (`briefingText` null).
+
+
 ## Snapshot 2026-06-04 — Portail : alignement expert créateur (PR #23) + data gap assuré
 
 ### HEAD git
