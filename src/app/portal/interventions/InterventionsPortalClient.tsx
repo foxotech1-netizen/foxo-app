@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Zap, FileText, MapPin, Wrench } from 'lucide-react';
+import { Zap, FileText, MapPin, Wrench, MessageCircle } from 'lucide-react';
 import type { StatutIntervention } from '@/lib/types/database';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
@@ -188,6 +188,14 @@ export function InterventionsPortalClient({
                   {iv.has_rapport && (
                     <span className="inline-flex items-center gap-1 text-[9px] font-bold text-ok"><FileText size={12} /> Rapport</span>
                   )}
+                  {iv.unread_messages_count > 0 && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[9px] font-bold text-navy"
+                      title={`${iv.unread_messages_count} message(s) non lu(s) de FoxO`}
+                    >
+                      <MessageCircle size={12} /> {iv.unread_messages_count}
+                    </span>
+                  )}
                 </div>
                 <div className="font-bold text-[13px] mt-0.5 truncate">{iv.acp_nom ?? '—'}</div>
                 {(iv.acp_adresse || iv.adresse) && (
@@ -267,7 +275,19 @@ export function InterventionsPortalClient({
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid">
                   {iv.acp_adresse ?? iv.adresse ?? <span className="text-ink-muted">—</span>}
                 </td>
-                <td className="px-3.5 py-3"><StatutBadge statut={iv.statut} /></td>
+                <td className="px-3.5 py-3">
+                  <div className="inline-flex items-center gap-1.5">
+                    <StatutBadge statut={iv.statut} />
+                    {iv.unread_messages_count > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[9px] font-bold text-navy"
+                        title={`${iv.unread_messages_count} message(s) non lu(s) de FoxO`}
+                      >
+                        <MessageCircle size={12} />{iv.unread_messages_count}
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
                   {fmtDate(iv.created_at)}
                   <div className="text-[10px] text-ink-muted">{relTime(iv.updated_at)}</div>

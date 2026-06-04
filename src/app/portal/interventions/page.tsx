@@ -32,6 +32,9 @@ export type InterventionPortalItem = {
   // Champs courtier — vide pour syndic.
   ref_courtier: string | null;
   assureur_nom: string | null;
+  // Messages écrits par FoxO/l'admin (auteur_type='admin') et non encore lus
+  // par le partenaire (lu_syndic=false). Miroir du badge admin.
+  unread_messages_count: number;
 };
 
 type DossierLite = { intervention_id: string; assure: string | null; ref_courtier: string | null };
@@ -103,6 +106,28 @@ export default async function InterventionsPage({
     ((dossiersRes.data ?? []) as DossierLite[]).map((d) => [d.intervention_id, d]),
   );
 
+  // ── Compte des messages non lus côté partenaire par intervention ──
+  // Miroir du badge admin (cf. src/app/admin/page.tsx unreadByIv) : on compte
+  // les messages écrits par FoxO (auteur_type='admin') et pas encore lus par
+  // le partenaire (lu_syndic=false). Best-effort : si la table messages
+  // n'existe pas, on tolère silencieusement et le badge ne s'affiche pas.
+  const unreadByIv = new Map<string, number>();
+  if (ivIds.length > 0) {
+    try {
+      const { data: unreadRows } = await supabase
+        .from('messages')
+        .select('intervention_id')
+        .eq('lu_syndic', false)
+        .eq('auteur_type', 'admin')
+        .in('intervention_id', ivIds);
+      for (const r of (unreadRows ?? []) as { intervention_id: string }[]) {
+        unreadByIv.set(r.intervention_id, (unreadByIv.get(r.intervention_id) ?? 0) + 1);
+      }
+    } catch {
+      /* table messages absente — noop, badge ne s'affichera pas */
+    }
+  }
+
   const items: InterventionPortalItem[] = interventions.map((iv) => {
     const acp = iv.acp_id ? acpMap.get(iv.acp_id) ?? null : null;
     const dossier = isCourtier ? dossierMap.get(iv.id) ?? null : null;
@@ -137,6 +162,7 @@ export default async function InterventionsPage({
       has_rapport: iv.statut === 'rapport' || iv.statut === 'cloturee',
       ref_courtier: refCourtier,
       assureur_nom: iv.assureur?.nom ?? null,
+      unread_messages_count: unreadByIv.get(iv.id) ?? 0,
     };
   });
 
