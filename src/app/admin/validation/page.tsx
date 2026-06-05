@@ -40,11 +40,11 @@ function fmtMoney(n: number | null | undefined): string {
 type MailAnalyseRow = Pick<
   // mails_analyses : clé primaire = thread_id ; colonnes sujet/expediteur/recu_le
   // ajoutées par la migration 2026-05-19_mails_analyses_add_email_metadata_columns.
-  { thread_id: string; sujet: string | null; expediteur: string | null; recu_le: string | null; urgence: boolean | null },
-  'thread_id' | 'sujet' | 'expediteur' | 'recu_le' | 'urgence'
+  { thread_id: string; sujet: string | null; expediteur: string | null; recu_le: string | null; urgence: boolean | null; created_at: string | null },
+  'thread_id' | 'sujet' | 'expediteur' | 'recu_le' | 'urgence' | 'created_at'
 >;
 
-type FactureRow = Pick<Facture, 'id' | 'numero' | 'montant_ttc' | 'client_nom' | 'statut' | 'type'>;
+type FactureRow = Pick<Facture, 'id' | 'numero' | 'montant_ttc' | 'client_nom' | 'statut' | 'type' | 'organisation_id' | 'client_id'>;
 type NoteFraisRow = Pick<NoteFrais, 'id' | 'technicien_nom' | 'technicien_email' | 'montant_ttc' | 'date_depense' | 'statut'>;
 type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse'>;
 
@@ -55,11 +55,11 @@ export default async function ValidationPage() {
   const [analysesRes, facturesRes, notesRes, suspensCount] = await Promise.all([
     // 1. Analyses mails à confirmer : demande d'intervention sans dossier lié.
     applyMailsAConfirmer(
-      supabase.from('mails_analyses').select('thread_id, sujet, expediteur, recu_le, urgence'),
+      supabase.from('mails_analyses').select('thread_id, sujet, expediteur, recu_le, urgence, created_at'),
     ).order('recu_le', { ascending: false }),
     // 3. Factures / devis en brouillon.
     applyFacturesBrouillon(
-      supabase.from('factures').select('id, numero, montant_ttc, client_nom, statut, type'),
+      supabase.from('factures').select('id, numero, montant_ttc, client_nom, statut, type, organisation_id, client_id'),
     ).order('created_at', { ascending: false }),
     // 4. Notes de frais à approuver : statut 'soumise'.
     applyNotesFraisSoumises(
@@ -71,6 +71,40 @@ export default async function ValidationPage() {
 
   const analyses = (analysesRes.data ?? []) as MailAnalyseRow[];
   const factures = (facturesRes.data ?? []) as FactureRow[];
+
+  // Fallback client_nom : factures historiques sans nom dénormalisé. Le client
+  // est polymorphe → organisation_id (ACP/syndic) OU client_id (particulier).
+  // Pattern 2-requêtes identique au bloc ACP ci-dessous (client session admin).
+  const facturesSansNom = factures.filter((f) => !f.client_nom);
+  const factOrgIds = Array.from(new Set(
+    facturesSansNom.filter((f) => f.organisation_id).map((f) => f.organisation_id!),
+  ));
+  const factClientIds = Array.from(new Set(
+    facturesSansNom.filter((f) => f.client_id && !f.organisation_id).map((f) => f.client_id!),
+  ));
+  const factOrgsRes = factOrgIds.length
+    ? await supabase.from('organisations').select('id, nom').in('id', factOrgIds)
+    : { data: [] as { id: string; nom: string }[] };
+  const factClientsRes = factClientIds.length
+    ? await supabase.from('clients').select('id, prenom, nom').in('id', factClientIds)
+    : { data: [] as { id: string; prenom: string | null; nom: string }[] };
+  const factOrgMap = new Map(
+    ((factOrgsRes.data ?? []) as { id: string; nom: string }[]).map((o) => [o.id, o.nom]),
+  );
+  const factClientMap = new Map(
+    ((factClientsRes.data ?? []) as { id: string; prenom: string | null; nom: string }[])
+      .map((c) => [c.id, `${c.prenom ?? ''} ${c.nom ?? ''}`.trim()]),
+  );
+  const facturesEnrichies: FactureRow[] = factures.map((f) =>
+    f.client_nom
+      ? f
+      : {
+          ...f,
+          client_nom:
+            (f.organisation_id ? factOrgMap.get(f.organisation_id) ?? null : null)
+            ?? (f.client_id ? factClientMap.get(f.client_id) ?? null : null),
+        },
+  );
   const notes = (notesRes.data ?? []) as NoteFraisRow[];
 
   // 2. Rapports à valider : basé sur rapports.statut (brouillon|valide),
@@ -121,7 +155,7 @@ export default async function ValidationPage() {
   const acpMap = new Map(((acpRes.data ?? []) as AcpLite[]).map((a) => [a.id, a]));
 
   const totalAValider =
-    analyses.length + rapportsAValider.length + factures.length + notes.length + suspensCount;
+    analyses.length + rapportsAValider.length + facturesEnrichies.length + notes.length + suspensCount;
 
   return (
     <>
@@ -146,11 +180,11 @@ export default async function ValidationPage() {
                     href={`/admin/mails?id=${encodeURIComponent(a.thread_id)}`}
                     className="text-[13px] font-semibold text-navy hover:underline"
                   >
-                    {a.sujet ?? '—'}
+                    {a.sujet ?? '(mail sans sujet)'}
                   </Link>
                 </td>
                 <td className="px-3.5 py-3 text-[12px] text-ink-mid">{a.expediteur ?? '—'}</td>
-                <td className="px-3.5 py-3 text-[11px] text-ink-muted font-mono whitespace-nowrap">{fmtDate(a.recu_le)}</td>
+                <td className="px-3.5 py-3 text-[11px] text-ink-muted font-mono whitespace-nowrap">{a.recu_le ? fmtDate(a.recu_le) : a.created_at ? fmtDate(a.created_at) : '—'}</td>
                 <td className="px-3.5 py-3">
                   {a.urgence ? <AlertTriangle size={14} className="text-terra" aria-hidden /> : <span className="text-ink-muted">—</span>}
                 </td>
@@ -197,9 +231,9 @@ export default async function ValidationPage() {
         </Section>
 
         {/* 3. Factures / devis en brouillon */}
-        <Section title="Factures / devis en brouillon" icon={Banknote} count={factures.length} empty={factures.length === 0}>
+        <Section title="Factures / devis en brouillon" icon={Banknote} count={facturesEnrichies.length} empty={facturesEnrichies.length === 0}>
           <Table head={['Numéro', 'Montant', 'Client', 'Statut']}>
-            {factures.map((f) => {
+            {facturesEnrichies.map((f) => {
               const info = STATUT_FACTURE_INFO[f.statut];
               return (
                 <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
