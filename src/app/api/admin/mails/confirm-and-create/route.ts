@@ -34,6 +34,7 @@ import { safeTypeIntervention } from '@/lib/mails/intervention-types';
 import { analyseAttachments } from '@/lib/agents/analyse-pj';
 import type { AttachmentInput } from '@/lib/agents/analyse-pj';
 import { safeInsertOccupants, type OccupantInsertRow } from '@/lib/cron/check-mails';
+import { notifyOccupantsForIntervention } from '@/lib/occupants/notify-occupants';
 import type { ConfirmCreateOccupant } from '@/app/admin/mails/MailAnalyseTypes';
 
 export const dynamic = 'force-dynamic';
@@ -479,6 +480,35 @@ export async function POST(request: Request) {
       updated_at: new Date().toISOString(),
     })
     .eq('thread_id', threadId);
+
+  // 8. Envoi best-effort de la demande de confirmation aux occupants pas
+  //    encore notifiés (token_sent_at IS NULL). Effet de bord uniquement :
+  //    réutilise le helper partagé notifyOccupantsForIntervention. TOUT échec
+  //    est loggé et avalé — la création d'intervention doit réussir et renvoyer
+  //    sa réponse de succès normale quoi qu'il arrive (jamais de 500 ici).
+  try {
+    const { data: pending, error: pendingErr } = await admin
+      .from('occupants')
+      .select('id')
+      .eq('intervention_id', dossierId)
+      .is('token_sent_at', null);
+    if (pendingErr) {
+      console.error('[confirm-and-create] lecture occupants à notifier KO:', pendingErr.message, { intervention_id: dossierId });
+    } else {
+      const occupantIds: string[] = (pending ?? []).map((o) => o.id);
+      if (occupantIds.length > 0) {
+        const notifyRes = await notifyOccupantsForIntervention(dossierId, {
+          occupantIds,
+          sentBy: user.id ?? null,
+        });
+        if (!notifyRes.ok) {
+          console.error('[confirm-and-create] notifyOccupantsForIntervention KO:', notifyRes.error, { intervention_id: dossierId, status: notifyRes.status });
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[confirm-and-create] envoi confirmation occupants threw:', e instanceof Error ? e.message : String(e), { intervention_id: dossierId });
+  }
 
   return NextResponse.json({
     success: true,
