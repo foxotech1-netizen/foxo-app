@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { markMyNotificationsRead } from '@/app/portal/actions';
@@ -36,6 +37,14 @@ export function NotificationBell({
   unreadCount?: number;
 }) {
   const [open, setOpen] = useState(false);
+  // Détection du montage client : on ne portale dans document.body qu'une fois
+  // hydraté, pour éviter tout mismatch SSR. setState dans cet effet de montage
+  // est volontaire (pattern standard) — la règle ne s'applique pas ici.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
   const router = useRouter();
 
   async function toggle() {
@@ -95,30 +104,33 @@ export function NotificationBell({
         )}
       </button>
 
-      {open && (
-        <>
-          {/* Overlay : ferme le panneau au clic extérieur. */}
-          <div
-            onClick={() => setOpen(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 200 }}
-          />
-          <div
-            role="menu"
-            style={{
-              position: 'absolute',
-              top: 42,
-              right: 0,
-              width: 300,
-              maxHeight: 380,
-              overflowY: 'auto',
-              background: '#fff',
-              border: '1px solid var(--color-sand-border, #E7E0D4)',
-              borderRadius: 12,
-              boxShadow: '0 12px 32px rgba(0,0,0,.18)',
-              zIndex: 201,
-              color: '#1a1a1a',
-            }}
-          >
+      {open && mounted &&
+        createPortal(
+          <>
+            {/* Overlay : ferme le panneau au clic extérieur. Rendu via portal
+                dans <body> pour échapper aux stacking contexts (header
+                transform + sidebar overflow) qui le piégeaient. */}
+            <div
+              onClick={() => setOpen(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'transparent' }}
+            />
+            <div
+              role="menu"
+              style={{
+                position: 'fixed',
+                top: 64,
+                right: 12,
+                width: 'min(320px, calc(100vw - 24px))',
+                maxHeight: 'calc(100vh - 96px)',
+                overflowY: 'auto',
+                background: '#fff',
+                border: '1px solid var(--color-sand-border, #E7E0D4)',
+                borderRadius: 12,
+                boxShadow: '0 12px 32px rgba(0,0,0,.18)',
+                zIndex: 1000,
+                color: '#1a1a1a',
+              }}
+            >
             <div
               style={{
                 padding: '10px 14px',
@@ -159,9 +171,10 @@ export function NotificationBell({
                 </button>
               ))
             )}
-          </div>
-        </>
-      )}
+            </div>
+          </>,
+          document.body,
+        )}
     </div>
   );
 }
