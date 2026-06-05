@@ -275,7 +275,10 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       // Dernier message du fil → In-Reply-To/References corrects.
       const thread = await getEmailThread(threadId);
       const messages = thread.ok ? thread.messages : [];
-      const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+      // On cible le premier message du fil (la demande d'origine du syndic)
+      // pour garantir que le reply lui est adressé — sendMailReply dérive le
+      // destinataire depuis origFrom de ce message.
+      const lastMessageId = messages.length > 0 ? messages[0].id : null;
 
       if (lastMessageId) {
         // pdfUp = upload Drive du PDF qu'on vient de faire (même valeur que
