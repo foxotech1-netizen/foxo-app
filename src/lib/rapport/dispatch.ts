@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
 import { uploadRapport } from '@/lib/google-drive';
+import { getEmailThread, sendMailReply } from '@/lib/gmail';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { ReportData } from '@/lib/rapport/build-docx';
 import {
@@ -242,6 +243,65 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       .eq('intervention_id', interventionId);
   } catch (e) {
     console.error('[dispatch] failed to mark rapport as transmis', e);
+  }
+
+  // Étape 4 — reply-in-thread Gmail « rapport dispo » (best-effort, jamais bloquant).
+  // Quand l'intervention vient d'un mail, on répond DANS le fil d'origine
+  // (In-Reply-To + References + threadId gérés par sendMailReply).
+  try {
+    const adminDb = createAdminClient();
+
+    // buildRapportPdf n'expose ni source ni source_mail_id → relecture ciblée.
+    const { data: ivRow } = await adminDb
+      .from('interventions')
+      .select('source, source_mail_id')
+      .eq('id', interventionId)
+      .maybeSingle();
+    const iv = ivRow as { source: string | null; source_mail_id: string | null } | null;
+    const interventionSource = iv?.source ?? null;
+    const sourceMailId = iv?.source_mail_id ?? null;
+
+    if (interventionSource === 'mail' && sourceMailId) {
+      // Retrouve le thread via mails_analyses (robuste — source_mail_id peut être
+      // un thread_id OU un message_id selon l'origine de création).
+      const { data: mailAnalyse } = await adminDb
+        .from('mails_analyses')
+        .select('thread_id')
+        .eq('dossier_match_id', interventionId)
+        .limit(1)
+        .maybeSingle();
+      const threadId = (mailAnalyse as { thread_id: string | null } | null)?.thread_id ?? sourceMailId;
+
+      // Dernier message du fil → In-Reply-To/References corrects.
+      const thread = await getEmailThread(threadId);
+      const messages = thread.ok ? thread.messages : [];
+      const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+
+      if (lastMessageId) {
+        // pdfUp = upload Drive du PDF qu'on vient de faire (même valeur que
+        // rapports.pdf_drive_url posé juste au-dessus). built.ref = réf dossier.
+        const pdfUrl = pdfUp?.ok ? (pdfUp.web_view_link ?? null) : null;
+        const refDossier = built.ref;
+
+        const body = [
+          'Bonjour,',
+          '',
+          "Le rapport d'intervention relatif à votre demande est désormais disponible.",
+          '',
+          `Référence dossier : ${refDossier}`,
+          pdfUrl ? `Rapport complet : ${pdfUrl}` : null,
+          '',
+          'Cordialement,',
+          "L'équipe FoxO",
+        ]
+          .filter((line) => line !== null)
+          .join('\n');
+
+        await sendMailReply({ mailId: lastMessageId, body });
+      }
+    }
+  } catch (replyError) {
+    console.error('[dispatchRapportToSyndic] reply-in-thread failed (non-blocking):', replyError);
   }
 
   return { ok: true, emailId: sent.id };
