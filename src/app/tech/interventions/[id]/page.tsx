@@ -193,6 +193,16 @@ export default async function TechInterventionPage({
             conclusion: '',
             recommandations: '',
             updated_at: '',
+            statut: 'brouillon',
+            valide_par: null,
+            valide_at: null,
+            transmis_at: null,
+            transmis_a: null,
+            docx_drive_url: null,
+            docx_drive_file_id: null,
+            pdf_drive_url: null,
+            pdf_drive_file_id: null,
+            genere_par_agent: true,
           }
         }
         canPublish={Boolean(iv.ended_at)}
