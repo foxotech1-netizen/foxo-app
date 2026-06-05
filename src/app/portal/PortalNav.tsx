@@ -10,6 +10,7 @@ import { Home, ClipboardList, Calendar, Plus, type LucideIcon } from 'lucide-rea
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/Logo';
 import { usePortalContext } from './PortalContext';
+import { NotificationBell, type PortalNotification } from './NotificationBell';
 
 // ─── Styles inline (mêmes constantes que la sidebar admin) ─────────────
 const S = {
@@ -143,7 +144,13 @@ interface NavItem {
   label: string;
 }
 
-export function PortalNav() {
+export function PortalNav({
+  notifications = [],
+  unreadCount = 0,
+}: {
+  notifications?: PortalNotification[];
+  unreadCount?: number;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -191,6 +198,9 @@ export function PortalNav() {
         </div>
 
         <nav style={S.nav}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
+            <NotificationBell notifications={notifications} unreadCount={unreadCount} />
+          </div>
           {NAV.map((item) => {
             const Icon = item.icon;
             return (
@@ -236,6 +246,9 @@ export function PortalNav() {
       <header className="foxo-portal-mobile-header">
         <Logo size={36} variant="blanc" />
         <span className="foxo-portal-mobile-header-label">{orgNom || vocab.portalLabel}</span>
+        <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
+          <NotificationBell notifications={notifications} unreadCount={unreadCount} />
+        </div>
       </header>
 
       {/* ── MOBILE bottom nav ───────────────────────────────────────────── */}

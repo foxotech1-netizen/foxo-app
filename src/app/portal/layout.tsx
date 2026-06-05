@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { type OrgType } from '@/lib/portal/vocab';
+import { createClient } from '@/lib/supabase/server';
 import { MainContent } from '@components/layout/MainContent';
 import { PortalProvider } from './PortalContext';
 import { PortalNav } from './PortalNav';
+import { type PortalNotification } from './NotificationBell';
 
 export default async function PortalLayout({
   children,
@@ -23,6 +25,34 @@ export default async function PortalLayout({
     org?.type === 'expert'   ? 'expert'   :
     'syndic';
 
+  // Notifications non lues du partenaire connecté. Best-effort : tout échec
+  // (table absente, RLS, etc.) laisse une cloche vide sans casser le rendu.
+  let notifications: PortalNotification[] = [];
+  let unreadCount = 0;
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('destinataire_id', user.id)
+        .eq('lu', false);
+      unreadCount = count ?? 0;
+
+      const { data } = await supabase
+        .from('notifications')
+        .select('id, titre, message, lien, created_at')
+        .eq('destinataire_id', user.id)
+        .eq('lu', false)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      notifications = (data ?? []) as PortalNotification[];
+    }
+  } catch (e) {
+    console.error('[portal/layout] notifications KO:', e instanceof Error ? e.message : e);
+  }
+
   return (
     <PortalProvider
       orgType={orgType}
@@ -37,7 +67,7 @@ export default async function PortalLayout({
             est géré par MainContent ; les pages refondues (Phase 1+)
             géreront elles-mêmes leur max-width et leur padding mobile. */}
       <div className="flex min-h-screen">
-        <PortalNav />
+        <PortalNav notifications={notifications} unreadCount={unreadCount} />
         <MainContent className="flex-1 min-w-0">{children}</MainContent>
       </div>
     </PortalProvider>

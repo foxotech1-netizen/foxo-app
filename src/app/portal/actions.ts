@@ -17,6 +17,26 @@ function adminOrThrow() {
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
+// ── Notifications ───────────────────────────────────────────────────
+
+// Marque toutes les notifications non lues de l'utilisateur connecté comme
+// lues. Best-effort : ne lance jamais d'exception (appelée depuis la cloche).
+export async function markMyNotificationsRead(): Promise<void> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ lu: true, lu_at: new Date().toISOString() })
+      .eq('destinataire_id', user.id)
+      .eq('lu', false);
+    if (error) console.error('[markMyNotificationsRead] update KO:', error.message);
+  } catch (e) {
+    console.error('[markMyNotificationsRead] erreur:', e instanceof Error ? e.message : e);
+  }
+}
+
 // ── ACP ────────────────────────────────────────────────────────────
 
 export async function searchAcp(query: string): Promise<ActionResult<Acp[]>> {
