@@ -349,6 +349,16 @@ Reste : Étape 4 (reply-in-thread « rapport dispo »).
 - Pas de migration SQL.
 - Commits : `9694fb2` (feat) + `1bd71a7` (fix destinataire) + renommage cosmétique.
 
+### Chantier — File de validation /admin/validation — clos le 2026-06-06
+- Page `/admin/validation` centralisée : 5 sections (analyses mails, rapports, factures brouillon, notes de frais, interventions en suspens).
+- `src/lib/admin/validation-queue.ts` : prédicats Supabase par source.
+- Sidebar badge + mobile nav + hub chip.
+- Fallbacks d'affichage (PR #40) :
+  - Mails : sujet null → `(mail sans sujet)` ; `recu_le` null → fallback `created_at` (date d'analyse).
+  - Factures : fallback polymorphe `organisation_id → organisations.nom` / `client_id → clients.prenom+nom` pour `client_nom` null.
+- Validé en prod : mails affichent `(mail sans sujet)` + date ; factures restent `—` si aucun FK en base (données manquantes antérieures, comportement correct).
+- PRs : intégré via PR #39 (Étape 3) + PR #40 (fix fallbacks).
+
 ## 🗺 PLAN GLOBAL — Chantier "Création intervention multi-occupants depuis un mail"
 
 - **Étape 1** ✅ FAIT — Création intervention depuis mail
