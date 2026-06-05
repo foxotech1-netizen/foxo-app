@@ -107,8 +107,8 @@ export function NotificationBell({
             style={{
               position: 'absolute',
               top: 42,
-              right: 0,
-              width: 300,
+              left: 0,
+              width: 'min(300px, calc(100vw - 24px))',
               maxHeight: 380,
               overflowY: 'auto',
               background: '#fff',
