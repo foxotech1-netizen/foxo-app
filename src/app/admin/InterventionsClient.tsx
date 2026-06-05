@@ -55,6 +55,7 @@ import { AddressAutocomplete, addressFromString } from '@/components/AddressAuto
 import {
   updateInterventionStatus,
   resendRapportToSyndic,
+  validateRapport,
   assignTechnician,
   saveRapportDraftFromAdmin,
   searchAcpsForIntervention,
@@ -230,6 +231,14 @@ export function InterventionsClient({
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
+  const [rapportInfo, setRapportInfo] = useState<{
+    statut: 'brouillon' | 'valide' | 'transmis';
+    valide_par: string | null;
+    valide_at: string | null;
+    transmis_at: string | null;
+    transmis_a: string[] | null;
+  } | null>(null);
+  const [rapportInfoLoading, setRapportInfoLoading] = useState(false);
 
   // Modal SMS
   type SmsModalState = {
@@ -246,6 +255,8 @@ export function InterventionsClient({
   const [emailMessage, setEmailMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const [emailPending, startEmailTransition] = useTransition();
+  const [validateMessage, setValidateMessage] = useState<string | null>(null);
+  const [validatePending, startValidateTransition] = useTransition();
   // Assignation technicien
   const [pendingTechId, setPendingTechId] = useState<string>('');
   const [assignMessage, setAssignMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
@@ -469,6 +480,10 @@ export function InterventionsClient({
       })
       .catch(() => { /* noop */ })
       .finally(() => setDrawerOccupantsLoading(false));
+
+    // Lazy-load état du rapport (statut/validation/transmission)
+    setRapportInfo(null);
+    refreshRapportInfo(id);
   }
   function closeDrawer() {
     // En mode page complète, "Fermer" = retour à la liste /admin
@@ -481,6 +496,9 @@ export function InterventionsClient({
     setAssignMessage(null);
     setIaSaveMessage(null);
     setDrawerOccupants([]);
+    setRapportInfo(null);
+    setRapportInfoLoading(false);
+    setValidateMessage(null);
   }
 
   // Mode page complète : ouvre automatiquement le drawer pour
@@ -534,15 +552,41 @@ export function InterventionsClient({
     });
   }
 
+  const refreshRapportInfo = (id: string) => {
+    setRapportInfoLoading(true);
+    fetch(`/api/admin/rapports/${id}`)
+      .then((r) => r.json())
+      .then((data) => { if (data.ok) setRapportInfo(data.rapport); })
+      .catch(() => {})
+      .finally(() => setRapportInfoLoading(false));
+  };
+
   function resendRapport() {
     if (!selected) return;
     setEmailMessage(null);
     startEmailTransition(async () => {
       const res = await resendRapportToSyndic(selected.id);
       if (res.error) setEmailMessage({ kind: 'err', msg: res.error });
-      else setEmailMessage({ kind: 'ok', msg: 'Rapport envoyé au syndic' });
+      else {
+        setEmailMessage({ kind: 'ok', msg: 'Rapport envoyé au syndic' });
+        refreshRapportInfo(selected.id);
+      }
     });
   }
+
+  const handleValidate = () => {
+    if (!selected) return;
+    setValidateMessage(null);
+    startValidateTransition(async () => {
+      const res = await validateRapport(selected.id);
+      if (res.ok) {
+        setValidateMessage('Rapport validé.');
+        refreshRapportInfo(selected.id);
+      } else {
+        setValidateMessage(res.error ?? 'Erreur lors de la validation.');
+      }
+    });
+  };
 
   function applyStatus() {
     if (!selected || !pendingStatut) return;
@@ -2367,26 +2411,98 @@ export function InterventionsClient({
                     )}
                   </Block>
 
-                  {(selected.statut === 'rapport' || selected.statut === 'cloturee') && (
+                  {rapportInfo && (
                     <Block title="Rapport au syndic">
-                      <p className="text-[12px] text-ink-mid mb-2">
-                        Renvoie le PDF du rapport à l&apos;email enregistré du syndic.
-                      </p>
-                      <button
-                        onClick={resendRapport}
-                        disabled={emailPending}
-                        className="w-full bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-2.5 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
-                      >
-                        {emailPending ? 'Envoi…' : (<><Mail size={14} />Envoyer le rapport au syndic</>)}
-                      </button>
-                      {emailMessage && (
-                        <p className={
-                          'text-xs mt-2 font-semibold ' +
-                          (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
-                        }>
-                          {emailMessage.msg}
-                        </p>
-                      )}
+                        {/* État 1 — brouillon : validation requise avant envoi */}
+                        {rapportInfo.statut === 'brouillon' && (
+                          <>
+                            <div className="mb-2.5">
+                              <span
+                                className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                                style={{ color: 'var(--color-ink-mid)', background: 'var(--color-sand-mid)' }}
+                              >
+                                Brouillon
+                              </span>
+                            </div>
+                            <button
+                              onClick={handleValidate}
+                              disabled={validatePending}
+                              className="w-full bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              {validatePending ? 'Validation…' : (<><Check size={14} />Valider le rapport</>)}
+                            </button>
+                            {validateMessage && (
+                              <p className="text-xs mt-2 font-semibold text-ink-mid">{validateMessage}</p>
+                            )}
+                          </>
+                        )}
+
+                        {/* État 2 — validé : prêt à envoyer au syndic */}
+                        {rapportInfo.statut === 'valide' && (
+                          <>
+                            <div className="mb-1.5">
+                              <span
+                                className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                                style={{ color: 'var(--color-navy)', background: 'var(--color-navy-pale)' }}
+                              >
+                                Validé
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-ink-mid mb-2">
+                              Validé le {fmtDate(rapportInfo.valide_at)}
+                            </p>
+                            <button
+                              onClick={resendRapport}
+                              disabled={emailPending}
+                              className="w-full bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-2.5 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                              {emailPending ? 'Envoi…' : (<><Mail size={14} />Envoyer au syndic</>)}
+                            </button>
+                            {emailMessage && (
+                              <p className={
+                                'text-xs mt-2 font-semibold ' +
+                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                              }>
+                                {emailMessage.msg}
+                              </p>
+                            )}
+                          </>
+                        )}
+
+                        {/* État 3 — transmis : traçabilité + renvoi secondaire */}
+                        {rapportInfo.statut === 'transmis' && (
+                          <>
+                            <div className="mb-1.5">
+                              <span
+                                className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                                style={{ color: 'var(--color-ok)', background: 'var(--color-ok-light)' }}
+                              >
+                                Transmis
+                              </span>
+                            </div>
+                            <p className="text-[12px] text-ink-mid mb-2">
+                              Transmis le {fmtDate(rapportInfo.transmis_at)}
+                              {rapportInfo.transmis_a && rapportInfo.transmis_a.length > 0
+                                ? ` à ${rapportInfo.transmis_a.join(', ')}`
+                                : ''}
+                            </p>
+                            <button
+                              onClick={resendRapport}
+                              disabled={emailPending}
+                              className="w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                              {emailPending ? 'Envoi…' : (<><RefreshCw size={14} />Renvoyer au syndic</>)}
+                            </button>
+                            {emailMessage && (
+                              <p className={
+                                'text-xs mt-2 font-semibold ' +
+                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                              }>
+                                {emailMessage.msg}
+                              </p>
+                            )}
+                          </>
+                        )}
                     </Block>
                   )}
 

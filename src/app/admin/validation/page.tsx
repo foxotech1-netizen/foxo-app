@@ -11,18 +11,15 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, relTime } from '@/lib/format';
 import {
   STATUT_FACTURE_INFO,
   type Acp,
   type Facture,
-  type Intervention,
   type NoteFrais,
 } from '@/lib/types/database';
 import {
   applyMailsAConfirmer,
-  applyRapportsAValider,
   applyFacturesBrouillon,
   applyNotesFraisSoumises,
   getSuspensCount,
@@ -47,7 +44,6 @@ type MailAnalyseRow = Pick<
   'thread_id' | 'sujet' | 'expediteur' | 'recu_le' | 'urgence'
 >;
 
-type RapportRow = Pick<Intervention, 'id' | 'ref' | 'statut' | 'adresse' | 'acp_id' | 'updated_at'>;
 type FactureRow = Pick<Facture, 'id' | 'numero' | 'montant_ttc' | 'client_nom' | 'statut' | 'type'>;
 type NoteFraisRow = Pick<NoteFrais, 'id' | 'technicien_nom' | 'technicien_email' | 'montant_ttc' | 'date_depense' | 'statut'>;
 type AcpLite = Pick<Acp, 'id' | 'nom' | 'adresse'>;
@@ -56,15 +52,11 @@ export default async function ValidationPage() {
   const supabase = await createClient();
 
   // Prédicats centralisés dans @/lib/admin/validation-queue (source unique).
-  const [analysesRes, rapportsRes, facturesRes, notesRes, suspensCount] = await Promise.all([
+  const [analysesRes, facturesRes, notesRes, suspensCount] = await Promise.all([
     // 1. Analyses mails à confirmer : demande d'intervention sans dossier lié.
     applyMailsAConfirmer(
       supabase.from('mails_analyses').select('thread_id, sujet, expediteur, recu_le, urgence'),
     ).order('recu_le', { ascending: false }),
-    // 2. Rapports à valider : interventions au statut 'rapport'.
-    applyRapportsAValider(
-      supabase.from('interventions').select('id, ref, statut, adresse, acp_id, updated_at'),
-    ).order('updated_at', { ascending: false }),
     // 3. Factures / devis en brouillon.
     applyFacturesBrouillon(
       supabase.from('factures').select('id, numero, montant_ttc, client_nom, statut, type'),
@@ -78,19 +70,58 @@ export default async function ValidationPage() {
   ]);
 
   const analyses = (analysesRes.data ?? []) as MailAnalyseRow[];
-  const rapports = (rapportsRes.data ?? []) as RapportRow[];
   const factures = (facturesRes.data ?? []) as FactureRow[];
   const notes = (notesRes.data ?? []) as NoteFraisRow[];
 
+  // 2. Rapports à valider : basé sur rapports.statut (brouillon|valide),
+  //    transmis exclu. Approche 2-requêtes (pas de FK fiable
+  //    rapports→interventions pour un embed PostgREST).
+  // 1) Rapports nécessitant une action admin
+  const { data: rapportsRows } = await supabase
+    .from('rapports')
+    .select('intervention_id, statut, valide_at, transmis_at, updated_at')
+    .in('statut', ['brouillon', 'valide'])
+    .order('updated_at', { ascending: false });
+
+  const rapportInterventionIds = (rapportsRows ?? []).map((r) => r.intervention_id);
+
+  // 2) Détails interventions (exclut les soft-deleted)
+  const { data: rapportInterventions } = rapportInterventionIds.length
+    ? await supabase
+        .from('interventions')
+        .select('id, ref, adresse, acp_id')
+        .in('id', rapportInterventionIds)
+        .is('deleted_at', null)
+    : { data: [] as { id: string; ref: string | null; adresse: string | null; acp_id: string | null }[] };
+
+  const rapportInterventionById = new Map(
+    (rapportInterventions ?? []).map((i) => [i.id, i]),
+  );
+
+  // 3) Fusion : on ne garde que les rapports dont l'intervention existe encore
+  const rapportsAValider = (rapportsRows ?? [])
+    .filter((r) => rapportInterventionById.has(r.intervention_id))
+    .map((r) => {
+      const interv = rapportInterventionById.get(r.intervention_id)!;
+      return {
+        id: interv.id,
+        ref: interv.ref,
+        adresse: interv.adresse,
+        acp_id: interv.acp_id,
+        rapportStatut: r.statut as 'brouillon' | 'valide',
+        updatedAt: r.updated_at as string,
+      };
+    });
+
   // ACP (nom/adresse) pour les lignes "Rapports à valider".
-  const acpIds = Array.from(new Set(rapports.map((r) => r.acp_id).filter(Boolean) as string[]));
+  const acpIds = Array.from(new Set(rapportsAValider.map((r) => r.acp_id).filter(Boolean) as string[]));
   const acpRes = acpIds.length
     ? await supabase.from('acps').select('id, nom, adresse').in('id', acpIds)
     : { data: [] as AcpLite[] };
   const acpMap = new Map(((acpRes.data ?? []) as AcpLite[]).map((a) => [a.id, a]));
 
   const totalAValider =
-    analyses.length + rapports.length + factures.length + notes.length + suspensCount;
+    analyses.length + rapportsAValider.length + factures.length + notes.length + suspensCount;
 
   return (
     <>
@@ -129,9 +160,9 @@ export default async function ValidationPage() {
         </Section>
 
         {/* 2. Rapports à valider */}
-        <Section title="Rapports à valider" icon={FileText} count={rapports.length} empty={rapports.length === 0}>
+        <Section title="Rapports à valider" icon={FileText} count={rapportsAValider.length} empty={rapportsAValider.length === 0}>
           <Table head={['Réf.', 'ACP / Adresse', 'Màj', 'Statut']}>
-            {rapports.map((r) => {
+            {rapportsAValider.map((r) => {
               const acp = r.acp_id ? acpMap.get(r.acp_id) ?? null : null;
               return (
                 <tr key={r.id} className="border-b border-sand-mid hover:bg-sand-hover">
@@ -141,8 +172,24 @@ export default async function ValidationPage() {
                     </Link>
                   </td>
                   <td className="px-3.5 py-3 text-[13px]">{acp?.nom ?? acp?.adresse ?? r.adresse ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[10px] text-ink-muted font-mono">{relTime(r.updated_at)}</td>
-                  <td className="px-3.5 py-3"><StatutBadge statut={r.statut} /></td>
+                  <td className="px-3.5 py-3 text-[10px] text-ink-muted font-mono">{relTime(r.updatedAt)}</td>
+                  <td className="px-3.5 py-3">
+                    {r.rapportStatut === 'valide' ? (
+                      <span
+                        className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                        style={{ color: 'var(--color-navy)', background: 'var(--color-navy-pale)' }}
+                      >
+                        Validé
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                        style={{ color: 'var(--color-ink-mid)', background: 'var(--color-sand-mid)' }}
+                      >
+                        Brouillon
+                      </span>
+                    )}
+                  </td>
                 </tr>
               );
             })}

@@ -235,6 +235,8 @@ export interface Intervention {
   lng: number | null;
 }
 
+export type StatutRapport = 'brouillon' | 'valide' | 'transmis';
+
 export interface Rapport {
   intervention_id: string;
   degats: string;
@@ -242,6 +244,17 @@ export interface Rapport {
   conclusion: string;
   recommandations: string;
   updated_at: string;
+  // ── Étape 3 : suivi d'état (migration 2026-06-05) ──
+  statut: StatutRapport;
+  valide_par: string | null;
+  valide_at: string | null;
+  transmis_at: string | null;
+  transmis_a: string[] | null;
+  docx_drive_url: string | null;
+  docx_drive_file_id: string | null;
+  pdf_drive_url: string | null;
+  pdf_drive_file_id: string | null;
+  genere_par_agent: boolean;
 }
 
 export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';

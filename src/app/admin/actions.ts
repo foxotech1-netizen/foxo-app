@@ -293,6 +293,37 @@ export async function resendRapportToSyndic(interventionId: string): Promise<Act
   return { ok: true, data: { emailId: res.emailId } };
 }
 
+// Validation admin d'un rapport : brouillon → valide (étape obligatoire avant
+// l'envoi au syndic). Garde-fou : ne valide qu'un rapport en 'brouillon'.
+export async function validateRapport(interventionId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) {
+    return { ok: false, error: 'Non autorisé' };
+  }
+
+  const db = createAdminClient();
+  const { error } = await db
+    .from('rapports')
+    .update({
+      statut: 'valide',
+      valide_par: user.id,
+      valide_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('intervention_id', interventionId)
+    .eq('statut', 'brouillon');       // garde-fou : ne valide qu'un brouillon
+
+  if (error) {
+    console.error('[validateRapport] update failed', error);
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/validation');
+  return { ok: true };
+}
+
 // ── Facture ───────────────────────────────────────────────────────────────
 
 export type EmitFactureInput = {

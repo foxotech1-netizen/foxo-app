@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
 import { uploadRapport } from '@/lib/google-drive';
@@ -191,19 +192,21 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
   const year = new Date().getFullYear();
   const adresse = built.acpNom; // adresse simplifiée — le builder retournait acpNom
 
+  let pdfUp: { ok: boolean; file_id?: string; web_view_link?: string } | null = null;
   try {
-    await uploadRapport({
+    pdfUp = await uploadRapport({
       ref: built.ref,
       adresse,
       year,
       bytes: new Uint8Array(built.pdfBuffer),
     });
   } catch (e) {
-    console.warn('[dispatchRapport] uploadRapport Drive (PDF) skipped:', e);
+    console.error('[dispatch] pdf upload failed', e);
   }
 
   // Génération + upload du .docx — version éditable du rapport sur Drive,
   // utile pour les retouches manuelles avant la version PDF finale.
+  let docxUp: { ok: boolean; file_id?: string; web_view_link?: string } | null = null;
   try {
     const { buildRapportDocx } = await import('@/lib/rapport/build-docx');
     const docxBytes = await buildRapportDocx({
@@ -211,7 +214,7 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       data: built.reportData,
       date: new Date(),
     });
-    await uploadRapport({
+    docxUp = await uploadRapport({
       ref: built.ref,
       adresse,
       year,
@@ -220,7 +223,25 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
   } catch (e) {
-    console.warn('[dispatchRapport] uploadRapport Drive (DOCX) skipped:', e);
+    console.error('[dispatch] docx upload failed', e);
+  }
+
+  // ── Best-effort : marquer le rapport transmis en base ──
+  try {
+    const db = createAdminClient();
+    await db
+      .from('rapports')
+      .update({
+        statut: 'transmis',
+        transmis_at: new Date().toISOString(),
+        transmis_a: [built.syndicEmail],
+        ...(pdfUp?.ok  ? { pdf_drive_url: pdfUp.web_view_link,  pdf_drive_file_id: pdfUp.file_id  } : {}),
+        ...(docxUp?.ok ? { docx_drive_url: docxUp.web_view_link, docx_drive_file_id: docxUp.file_id } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('intervention_id', interventionId);
+  } catch (e) {
+    console.error('[dispatch] failed to mark rapport as transmis', e);
   }
 
   return { ok: true, emailId: sent.id };
