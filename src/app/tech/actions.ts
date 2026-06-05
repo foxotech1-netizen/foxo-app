@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import { syncInterventionToDrive, type DriveSyncResult } from '@/lib/drive';
-import { dispatchRapportToSyndic } from '@/lib/rapport/dispatch';
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -131,6 +130,7 @@ export async function publishRapport(
     .upsert({
       intervention_id: interventionId,
       ...input,
+      statut: 'brouillon',
       updated_at: new Date().toISOString(),
     });
   if (rErr) return { ok: false, error: rErr.message };
@@ -140,15 +140,6 @@ export async function publishRapport(
     .update({ statut: 'rapport', updated_at: new Date().toISOString() })
     .eq('id', interventionId);
   if (ivErr) return { ok: false, error: ivErr.message };
-
-  // Envoi automatique au syndic (best-effort : on ne fait pas échouer la
-  // publication si l'email échoue — on log et on laisse l'admin renvoyer.)
-  try {
-    const dispatch = await dispatchRapportToSyndic(interventionId);
-    if (!dispatch.ok) console.warn('[publishRapport] email syndic failed:', dispatch.error);
-  } catch (e) {
-    console.warn('[publishRapport] dispatch threw:', e);
-  }
 
   revalidatePath(`/tech/interventions/${interventionId}`);
   revalidatePath('/tech');
