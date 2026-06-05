@@ -20,6 +20,7 @@ type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 interface FilterableQuery {
   eq(column: string, value: unknown): FilterableQuery;
   is(column: string, value: unknown): FilterableQuery;
+  in(column: string, values: readonly unknown[]): FilterableQuery;
 }
 
 // 1. Analyses mails à confirmer : demande d'intervention sans dossier lié.
@@ -27,9 +28,11 @@ export function applyMailsAConfirmer<Q>(q: Q): Q {
   return (q as FilterableQuery).eq('type', 'demande_intervention').is('dossier_match_id', null) as Q;
 }
 
-// 2. Rapports à valider : interventions au statut 'rapport'.
+// 2. Rapports à valider : rapports en brouillon ou validé (transmis exclu).
+//    Cible la table `rapports` (pas `interventions`) — la table rapports n'a
+//    pas de colonne deleted_at.
 export function applyRapportsAValider<Q>(q: Q): Q {
-  return (q as FilterableQuery).eq('statut', 'rapport').is('deleted_at', null) as Q;
+  return (q as FilterableQuery).in('statut', ['brouillon', 'valide']) as Q;
 }
 
 // 3. Factures / devis en brouillon.
@@ -71,7 +74,7 @@ export async function getValidationTotal(supabase: SupabaseServer): Promise<numb
       supabase.from('mails_analyses').select('*', { count: 'exact', head: true }),
     ),
     applyRapportsAValider(
-      supabase.from('interventions').select('*', { count: 'exact', head: true }),
+      supabase.from('rapports').select('*', { count: 'exact', head: true }),
     ),
     applyFacturesBrouillon(
       supabase.from('factures').select('*', { count: 'exact', head: true }),
