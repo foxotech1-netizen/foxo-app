@@ -25,6 +25,16 @@ const CHIPS: Chip[] = [
   { id: 'cloture',    label: 'Clôturé',        match: (s) => s === 'cloturee' },
 ];
 
+// Filtres période rapides, appliqués sur created_at. `jours = null` = pas de
+// borne (tout). L'ordre est l'ordre d'affichage.
+const PERIODES = [
+  { id: 'tout', label: 'Tout', jours: null as number | null },
+  { id: '30j', label: '30 derniers jours', jours: 30 },
+  { id: '3m', label: '3 derniers mois', jours: 90 },
+  { id: '12m', label: '12 derniers mois', jours: 365 },
+] as const;
+type PeriodeId = (typeof PERIODES)[number]['id'];
+
 // Mappe un searchParam ?statut=… legacy vers une chip pour compat avec
 // les anciens liens (ex: bandeau dashboard "rapports disponibles").
 function chipFromStatutParam(s: string | null): ChipId {
@@ -58,6 +68,7 @@ export function InterventionsPortalClient({
 
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState<ChipId>(chipFromStatutParam(initialStatut));
+  const [periode, setPeriode] = useState<PeriodeId>('tout');
 
   const activeChip = CHIPS.find((c) => c.id === chip) ?? CHIPS[0];
 
@@ -66,6 +77,15 @@ export function InterventionsPortalClient({
     return items.filter((iv) => {
       // Filtre chip (statut)
       if (!activeChip.match(iv.statut)) return false;
+      // Filtre période sur created_at
+      const periodeDef = PERIODES.find((p) => p.id === periode);
+      if (periodeDef && periodeDef.jours != null) {
+        // Seuil relatif « N derniers jours » : Date.now() au rendu est
+        // volontaire ici (filtre temporel), l'impureté est sans effet de bord.
+        // eslint-disable-next-line react-hooks/purity
+        const seuil = Date.now() - periodeDef.jours * 24 * 60 * 60 * 1000;
+        if (new Date(iv.created_at).getTime() < seuil) return false;
+      }
       // Filtre recherche multi-champs : ref, ACP, adresse, BCE, ref courtier
       if (!q) return true;
       const haystack = [
@@ -83,7 +103,7 @@ export function InterventionsPortalClient({
         .join(' ');
       return haystack.includes(q);
     });
-  }, [items, query, activeChip]);
+  }, [items, query, activeChip, periode]);
 
   // Compte par chip pour afficher les totaux dans les boutons.
   const counts = useMemo(() => {
@@ -130,15 +150,27 @@ export function InterventionsPortalClient({
         </div>
       )}
 
-      {/* Barre de recherche */}
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={isCourtier
-          ? 'Rechercher — référence, assuré, adresse, BCE, sinistre…'
-          : 'Rechercher — référence, ACP, adresse, BCE…'}
-        className="w-full px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
-      />
+      {/* Barre de recherche + filtre période */}
+      <div className="flex gap-2 items-center">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={isCourtier
+            ? 'Rechercher — référence, assuré, adresse, BCE, sinistre…'
+            : 'Rechercher — référence, ACP, adresse, BCE…'}
+          className="flex-1 min-w-0 px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+        />
+        <select
+          value={periode}
+          onChange={(e) => setPeriode(e.target.value as PeriodeId)}
+          aria-label="Filtrer par période"
+          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream text-ink-mid outline-none focus:border-navy-mid cursor-pointer"
+        >
+          {PERIODES.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Chips filtres rapides */}
       <div className="flex flex-wrap gap-1.5">
@@ -165,6 +197,7 @@ export function InterventionsPortalClient({
           );
         })}
       </div>
+
 
       {/* Mobile : cards */}
       <div className="md:hidden space-y-2">
