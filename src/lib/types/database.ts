@@ -169,6 +169,7 @@ export interface Utilisateur {
   couleur: string | null;     // hex personnalisée pour le planning
   role: RoleUtilisateur | null;
   actif: boolean;
+  organisation_id: string | null;   // FK organisations(id) — lien partenaire direct
   telephone: string | null;
   last_seen_at: string | null;
   created_at: string | null;
@@ -670,7 +671,8 @@ export type NotificationType =
   | 'confirmation_recue'
   | 'validation_requise'
   | 'agent_alerte'
-  | 'info';
+  | 'info'
+  | 'message';
 
 export interface Notification {
   id: string;

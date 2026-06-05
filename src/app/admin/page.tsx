@@ -55,7 +55,7 @@ export default async function AdminPipelinePage() {
     supabase.from('organisations').select('id,nom,type,email'),
     supabase
       .from('utilisateurs')
-      .select('id,prenom,nom,email,couleur,role,actif,telephone,last_seen_at,created_at')
+      .select('id,prenom,nom,email,couleur,role,actif,organisation_id,telephone,last_seen_at,created_at')
       .in('email', TECH_EMAILS as unknown as string[])
       .order('prenom', { ascending: true }),
     supabase

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
 import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { notifyPartnerOfMessage } from '@/lib/notifications/notify-partner-message';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,5 +98,12 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  // Message FoxO → partenaire : déclenche notification in-app + email
+  // (best-effort, ne bloque jamais la réponse).
+  if (auteurType === 'admin') {
+    await notifyPartnerOfMessage({ interventionId, auteurEmail: caller.email });
+  }
+
   return NextResponse.json({ ok: true, message: data });
 }
