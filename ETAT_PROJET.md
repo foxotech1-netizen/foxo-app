@@ -340,6 +340,15 @@ Cycle de statut : brouillon → valide → transmis.
 - Migrations SQL appliquées prod : `2026-06-05_rapports_statut_validation_transmission.sql` + `2026-06-06_rapport_publie_via_statut_transmis.sql`.
 Reste : Étape 4 (reply-in-thread « rapport dispo »).
 
+### Chantier — Étape 4 : Reply-in-thread Gmail « rapport dispo » — clos le 2026-06-06
+- Déclenchement : dans `dispatchRapportToSyndic` (`src/lib/rapport/dispatch.ts`), bloc best-effort `try/catch` ajouté après l'envoi Resend — jamais bloquant.
+- Garde : uniquement si `intervention.source === 'mail'` ET `source_mail_id` présent.
+- Résolution thread : requête `mails_analyses.thread_id` où `dossier_match_id = interventionId` (évite l'incohérence thread_id/message_id de `source_mail_id`). Fallback : `source_mail_id`.
+- Cible : `messages[0]` (premier message = demande d'origine du syndic) → garantit que `origFrom` = email syndic → bon destinataire.
+- Corps : référence dossier (`built.ref`) + lien Drive (`pdfUp.web_view_link`), text/plain. PDF non joint (lien Drive suffit, `sendMailReply` text/plain only).
+- Pas de migration SQL.
+- Commits : `9694fb2` (feat) + `1bd71a7` (fix destinataire) + renommage cosmétique.
+
 ## 🗺 PLAN GLOBAL — Chantier "Création intervention multi-occupants depuis un mail"
 
 - **Étape 1** ✅ FAIT — Création intervention depuis mail
@@ -348,7 +357,7 @@ Reste : Étape 4 (reply-in-thread « rapport dispo »).
   - **1.c** ✅ FAIT — `confirm-and-create` persiste N occupants via `safeInsertOccupants`
 - **Étape 2** ✅ FAIT — Envoi des demandes de confirmation aux occupants (mail Resend + SMS/WhatsApp Twilio)
 - **Étape 3** ✅ FAIT — Rapport intervention (validation admin & transmission tracée : brouillon → valide → transmis)
-- **Étape 4** ⏳ PROCHAIN — Réponse Gmail au mail initial du syndic (reply-in-thread : `In-Reply-To` + `References`, réutiliser `thread_id` + `message_id` déjà stockés)
+- **Étape 4** ✅ FAIT — Réponse Gmail au mail initial du syndic (reply-in-thread : `In-Reply-To` + `References`, réutiliser `thread_id` + `message_id` déjà stockés)
 
 Décisions structurantes :
 - **A3 abandonné** (refonte schéma `mails_analyses` avec champs ACP/syndic/etc.) → remplacé par séquence 1.a/1.b/1.c.

@@ -278,9 +278,9 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       // On cible le premier message du fil (la demande d'origine du syndic)
       // pour garantir que le reply lui est adressé — sendMailReply dérive le
       // destinataire depuis origFrom de ce message.
-      const lastMessageId = messages.length > 0 ? messages[0].id : null;
+      const originMessageId = messages.length > 0 ? messages[0].id : null;
 
-      if (lastMessageId) {
+      if (originMessageId) {
         // pdfUp = upload Drive du PDF qu'on vient de faire (même valeur que
         // rapports.pdf_drive_url posé juste au-dessus). built.ref = réf dossier.
         const pdfUrl = pdfUp?.ok ? (pdfUp.web_view_link ?? null) : null;
@@ -300,7 +300,7 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
           .filter((line) => line !== null)
           .join('\n');
 
-        await sendMailReply({ mailId: lastMessageId, body });
+        await sendMailReply({ mailId: originMessageId, body });
       }
     }
   } catch (replyError) {
