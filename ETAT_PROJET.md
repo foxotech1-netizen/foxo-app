@@ -321,15 +321,34 @@ persistance via `safeInsertOccupants` (commits `77deb63` + `31470ee` + `7ddff39`
 - Migration `2026-05-20a_mails_analyses_add_occupants_extraits.sql` (`9698d36`), colonne `occupants_extraits jsonb` appliquée en prod.
 - Patch `analyse-deep/route.ts` (`05a8a3b`) : `ALLOWED_OCCUPANT_TYPES` (8 valeurs), `AnalyseDeepOccupant` (8 champs), helper `normalizeOccupants`, system prompt étendu (croisement CC↔occupants), `max_tokens` 1024→2048, écriture `occupants_extraits` dans l'UPSERT. Structure alignée sur `CronExtractedOccupant`.
 
+### Chantier — Étape 2 : Envoi demandes de confirmation occupants — clos le 2026-06-06
+- Helper partagé `src/lib/occupants/notify-occupants.ts` extrait et branché best-effort dans `confirm-and-create`.
+- Cible occupants `token_sent_at IS NULL`, idempotent, try/catch jamais bloquant.
+- Email OK par défaut ; SMS/WhatsApp nécessitent credentials Twilio prod.
+- Pas de migration SQL.
+- PR #37 mergée main.
+
+### Chantier — Étape 3 : Rapport validation & transmission — clos le 2026-06-06
+Cycle de statut : brouillon → valide → transmis.
+- `publishRapport` (tech) → brouillon, plus d'envoi auto (`6bc77cd`)
+- `validateRapport` (admin) → valide + `valide_par` (auth.users.id) / `valide_at` (`7866038`)
+- dispatch → transmis + `transmis_at` / `transmis_a` + URLs/IDs Drive capturés (`84194f6`)
+- Drawer admin : route API `/api/admin/rapports/[intervention_id]` (`bc2b1e2`) + badges/boutons séquentiels (`bdfddca`)
+- File `/admin/validation` + badge nav : rebranchés sur `rapports.statut IN ('brouillon','valide')`, transmis exclu (`64d4b5c`)
+- RLS : `intervention_rapport_publie()` teste `rapports.statut='transmis'` (SECURITY DEFINER, anti-récursion). Migration `2026-06-06`, appliquée prod (`cfc0187`). Ferme la fuite brouillon→syndic.
+- Interface TS `Rapport` 7→17 champs + `StatutRapport` (`database.ts`).
+- Migrations SQL appliquées prod : `2026-06-05_rapports_statut_validation_transmission.sql` + `2026-06-06_rapport_publie_via_statut_transmis.sql`.
+Reste : Étape 4 (reply-in-thread « rapport dispo »).
+
 ## 🗺 PLAN GLOBAL — Chantier "Création intervention multi-occupants depuis un mail"
 
 - **Étape 1** ✅ FAIT — Création intervention depuis mail
   - **1.a** ✅ FAIT — Extraction occupants par Agent 1
   - **1.b** ✅ FAIT — UI `ConfirmCreateForm` liste éditable d'occupants (1.b.1 expose + 1.b.2 UI)
   - **1.c** ✅ FAIT — `confirm-and-create` persiste N occupants via `safeInsertOccupants`
-- **Étape 2** ⏳ PROCHAIN — Envoi des demandes de confirmation aux occupants (mail Resend + SMS/WhatsApp Twilio)
-- **Étape 3** — Rapport intervention (déjà en place en grande partie, à confirmer)
-- **Étape 4** — Réponse Gmail au mail initial du syndic (reply-in-thread : `In-Reply-To` + `References`, réutiliser `thread_id` + `message_id` déjà stockés)
+- **Étape 2** ✅ FAIT — Envoi des demandes de confirmation aux occupants (mail Resend + SMS/WhatsApp Twilio)
+- **Étape 3** ✅ FAIT — Rapport intervention (validation admin & transmission tracée : brouillon → valide → transmis)
+- **Étape 4** ⏳ PROCHAIN — Réponse Gmail au mail initial du syndic (reply-in-thread : `In-Reply-To` + `References`, réutiliser `thread_id` + `message_id` déjà stockés)
 
 Décisions structurantes :
 - **A3 abandonné** (refonte schéma `mails_analyses` avec champs ACP/syndic/etc.) → remplacé par séquence 1.a/1.b/1.c.
