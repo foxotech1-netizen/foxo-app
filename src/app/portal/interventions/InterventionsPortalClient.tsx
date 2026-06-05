@@ -150,15 +150,27 @@ export function InterventionsPortalClient({
         </div>
       )}
 
-      {/* Barre de recherche */}
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={isCourtier
-          ? 'Rechercher — référence, assuré, adresse, BCE, sinistre…'
-          : 'Rechercher — référence, ACP, adresse, BCE…'}
-        className="w-full px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
-      />
+      {/* Barre de recherche + filtre période */}
+      <div className="flex gap-2 items-center">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={isCourtier
+            ? 'Rechercher — référence, assuré, adresse, BCE, sinistre…'
+            : 'Rechercher — référence, ACP, adresse, BCE…'}
+          className="flex-1 min-w-0 px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+        />
+        <select
+          value={periode}
+          onChange={(e) => setPeriode(e.target.value as PeriodeId)}
+          aria-label="Filtrer par période"
+          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream text-ink-mid outline-none focus:border-navy-mid cursor-pointer"
+        >
+          {PERIODES.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Chips filtres rapides */}
       <div className="flex flex-wrap gap-1.5">
@@ -186,27 +198,6 @@ export function InterventionsPortalClient({
         })}
       </div>
 
-      {/* Boutons période rapides (filtre sur created_at) */}
-      <div className="flex flex-wrap gap-1.5">
-        {PERIODES.map((p) => {
-          const active = p.id === periode;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setPeriode(p.id)}
-              className={
-                'text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ' +
-                (active
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-mid')
-              }
-            >
-              {p.label}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Mobile : cards */}
       <div className="md:hidden space-y-2">
