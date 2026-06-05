@@ -60,6 +60,9 @@ export async function analyzeOneAttachment(args: {
   const systemPrompt = buildSystemPrompt(context);
   const client = new Anthropic({ apiKey });
 
+  // Conversion base64url (Gmail) → base64 standard (RFC 4648) requis par l'API Anthropic.
+  const standardBase64 = Buffer.from(attachment.content_base64, 'base64url').toString('base64');
+
   // PDF → type 'document', image → type 'image'. Source base64 dans les deux cas.
   const mediaBlock = isPdf
     ? {
@@ -67,7 +70,7 @@ export async function analyzeOneAttachment(args: {
         source: {
           type: 'base64' as const,
           media_type: 'application/pdf' as const,
-          data: attachment.content_base64,
+          data: standardBase64,
         },
       }
     : {
@@ -79,7 +82,7 @@ export async function analyzeOneAttachment(args: {
             | 'image/png'
             | 'image/webp'
             | 'image/gif',
-          data: attachment.content_base64,
+          data: standardBase64,
         },
       };
 
