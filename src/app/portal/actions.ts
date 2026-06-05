@@ -66,6 +66,7 @@ export async function createAcp(input: AcpInput): Promise<ActionResult<Acp>> {
   const { data, error } = await admin
     .from('acps')
     .insert({
+      syndic_id: session.org.id,
       nom,
       adresse: input.adresse.trim() || null,
       ville: input.ville.trim() || null,
