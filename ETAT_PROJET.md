@@ -359,6 +359,26 @@ Reste : Étape 4 (reply-in-thread « rapport dispo »).
 - Validé en prod : mails affichent `(mail sans sujet)` + date ; factures restent `—` si aucun FK en base (données manquantes antérieures, comportement correct).
 - PRs : intégré via PR #39 (Étape 3) + PR #40 (fix fallbacks).
 
+### Chantier — Nettoyage système mails — clos le 2026-06-06
+Audit complet : la majorité des items du backlog étaient déjà résolus.
+
+**Propre à l'audit (rien à faire) :**
+- `FOXO_TRAITE`/`FOXO_LU` : 1 seul commentaire documentaire dans `check-mails.ts:15`, aucun code actif.
+- Clauses `-label:FOXO_*` dans la query cron : inexistantes, query = `'in:inbox is:unread'`.
+- `classification` canonique (`categories.ts`) : en place de bout en bout (analyse-deep → colonne → UI), fallback `type` pour lignes historiques.
+
+**Fix 1 — PR #41 — `batchModifyMails` chunking (gmail.ts + batch/route.ts) :**
+- Troncature silencieuse à 500 IDs remplacée par une boucle de chunks séquentiels de 500.
+- Type de retour étendu : `{ ok: true; processed: number } | { ok: false; error }` (additif).
+- `batch/route.ts` retourne désormais `count: res.processed` (count réel, pas count d'entrée).
+
+**Fix 2 — PR #42 — `analyse_pj` base64url → base64 standard (analyze-one.ts) :**
+- Cause : Gmail encode les PJ en base64url (`-`/`_`), Anthropic attend du base64 standard RFC 4648 (`+`/`/`).
+- 2 erreurs loggées dans `agent_logs` (intervention `5273c3f7`, 2026-05-18) — bug systématique sur toute PJ contenant `-` ou `_`.
+- Fix : `Buffer.from(attachment.content_base64, 'base64url').toString('base64')` dans `analyze-one.ts` avant construction du mediaBlock (PDF + image). `gmail.ts`/`drive.ts` non touchés.
+
+Note agent_logs : agent `briefing` présent (13 succès, dernier 2026-06-05) — non documenté dans les fiches agents, à identifier lors d'un prochain audit.
+
 ## 🗺 PLAN GLOBAL — Chantier "Création intervention multi-occupants depuis un mail"
 
 - **Étape 1** ✅ FAIT — Création intervention depuis mail
