@@ -509,32 +509,41 @@ export async function modifyMailLabels(args: {
   return { ok: true };
 }
 
-// Modifie les labels en masse via batchModify (1 seule requête HTTP).
-// Gmail accepte jusqu'à 1000 ids par appel. On clamp à 500 par sécurité.
+// Modifie les labels en masse via batchModify. Gmail accepte jusqu'à 1000 ids
+// par appel ; on traite par lots de 500 pour couvrir des sélections de taille
+// arbitraire — plus de troncature silencieuse. Retourne le nombre total d'ids
+// réellement traités (`processed`).
 export async function batchModifyMails(args: {
   ids: string[];
   addLabelIds?: string[];
   removeLabelIds?: string[];
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<{ ok: true; processed: number } | { ok: false; error: string }> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
-  if (!args.ids || args.ids.length === 0) return { ok: true };
+  if (!args.ids || args.ids.length === 0) return { ok: true, processed: 0 };
 
-  const ids = args.ids.slice(0, 500);
-  const body: Record<string, string[]> = { ids };
-  if (args.addLabelIds && args.addLabelIds.length > 0) body.addLabelIds = args.addLabelIds;
-  if (args.removeLabelIds && args.removeLabelIds.length > 0) body.removeLabelIds = args.removeLabelIds;
+  const CHUNK_SIZE = 500;
+  let processed = 0;
 
-  const r = await fetch(`${API}/messages/batchModify`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) {
-    const t = await r.text();
-    return { ok: false, error: `BatchModify HTTP ${r.status} : ${t.slice(0, 200)}` };
+  for (let i = 0; i < args.ids.length; i += CHUNK_SIZE) {
+    const chunk = args.ids.slice(i, i + CHUNK_SIZE);
+    const body: Record<string, string[]> = { ids: chunk };
+    if (args.addLabelIds && args.addLabelIds.length > 0) body.addLabelIds = args.addLabelIds;
+    if (args.removeLabelIds && args.removeLabelIds.length > 0) body.removeLabelIds = args.removeLabelIds;
+
+    const r = await fetch(`${API}/messages/batchModify`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      return { ok: false, error: `BatchModify HTTP ${r.status} : ${t.slice(0, 200)}` };
+    }
+    processed += chunk.length;
   }
-  return { ok: true };
+
+  return { ok: true, processed };
 }
 
 // ─── Réponse + suppression (page /admin/mails) ───────────────────────────

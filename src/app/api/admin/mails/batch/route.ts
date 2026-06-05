@@ -83,5 +83,5 @@ export async function POST(request: Request) {
 
   const res = await batchModifyMails({ ids, addLabelIds, removeLabelIds });
   if (!res.ok) return NextResponse.json({ ok: false, error: res.error }, { status: 502 });
-  return NextResponse.json({ ok: true, count: ids.length });
+  return NextResponse.json({ ok: true, count: res.processed });
 }
