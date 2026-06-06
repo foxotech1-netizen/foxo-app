@@ -82,6 +82,7 @@ export function NewRequestClient({
     lng: null,
   });
   const [adressePrecise, setAdressePrecise] = useState('');
+  const [referenceSyndic, setReferenceSyndic] = useState('');
 
   // Step 1 — Mode COURTIER : assuré + adresse sinistre + ref compagnie
   // + référence sinistre (n° dossier assureur) + compagnie d'assurance
@@ -199,6 +200,7 @@ export function NewRequestClient({
     const res = await submitRequest({
       acp_id: isPartner ? null : selectedAcp!.id,
       adresse_precise: isPartner ? '' : adressePrecise,
+      reference_externe: isPartner ? undefined : (referenceSyndic.trim() || undefined),
       courtier: isPartner
         ? {
             assure_nom: assureNom,
@@ -265,6 +267,9 @@ export function NewRequestClient({
               selectedAcp={selectedAcp}
               adressePrecise={adressePrecise}
               setAdressePrecise={setAdressePrecise}
+              referenceSyndic={referenceSyndic}
+              setReferenceSyndic={setReferenceSyndic}
+              referenceLabel={vocab.referenceLabel}
               onPick={pickAcp}
               onClear={clearAcp}
               searching={pending}
@@ -391,12 +396,14 @@ function StepIndicator({ step, labels }: { step: Step; labels: string[] }) {
 
 function Step1({
   query, setQuery, results, selectedAcp, adressePrecise, setAdressePrecise,
+  referenceSyndic, setReferenceSyndic, referenceLabel,
   onPick, onClear, searching, searchError,
   showCreate, setShowCreate, newAcp, setNewAcp, onCreate, creating,
 }: {
   query: string; setQuery: (v: string) => void;
   results: Acp[]; selectedAcp: Acp | null;
   adressePrecise: string; setAdressePrecise: (v: string) => void;
+  referenceSyndic: string; setReferenceSyndic: (v: string) => void; referenceLabel: string;
   onPick: (a: Acp) => void; onClear: () => void;
   searching: boolean; searchError: string | null;
   showCreate: boolean; setShowCreate: (v: boolean) => void;
@@ -529,6 +536,17 @@ function Step1({
           value={adressePrecise}
           onChange={(e) => setAdressePrecise(e.target.value)}
           placeholder="ex : Apt 3B, étage 5"
+          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+          {referenceLabel} (optionnel)
+        </label>
+        <input
+          value={referenceSyndic}
+          onChange={(e) => setReferenceSyndic(e.target.value)}
+          placeholder="Votre référence interne"
           className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
         />
       </div>
