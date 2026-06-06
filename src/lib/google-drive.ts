@@ -437,3 +437,75 @@ export async function testDriveConnection(): Promise<TestDriveResult> {
     factures: { ...factures, id: rFactures || null },
   };
 }
+
+// ─── Lecture seule : listing du contenu d'un dossier ──────────────────────
+//
+// Liste les enfants directs (fichiers + sous-dossiers) d'un dossier Drive,
+// hors corbeille. Dossiers d'abord, puis tri par date de modification
+// décroissante. Suit la pagination jusqu'à `maxFiles`. N'écrit rien.
+// Utilisé par l'outil assistant `list_intervention_documents`.
+
+export interface DriveListedFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  isFolder: boolean;
+  webViewLink: string | null;
+  modifiedTime: string | null;
+  size: number | null;
+}
+
+export type DriveListResult =
+  | { ok: true; files: DriveListedFile[] }
+  | { ok: false; error: string };
+
+export async function listFolderFiles(folderId: string, maxFiles = 200): Promise<DriveListResult> {
+  if (!folderId) return { ok: false, error: 'ID dossier vide.' };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const collected: DriveListedFile[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const url = new URL(`${DRIVE_API}/files`);
+    url.searchParams.set('q', `'${escapeQuery(folderId)}' in parents and trashed=false`);
+    url.searchParams.set('orderBy', 'folder,modifiedTime desc');
+    url.searchParams.set('pageSize', '100');
+    url.searchParams.set('fields', 'nextPageToken,files(id,name,mimeType,webViewLink,modifiedTime,size)');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+
+    let res: Response;
+    try {
+      res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${auth.access_token}` } });
+    } catch (e) {
+      return { ok: false, error: `Échec réseau Drive : ${e instanceof Error ? e.message : 'inconnu'}` };
+    }
+    if (res.status === 404) return { ok: false, error: `Dossier Drive introuvable (${folderId}).` };
+    if (res.status === 403) return { ok: false, error: `Accès refusé au dossier ${folderId}.` };
+    if (!res.ok) {
+      const txt = await res.text();
+      return { ok: false, error: `Drive HTTP ${res.status} : ${txt.slice(0, 200)}` };
+    }
+
+    const j = (await res.json()) as {
+      nextPageToken?: string;
+      files?: { id: string; name: string; mimeType: string; webViewLink?: string; modifiedTime?: string; size?: string }[];
+    };
+    for (const f of j.files ?? []) {
+      collected.push({
+        id: f.id,
+        name: f.name,
+        mimeType: f.mimeType,
+        isFolder: f.mimeType === FOLDER_MIME,
+        webViewLink: f.webViewLink ?? null,
+        modifiedTime: f.modifiedTime ?? null,
+        size: f.size != null ? Number(f.size) : null,
+      });
+      if (collected.length >= maxFiles) break;
+    }
+    pageToken = collected.length >= maxFiles ? undefined : j.nextPageToken;
+  } while (pageToken);
+
+  return { ok: true, files: collected };
+}
