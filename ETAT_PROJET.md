@@ -27,9 +27,8 @@
 
 ## A faire (dans l'ordre)
 
-1. Chantier "Planifier en ligne" : bouton par ligne (Nouvelles demandes) pour assigner technicien + proposer creneau sans ouvrir le drawer. VIGILANCE BLOQUANTE avant patch : demeler le double chemin d'assignation route POST /api/admin/interventions/[id]/assign VS server action assignTechnician (le drawer utilise assignTechnician). Reperes : drawer Assigner l.1966 applyAssignTech, Planifier l.2034 applySchedule. Planning : actions.ts = CRUD creneaux_disponibles ; routes /api/admin/planning, /dispos, /dispos/bulk, /dispos/resync.
-2. L'Assistant (/admin/assistant) "ne fonctionne pas" : chantier dedie, audit d'abord. Doit faire ce que Claude fait + acces Gmail/Calendar/Drive + plateforme FoxO.
-3. Walkthrough portails partenaires (syndic/courtier/expert) : audit par clics de Foxo.
+1. L'Assistant (/admin/assistant) "ne fonctionne pas" : chantier dedie, audit d'abord. Doit faire ce que Claude fait + acces Gmail/Calendar/Drive + plateforme FoxO.
+2. Walkthrough portails partenaires (syndic/courtier/expert) : audit par clics de Foxo.
 
 ## Vigilance / dette
 
@@ -868,3 +867,15 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 - **Backlog laissé ouvert (non bloquant)** :
   - `createInterventionFromSlot` n'écrit toujours pas `lat`/`lng` sur l'intervention → le scoring géographique de `proposeCreneau` ne se nourrit pas encore de l'historique du planning. Amélioration future possible.
   - Logique Nominatim désormais dupliquée à 3 endroits (`autocomplete/route.ts`, `geocodeAddress` privé dans `analyse-deep`, nouveau `src/lib/geo/geocode.ts`) → consolidation DRY possible plus tard.
+
+### Chantier #10 — Planifier en ligne (bouton par ligne) — clos le 2026-06-06
+
+- Branche `feat/planifier-en-ligne`, mergée dans `main` via PR #47 (merge commit `a59d642`).
+- **Objectif** : sur la liste des interventions, bouton « Planifier » par ligne (statut `nouvelle`, tableau desktop) → propose le meilleur créneau + technicien → assigne le tech et réserve le créneau, sans ouvrir le drawer.
+- **Livré** :
+  - `src/app/admin/PlanRowModal.tsx` — modal client (réutilise `ModalShell`/`ModalFooter`). Auto-propose au montage via `proposeSlotForIntervention` (adresse préremplie `iv.adresse` → repli adresse ACP ; urgence dérivée de `priorite === 'urgente'`). Sur sélection : `assignTechnician(id, technicien_id)` puis `PATCH /api/admin/interventions/[id]/schedule { date, heure, creneau_id }`. `router.refresh()` au succès.
+  - `src/app/admin/InterventionsClient.tsx` — bouton « Planifier » (icône CalendarClock) dans la colonne d'action, condition `statut === 'nouvelle'`, `e.stopPropagation()` ; state `planningRow` + rendu `PlanRowModal`.
+- **Vigilance « double chemin d'assignation » LEVÉE** : la route `PATCH /api/admin/interventions/[id]/assign` est du code mort (aucun appelant) ; chemin canonique = server action `assignTechnician` (`src/app/admin/actions.ts`). Réservation du créneau portée par `/schedule`.
+- **Connu / backlog** : bouton desktop uniquement (la carte mobile est un `<button>` → imbriquer un `<button>` serait invalide ; refactor de la carte en `div role/onClick` requis pour l'action mobile). La route `/assign` morte pourrait être supprimée (nettoyage optionnel).
+- Aucune migration SQL. Aucune fonction existante modifiée. `tsc` vert. Testé en Preview.
+- Commits : `035a3d3`, `ff69b0c`.
