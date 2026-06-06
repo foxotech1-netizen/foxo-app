@@ -309,6 +309,14 @@ export function InterventionsClient({
   const [rowDeleteErr, setRowDeleteErr] = useState<string | null>(null);
   const [deleteMsg, setDeleteMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
+  // Relance occupants depuis l'icône d'envoi de la ligne (réutilise la route
+  // notify-occupants ; indépendant du drawer). relanceConfirm = ligne en attente
+  // de confirmation ; relancingId = ligne dont l'envoi est en cours ; relanceMsg
+  // = feedback transitoire par ligne.
+  const [relanceConfirm, setRelanceConfirm] = useState<{ id: string; ref: string | null } | null>(null);
+  const [relancingId, setRelancingId] = useState<string | null>(null);
+  const [relanceMsg, setRelanceMsg] = useState<{ id: string; kind: 'ok' | 'err'; text: string } | null>(null);
+
   // Réanalyse mail
   type ReanalysisData = {
     analysis: {
@@ -944,6 +952,39 @@ export function InterventionsClient({
     });
   }
 
+  // Relance occupants : la route notify-occupants exige des occupant_ids, donc
+  // on récupère d'abord les occupants du dossier (route GET existante) puis on
+  // POST. Best-effort : ne crashe jamais, feedback transitoire par ligne.
+  async function relanceOccupants(interventionId: string) {
+    setRelanceConfirm(null);
+    setRelanceMsg(null);
+    setRelancingId(interventionId);
+    try {
+      const occData = await fetch(`/api/admin/occupants/${interventionId}`).then((r) => r.json());
+      const occIds: string[] = occData?.ok
+        ? ((occData.occupants ?? []) as { id: string }[]).map((o) => o.id)
+        : [];
+      if (occIds.length === 0) {
+        setRelanceMsg({ id: interventionId, kind: 'err', text: 'Aucun occupant à relancer.' });
+        return;
+      }
+      const res = await fetch(`/api/admin/interventions/${interventionId}/notify-occupants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ occupant_ids: occIds }),
+      }).then((r) => r.json());
+      if (res?.ok) {
+        setRelanceMsg({ id: interventionId, kind: 'ok', text: `Relance envoyée (${res.sent}/${occIds.length}).` });
+      } else {
+        setRelanceMsg({ id: interventionId, kind: 'err', text: res?.error ?? 'Échec de la relance.' });
+      }
+    } catch (e) {
+      setRelanceMsg({ id: interventionId, kind: 'err', text: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setRelancingId(null);
+    }
+  }
+
   // Log de gating : dès que selectedId change, on log les conditions
   // qui décident de l'affichage du bouton Réanalyser.
   useEffect(() => {
@@ -1101,6 +1142,43 @@ export function InterventionsClient({
           onCancel={() => { setDeletingRow(null); setRowDeleteErr(null); }}
           onConfirm={softDeleteRow}
         />
+      )}
+
+      {relanceConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setRelanceConfirm(null)}
+        >
+          <div
+            className="bg-[var(--color-cream)] rounded-xl p-5 w-full max-w-[360px]"
+            onClick={(e) => e.stopPropagation()}
+            style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          >
+            <h3 className="font-sora text-[15px] font-semibold text-[var(--color-ink)] mb-1.5">
+              Relancer les occupants de ce dossier ?
+            </h3>
+            <p className="text-[13px] text-[var(--color-ink-mid)] leading-relaxed mb-4">
+              Une demande de confirmation va être renvoyée par email / SMS aux occupants
+              {relanceConfirm.ref ? ` du dossier ${relanceConfirm.ref}` : ''}. De vrais messages seront envoyés.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setRelanceConfirm(null)}
+                className="px-3 py-2 rounded-lg text-xs font-medium text-[var(--color-ink-mid)] hover:bg-[var(--color-sand)]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => relanceOccupants(relanceConfirm.id)}
+                className="px-3 py-2 rounded-lg text-xs font-bold bg-[var(--color-navy)] text-white inline-flex items-center gap-1.5"
+              >
+                <Send size={14} />Relancer les occupants
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Topbar + liste — masqués en mode page complète */}
@@ -1371,7 +1449,29 @@ export function InterventionsClient({
                       <td className="px-3.5 py-2.5 text-[10px] text-[var(--color-ink-muted)] font-mono whitespace-nowrap">
                         {relTime(iv.updated_at, nowMs)}
                       </td>
-                      <td className="px-2 py-2.5 text-right">
+                      <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                        {(iv.statut === 'nouvelle' || iv.statut === 'attente' || iv.statut === 'confirmee' || iv.statut === 'en_suspens') && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRelanceMsg(null);
+                              setRelanceConfirm({ id: iv.id, ref: iv.ref });
+                            }}
+                            disabled={relancingId === iv.id}
+                            className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-navy)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-navy-pale)] disabled:opacity-50 align-middle"
+                            title={relanceMsg?.id === iv.id ? relanceMsg.text : 'Relancer les occupants'}
+                            aria-label="Relancer les occupants"
+                          >
+                            {relancingId === iv.id
+                              ? <RefreshCw size={15} className="animate-spin" />
+                              : relanceMsg?.id === iv.id
+                                ? (relanceMsg.kind === 'ok'
+                                    ? <Check size={15} className="text-[var(--color-ok)]" />
+                                    : <XCircle size={15} className="text-[var(--color-terra)]" />)
+                                : <Send size={15} />}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1379,7 +1479,7 @@ export function InterventionsClient({
                             setRowDeleteErr(null);
                             setDeletingRow({ id: iv.id, ref: iv.ref });
                           }}
-                          className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-terra)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)]"
+                          className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-terra)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)] align-middle"
                           title="Supprimer cette intervention"
                           aria-label="Supprimer cette intervention"
                         >
