@@ -268,7 +268,7 @@ async function listInterventionDocuments(args: Record<string, unknown>, supabase
   let folderId = iv.drive_folder_id;
   if (!folderId) {
     const yr = Number((iv.ref ?? '').slice(0, 4)) || new Date().getFullYear();
-    folderId = await resolveInterventionFolderByName(iv.ref ?? ref, iv.adresse ?? '', yr);
+    folderId = await resolveInterventionFolderByName(iv.ref ?? ref, yr);
   }
   if (!folderId) {
     return `Le dossier « ${iv.ref ?? ref} » n'a pas encore de dossier Google Drive associé. Aucun document à lister.`;
