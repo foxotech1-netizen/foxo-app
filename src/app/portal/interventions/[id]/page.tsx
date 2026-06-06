@@ -54,13 +54,22 @@ export default async function InterventionDetail({
       : Promise.resolve({ data: null }),
   ]);
 
+  // Rapport disponible = une ligne rapports visible via RLS (policy
+  // partner_select_published_rapports = statut 'transmis'). Aligne
+  // l'affichage sur ce que le syndic peut réellement télécharger.
+  const { data: rapportRows } = await supabase
+    .from('rapports')
+    .select('intervention_id')
+    .eq('intervention_id', intervention.id);
+  const hasReport = (rapportRows?.length ?? 0) > 0;
+
   const data: DossierData = {
     intervention,
     acp: (acpRes.data as Acp | null) ?? null,
     occupants: (occRes.data as Occupant[] | null) ?? [],
     technicien: (techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null) ?? null,
     isSinistre: org.type === 'courtier' || org.type === 'expert',
-    hasReport: intervention.statut === 'rapport' || intervention.statut === 'cloturee',
+    hasReport,
   };
 
   return <DossierPortalClient data={data} />;
