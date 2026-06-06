@@ -9,6 +9,8 @@ import { notifyStatusChange } from '@/lib/email/notifications';
 import { createInterventionFolder } from '@/lib/google-drive';
 import { createCalendarEvent, createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
 import { nextRefForYear } from '@/lib/intervention-ref';
+import { proposeCreneau, type ProposeCreneauResult } from '@/lib/mails/propose-creneau';
+import { geocodeAddress } from '@/lib/geo/geocode';
 import type {
   Acp,
   Organisation,
@@ -742,4 +744,33 @@ export async function blockCreneau(input: {
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin/planning');
   return { ok: true };
+}
+
+// ─── Suggestion de créneau (lecture seule) ───────────────────────────────
+//
+// Wrapper server action exposant proposeCreneau() au client. proposeCreneau
+// est server-only (createAdminClient) et ne peut pas être appelée depuis un
+// composant 'use client' → on passe par cette action.
+//
+// Géocode l'adresse (best-effort, null si rien) puis délègue le scoring à
+// proposeCreneau. Aucune mutation : ne réserve ni ne crée rien.
+export async function proposeSlotForIntervention(params: {
+  adresse: string | null;
+  urgence: boolean;
+}): Promise<ProposeCreneauResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return { primary: null, alternative: null, fenetre_etendue: false };
+
+  let lat: number | null = null;
+  let lng: number | null = null;
+  const adresse = params.adresse?.trim();
+  if (adresse) {
+    const geo = await geocodeAddress(adresse);
+    if (geo) {
+      lat = geo.lat;
+      lng = geo.lng;
+    }
+  }
+
+  return proposeCreneau({ adresse_lat: lat, adresse_lng: lng, urgence: params.urgence });
 }
