@@ -509,3 +509,31 @@ export async function listFolderFiles(folderId: string, maxFiles = 200): Promise
 
   return { ok: true, files: collected };
 }
+
+// Résout (LECTURE SEULE, sans création) l'ID du dossier Drive d'une
+// intervention par son nom. Mire la structure des uploads :
+//   RAPPORTS/{year}/{ref adresse}/   (avec repli RAPPORTS/{ref adresse}/)
+// Renvoie null si Drive non connecté, racine absente ou dossier introuvable.
+export async function resolveInterventionFolderByName(
+  ref: string,
+  adresse: string,
+  year: number,
+): Promise<string | null> {
+  const auth = await getValidAccessToken();
+  if (!auth) return null;
+  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  if (!root) return null;
+
+  const dossierName = `${ref} ${adresse}`.trim().slice(0, 200);
+
+  // 1) RAPPORTS/{year}/{ref adresse}
+  const yearF = await findChildFolder(auth.access_token, root, String(year));
+  if (yearF) {
+    const ivF = await findChildFolder(auth.access_token, yearF.id, dossierName);
+    if (ivF) return ivF.id;
+  }
+
+  // 2) Repli : RAPPORTS/{ref adresse} (arborescence sans niveau année)
+  const direct = await findChildFolder(auth.access_token, root, dossierName);
+  return direct?.id ?? null;
+}

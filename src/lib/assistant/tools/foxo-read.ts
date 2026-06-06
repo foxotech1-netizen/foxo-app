@@ -13,7 +13,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildInterventionContext } from '@/lib/assistant/context';
-import { listFolderFiles } from '@/lib/google-drive';
+import { listFolderFiles, resolveInterventionFolderByName } from '@/lib/google-drive';
 
 const STATUTS = ['nouvelle', 'attente', 'confirmee', 'realisee', 'rapport', 'cloturee', 'en_suspens'] as const;
 const PRIORITES = ['normale', 'urgente'] as const;
@@ -262,11 +262,19 @@ async function listInterventionDocuments(args: Record<string, unknown>, supabase
   if (error) return `Erreur de recherche du dossier : ${error.message}`;
   const iv = data as { id: string; ref: string | null; adresse: string | null; drive_folder_id: string | null } | null;
   if (!iv) return `Aucun dossier trouvé pour la référence « ${ref} ».`;
-  if (!iv.drive_folder_id) {
+  // L'ID de dossier Drive n'est pas toujours persisté en base : les uploads
+  // (rapport, photos) retrouvent le dossier par son NOM. Si l'ID stocké est
+  // absent, on résout le dossier de la même façon (lecture seule, sans créer).
+  let folderId = iv.drive_folder_id;
+  if (!folderId) {
+    const yr = Number((iv.ref ?? '').slice(0, 4)) || new Date().getFullYear();
+    folderId = await resolveInterventionFolderByName(iv.ref ?? ref, iv.adresse ?? '', yr);
+  }
+  if (!folderId) {
     return `Le dossier « ${iv.ref ?? ref} » n'a pas encore de dossier Google Drive associé. Aucun document à lister.`;
   }
 
-  const res = await listFolderFiles(iv.drive_folder_id);
+  const res = await listFolderFiles(folderId);
   if (!res.ok) return `Impossible de lister les documents du dossier « ${iv.ref ?? ref} » : ${res.error}`;
   if (res.files.length === 0) {
     return `Le dossier Drive de « ${iv.ref ?? ref} » est vide (aucun fichier ni sous-dossier).`;
