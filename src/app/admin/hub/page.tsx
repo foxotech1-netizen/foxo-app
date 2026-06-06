@@ -68,7 +68,7 @@ export default async function HubPage() {
         .from('interventions')
         .select('id', { count: 'exact', head: true })
         .eq('priorite', 'urgente')
-        .not('statut', 'in', '(cloturee,annulee)')
+        .not('statut', 'in', '(cloturee)')
         .is('deleted_at', null),
     ),
     safeCount(
