@@ -13,6 +13,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildInterventionContext } from '@/lib/assistant/context';
+import { listFolderFiles } from '@/lib/google-drive';
 
 const STATUTS = ['nouvelle', 'attente', 'confirmee', 'realisee', 'rapport', 'cloturee', 'en_suspens'] as const;
 const PRIORITES = ['normale', 'urgente'] as const;
@@ -56,6 +57,18 @@ export const FOXO_READ_TOOLS: Anthropic.Tool[] = [
       "Renvoie des statistiques agrégées sur l'ENSEMBLE du pipeline (toute la base, pas seulement les dossiers récents) : nombre de dossiers par statut, urgents non clôturés, en retard, en suspens, prévus aujourd'hui. À utiliser pour toute question chiffrée globale sur l'activité.",
     input_schema: { type: 'object', properties: {}, required: [] },
   },
+  {
+    name: 'list_intervention_documents',
+    description:
+      "Liste les documents stockés dans le dossier Google Drive d'une intervention (lecture seule), à partir de sa référence (ex : 2026-014) : rapports, photos, factures et pièces jointes classés dans le dossier. Affiche pour chaque élément son nom, son type, sa date de modification et un lien d'ouverture. À utiliser quand l'admin demande quels fichiers ou documents existent pour un dossier.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: 'Référence du dossier (champ ref, ex : 2026-014).' },
+      },
+      required: ['ref'],
+    },
+  },
 ];
 
 export async function executeFoxoReadTool(
@@ -72,6 +85,8 @@ export async function executeFoxoReadTool(
         return await getInterventionDetail(args, supabase);
       case 'get_pipeline_stats':
         return await getPipelineStats(supabase);
+      case 'list_intervention_documents':
+        return await listInterventionDocuments(args, supabase);
       default:
         return `Outil inconnu : ${name}.`;
     }
@@ -224,4 +239,46 @@ async function getPipelineStats(supabase: SupabaseClient): Promise<string> {
   lines.push(`- Prévus aujourd'hui : ${aujourdhui}`);
   if (rows.length === 5000) lines.push('(Note : plafond de 5000 dossiers atteint, chiffres possiblement tronqués.)');
   return lines.join('\n');
+}
+
+function fmtBytes(n: number | null): string {
+  if (n == null) return '';
+  if (n < 1024) return ` · ${n} o`;
+  if (n < 1024 * 1024) return ` · ${(n / 1024).toFixed(0)} Ko`;
+  return ` · ${(n / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+async function listInterventionDocuments(args: Record<string, unknown>, supabase: SupabaseClient): Promise<string> {
+  const ref = typeof args.ref === 'string' ? args.ref.trim() : '';
+  if (!ref) return "Paramètre 'ref' manquant.";
+
+  const { data, error } = await supabase
+    .from('interventions')
+    .select('id, ref, adresse, drive_folder_id')
+    .ilike('ref', ref)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+  if (error) return `Erreur de recherche du dossier : ${error.message}`;
+  const iv = data as { id: string; ref: string | null; adresse: string | null; drive_folder_id: string | null } | null;
+  if (!iv) return `Aucun dossier trouvé pour la référence « ${ref} ».`;
+  if (!iv.drive_folder_id) {
+    return `Le dossier « ${iv.ref ?? ref} » n'a pas encore de dossier Google Drive associé. Aucun document à lister.`;
+  }
+
+  const res = await listFolderFiles(iv.drive_folder_id);
+  if (!res.ok) return `Impossible de lister les documents du dossier « ${iv.ref ?? ref} » : ${res.error}`;
+  if (res.files.length === 0) {
+    return `Le dossier Drive de « ${iv.ref ?? ref} » est vide (aucun fichier ni sous-dossier).`;
+  }
+
+  const lines = res.files.map((f) => {
+    const kind = f.isFolder ? 'dossier' : (f.mimeType || 'fichier');
+    const when = f.modifiedTime ? new Date(f.modifiedTime).toLocaleString('fr-BE') : '?';
+    const link = f.webViewLink ? ` · ${f.webViewLink}` : '';
+    const size = f.isFolder ? '' : fmtBytes(f.size);
+    return `- ${f.name} · ${kind} · modifié ${when}${size}${link}`;
+  });
+  const header = `Documents du dossier « ${iv.ref ?? ref} »${iv.adresse ? ` (${iv.adresse})` : ''} — ${res.files.length} élément(s) :`;
+  return [header, ...lines].join('\n');
 }
