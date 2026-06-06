@@ -1,3 +1,37 @@
+# État du projet FoxO — snapshot 2026-06-06 (Assistant — Phase 2-bis : listing documents Drive)
+
+- Date du recap : 2026-06-06
+- Branche : main (vérifier le HEAD live en début de session)
+- Production : déployée par Vercel sur push main.
+
+## Chantier Assistant — Phase 2-bis (Drive lecture) — CLOS et VALIDÉ EN PROD
+
+Nouvel outil de LECTURE pour l'assistant admin : lister les documents du dossier Google Drive d'une intervention. Lecture seule, cloisonnement admin inchangé.
+
+- Outil `list_intervention_documents` (ajouté à FOXO_READ_TOOLS dans src/lib/assistant/tools/foxo-read.ts) : prend une référence (ex. 2026-127), résout le dossier Drive, liste son contenu (nom, type, date, taille, lien). Dispatché automatiquement par la route (aucune modif route). Désactivé en format=rapport_json comme les autres outils.
+- Helper `listFolderFiles(folderId, maxFiles=200)` dans src/lib/google-drive.ts : liste les enfants directs d'un dossier (fichiers + sous-dossiers), hors corbeille, dossiers d'abord puis tri date décroissante, pagination. Lecture seule.
+- Helper `resolveInterventionFolderByName(ref, year)` dans src/lib/google-drive.ts : retrouve le dossier par sa RÉFÉRENCE (qui préfixe le nom du dossier), recherche `name contains` + filtre anti-faux-positif, dans RAPPORTS/{year}/ puis repli RAPPORTS/. Lecture seule, sans création.
+- Validé prod sur 2026-127 (« Rue Willems 14 ») : 21 éléments listés (docx + pdf, 2 vidéos, 17 photos).
+
+PRs : #55 (helper listFolderFiles + outil), #56 (1er repli par nom — REMPLACÉ), #57 (résolution par référence — version retenue).
+
+### Apprentissages clés (Drive)
+- `interventions.drive_folder_id` n'est PAS fiable : souvent NULL (les uploads rapport/photos retrouvent le dossier par son NOM et n'écrivent pas l'ID en retour).
+- L'adresse en base (`interventions.adresse`, ex. « Bruxelles ») ne correspond PAS toujours au nom réel du dossier Drive (ex. « 2026-127 Rue Willems 14 »). Ne jamais reconstruire le nom de dossier à partir de l'adresse base.
+- Clé de résolution fiable = la RÉFÉRENCE, qui préfixe toujours le nom du dossier. Structure prod confirmée : RAPPORT/{année}/{ref + adresse}/.
+- Scope Google `…/auth/drive` (complet) déjà en place : pas de nouveau scope pour lister.
+
+## À faire (dans l'ordre) — mis à jour 2026-06-06 (post Phase 2-bis)
+1. Assistant — Phase 3 : outils d'ACTION admin (relancer / assigner / planifier / valider-envoyer rapport) AVEC confirmation obligatoire. Audit-first des server actions existantes.
+2. Walkthrough portails partenaires (audit par clics).
+- (Backlog) Notif-retard technicien (deep link sms: / wa.me, messagerie native du tech).
+- Phases 4 (assistant tech, OAuth Google PAR UTILISATEUR) et 5 (assistant portail cloisonné + analytics doc 06).
+
+## Hygiène repo
+- Supprimer les branches mergées via GitHub.com : feat/assistant-agent-drive-read, fix/assistant-drive-resolve-by-name, fix/assistant-drive-resolve-by-ref.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-06 (clôture : réf. syndic à la création)
 
 - **Date du recap** : 2026-06-06
