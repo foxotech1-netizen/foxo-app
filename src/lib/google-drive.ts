@@ -511,12 +511,13 @@ export async function listFolderFiles(folderId: string, maxFiles = 200): Promise
 }
 
 // Résout (LECTURE SEULE, sans création) l'ID du dossier Drive d'une
-// intervention par son nom. Mire la structure des uploads :
-//   RAPPORTS/{year}/{ref adresse}/   (avec repli RAPPORTS/{ref adresse}/)
+// intervention par sa RÉFÉRENCE, qui préfixe toujours le nom du dossier
+// ("2026-127 Rue Willems 14"). On ignore l'adresse stockée en base, qui ne
+// correspond pas toujours au nom réel du dossier. Cherche dans
+// RAPPORTS/{year}/ puis, en repli, directement dans RAPPORTS/.
 // Renvoie null si Drive non connecté, racine absente ou dossier introuvable.
 export async function resolveInterventionFolderByName(
   ref: string,
-  adresse: string,
   year: number,
 ): Promise<string | null> {
   const auth = await getValidAccessToken();
@@ -524,16 +525,34 @@ export async function resolveInterventionFolderByName(
   const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
   if (!root) return null;
 
-  const dossierName = `${ref} ${adresse}`.trim().slice(0, 200);
+  const cleanRef = ref.trim();
+  if (!cleanRef) return null;
 
-  // 1) RAPPORTS/{year}/{ref adresse}
+  const findByRefPrefix = async (parentId: string): Promise<string | null> => {
+    const url = new URL(`${DRIVE_API}/files`);
+    url.searchParams.set(
+      'q',
+      `'${escapeQuery(parentId)}' in parents and mimeType='${FOLDER_MIME}' and trashed=false and name contains '${escapeQuery(cleanRef)}'`,
+    );
+    url.searchParams.set('pageSize', '50');
+    url.searchParams.set('fields', 'files(id,name)');
+    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${auth!.access_token}` } });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { files?: { id: string; name: string }[] };
+    const files = j.files ?? [];
+    // Garde le dossier dont le nom EST la ref ou COMMENCE par "ref " (espace),
+    // pour éviter les faux positifs (ex : 2026-1270 quand on cherche 2026-127).
+    const match = files.find((f) => f.name === cleanRef || f.name.startsWith(`${cleanRef} `));
+    return match?.id ?? null;
+  };
+
+  // 1) RAPPORTS/{year}/{ref ...}
   const yearF = await findChildFolder(auth.access_token, root, String(year));
   if (yearF) {
-    const ivF = await findChildFolder(auth.access_token, yearF.id, dossierName);
-    if (ivF) return ivF.id;
+    const hit = await findByRefPrefix(yearF.id);
+    if (hit) return hit;
   }
 
-  // 2) Repli : RAPPORTS/{ref adresse} (arborescence sans niveau année)
-  const direct = await findChildFolder(auth.access_token, root, dossierName);
-  return direct?.id ?? null;
+  // 2) Repli : RAPPORTS/{ref ...} (arborescence sans niveau année)
+  return findByRefPrefix(root);
 }
