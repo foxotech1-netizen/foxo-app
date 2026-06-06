@@ -1,3 +1,22 @@
+# État du projet FoxO — snapshot 2026-06-06 (clôture : réf. syndic à la création)
+
+- **Date du recap** : 2026-06-06
+- **HEAD git** : `99481bc` (merge commit PR #54)
+- **Branche** : `main`, working tree clean, aligné `origin/main`.
+- **Production** : déployée par Vercel sur push `main`.
+
+### Chantier clos — Réf. syndic capturée à la création (PR #54, merge `99481bc`)
+Suite de l'Option C. Le formulaire « nouvelle demande » du portail syndic capture désormais la référence interne du syndic et l'écrit dans `interventions.reference_externe` (colonne réutilisée — aucune migration). Commit `3f93d53`, 2 fichiers :
+- `src/app/portal/actions.ts` — `RequestInput.reference_externe?` + écriture conditionnelle dans l'insert `interventions` (exclusive de la réf. sinistre courtier/expert).
+- `src/app/portal/nouveau/NewRequestClient.tsx` — état `referenceSyndic`, transmis à `submitRequest` en mode syndic ; champ optionnel dans le sous-composant `Step1`, libellé via `vocab.referenceLabel` (zéro hardcode), passé en prop.
+Validé : `tsc --noEmit` vert + test end-to-end sur preview Vercel.
+
+### En suspens (non bloquant)
+- **Doc 04 (externe au repo)** : la table `interventions` y est décrite avec `ref_syndic` / `ref_courtier` / `ref_foxo`, qui ne collent pas au schéma réel (colonne unique `reference_externe` libellée par rôle ; clé `ref`). À recouper avec le schéma Supabase live puis corriger la source.
+- Branche `feat/reference-syndic-creation` mergée → à supprimer côté distant (bouton GitHub « Delete branch »).
+
+---
+
 # État du projet FoxO — snapshot 2026-06-06 (clôture session : renommage UI + widget Dashboard branché)
 
 - **Date du recap** : 2026-06-06 (fin de session)
