@@ -109,6 +109,18 @@ export default async function InterventionsPage({
     ((dossiersRes.data ?? []) as DossierLite[]).map((d) => [d.intervention_id, d]),
   );
 
+  // ── Rapports réellement disponibles (transmis) ──
+  // Le client RLS ne renvoie que les rapports visibles par le partenaire
+  // (policy partner_select_published_rapports = statut 'transmis'). On
+  // dérive has_rapport de la présence d'une ligne, alignant l'affichage sur
+  // ce que le syndic peut effectivement télécharger (cf. RLS /api/rapport).
+  const { data: rapportsDispo } = ivIds.length > 0
+    ? await supabase.from('rapports').select('intervention_id').in('intervention_id', ivIds)
+    : { data: [] as { intervention_id: string }[] };
+  const rapportSet = new Set(
+    ((rapportsDispo ?? []) as { intervention_id: string }[]).map((r) => r.intervention_id),
+  );
+
   // ── Compte des messages non lus côté partenaire par intervention ──
   // Miroir du badge admin (cf. src/app/admin/page.tsx unreadByIv) : on compte
   // les messages écrits par FoxO (auteur_type='admin') et pas encore lus par
@@ -162,7 +174,7 @@ export default async function InterventionsPage({
       adresse: iv.adresse,
       technicien_id: iv.technicien_id,
       technicien_nom: iv.technicien_id ? (techMap.get(iv.technicien_id) ?? null) : null,
-      has_rapport: iv.statut === 'rapport' || iv.statut === 'cloturee',
+      has_rapport: rapportSet.has(iv.id),
       ref_courtier: refCourtier,
       assureur_nom: iv.assureur?.nom ?? null,
       reference_externe: iv.reference_externe ?? null,
