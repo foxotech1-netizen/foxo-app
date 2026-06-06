@@ -1,3 +1,18 @@
+# État du projet FoxO — snapshot 2026-06-06 (clôture session : renommage UI + widget Dashboard branché)
+
+- **Date du recap** : 2026-06-06 (fin de session)
+- **Branche** : `main` (vérifier le HEAD live en début de session — main a bougé via une PR tierce #52)
+- **Production** : déployée par Vercel sur push `main`.
+
+## Clôtures de cette session (en prod)
+
+- **Renommage UI « Claude » → « Assistant FoxO » / « IA »** (PR #51) : toutes les mentions VISIBLES neutralisées (badges, titres, libellés, placeholders, toasts, aria-labels) côté admin et portail tech. Non touché : technique interne (agent_name `assistant_chat`, `ClaudeAnalyse`, `analyzeMailWithClaude`, commentaires, fichiers .ts).
+- **Widget Tableau de bord branché** (mergé + testé en prod) : `src/components/admin/ChatIA.tsx` n'est plus un stub. Il appelle `POST /api/admin/assistant/chat` (mode global), affiche la conversation (zone scrollable + indicateur « réfléchit… »), gère les erreurs via toast, et propose un lien « Continuer dans l'Assistant → » vers `/admin/assistant`. Style et comportement mobile (suggestions repliables) conservés. Lecture seule, 1 fichier modifié.
+
+Suite du chantier Assistant (prochaines sessions) : Phase 3 (outils d'ACTION admin avec confirmation), option Drive (helper `listFolderFiles`), puis Phase 4 (assistant tech, OAuth Google par utilisateur) et Phase 5 (assistant portail cloisonné + analytics doc 06). Détails dans les snapshots Phase 1 / Phase 2 ci-dessous.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-06 (Assistant agent outillé, Phase 2 — Gmail + Agenda)
 
 - **Date du recap** : 2026-06-06
