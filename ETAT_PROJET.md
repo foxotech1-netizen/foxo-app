@@ -1,3 +1,32 @@
+# État du projet FoxO — snapshot 2026-06-06 (Assistant agent outillé, Phase 2 — Gmail + Agenda)
+
+- **Date du recap** : 2026-06-06
+- **Branche** : `main` (Phase 2 mergée ; vérifier le HEAD live en début de session)
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier Assistant IA agentique — Phase 2 CLOSE
+
+- **Phase 2 — Outils de LECTURE Gmail + Agenda (admin)** : CLOS et VALIDÉ EN PROD. Branche `feat/assistant-agent-google-read` (commits `f10d81e` + `b1eab18`), mergée.
+  - Nouveau module `src/lib/assistant/tools/google-read.ts` — 4 outils lecture seule : `search_emails` (recherche boîte société, syntaxe Gmail), `get_email_thread` (fil complet par thread_id), `count_unread_emails`, `list_calendar_events` (agenda sur fenêtre de dates).
+  - Emballe des fonctions existantes (`listInboxMails`, `getEmailThread`, `countUnreadMails` de `gmail.ts` ; `getCalendarEvents` de `google-calendar.ts`). S'appuie sur le token Google applicatif UNIQUE de la société (`getValidAccessToken`) — aucune nouvelle plomberie d'auth. Dégradation propre si Google non connecté.
+  - Route `chat/route.ts` : `tools = [...FOXO_READ_TOOLS, ...GOOGLE_READ_TOOLS]` (mode texte ; désactivés en `rapport_json`). Dispatch : nom dans FOXO_READ_TOOLS → `executeFoxoReadTool(…, supabase)`, sinon `executeGoogleReadTool(…)` (sans Supabase).
+  - Confidentialité : corps de mails JAMAIS journalisés (runAgent ne logge que des compteurs). Cloisonnement actuel = ADMIN seul (garde `isAdminUser` au niveau route).
+  - Validation prod : « combien de mails non lus + liste » → 201 non-lus + 10 fils listés ; preuve intrinsèque (le contexte de l'assistant ne contient aucun mail Gmail).
+  - DRIVE REPORTÉ : `google-drive.ts` n'a pas de primitive de listing de fichiers (orienté écriture/upload). Pour un outil Drive : ajouter un helper de lecture `listFolderFiles(folderId)` — itération dédiée.
+
+## À faire (dans l'ordre) — mis à jour 2026-06-06 (post Phase 2)
+1. Assistant — Phase 3 : outils d'ACTION admin (relancer / assigner / planifier / valider-envoyer rapport) AVEC confirmation obligatoire. Audit-first des server actions existantes.
+2. (option) Phase 2-bis Drive : helper `listFolderFiles` + outil de listing des documents d'un dossier.
+3. Walkthrough portails partenaires (audit par clics).
+- (Backlog) Notif-retard technicien (deep link sms: / wa.me, messagerie native du tech).
+- Phases 4 (assistant tech, OAuth Google PAR UTILISATEUR) et 5 (assistant portail cloisonné + analytics doc 06) — plus tard.
+
+## Hygiène repo
+- Supprimer branches distantes mergées : `feat/assistant-agent-readtools` (Phase 1) et `feat/assistant-agent-google-read` (Phase 2) — bouton « Delete branch » sur les PR (push --delete échoue en 403 dans le sandbox).
+- Branche externe `origin/feat/reference-syndic-portail` = travail tiers, HORS chantier Assistant — ne pas toucher.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-06 (fin session — Assistant agent outillé, Phase 1)
 
 - **Date du recap** : 2026-06-06
