@@ -1,18 +1,13 @@
 'use client';
 
-// ChatIA — chat EXPRESS du Tableau de bord (raccourci 1-question/
-// 1-réponse). La page /admin/assistant reste la surface dédiée aux
-// sessions longues avec historique. Si une question dans ce chat
-// express devient complexe ou nécessite plusieurs tours, on suggérera
-// dans la réponse un lien "Continuer dans l'Assistant →"
-// (à implémenter Sprint 2).
-//
-// ⚠ Sprint 1 : UI uniquement, onSubmit = console.log + toast inline.
-// Sprint 2 : brancher onSubmit sur server action `sendChatMessage(message)`
-// (Anthropic SDK), puis streamer la réponse.
+// ChatIA — chat EXPRESS du Tableau de bord, branché sur l'assistant FoxO.
+// Envoie les messages à /api/admin/assistant/chat (mode global) : la boucle
+// d'outils (interventions, mails, agenda) s'exécute côté serveur. Pour les
+// sessions longues avec historique complet, lien "Continuer dans l'Assistant".
 
-import { useEffect, useState } from 'react';
-import { Send, ChevronDown, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { Send, ChevronDown, Sparkles, ArrowRight } from 'lucide-react';
 
 const SUGGESTIONS = [
   'Résume mes mails non lus',
@@ -21,38 +16,69 @@ const SUGGESTIONS = [
   'Préparer le RDV de 14h',
 ];
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface ChatIAProps {
   compact?: boolean;
 }
 
 export function ChatIA({ compact = false }: ChatIAProps) {
   const [value, setValue] = useState('');
-  // showSuggestions est dérivé : visible par défaut en desktop ; masqué
-  // en mobile sauf si l'utilisateur a explicitement cliqué sur "Voir
-  // suggestions" (manualOpen=true). Évite un useEffect de sync sur le
-  // breakpoint qui déclenche le warning react-hooks/set-state-in-effect.
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loading, setLoading] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
-  const showSuggestions = !compact || manualOpen;
   const [toast, setToast] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-dismiss toast (mêmes 3.5s que la convention NewMailSection).
+  const hasConversation = messages.length > 0;
+  const showSuggestions = (!compact || manualOpen) && !hasConversation;
+
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 3500);
+    const t = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(t);
   }, [toast]);
 
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, loading]);
+
+  async function ask(question: string) {
+    const q = question.trim();
+    if (!q || loading) return;
+    setValue('');
+    const next: ChatMessage[] = [...messages, { role: 'user', content: q }];
+    setMessages(next);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/assistant/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'global', messages: next }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) {
+        setToast(data?.error || 'Réponse indisponible pour le moment.');
+        return;
+      }
+      setMessages([...next, { role: 'assistant', content: String(data.content ?? '') }]);
+    } catch {
+      setToast('Erreur réseau : réessaie dans un instant.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const q = value.trim();
-    if (!q) return;
-    console.log('[ChatIA] question soumise (Sprint 2 branchera Claude) :', q);
-    setToast('Cette fonctionnalité arrive bientôt.');
-    setValue('');
+    void ask(value);
   }
 
   function handleSuggestion(s: string) {
-    setValue(s);
+    void ask(s);
   }
 
   return (
@@ -82,6 +108,40 @@ export function ChatIA({ compact = false }: ChatIAProps) {
           </h3>
         </div>
 
+        {/* Zone conversation (apparaît dès le premier échange) */}
+        {hasConversation && (
+          <div
+            ref={scrollRef}
+            className="flex flex-col gap-2 mb-2.5"
+            style={{ maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}
+          >
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={m.role === 'user' ? 'self-end max-w-[85%]' : 'self-start max-w-[92%]'}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 14,
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  background: m.role === 'user' ? 'var(--color-navy)' : 'var(--color-sand)',
+                  color: m.role === 'user' ? 'var(--color-cream)' : 'var(--color-ink)',
+                  border: m.role === 'user' ? 'none' : '1px solid var(--color-sand-border)',
+                }}
+              >
+                {m.content}
+              </div>
+            ))}
+            {loading && (
+              <div className="self-start text-[11px] italic" style={{ color: 'var(--color-ink-muted)' }}>
+                L&apos;assistant réfléchit…
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Input pill (rounded-full) + bouton send circulaire */}
         <form onSubmit={handleSubmit}>
           <div
@@ -101,6 +161,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
               type="text"
               value={value}
               onChange={(e) => setValue(e.target.value)}
+              disabled={loading}
               placeholder="Ex: Quels syndics n'ont pas répondu cette semaine ?"
               className="flex-1 bg-transparent border-0 outline-none text-[13px] italic placeholder:text-[var(--color-ink-muted)] py-2"
               style={{ color: 'var(--color-ink)', minWidth: 0, minHeight: 36 }}
@@ -108,7 +169,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
             />
             <button
               type="submit"
-              disabled={!value.trim()}
+              disabled={!value.trim() || loading}
               className="flex-shrink-0 inline-flex items-center justify-center transition-opacity disabled:opacity-40"
               style={{
                 width: 30,
@@ -124,8 +185,8 @@ export function ChatIA({ compact = false }: ChatIAProps) {
           </div>
         </form>
 
-        {/* Suggestions — mobile : repliables ; desktop : visibles */}
-        {compact && !showSuggestions && (
+        {/* Suggestions — mobile : repliables ; desktop : visibles ; cachées dès qu'une conversation existe */}
+        {compact && !manualOpen && !hasConversation && (
           <button
             type="button"
             onClick={() => setManualOpen(true)}
@@ -143,7 +204,8 @@ export function ChatIA({ compact = false }: ChatIAProps) {
                 key={s}
                 type="button"
                 onClick={() => handleSuggestion(s)}
-                className="chat-suggestion-pill inline-flex items-center px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-colors"
+                disabled={loading}
+                className="chat-suggestion-pill inline-flex items-center px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-colors disabled:opacity-50"
                 style={{
                   background: 'var(--color-navy-pale)',
                   color: 'var(--color-navy)',
@@ -155,6 +217,18 @@ export function ChatIA({ compact = false }: ChatIAProps) {
               </button>
             ))}
           </div>
+        )}
+
+        {/* Lien vers l'assistant complet (dès qu'une conversation existe) */}
+        {hasConversation && (
+          <Link
+            href="/admin/assistant"
+            className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-medium hover:underline"
+            style={{ color: 'var(--color-navy)' }}
+          >
+            Continuer dans l&apos;Assistant
+            <ArrowRight size={12} aria-hidden />
+          </Link>
         )}
 
         {toast && (
