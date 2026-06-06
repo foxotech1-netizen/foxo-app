@@ -331,7 +331,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
               />
             )}
             {analyse.resume && (
-              <DetailRow label="Résumé Claude" value={analyse.resume} />
+              <DetailRow label="Résumé IA" value={analyse.resume} />
             )}
             {analyse.errors && analyse.errors.length > 0 && (
               <div

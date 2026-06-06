@@ -405,7 +405,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
 
           <Section
             title="Analyse automatique des mails"
-            desc="Le cron /api/cron/check-mails (toutes les 30 min) lit les mails non lus de la boîte connectée, demande à Claude si c'est une demande d'intervention, et crée un dossier en statut « nouvelle » avec source=mail. Aucun envoi automatique vers les clients — tu garderas le contrôle pour planifier."
+            desc="Le cron /api/cron/check-mails (toutes les 30 min) lit les mails non lus de la boîte connectée, demande à l'Assistant FoxO si c'est une demande d'intervention, et crée un dossier en statut « nouvelle » avec source=mail. Aucun envoi automatique vers les clients — tu garderas le contrôle pour planifier."
           >
             <ToggleRow
               label="Activer l'analyse automatique"
@@ -897,7 +897,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
         <section id="ia" ref={(el) => { sectionsRef.current.ia = el; }}>
           <SectionPlaceholder
             title="Intelligence artificielle"
-            desc="Configuration de l'assistant Claude (modèle, prompts système, limites) — bientôt disponible."
+            desc="Configuration de l'Assistant FoxO (modèle, prompts système, limites) — bientôt disponible."
           />
         </section>
 

@@ -47,7 +47,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
     const q = value.trim();
     if (!q) return;
     console.log('[ChatIA] question soumise (Sprint 2 branchera Claude) :', q);
-    setToast('Cette fonctionnalité arrive bientôt — branchement Claude au Sprint 2.');
+    setToast('Cette fonctionnalité arrive bientôt.');
     setValue('');
   }
 
@@ -75,7 +75,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
             }}
           >
             <Sparkles size={11} aria-hidden />
-            Claude FoxO
+            Assistant FoxO
           </span>
           <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] m-0 flex-1">
             Pose-moi une question sur tes dossiers, mails ou planning
@@ -104,7 +104,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
               placeholder="Ex: Quels syndics n'ont pas répondu cette semaine ?"
               className="flex-1 bg-transparent border-0 outline-none text-[13px] italic placeholder:text-[var(--color-ink-muted)] py-2"
               style={{ color: 'var(--color-ink)', minWidth: 0, minHeight: 36 }}
-              aria-label="Question express à Claude"
+              aria-label="Question express à Assistant FoxO"
             />
             <button
               type="submit"
