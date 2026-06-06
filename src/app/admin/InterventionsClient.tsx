@@ -364,6 +364,7 @@ export function InterventionsClient({
   function statutMatches(ivStatut: StatutIntervention, ivUpdatedAt: string | null): boolean {
     if (!statutParam) return true;
     if (statutParam === 'en_cours') return ivStatut === 'confirmee' || ivStatut === 'realisee';
+    if (statutParam === 'a_relancer') return ivStatut === 'attente' || ivStatut === 'en_suspens';
     if (statutParam === 'cloturee') {
       if (ivStatut !== 'cloturee') return false;
       if (!ivUpdatedAt) return true;
