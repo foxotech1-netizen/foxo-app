@@ -32,6 +32,9 @@ export type InterventionPortalItem = {
   // Champs courtier — vide pour syndic.
   ref_courtier: string | null;
   assureur_nom: string | null;
+  // Référence syndic (colonne interventions.reference_externe, cf. migration
+  // 2026-05-12 « référence dossier syndic/courtier »). Vide pour courtier.
+  reference_externe: string | null;
   // Messages écrits par FoxO/l'admin (auteur_type='admin') et non encore lus
   // par le partenaire (lu_syndic=false). Miroir du badge admin.
   unread_messages_count: number;
@@ -71,7 +74,7 @@ export default async function InterventionsPage({
   // Filtre soft delete (deleted_at IS NULL) pour rester aligné avec l'admin.
   const { data, error } = await supabase
     .from('interventions')
-    .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, technicien_id, assureur')
+    .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, technicien_id, assureur, reference_externe')
     .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
@@ -162,6 +165,7 @@ export default async function InterventionsPage({
       has_rapport: iv.statut === 'rapport' || iv.statut === 'cloturee',
       ref_courtier: refCourtier,
       assureur_nom: iv.assureur?.nom ?? null,
+      reference_externe: iv.reference_externe ?? null,
       unread_messages_count: unreadByIv.get(iv.id) ?? 0,
     };
   });

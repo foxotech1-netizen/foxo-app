@@ -11,6 +11,7 @@ export type PortalVocab = {
   interventionsCap: string;       // pluriel capitalisé
   myInterventions: string;        // "Mes interventions" / "Mes dossiers"
   acpLabel: string;               // "ACP" / "Assuré"
+  referenceLabel: string;         // libellé de interventions.reference_externe selon le rôle
   newRequestVerb: string | null;  // null = portail en lecture seule (aucun type ne l'utilise aujourd'hui)
   emptyList: string;              // "Aucune intervention" / "Aucun dossier"
   countSuffix: string;            // "intervention(s)" / "dossier(s)"
@@ -26,6 +27,7 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     interventionsCap: 'Interventions',
     myInterventions: 'Mes interventions',
     acpLabel: 'ACP',
+    referenceLabel: 'Réf. syndic',
     newRequestVerb: '+ Nouvelle demande',
     emptyList: 'Aucune intervention',
     countSuffix: 'intervention(s)',
@@ -39,6 +41,7 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     interventionsCap: 'Dossiers sinistres',
     myInterventions: 'Mes dossiers',
     acpLabel: 'Assuré',
+    referenceLabel: 'Réf. courtier',
     newRequestVerb: '+ Confier une mission',
     emptyList: 'Aucun dossier',
     countSuffix: 'dossier(s)',
@@ -55,6 +58,7 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     interventionsCap: 'Dossiers sinistres',
     myInterventions: 'Mes dossiers',
     acpLabel: 'Assuré',
+    referenceLabel: 'Réf. dossier',
     newRequestVerb: '+ Confier une mission',
     emptyList: 'Aucun dossier',
     countSuffix: 'dossier(s)',
