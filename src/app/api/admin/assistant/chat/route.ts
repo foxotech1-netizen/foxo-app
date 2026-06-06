@@ -5,6 +5,7 @@ import { isAdminUser } from '@/lib/auth/server';
 import { buildGlobalContext, buildInterventionContext } from '@/lib/assistant/context';
 import { runAgent } from '@/lib/observability';
 import { FOXO_READ_TOOLS, executeFoxoReadTool } from '@/lib/assistant/tools/foxo-read';
+import { GOOGLE_READ_TOOLS, executeGoogleReadTool } from '@/lib/assistant/tools/google-read';
 
 export const maxDuration = 60;
 
@@ -61,6 +62,8 @@ function systemForMode(mode: 'global' | 'intervention'): string {
       '- search_interventions : retrouver des dossiers dans toute la base (le contexte n\'affiche que les plus récents).',
       '- get_intervention_detail : ouvrir la fiche complète d\'un dossier par sa référence.',
       '- get_pipeline_stats : chiffres agrégés sur l\'ensemble du pipeline.',
+      '- search_emails / get_email_thread / count_unread_emails : consulter la boîte Gmail de la société (recherche en syntaxe Gmail, lecture d\'un fil complet, nombre de non-lus).',
+      '- list_calendar_events : consulter l\'agenda de la société sur une période donnée.',
       'Utilise ces outils dès qu\'une question dépasse le contexte fourni, plutôt que de répondre que tu n\'as pas l\'info. Ne fabrique jamais de chiffres ni de références.',
       '',
       'Règles :',
@@ -75,7 +78,7 @@ function systemForMode(mode: 'global' | 'intervention'): string {
     'Tu es l\'assistant interne de FoxO sur un dossier d\'intervention spécifique.',
     'L\'admin t\'a ouvert dans le drawer de cette intervention pour t\'aider à rédiger ou analyser.',
     '',
-    'Tu disposes d\'outils de lecture (search_interventions, get_intervention_detail, get_pipeline_stats) si tu dois comparer avec d\'autres dossiers ou citer des chiffres globaux. Le dossier courant est déjà fourni ci-dessous.',
+    'Tu disposes d\'outils de lecture : interventions (search_interventions, get_intervention_detail, get_pipeline_stats), emails de la société (search_emails, get_email_thread, count_unread_emails) et agenda (list_calendar_events), si tu dois comparer, retrouver un échange ou citer des chiffres. Le dossier courant est déjà fourni ci-dessous.',
     '',
     'Règles :',
     '- Réponds en français, ton professionnel.',
@@ -184,7 +187,7 @@ export async function POST(request: Request) {
   const lastUserChars = sanitized[sanitized.length - 1].content.length;
   const formatRequested = body.format ?? 'text';
   const useTools = formatRequested !== 'rapport_json';
-  const tools = useTools ? FOXO_READ_TOOLS : undefined;
+  const tools = useTools ? [...FOXO_READ_TOOLS, ...GOOGLE_READ_TOOLS] : undefined;
   const interventionId = body.mode === 'intervention' ? (body.interventionId ?? null) : null;
 
   const convo: Anthropic.MessageParam[] = sanitized.map((m) => ({ role: m.role, content: m.content }));
@@ -213,7 +216,9 @@ export async function POST(request: Request) {
         const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
         const results: Anthropic.ToolResultBlockParam[] = [];
         for (const tu of toolUses) {
-          const out = await executeFoxoReadTool(tu.name, tu.input, supabase);
+          const out = FOXO_READ_TOOLS.some((t) => t.name === tu.name)
+            ? await executeFoxoReadTool(tu.name, tu.input, supabase)
+            : await executeGoogleReadTool(tu.name, tu.input);
           results.push({ type: 'tool_result', tool_use_id: tu.id, content: out });
         }
         convo.push({ role: 'user', content: results });
