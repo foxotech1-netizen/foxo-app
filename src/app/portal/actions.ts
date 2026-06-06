@@ -136,6 +136,7 @@ export type RequestInput = {
   // Mode syndic
   acp_id?: string | null;
   adresse_precise?: string;
+  reference_externe?: string;
   // Mode courtier
   courtier?: CourtierStep1;
   // Commun
@@ -246,6 +247,8 @@ export async function submitRequest(input: RequestInput): Promise<ActionResult<{
       lng: input.lng ? parseFloat(input.lng) : null,
       ...(assureurJson ? { assureur: assureurJson } : {}),
       ...(assureurJson?.reference_sinistre ? { reference_externe: assureurJson.reference_sinistre } : {}),
+      // Ref saisie par le syndic a la creation (mode syndic, exclusif de la ref sinistre partner ci-dessus)
+      ...(input.reference_externe?.trim() ? { reference_externe: input.reference_externe.trim() } : {}),
     })
     .select('id, ref')
     .single();
