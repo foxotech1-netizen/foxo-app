@@ -3,12 +3,13 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, CheckCircle2, Construction, Check, RefreshCw } from 'lucide-react';
+import { Calendar, CheckCircle2, Construction, Check, RefreshCw, Sparkles } from 'lucide-react';
 import type { CreneauDisponible, Utilisateur } from '@/lib/types/database';
 import { CreateInterventionModal } from './CreateInterventionModal';
 import { ReservedSlotModal } from './ReservedSlotModal';
 import { BlockedSlotModal } from './BlockedSlotModal';
 import { ImportCalendarEventModal, type CalendarEventLite } from './ImportCalendarEventModal';
+import { ProposeSlotModal } from './ProposeSlotModal';
 import { FOXO_SLOTS, FOXO_DAYS } from '@/lib/foxo-slots';
 
 const MONTHS = [
@@ -88,6 +89,7 @@ export function PlanningCalendar({
   const router = useRouter();
   const [techFilter, setTechFilter] = useState<string>('all');
   const [openModal, setOpenModal] = useState<{ kind: 'free' | 'reserved' | 'blocked'; slot: Creneau } | null>(null);
+  const [showPropose, setShowPropose] = useState(false);
 
   // Mode d'affichage — Semaine (défaut) ou Mois.
   // Persistant via localStorage 'foxo-planning-view'. Note : on ne peut
@@ -332,6 +334,16 @@ export function PlanningCalendar({
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
+          {/* Proposer un créneau — toujours visible (indépendant du filtre tech) */}
+          <button
+            type="button"
+            onClick={() => setShowPropose(true)}
+            className="px-3 py-1.5 rounded-md text-[12px] font-bold border border-navy bg-navy text-white hover:opacity-90 inline-flex items-center gap-1.5"
+            title="Trouver les meilleurs créneaux libres selon l'adresse et l'urgence"
+          >
+            <Sparkles size={14} /> Proposer un créneau
+          </button>
+
           {/* Toggle Semaine / Mois */}
           <div className="flex bg-sand-mid rounded-md p-0.5 dark:bg-[rgba(255,255,255,.06)]">
             <button
@@ -481,6 +493,30 @@ export function PlanningCalendar({
       </div>
 
       {/* Modaux */}
+      {showPropose && (
+        <ProposeSlotModal
+          onClose={() => setShowPropose(false)}
+          onSelect={(slot) => {
+            setShowPropose(false);
+            // Ouvre la fenêtre de création existante sur le créneau proposé.
+            // Le creneau_id pointe sur une ligne creneaux_disponibles libre
+            // réelle — on construit un objet conforme au type Creneau local
+            // en remplissant les champs non fournis avec des valeurs neutres.
+            setOpenModal({
+              kind: 'free',
+              slot: {
+                id: slot.id,
+                date: slot.date,
+                heure_debut: slot.heure_debut,
+                heure_fin: slot.heure_fin,
+                statut: 'libre',
+                technicien_id: slot.technicien_id,
+                intervention_id: null,
+              },
+            });
+          }}
+        />
+      )}
       {openModal?.kind === 'free' && (
         <CreateInterventionModal
           slot={{
