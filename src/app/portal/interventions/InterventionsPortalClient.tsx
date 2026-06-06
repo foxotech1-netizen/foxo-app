@@ -86,7 +86,8 @@ export function InterventionsPortalClient({
         const seuil = Date.now() - periodeDef.jours * 24 * 60 * 60 * 1000;
         if (new Date(iv.created_at).getTime() < seuil) return false;
       }
-      // Filtre recherche multi-champs : ref, ACP, adresse, BCE, ref courtier
+      // Filtre recherche multi-champs : ref, ACP, adresse, BCE, ref courtier,
+      // réf. syndic (reference_externe) — recherche cross-références.
       if (!q) return true;
       const haystack = [
         iv.ref,
@@ -95,6 +96,7 @@ export function InterventionsPortalClient({
         iv.adresse,
         iv.acp_bce,
         iv.ref_courtier,
+        iv.reference_externe,
         iv.assureur_nom,
         iv.type,
       ]
@@ -231,6 +233,9 @@ export function InterventionsPortalClient({
                   )}
                 </div>
                 <div className="font-bold text-[13px] mt-0.5 truncate">{iv.acp_nom ?? '—'}</div>
+                {orgType === 'syndic' && iv.reference_externe && (
+                  <div className="text-[10px] text-ink-muted font-mono mt-0.5 truncate">{v.referenceLabel} {iv.reference_externe}</div>
+                )}
                 {(iv.acp_adresse || iv.adresse) && (
                   <div className="inline-flex items-center gap-1.5 text-[11px] text-ink-mid mt-0.5 truncate">
                     <MapPin size={12} /> {iv.acp_adresse ?? iv.adresse}
@@ -303,6 +308,9 @@ export function InterventionsPortalClient({
                   <div className="font-bold text-[13px]">{iv.acp_nom ?? '—'}</div>
                   {iv.acp_bce && (
                     <div className="text-[10px] text-ink-muted font-mono mt-0.5">BCE {iv.acp_bce}</div>
+                  )}
+                  {orgType === 'syndic' && iv.reference_externe && (
+                    <div className="text-[10px] text-ink-muted font-mono mt-0.5">{v.referenceLabel} {iv.reference_externe}</div>
                   )}
                 </td>
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid">
