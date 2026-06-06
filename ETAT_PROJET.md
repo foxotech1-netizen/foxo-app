@@ -1,3 +1,35 @@
+# État du projet FoxO — snapshot 2026-06-06 (fin session — Assistant agent outillé, Phase 1)
+
+- **Date du recap** : 2026-06-06
+- **HEAD git** : `4be0a75` (merge PR #49)
+- **Branche** : `main`
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier Assistant IA agentique — avancement
+
+Transformation de `/admin/assistant` (chat lecture seule) en agent outillé, cloisonné CÔTÉ SERVEUR (jamais via le prompt). Phasage 0 → 5 ; chaque phase livrable seule.
+
+- **Phase 0 — Fix crash page** : CLOS. PR #48 (`6e9d49b`). La page passait des icônes lucide en props à un client component (interdit en RSC). En prod.
+- **Phase 1 — Outils de LECTURE FoxO** : CLOS et VALIDÉ EN PROD. PR #49 (`4be0a75`), branche `feat/assistant-agent-readtools` (commits `a91dbab` + `6c2c806`).
+  - Nouveau module `src/lib/assistant/tools/foxo-read.ts` — 3 outils lecture seule : `search_interventions` (recherche dans toute la base au-delà des 80 du contexte : query / statut / priorité / non_assignée / dates), `get_intervention_detail` (fiche complète par `ref`, réutilise `buildInterventionContext`), `get_pipeline_stats` (agrégats sur l'ensemble du pipeline).
+  - Route `src/app/api/admin/assistant/chat/route.ts` : boucle tool-use (MAX_TURNS = 6), `export const maxDuration = 60`. Outils actifs en mode texte (global + intervention), DÉSACTIVÉS en `format=rapport_json` (comportement rapport inchangé). Chaque appel modèle journalisé via `runAgent` (agent_name `assistant_chat`, kind `utility`) — doc 02 §10 respecté.
+  - Cloisonnement : outils RLS-bound (client de la route + garde admin déjà en place). AUCUNE écriture / envoi / suppression.
+  - Validation : `tsc` vert, build Vercel Preview vert, test prod (« total interventions par statut ») correct ; `agent_logs` confirme tour 0 `stop_reason=tool_use tool_calls=[get_pipeline_stats]` puis tour 1 `end_turn`. `ANTHROPIC_API_KEY` présente sur Production ET Preview (Vercel).
+  - Hygiène restante : branche `origin/feat/assistant-agent-readtools` à supprimer (non élaguée après merge #49).
+
+### Phases suivantes (non démarrées)
+- **Phase 2** — Outils Gmail / Calendar / Drive (LECTURE) pour l'admin.
+- **Phase 3** — Outils d'ACTION admin (relancer, assigner, planifier, valider/envoyer rapport) avec confirmation obligatoire.
+- **Phase 4** — Assistant technicien (boîte restreinte à SES interventions + SON agenda ; connexion Google PAR UTILISATEUR à créer).
+- **Phase 5** — Assistant portail (cloisonné par acteur syndic/courtier/expert + analytics doc 06).
+
+## À faire (dans l'ordre) — mis à jour 2026-06-06
+1. Assistant IA agentique — Phase 2 (outils Gmail / Calendar / Drive en lecture pour l'admin).
+2. Walkthrough portails partenaires (syndic / courtier / expert) — audit par clics.
+- (Backlog) Notif-retard technicien (portail Tech mobile) : bouton qui génère le message et ouvre la messagerie native du tech (deep link `sms:?body=` ou `wa.me/<num>?text=`) pré-rempli avec le n° de l'occupant. Contourne l'absence de credentials Twilio prod. Bon candidat pour une session courte.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-06
 
 - Date du recap : 2026-06-06
