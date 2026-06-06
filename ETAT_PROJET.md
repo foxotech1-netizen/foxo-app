@@ -853,3 +853,18 @@ de validation post-fix : #338 verte en 17s (vs 1m02s timeout précédent).
 **Sanity check pré-merge** — `tsc --noEmit` vert, `npm run build` vert (page marquée Dynamic `ƒ` comme attendu), 0 erreur lint sur les fichiers modifiés, aucun TODO/FIXME résiduel.
 
 **Reste à faire (hors-périmètre)** — Test runtime visuel en prod par Foxo après déploiement (ouvrir `/admin/observabilite`, vérifier les 4 périodes, vérifier que les 7 agents apparaissent dans la table « Par agent »). Câblage Sidebar (route reste orpheline). Étape 8.4 différée : brancher la table brute Agents IA sur `getAgentLogsList` et restreindre le filtre `?agent=` à `ALL_AGENT_NAMES`. Aucun blocage. **Mise à jour (PR #10, `5229f3b`)** : ✅ affichage `confidence_score` ajouté (KPI « Confiance < 0.7 » + colonne dédiée). `getAgentLogsList` reste exporté mais toujours non câblé.
+
+### Chantier #9 — Suggestion de créneaux dans l'écran admin — clos le 2026-06-06
+
+- Branche `feat/planning-suggestion-creneau`, mergée dans `main` via PR #46 (merge commit `c5bda72`).
+- **Objectif** : exposer la logique `proposeCreneau()` (jusqu'ici branchée uniquement dans le pipeline `analyse-deep`) directement dans `/admin/planning`.
+- **Livré** :
+  - `src/lib/geo/geocode.ts` — helper `geocodeAddress` (Nominatim, bbox Belgique, best-effort → null si échec, aucune dépendance npm).
+  - `src/app/admin/planning/actions.ts` — server action `proposeSlotForIntervention({ adresse, urgence })` → géocode puis `proposeCreneau`. Lecture seule (ne réserve rien). Garde `assertAdmin` ; retour neutre `{primary:null, alternative:null, fenetre_etendue:false}` si refus d'auth.
+  - `src/app/admin/planning/ProposeSlotModal.tsx` — modal client (réutilise `ModalShell`/`ModalFooter`) : saisie adresse + toggle urgence, affichage `primary`/`alternative` + bandeau `fenetre_etendue`, états vides gérés.
+  - `src/app/admin/planning/PlanningCalendar.tsx` — bouton « Proposer un créneau » (toujours visible) + state `showPropose` + `onSelect` → `setOpenModal({kind:'free', slot})` réutilisant le flux `CreateInterventionModal` existant.
+- Aucune migration SQL. Aucune fonction existante modifiée. `tsc` vert (hook pre-push). Testé en Preview Vercel : bouton, suggestions, clic → fenêtre de création OK.
+- Commits : `d3f148c`, `fb04b67`, `8f44110`, `e5976c9`.
+- **Backlog laissé ouvert (non bloquant)** :
+  - `createInterventionFromSlot` n'écrit toujours pas `lat`/`lng` sur l'intervention → le scoring géographique de `proposeCreneau` ne se nourrit pas encore de l'historique du planning. Amélioration future possible.
+  - Logique Nominatim désormais dupliquée à 3 endroits (`autocomplete/route.ts`, `geocodeAddress` privé dans `analyse-deep`, nouveau `src/lib/geo/geocode.ts`) → consolidation DRY possible plus tard.
