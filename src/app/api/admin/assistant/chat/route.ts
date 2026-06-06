@@ -4,9 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from '@/lib/auth/server';
 import { buildGlobalContext, buildInterventionContext } from '@/lib/assistant/context';
 import { runAgent } from '@/lib/observability';
+import { FOXO_READ_TOOLS, executeFoxoReadTool } from '@/lib/assistant/tools/foxo-read';
+
+export const maxDuration = 60;
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
+const MAX_TURNS = 6;
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -53,11 +57,17 @@ function systemForMode(mode: 'global' | 'intervention'): string {
       'Tu es l\'assistant interne de FoxO (Fox Group SRL — détection de fuites en Belgique).',
       'Tu aides l\'admin à piloter le pipeline d\'interventions, prioriser, rédiger des emails au syndic, analyser le planning.',
       '',
+      'Tu disposes d\'OUTILS de lecture pour aller chercher des données au-delà du contexte affiché ci-dessous :',
+      '- search_interventions : retrouver des dossiers dans toute la base (le contexte n\'affiche que les plus récents).',
+      '- get_intervention_detail : ouvrir la fiche complète d\'un dossier par sa référence.',
+      '- get_pipeline_stats : chiffres agrégés sur l\'ensemble du pipeline.',
+      'Utilise ces outils dès qu\'une question dépasse le contexte fourni, plutôt que de répondre que tu n\'as pas l\'info. Ne fabrique jamais de chiffres ni de références.',
+      '',
       'Règles :',
       '- Réponds en français, ton professionnel mais direct.',
-      '- Référence-toi explicitement au contexte fourni (ex : "L\'intervention 2026-014 chez Bellevue est urgente").',
+      '- Référence-toi explicitement aux données (ex : "L\'intervention 2026-014 chez Bellevue est urgente").',
       '- Si tu rédiges un email, formate-le proprement (objet + corps), prêt à copier-coller.',
-      '- Si tu n\'as pas l\'info, dis-le plutôt que d\'inventer. Ne fabrique pas de chiffres.',
+      '- Si tu n\'as pas l\'info même après recherche, dis-le plutôt que d\'inventer.',
       '- Pour les analyses du pipeline, propose des actions concrètes (ex : "Rappeler le syndic X", "Réassigner cette intervention").',
     ].join('\n');
   }
@@ -65,9 +75,11 @@ function systemForMode(mode: 'global' | 'intervention'): string {
     'Tu es l\'assistant interne de FoxO sur un dossier d\'intervention spécifique.',
     'L\'admin t\'a ouvert dans le drawer de cette intervention pour t\'aider à rédiger ou analyser.',
     '',
+    'Tu disposes d\'outils de lecture (search_interventions, get_intervention_detail, get_pipeline_stats) si tu dois comparer avec d\'autres dossiers ou citer des chiffres globaux. Le dossier courant est déjà fourni ci-dessous.',
+    '',
     'Règles :',
     '- Réponds en français, ton professionnel.',
-    '- Base-toi exclusivement sur les données du dossier ci-dessous.',
+    '- Base-toi en priorité sur les données du dossier ci-dessous.',
     '- Quand on te demande de rédiger un email, sors directement le message prêt à copier (objet + corps).',
     '- Quand on te demande un résumé, sois synthétique (max 3-4 lignes).',
     '- Si une donnée manque, dis-le, ne l\'invente pas.',
@@ -75,8 +87,51 @@ function systemForMode(mode: 'global' | 'intervention'): string {
   ].join('\n');
 }
 
+async function callModel(params: {
+  apiKey: string;
+  system: string;
+  messages: Anthropic.MessageParam[];
+  tools?: Anthropic.Tool[];
+  interventionId: string | null;
+  inputSummary: Record<string, unknown>;
+}): Promise<Anthropic.Message> {
+  const { output } = await runAgent<Anthropic.Message>({
+    agentName: 'assistant_chat',
+    agentKind: 'utility',
+    model: MODEL,
+    interventionId: params.interventionId,
+    inputSummary: params.inputSummary,
+    run: async () => {
+      const client = new Anthropic({ apiKey: params.apiKey });
+      const msg = await client.messages.create({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: params.system,
+        messages: params.messages,
+        ...(params.tools ? { tools: params.tools } : {}),
+      });
+      const text = msg.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n');
+      const toolNames = msg.content
+        .filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
+        .map((b) => b.name);
+      return {
+        message: msg,
+        output: msg,
+        outputSummary: {
+          stop_reason: msg.stop_reason,
+          text_chars: text.length,
+          tool_calls: toolNames,
+        },
+      };
+    },
+  });
+  return output;
+}
+
 export async function POST(request: Request) {
-  // Guard admin
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !(await isAdminUser())) {
@@ -99,7 +154,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Aucun message à traiter.' }, { status: 400 });
   }
 
-  // Construit le contexte FoxO selon le mode
   let contextBlock: string;
   if (body.mode === 'intervention') {
     if (!body.interventionId) {
@@ -119,57 +173,67 @@ export async function POST(request: Request) {
     contextBlock,
   ].join('\n');
 
-  // Filtre/sanitize l'historique
-  const messages = body.messages
+  const sanitized = body.messages
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
     .map((m) => ({ role: m.role, content: m.content }));
 
-  if (messages.length === 0 || messages[messages.length - 1].role !== 'user') {
+  if (sanitized.length === 0 || sanitized[sanitized.length - 1].role !== 'user') {
     return NextResponse.json({ ok: false, error: 'Le dernier message doit être de l\'utilisateur.' }, { status: 400 });
   }
 
-  const lastUserChars = messages[messages.length - 1].content.length;
+  const lastUserChars = sanitized[sanitized.length - 1].content.length;
   const formatRequested = body.format ?? 'text';
+  const useTools = formatRequested !== 'rapport_json';
+  const tools = useTools ? FOXO_READ_TOOLS : undefined;
+  const interventionId = body.mode === 'intervention' ? (body.interventionId ?? null) : null;
 
-  let raw: string;
+  const convo: Anthropic.MessageParam[] = sanitized.map((m) => ({ role: m.role, content: m.content }));
+
+  let raw = '';
   try {
-    const { output } = await runAgent<string>({
-      agentName: 'assistant_chat',
-      agentKind: 'utility',
-      model: MODEL,
-      interventionId: body.mode === 'intervention' ? (body.interventionId ?? null) : null,
-      inputSummary: {
-        mode: body.mode,
-        format_requested: formatRequested,
-        messages_count: messages.length,
-        last_user_chars: lastUserChars,
-        context_chars: contextBlock.length,
-      },
-      run: async () => {
-        const client = new Anthropic({ apiKey });
-        const msg = await client.messages.create({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system,
-          messages,
-        });
-        const block = msg.content[0];
-        const text = block && block.type === 'text' ? block.text : '';
-        return {
-          message: msg,
-          output: text,
-          outputSummary: {
-            raw_chars: text.length,
-            mode: body.mode,
-            format_requested: formatRequested,
-          },
-        };
-      },
-    });
-    raw = output;
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const msg = await callModel({
+        apiKey,
+        system,
+        messages: convo,
+        tools,
+        interventionId,
+        inputSummary: {
+          mode: body.mode,
+          format_requested: formatRequested,
+          turn,
+          messages_count: convo.length,
+          last_user_chars: lastUserChars,
+          context_chars: contextBlock.length,
+        },
+      });
+
+      if (msg.stop_reason === 'tool_use') {
+        convo.push({ role: 'assistant', content: msg.content });
+        const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+        const results: Anthropic.ToolResultBlockParam[] = [];
+        for (const tu of toolUses) {
+          const out = await executeFoxoReadTool(tu.name, tu.input, supabase);
+          results.push({ type: 'tool_result', tool_use_id: tu.id, content: out });
+        }
+        convo.push({ role: 'user', content: results });
+        continue;
+      }
+
+      raw = msg.content
+        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('\n')
+        .trim();
+      break;
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Erreur inconnue';
     return NextResponse.json({ ok: false, error: 'Anthropic : ' + message }, { status: 502 });
+  }
+
+  if (!raw) {
+    raw = 'Je n\'ai pas pu finaliser ma réponse après plusieurs étapes de recherche. Reformule ou précise ta demande.';
   }
 
   if (body.format === 'rapport_json') {
