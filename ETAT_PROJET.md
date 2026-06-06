@@ -1,3 +1,47 @@
+# État du projet FoxO — snapshot 2026-06-06
+
+- Date du recap : 2026-06-06
+- HEAD git : cedf1f4 (merge PR #45)
+- Branche : main, working tree propre
+- Production : déployée par Vercel sur push main
+
+## Chantiers clos depuis le snapshot 2026-05-29
+
+- PR #43 (fix/hub-urgents-annulee, commit 667e3c0) : hub/page.tsx filtrait le statut "annulee" (hors enum intervention_statut) -> requete rejetee par Postgres -> badge "urgents" du hub bloque a 0. Fix : (cloturee) seul.
+- PR #44 (feat/dashboard-tunnel) : refonte Dashboard "tunnel". 4 compteurs cliquables [Mails a traiter -> /admin/mails ; Nouvelles demandes -> ?statut=nouvelle ; A relancer -> ?statut=a_relancer ; Rapports a valider -> /admin/validation]. Alias UI a_relancer (= attente OU en_suspens) ajoute dans statutMatches (commit 61a1059). Retraits : briefing (rendu + getBriefing()), banniere urgents, cartes En cours/Clotures/En suspens. Compteur mails non lus = fetch client /api/admin/mails/unread-count. briefingText rendu optionnel (vestigial, non purge).
+- PR #45 (feat/relance-ligne, commit 156642f) : bouton "Relancer" occupants par ligne dans src/app/admin/InterventionsClient.tsx (+102/-2). Icone Send par ligne, visible si statut dans {nouvelle, attente, confirmee, en_suspens}, confirmation inline obligatoire. Clic -> GET /api/admin/occupants/[id] puis POST /api/admin/interventions/[id]/notify-occupants avec occupant_ids. ATTENTION : notify-occupants exige occupant_ids non vide (sinon 400). DEJA EN PRODUCTION.
+
+## Corrections de backlog perime (issu des sections historiques ci-dessous)
+
+- clamp 500 batchModifyMails -> RESOLU (PR #41).
+- feat/file-validation -> MERGE (PR #40).
+- agent briefing -> identifie (src/lib/assistant/briefing.ts, instrumente runAgent, sain ; juste absent des fiches agents doc 03).
+- TODO Dashboard BriefingIA -> caduc, le briefing a ete retire du dashboard (PR #44).
+
+## Reperes techniques confirmes
+
+- InterventionsClient.tsx est dans src/app/admin/ (PAS dans ./components/ ni src/components/).
+- Deux repertoires de composants : ./components/ (racine, ex. Sidebar.tsx nav admin) ET src/components/. Alias @components/* -> racine.
+- Enum Postgres intervention_statut (NON versionne dans db/migrations/), 7 valeurs : nouvelle, attente, confirmee, realisee, rapport, cloturee, en_suspens. "en_cours" et "a_relancer" = alias UI, jamais des valeurs DB.
+- Portail partenaire unique auto-adaptatif /portal ; /portal/syndic + /portal/courtier = alias.
+
+## A faire (dans l'ordre)
+
+1. Chantier "Planifier en ligne" : bouton par ligne (Nouvelles demandes) pour assigner technicien + proposer creneau sans ouvrir le drawer. VIGILANCE BLOQUANTE avant patch : demeler le double chemin d'assignation route POST /api/admin/interventions/[id]/assign VS server action assignTechnician (le drawer utilise assignTechnician). Reperes : drawer Assigner l.1966 applyAssignTech, Planifier l.2034 applySchedule. Planning : actions.ts = CRUD creneaux_disponibles ; routes /api/admin/planning, /dispos, /dispos/bulk, /dispos/resync.
+2. L'Assistant (/admin/assistant) "ne fonctionne pas" : chantier dedie, audit d'abord. Doit faire ce que Claude fait + acces Gmail/Calendar/Drive + plateforme FoxO.
+3. Walkthrough portails partenaires (syndic/courtier/expert) : audit par clics de Foxo.
+
+## Vigilance / dette
+
+- briefingText vestigial (champ optionnel inerte dans DashboardData) — purge optionnelle.
+- batchDeletePermanently (gmail.ts) non audite (possible limite 500 comme batchModify).
+- analyse_pj peu declenche — valider sur un vrai cas PJ.
+- Bruit Netlify deploy-preview sur chaque PR (non bloquant ; prod = Vercel).
+- Twilio prod : SMS/WhatsApp occupants en attente de credentials.
+- send.foxo.be Resend : statut DNS a verifier.
+
+---
+
 ## Snapshot 2026-06-04 (soir) — PR #28 + #29 + #30
 
 - **HEAD git** : `ee7ce09` (merge PR #30) · **Branche** : `main` · **Status** : clean
