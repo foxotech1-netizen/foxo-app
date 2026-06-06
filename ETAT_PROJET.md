@@ -1,7 +1,8 @@
 # État du projet FoxO — snapshot 2026-06-06 (Assistant agent outillé, Phase 2 — Gmail + Agenda)
 
 - **Date du recap** : 2026-06-06
-- **Branche** : `main` (Phase 2 mergée ; vérifier le HEAD live en début de session)
+- **HEAD git** : `f96e83f` (merge PR #52 — chantier Référence syndic)
+- **Branche** : `main` — working tree clean (Phase 2 mergée ; vérifier le HEAD live en début de session)
 - **Production** : déployée par Vercel sur push `main`.
 
 ## Chantier Assistant IA agentique — Phase 2 CLOSE
@@ -482,6 +483,22 @@ Audit complet : la majorité des items du backlog étaient déjà résolus.
 - Fix : `Buffer.from(attachment.content_base64, 'base64url').toString('base64')` dans `analyze-one.ts` avant construction du mediaBlock (PDF + image). `gmail.ts`/`drive.ts` non touchés.
 
 Note agent_logs : agent `briefing` présent (13 succès, dernier 2026-06-05) — non documenté dans les fiches agents, à identifier lors d'un prochain audit.
+
+### Chantier "Reference syndic" — clos le 2026-06-06 (PR #52, merge commit)
+
+Objectif : permettre au syndic de voir, chercher et saisir/modifier sa propre reference de dossier depuis le portail.
+
+Decision cle : reutilisation de la colonne existante interventions.reference_externe (deja semantiquement "Ref. syndic", deja affichee ainsi dans le rapport via report-data-mapping.ts). AUCUNE migration SQL. Pas de colonne ref_syndic (doublon evite).
+ATTENTION : doc 04 (schema) decrit a tort ref_syndic comme une colonne d'interventions — c'est reference_externe. Doc 04 a corriger.
+
+Commits (branche feat/reference-syndic-portail, mergee via PR #52) :
+- 8f1c6b8 liste : reference_externe expose (type InterventionPortalItem + mapping ; la page detail select('*') le transmettait deja)
+- 8e767ba vocab : cle referenceLabel (syndic/courtier/expert), zero libelle en dur (doc 02)
+- 41002ae liste : reference_externe cherchable (haystack, recherche cross-references doc 02) + affichee cote syndic, style calque sur la ligne BCE, mobile + desktop
+- 454d306 action serveur updateReferenceExterne : ecriture bornee a l'appartenance (syndic_id = session.org.id, garde getCurrentSyndic, org.type==='syndic' requis, vide => null)
+- 6db779f fiche detail : champ editable "Ma reference" (syndic only) cable via useTransition
+
+Garanties : affichage + edition gates orgType==='syndic' ; un syndic ne modifie que ses propres dossiers (filtre syndic_id meme en service-role) ; tsc vert a chaque commit ; aucune migration. Valide end-to-end sur preview Vercel (saisie, persistance, affichage liste, recherche, effacement).
 
 ## 🗺 PLAN GLOBAL — Chantier "Création intervention multi-occupants depuis un mail"
 
