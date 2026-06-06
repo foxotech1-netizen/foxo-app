@@ -9,6 +9,7 @@ import {
   BarChart3,
   Building2,
   Calendar,
+  CalendarClock,
   Check,
   CheckCircle2,
   ClipboardList,
@@ -64,6 +65,7 @@ import {
 } from './actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
+import { PlanRowModal } from './PlanRowModal';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
 import { TypeBadge } from '@/components/TypeBadge';
 import { SendSmsModal } from '@/components/SendSmsModal';
@@ -316,6 +318,7 @@ export function InterventionsClient({
   const [relanceConfirm, setRelanceConfirm] = useState<{ id: string; ref: string | null } | null>(null);
   const [relancingId, setRelancingId] = useState<string | null>(null);
   const [relanceMsg, setRelanceMsg] = useState<{ id: string; kind: 'ok' | 'err'; text: string } | null>(null);
+  const [planningRow, setPlanningRow] = useState<{ id: string; ref: string | null; adresse: string | null; urgence: boolean } | null>(null);
 
   // Réanalyse mail
   type ReanalysisData = {
@@ -1144,6 +1147,14 @@ export function InterventionsClient({
         />
       )}
 
+      {planningRow && (
+        <PlanRowModal
+          intervention={planningRow}
+          onClose={() => setPlanningRow(null)}
+          onScheduled={() => { setPlanningRow(null); router.refresh(); }}
+        />
+      )}
+
       {relanceConfirm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
@@ -1450,6 +1461,25 @@ export function InterventionsClient({
                         {relTime(iv.updated_at, nowMs)}
                       </td>
                       <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                        {iv.statut === 'nouvelle' && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPlanningRow({
+                                id: iv.id,
+                                ref: iv.ref,
+                                adresse: iv.adresse ?? (iv.acp ? [iv.acp.adresse, iv.acp.ville].filter(Boolean).join(', ') || null : null),
+                                urgence: iv.priorite === 'urgente',
+                              });
+                            }}
+                            className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-navy)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-navy-pale)] align-middle"
+                            title="Planifier (proposer un créneau + assigner)"
+                            aria-label="Planifier l'intervention"
+                          >
+                            <CalendarClock size={15} />
+                          </button>
+                        )}
                         {(iv.statut === 'nouvelle' || iv.statut === 'attente' || iv.statut === 'confirmee' || iv.statut === 'en_suspens') && (
                           <button
                             type="button"
