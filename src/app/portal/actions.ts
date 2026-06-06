@@ -307,3 +307,41 @@ export async function submitRequestAndRedirect(input: RequestInput) {
   }
   return res;
 }
+
+// ── Référence externe (syndic) ──────────────────────────────────────
+
+// Met à jour la référence externe d'une intervention côté syndic. Vide => null
+// (permet d'effacer). Réservé au type 'syndic'. Le filtre syndic_id borne
+// l'écriture aux dossiers du syndic courant, même en service-role.
+export async function updateReferenceExterne(
+  interventionId: string,
+  value: string,
+): Promise<ActionResult> {
+  const session = await getCurrentSyndic();
+  if (!session?.org) return { ok: false, error: 'Compte non lié à un syndic.' };
+  if (session.org.type !== 'syndic') {
+    return { ok: false, error: 'Action réservée aux syndics.' };
+  }
+
+  const ref = value.trim().slice(0, 120);
+  const finalValue = ref.length ? ref : null;
+
+  // Service-role pour bypass RLS, mais borné par syndic_id : un syndic ne
+  // touche QUE ses propres dossiers. Jamais confiance à un id client seul.
+  const admin = adminOrThrow();
+  const { data, error } = await admin
+    .from('interventions')
+    .update({ reference_externe: finalValue })
+    .eq('id', interventionId)
+    .eq('syndic_id', session.org.id)
+    .select('id');
+
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'Dossier introuvable ou non autorisé.' };
+  }
+
+  revalidatePath(`/portal/interventions/${interventionId}`);
+  revalidatePath('/portal/interventions');
+  return { ok: true };
+}
