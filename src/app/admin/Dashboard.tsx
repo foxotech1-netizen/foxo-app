@@ -11,7 +11,6 @@ import type { InterventionRow, Utilisateur } from '@/lib/types/database';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { BriefingIA } from '@/components/admin/BriefingIA';
 import { ChatIA } from '@/components/admin/ChatIA';
 import { NextMissions } from '@/components/admin/NextMissions';
 import { Accordion } from '@/components/ui/Accordion';
@@ -73,17 +72,30 @@ export function Dashboard({
   const isTabletUp = useMediaQuery('(min-width: 768px)');
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
+  // Compteur Gmail "à traiter" (mails non lus). Best-effort : init 0, tout
+  // échec (réseau / 403) laisse 0 sans crash. Réponse : { ok, count }.
+  const [unreadMails, setUnreadMails] = useState(0);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/admin/mails/unread-count')
+      .then((r) => r.json())
+      .then((d) => { if (active && d?.ok) setUnreadMails(d.count ?? 0); })
+      .catch(() => { /* garde 0 */ });
+    return () => { active = false; };
+  }, []);
+
   // ── Section 1 : stats temps réel ────────────────────────────────────────
   const stats = useMemo(() => {
     const nouvelles = rows.filter((r) => r.statut === 'nouvelle').length;
     const enCours = rows.filter((r) => ['confirmee', 'realisee'].includes(r.statut)).length;
     const enSuspens = rows.filter((r) => r.statut === 'en_suspens').length;
+    const aRelancer = rows.filter((r) => r.statut === 'attente' || r.statut === 'en_suspens').length;
     const rapports = rows.filter((r) => r.statut === 'rapport').length;
     const closedThisMonth = rows.filter(
       (r) => r.statut === 'cloturee' && isThisMonth(r.updated_at, today),
     ).length;
     const urgent = rows.filter((r) => r.priorite === 'urgente' && r.statut !== 'cloturee').length;
-    return { nouvelles, enCours, enSuspens, rapports, closedThisMonth, urgent };
+    return { nouvelles, enCours, enSuspens, aRelancer, rapports, closedThisMonth, urgent };
   }, [rows, today]);
 
   // ── Nouvelles demandes mail (cron analyse auto) ────────────────────────
@@ -124,27 +136,13 @@ export function Dashboard({
   // of truth pour ces sections legacy.
   const detailedSections = (
     <div className="space-y-5">
-      {/* 1. Stats temps réel */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      {/* 1. Stats temps réel — tunnel 4 compteurs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2.5">
+        <StatCard num={unreadMails} label="Mails à traiter" accent href="/admin/mails" active={false} />
         <StatCard num={stats.nouvelles} label="Nouvelles demandes" href="/admin?statut=nouvelle" active={statutFilter === 'nouvelle'} />
-        <StatCard num={stats.enCours} label="En cours" accent href="/admin?statut=en_cours" active={statutFilter === 'en_cours'} />
-        <StatCard num={stats.enSuspens} label="En suspens" warning={stats.enSuspens > 0} href="/admin?statut=en_suspens" active={statutFilter === 'en_suspens'} />
-        <StatCard num={stats.rapports} label="Rapports à envoyer" amber={stats.rapports > 0} href="/admin?statut=rapport" active={statutFilter === 'rapport'} />
-        <StatCard num={stats.closedThisMonth} label="Clôturées ce mois" muted href="/admin?statut=cloturee" active={statutFilter === 'cloturee'} />
+        <StatCard num={stats.aRelancer} label="À relancer" warning={stats.aRelancer > 0} href="/admin?statut=a_relancer" active={statutFilter === 'a_relancer'} />
+        <StatCard num={stats.rapports} label="Rapports à valider" amber={stats.rapports > 0} href="/admin/validation" active={false} />
       </div>
-
-      {/* 2. Alertes prioritaires */}
-      {stats.urgent > 0 && (
-        <div className="flex items-center gap-3 bg-gradient-to-r from-[var(--color-terra-light)] to-[rgba(247,237,229,0.3)] border border-[var(--color-terra-mid)] border-l-[3px] border-l-[var(--color-terra)] px-4 py-2.5 rounded-r-lg">
-          <div className="w-[22px] h-[22px] rounded-md bg-[var(--color-terra)] text-[var(--color-cream)] flex items-center justify-center text-sm font-semibold font-sora flex-shrink-0">
-            <Zap size={14} aria-hidden />
-          </div>
-          <div className="flex-1 text-[13px] text-[var(--color-terra)] font-medium">
-            <strong className="text-[var(--color-ink)] font-semibold">{stats.urgent} intervention{stats.urgent > 1 ? 's' : ''} urgente{stats.urgent > 1 ? 's' : ''}</strong>
-            {' '}en attente de traitement
-          </div>
-        </div>
-      )}
 
       {/* 2bis. Réponses occupants récentes (< 48 h) */}
       {dashboard.recentResponses.length > 0 && (
@@ -236,14 +234,6 @@ export function Dashboard({
 
   return (
     <div className="flex flex-col gap-3 sm:gap-4">
-      {/* Briefing du jour — texte réel généré par Claude (cache 1 h côté
-          serveur). Masqué si la génération est indisponible (briefingText
-          null) pour ne jamais afficher de carte vide. Pleine largeur, en
-          tête du Dashboard. */}
-      {dashboard.briefingText && (
-        <BriefingIA briefingText={dashboard.briefingText} compact={isMobile} />
-      )}
-
       {/* Mobile + Tablet : Missions du jour + Chat express en tête.
           En desktop ces composants migrent dans la colonne droite. */}
       {!isDesktop && (
