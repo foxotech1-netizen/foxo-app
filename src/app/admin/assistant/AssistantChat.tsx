@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { X, Sparkles, type LucideIcon } from 'lucide-react';
+import { X, Sparkles, Clock, Sun, Mail, BarChart3, Zap, Pause, type LucideIcon } from 'lucide-react';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -17,13 +17,28 @@ export interface QuickAction {
 export interface AssistantChatProps {
   mode: 'global' | 'intervention';
   interventionId?: string;
-  quickActions: QuickAction[];
-  emptyTitle: string;
-  emptyHint: string;
+  // Optionnels : en mode global, des défauts internes sont utilisés si non
+  // fournis. Un server component (page.tsx) ne peut pas passer d'icônes
+  // lucide (fonctions) en props → elles vivent côté client ici.
+  quickActions?: QuickAction[];
+  emptyTitle?: string;
+  emptyHint?: string;
   onSpecialResult?: (sections: { degats: string; inspection: string; conclusion: string; recommandations: string }) => void;
   className?: string;
   inputClassName?: string;
 }
+
+// Actions rapides du mode global — définies côté client (icônes lucide).
+const GLOBAL_QUICK_ACTIONS: QuickAction[] = [
+  { icon: Clock, label: 'Interventions en retard', prompt: 'Liste-moi les interventions en retard (créneau dépassé sans clôture). Pour chacune : ref, ACP, statut actuel, technicien assigné, et action recommandée.' },
+  { icon: Sun, label: 'Résumé du jour', prompt: 'Donne-moi un résumé du programme d\'aujourd\'hui : interventions prévues avec heures et techniciens, alertes du moment, ce qui demande mon attention en priorité.' },
+  { icon: Mail, label: 'Rédiger email syndic', prompt: 'Aide-moi à rédiger un email type pour un syndic. Demande-moi d\'abord le contexte (quelle intervention, quel objectif : confirmation RDV, demande d\'info, transmission rapport, etc.) puis propose un brouillon.' },
+  { icon: BarChart3, label: 'Analyser l\'activité', prompt: 'Analyse l\'état du tableau de bord FoxO : équilibre par statut, charge des techniciens, dossiers qui patinent, urgences. Propose 3 actions concrètes à mener cette semaine.' },
+  { icon: Zap, label: 'Urgences', prompt: 'Liste-moi les interventions urgentes non clôturées avec leur statut et ce qui bloque. Trie par priorité d\'action.' },
+  { icon: Pause, label: 'En suspens', prompt: 'Liste les dossiers en suspens avec leur motif. Pour chacun, suggère une action de relance ou une décision à prendre.' },
+];
+const GLOBAL_EMPTY_TITLE = 'Comment puis-je t\'aider ?';
+const GLOBAL_EMPTY_HINT = 'Je vois en direct l\'état des interventions, des syndics et du planning. Clique une action rapide ci-dessus, ou tape ta propre question.';
 
 interface ApiResponse {
   ok: boolean;
@@ -49,6 +64,11 @@ export function AssistantChat({
   const [error, setError] = useState<string | null>(null);
   const [lastSections, setLastSections] = useState<NonNullable<ApiResponse['sections']> | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Défauts internes (mode global) si le parent ne fournit pas les props.
+  const resolvedQuickActions = quickActions ?? (mode === 'global' ? GLOBAL_QUICK_ACTIONS : []);
+  const resolvedEmptyTitle = emptyTitle ?? GLOBAL_EMPTY_TITLE;
+  const resolvedEmptyHint = emptyHint ?? GLOBAL_EMPTY_HINT;
 
   useEffect(() => {
     scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: 'smooth' });
@@ -127,7 +147,7 @@ export function AssistantChat({
     <div className={className ?? 'flex flex-col h-full'}>
       {/* Actions rapides */}
       <div className="flex flex-wrap gap-1.5 mb-3 flex-shrink-0">
-        {quickActions.map((qa) => {
+        {resolvedQuickActions.map((qa) => {
           const Icon = qa.icon;
           return (
             <button
@@ -159,8 +179,8 @@ export function AssistantChat({
         {messages.length === 0 && !pending && (
           <div className="h-full flex flex-col items-center justify-center text-center py-8">
             <Sparkles size={28} className="mb-2 text-ink-muted" aria-hidden />
-            <div className="text-[14px] font-bold text-ink mb-1">{emptyTitle}</div>
-            <p className="text-[12px] text-ink-muted max-w-[400px]">{emptyHint}</p>
+            <div className="text-[14px] font-bold text-ink mb-1">{resolvedEmptyTitle}</div>
+            <p className="text-[12px] text-ink-muted max-w-[400px]">{resolvedEmptyHint}</p>
           </div>
         )}
 
