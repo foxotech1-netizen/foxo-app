@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Zap, MapPin, FileText, Receipt, Landmark, RotateCcw } from 'lucide-react';
 import { StatutBadge } from '@/components/StatutBadge';
 import { DownloadButton } from '@/components/DownloadButton';
 import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
-import { usePortalContext, useVocab } from '../../PortalContext';
+import { usePortalContext, useVocab, useOrgType } from '../../PortalContext';
+import { updateReferenceExterne } from '../../actions';
 import { MessagesPanel } from '@/components/MessagesPanel';
 import type { Occupant } from '@/lib/types/database';
 import type { DossierData } from './page';
@@ -19,6 +20,7 @@ const CONF_INFO: Record<NonNullable<Occupant['conf']>, { label: string; fg: stri
 
 export function DossierPortalClient({ data }: { data: DossierData }) {
   const v = useVocab();
+  const orgType = useOrgType();
   const { orgEmail } = usePortalContext();
   const { intervention: iv, acp, occupants, technicien: tech, isSinistre, hasReport } = data;
 
@@ -43,6 +45,27 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
   // de la session côté serveur (syndic / courtier / expert).
   const [followUpState, setFollowUpState] = useState<'idle' | 'sending' | 'sent'>('idle');
   const [followUpError, setFollowUpError] = useState<string | null>(null);
+
+  // Référence interne du syndic (interventions.reference_externe). Éditable
+  // uniquement côté syndic. Vide autorisé → l'action stocke null (efface).
+  const [refValue, setRefValue] = useState(iv.reference_externe ?? '');
+  const [refSaved, setRefSaved] = useState(false);
+  const [refError, setRefError] = useState<string | null>(null);
+  const [isSavingRef, startSaveRef] = useTransition();
+  const refUnchanged = refValue === (iv.reference_externe ?? '');
+
+  function saveReference() {
+    setRefError(null);
+    setRefSaved(false);
+    startSaveRef(async () => {
+      const res = await updateReferenceExterne(iv.id, refValue);
+      if (!res.ok) {
+        setRefError(res.error);
+        return;
+      }
+      setRefSaved(true);
+    });
+  }
 
   async function requestFollowUp() {
     if (followUpState === 'sending') return;
@@ -113,6 +136,37 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           Mise à jour {relTime(iv.updated_at)}
         </div>
       </header>
+
+      {/* Ma référence — éditable côté syndic uniquement (reference_externe) */}
+      {orgType === 'syndic' && (
+        <Block title={v.referenceLabel}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <input
+              type="text"
+              value={refValue}
+              onChange={(e) => { setRefValue(e.target.value); setRefSaved(false); }}
+              placeholder="Votre référence interne"
+              className="flex-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            />
+            <button
+              type="button"
+              onClick={saveReference}
+              disabled={isSavingRef || refUnchanged}
+              className="inline-flex items-center justify-center gap-1.5 bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            >
+              {isSavingRef ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+          {refError && (
+            <div className="mt-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
+              {refError}
+            </div>
+          )}
+          {refSaved && !refError && (
+            <p className="mt-2 text-[11px] text-ink-muted">Référence enregistrée.</p>
+          )}
+        </Block>
+      )}
 
       {/* Bandeau motif suspension */}
       {iv.statut === 'en_suspens' && iv.suspens_motif && (
