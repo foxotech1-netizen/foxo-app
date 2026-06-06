@@ -3,7 +3,6 @@ import { TECH_EMAILS } from '@/lib/auth/roles';
 import type { Acp, Delegue, Intervention, Occupant, Organisation, Utilisateur, InterventionRow, CreneauDisponible } from '@/lib/types/database';
 import { InterventionsClient } from './InterventionsClient';
 import { SyndicMapWrapper } from '@/components/portal/SyndicMapWrapper';
-import { getBriefing } from '@/lib/assistant/briefing';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,9 +27,10 @@ export interface DashboardData {
   freeSlotsByTech: Record<string, FreeSlot[]>;
   occupantsPendingByIv: Record<string, Pick<Occupant, 'id' | 'appartement' | 'nom' | 'conf'>[]>;
   recentResponses: RecentOccupantResponse[];
-  // Briefing du jour généré par Claude (cache 1 h). null si génération
-  // indisponible (clé API absente / erreur) → la carte Briefing est masquée.
-  briefingText: string | null;
+  // Déprécié : le briefing IA a été retiré du Dashboard (refonte tunnel).
+  // Champ optionnel conservé pour rétro-compat des appelants qui le posent
+  // encore (ex. interventions/[id]/page.tsx) — plus aucun rendu.
+  briefingText?: string | null;
 }
 
 export default async function AdminPipelinePage() {
@@ -232,10 +232,7 @@ export default async function AdminPipelinePage() {
     })
     .filter((x): x is RecentOccupantResponse => x !== null);
 
-  // Briefing du jour (cache 1 h, génération Claude au cache-miss uniquement).
-  const briefingText = await getBriefing();
-
-  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses, briefingText };
+  const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses };
 
   // Référence temporelle figée côté serveur — sert d'état initial
   // partagé pour le rendu SSR + 1ʳᵉ hydratation client (évite React #418).
