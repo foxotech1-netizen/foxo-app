@@ -78,7 +78,7 @@ export function BriefingIA({ briefingText }: BriefingIAProps) {
               style={{ background: 'var(--color-cream)' }}
               aria-hidden
             />
-            Claude FoxO
+            Assistant FoxO
           </span>
           <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] m-0 flex-1">
             Briefing du jour

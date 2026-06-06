@@ -195,7 +195,7 @@ export function AssistantChat({
               }
             >
               <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted inline-flex items-center gap-1">
-                {m.role === 'user' ? 'Vous' : (<><Sparkles size={12} aria-hidden /> Claude</>)}
+                {m.role === 'user' ? 'Vous' : (<><Sparkles size={12} aria-hidden /> Assistant FoxO</>)}
               </div>
               <div className="text-[13px] text-ink whitespace-pre-wrap leading-relaxed">{m.content}</div>
               {m.role === 'assistant' && (
@@ -223,7 +223,7 @@ export function AssistantChat({
           {pending && (
             <div className="mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2">
               <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted inline-flex items-center gap-1">
-                <Sparkles size={12} aria-hidden /> Claude
+                <Sparkles size={12} aria-hidden /> Assistant FoxO
               </div>
               <div className="text-[13px] text-ink-muted italic">Réflexion en cours…</div>
             </div>

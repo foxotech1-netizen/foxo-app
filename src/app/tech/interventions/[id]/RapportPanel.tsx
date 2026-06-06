@@ -340,13 +340,13 @@ export function RapportPanel({
         <div className="bg-[var(--color-sand)] border border-[var(--color-sand-border)] rounded-xl p-3.5 mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <label className="text-[13px] font-semibold text-[var(--color-navy)]">
-              Brief / Dictée pour Claude
+              Brief / Dictée pour l&apos;IA
             </label>
           </div>
           <textarea
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder="Dicte librement ce que tu as vu, fait, conclu et recommandé. Claude rédigera les 4 sections du rapport."
+            placeholder="Dicte librement ce que tu as vu, fait, conclu et recommandé. L'IA rédigera les 4 sections du rapport."
             rows={5}
             className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[100px]"
           />
@@ -357,7 +357,7 @@ export function RapportPanel({
             className="w-full mt-2 bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[14px] disabled:opacity-50 transition-colors min-h-[48px]"
           >
             {generating ? 'Génération en cours…' : (
-              <span className="inline-flex items-center justify-center gap-1.5"><Sparkles size={16} />Générer avec Claude</span>
+              <span className="inline-flex items-center justify-center gap-1.5"><Sparkles size={16} />Générer avec l&apos;IA</span>
             )}
           </button>
           {generateMessage && (
