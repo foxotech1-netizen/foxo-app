@@ -1,3 +1,35 @@
+# État du projet FoxO — snapshot 2026-06-07 (Notif-retard technicien — LIVRÉ EN PROD)
+
+- **Date du recap** : 2026-06-07
+- **HEAD git** : `f0ccb1d` (merge PR #59)
+- **Branche** : `main`, working tree propre, aligné `origin/main`
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier — Notif-retard technicien — CLOS et EN PROD
+
+Bouton « Prévenir d'un retard » sur la fiche intervention du portail technicien (`src/app/tech/interventions/[id]/page.tsx`). Sous chaque occupant ayant un téléphone, une ligne « Prévenir d'un retard : [SMS] [WhatsApp] » ouvre la messagerie native du tech (deep-links `sms:<num>?&body=…` et `https://wa.me/<num>?text=…`) pré-remplie avec le numéro de l'occupant et un message poli. Le message part du **propre numéro du tech** → contourne l'absence de credentials Twilio prod.
+
+- **PR #59** mergée, merge commit `f0ccb1d` ; commit feature `a2c29de` (branche `feat/tech-notif-retard-occupant`, supprimée).
+- Server component inchangé : pas de client component, pas de SQL, aucune écriture DB, aucun envoi serveur. +74/−19 sur 1 fichier.
+- Message construit côté serveur par `buildRetardMessage(iv)` : réf. dossier + heure du créneau injectées si présentes ; texte neutre (zéro jargon métier, zéro marque) conforme doc 02.
+- Helpers ajoutés en bas du fichier : `cleanDialNumber` (sms), `normalizeWaNumber` (WhatsApp : `00…` retire le 00, `0…` préfixe `32` belge), `buildRetardLinks`.
+- Réutilise le pattern du bouton « Appeler » existant (`tel:`). Cibles tactiles min 44px.
+
+### Validation
+- `tsc --noEmit` vert (hook pre-push OK). Vercel preview vert (Netlify rouge ignoré, prod = Vercel).
+- Mécanisme deep-link testé manuellement sur téléphone (lien `wa.me` équivalent) : WhatsApp s'ouvre pré-rempli, normalisation belge `0488…`→`32488…` confirmée.
+- Rendu du bouton DANS le portail tech : NON vérifié en session (pas de compte tech de test dispo). Même `<a href>` que « Appeler » déjà en prod → risque minime. À faire confirmer par un technicien sur sa prochaine intervention.
+
+### Apprentissage
+- À la réécriture du fichier via heredoc, les 4 balises `<a` d'ouverture ont sauté au copier-coller (lignes `href=…` orphelines) — variante du drop de chevrons. Correction locale autorisée, `tsc` vert ensuite. Pour toute réécriture de fichier JSX : prévoir explicitement l'autorisation de rétablir chevrons/balises sautés.
+
+## Suite possible
+- Faire confirmer le rendu par un technicien (coup d'œil 30 s).
+- (Prérequis noté) Créer un compte technicien de test pour vérifier soi-même les futures évolutions du portail tech.
+- Hors session courte : Phase 3 (outils d'ACTION admin de l'assistant), walkthrough portails partenaires.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-06 (Assistant — Phase 2-bis : listing documents Drive)
 
 - Date du recap : 2026-06-06
