@@ -1,3 +1,39 @@
+# État du projet FoxO — snapshot 2026-06-07 (PDF du rapport joint DANS LE FIL mail — mergé, à tester)
+
+- **Date du recap** : 2026-06-07
+- **HEAD git** : `983328e` (merge PR #66)
+- **Branche** : `main`, working tree propre, aligné `origin/main`
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier « PDF du rapport en pièce jointe DANS LE FIL » — CODE TERMINÉ + MERGÉ (PR #66), PAS ENCORE TESTÉ BOUT-EN-BOUT
+
+Objectif : à la transmission d'un rapport, la réponse postée DANS LE FIL mail d'origine du syndic embarque désormais le PDF du rapport EN PIÈCE JOINTE (en plus du lien Drive déjà présent).
+
+Deux unités, deux commits :
+1. `fbbb1ce` — `src/lib/gmail.ts` : `sendMailReply` accepte un paramètre OPTIONNEL `attachment?: { filename: string; content: Buffer; contentType?: string }`. Si présent → MIME `multipart/mixed` (partie texte + partie fichier base64 replié 76 car. RFC 2045, `Content-Disposition: attachment`, nom de fichier ASCII + repli RFC 2231 si accents). Si absent → branche `else` = texte simple STRICTEMENT inchangée (rétrocompatible).
+2. `3433535` — `src/lib/rapport/dispatch.ts` : l'appel `sendMailReply` (reply-in-thread, ex-« Étape 4 ») passe maintenant `attachment: { filename, content: built.pdfBuffer, contentType: 'application/pdf' }`. `filename = "{ref} {acpNom}.pdf"` (repli `"{ref}.pdf"` si `acpNom === '—'`).
+
+**Découverte d'audit (corrige une hypothèse du récap précédent)** : `dispatch.ts` ne « résout » PAS le dossier Drive. Il fabrique le nom à partir de `ref` + `acpNom` (nom de l'ACP), exactement comme le `.docx` déjà uploadé (`"{ref} {acpNom}.docx"`). Le nom de la pièce jointe réutilise donc ce même schéma — aucune 2e résolution Drive nécessaire. Le buffer PDF est déjà disponible dans `dispatchRapportToSyndic` (`built.pdfBuffer`, type `Buffer`) — rien à régénérer.
+
+**Garanties** : `tsc --noEmit` vert avant chaque commit. 2 appelants de `sendMailReply` confirmés (`src/app/api/admin/mails/[id]/reply/route.ts` + `src/lib/rapport/dispatch.ts`) — aucun ne casse (param optionnel). L'envoi de la réponse en fil est best-effort dans un `try/catch` non bloquant : si le MIME multipart échouait, le syndic recevrait quand même le PDF via le mail Resend (`sendRapportEmail`, pièce jointe `rapport-{ref}.pdf`) + le lien Drive.
+
+**RESTE À FAIRE — test bout-en-bout** : sur un dossier réel `source=mail` (après réencodage des données), transmettre un rapport et vérifier dans le fil d'origine : (1) réponse dans le même fil, (2) pièce jointe PDF présente, (3) nom ≈ `"2026-XXX <ACP>.pdf"`, (4) le PDF s'ouvre. Si défaut → correction sur branche dédiée.
+
+## Contexte opérationnel
+- **Remise à zéro des données plateforme en cours** (gérée par Foxo dans une autre session) : effacement des données + réencodage manuel de toutes les interventions. Le test bout-en-bout de #66 — et le test opérationnel global triage→RDV→rapport→transmission→suivi — se feront sur ces données réencodées.
+
+## Hygiène repo
+- Branche `feat/rapport-pdf-in-thread` supprimée (distant nettoyé).
+- `git fetch --prune` a aussi nettoyé localement 5 réfs distantes déjà supprimées côté GitHub : `feat/assistant-tech-chat` (#65), `claude/eloquent-knuth-N1JGG`, `feat/reference-syndic-creation`, `fix/assure-nom-data-gap`, `fix/notif-bell-panel-position`. Rien à faire.
+
+## Pistes suivantes (inchangées, par valeur)
+- Test opérationnel bout-en-bout du cycle = prérequis avant analytics (valide en passant le PDF-dans-le-fil ci-dessus).
+- Reprendre `feat/file-validation` (replis d'affichage NULL).
+- Backlog assistant ADMIN : outils d'ÉCRITURE Google (créer/modifier event Agenda via `createCalendarEvent`/`updateCalendarEvent` ; brouillon Gmail — vérifier l'écriture dans `gmail.ts` ; confirmer le scope Agenda en écriture). NB : `planifier_rdv` ne crée PAS d'event agenda (volontaire).
+- Plus tard : Phase 5 (assistant portail cloisonné + analytics doc 06) ; Module Facturation (DERNIER chantier).
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (Phase 4 étape 1 — Assistant technicien lecture seule — LIVRÉ EN PROD)
 
 - Date du recap : 2026-06-07
