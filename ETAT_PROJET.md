@@ -1,3 +1,39 @@
+# État du projet FoxO — snapshot 2026-06-07 (Nettoyage complet de la base — TABLE RASE avant réencodage)
+
+- Date du recap : 2026-06-07
+- Branche : main (HEAD 6b70cea au démarrage ; AUCUNE modification de code applicatif cette session)
+- Production : déployée par Vercel sur push main
+
+## Chantier — Remise à zéro de la base de production (CLOS)
+
+Objectif : base polluée par des données créées automatiquement (pipeline mail + agenda) — doublons, données « seed », comptes de test. Décision : table rase TOTALE (transactionnel + référentiel + partenaires + techniciens), puis réencodage 100 % manuel pour refléter la réalité et tester l'onboarding. Premier dossier réencodé prévu = 2026-000 (test bout-en-bout + bac à sable permanent).
+
+### Déroulé (audit lecture seule, puis destructif APRÈS sauvegarde validée)
+1. Audit complet : inventaire des tables, couche comptes, 17 organisations, graphe des clés étrangères.
+2. Sauvegarde : Supabase en plan FREE -> AUCUNE sauvegarde auto ni PITR. Export JSON complet de 22 tables via SQL Editor, téléchargé par Foxo, puis VALIDÉ au row près (interventions 49, occupants 33, organisations 17, etc.). Fichier conservé hors plateforme = seul filet de sécurité.
+3. Ingestion gelée : workflows GitHub Actions DÉSACTIVÉS via l'UI (Actions -> Disable) : cron-check-mails (toutes les 10 min) et cron-calendar-watch (quotidien). deploy.yml laissé actif. NB : désactiver un workflow ne crée pas de commit.
+4. Webhook calendrier audité (calendar-webhook/route.ts) : ne CRÉE rien ; seule mutation = DELETE d'un créneau « libre » à l'annulation d'un event Google. Non polluant.
+5. Effacement Stage 1 (SQL transaction, Supabase) : vidé interventions + tout le transactionnel + référentiel (organisations, acps, clients, delegues) + journaux (sms_logs, agent_logs, automation_jobs) + profils partenaires/techniciens (DELETE WHERE role <> admin). GARDÉ : 2 admins, parametres, articles, google_tokens, user_preferences.
+6. Effacement Stage 2 (auth.users) : supprimé 8 identités (letizida, christophe.j.mertens, tech1@foxo.be, tech2@foxo.be + orphelins letizibis, lorenzo.letizia.23, ofuitetech1, foxotech3). GARDÉ : info@foxo.be + foxotech1@gmail.com.
+7. Vérifié : toutes tables métier = 0 ; utilisateurs = 2 ; auth.users = 2 ; config intacte.
+
+### Apprentissages techniques (graphe FK) — pour de futurs nettoyages
+- Liens bloquants (NO ACTION) à vider AVANT interventions : creneaux_disponibles, factures, sms_logs. sms_logs bloque aussi occupants.
+- factures : auto-référence RESTRICT (facture_origine_id) -> mettre facture_origine_id et converted_to_facture_id à NULL avant DELETE.
+- organisations : ne se vide qu'après interventions + acps + clients + delegues + factures + dossiers_sinistres. TRUNCATE CASCADE INTERDIT sur organisations (emporterait utilisateurs via organisation_id).
+- Plan Supabase = FREE : aucune sauvegarde gérée -> toujours exporter manuellement avant tout DELETE.
+
+## À FAIRE ENSUITE — Réencodage (point d'entrée prochaine session : « go réencodage »)
+1. Vérifier d'abord Resend send.foxo.be (invitations partenaires/techniciens).
+2. Créer le partenaire de test (faux syndic contrôlé par Foxo).
+3. Créer un technicien de test.
+4. Créer 2026-000 et la dérouler de bout en bout (création -> RDV -> confirmation occupant -> rapport -> validation -> transmission -> vue portail). Vérifier qu'on peut FORCER la référence « 2026-000 » (contourner l'auto-numérotation si besoin).
+5. Encoder les vrais Regimo + IGS (coordonnées récupérables dans la sauvegarde / le CSV des 17 organisations).
+- Garder les crons COUPÉS pendant tout le réencodage ; ne réactiver que sur décision.
+
+## Résiduel (cosmétique, non bloquant)
+- Fichiers Google Drive anciens (RAPPORT/{année}/...) et libellés Gmail non nettoyés — invisibles dans les portails. Nettoyage Drive = manip distincte si souhaité.
+
 # État du projet FoxO — snapshot 2026-06-07 (PDF du rapport joint DANS LE FIL mail — mergé, à tester)
 
 - **Date du recap** : 2026-06-07
