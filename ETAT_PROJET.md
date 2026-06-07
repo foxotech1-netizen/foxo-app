@@ -1,3 +1,44 @@
+# État du projet FoxO — snapshot 2026-06-07 (Phase 4 étape 1 — Assistant technicien lecture seule — LIVRÉ EN PROD)
+
+- Date du recap : 2026-06-07
+- HEAD git : merge PR #65 sur main (voir git log)
+- Branche : main, working tree propre, aligné origin/main
+- Production : déployée par Vercel sur push main.
+
+## Chantier — Assistant technicien (Phase 4, étape 1/3) : LECTURE SEULE — CLOS et EN PROD
+
+PR #65, branche feat/assistant-tech-chat, 3 commits : route b882d2f, prop endpoint 8be2d93, page+nav 61331fd.
+
+### Livré
+- Route src/app/api/tech/assistant/chat/route.ts : garde rôle 'tech' EN BASE (roleForUserId(user.id) === 'tech'), outils = FOXO_READ_TOOLS UNIQUEMENT (PAS d'outils Google = boîte société, PAS d'outils d'action), client cookie-bound (RLS), AUCUN contexte global injecté, consigne système dédiée (lecture seule, vouvoiement, mobile), observabilité runAgent (assistant_chat / utility), réponse { ok, content }.
+- AssistantChat : prop optionnelle endpoint (défaut route admin -> comportement admin INCHANGÉ), réutilisé côté tech.
+- Page src/app/tech/assistant/page.tsx : AssistantChat mode global + endpoint tech + quick-actions tech sans icône. Mise en page : conteneur fixed entre header (top 4rem) et barre du bas (bottom calc safe-area + 84px), z-30, max-w 640px (robuste vis-à-vis de MainContentTech).
+- TechBottomNav : 4e item Assistant (icône Sparkles, /tech/assistant) entre Historique et Notes.
+
+### Cloisonnement — garanti par la RLS, CONFIRMÉ en conditions réelles
+- interventions = FORCE ROW LEVEL SECURITY ; policies tech limitent à technicien_id = auth.uid() / current_utilisateur_id() (invariant utilisateurs.id == auth.uid()).
+- buildGlobalContext (sans arg) ET buildInterventionContext = cookie-bound (RLS). get_intervention_detail/list_intervention_documents : résolution ref RLS-bound puis contexte RLS-bound (double barrière).
+- TEST aperçu Vercel #65, connecté tech2 (Christophe, 1 seul dossier 2026-132) : « mes interventions » -> SEULEMENT 2026-132 ; détail 2026-116 (dossier tech1) -> REFUSÉ ; détail 2026-132 (le sien) -> OK. Affichage mobile OK. Cloisonnement prouvé.
+
+### Pièges évités / cosmétique
+- NE JAMAIS donner GOOGLE_READ_TOOLS au tech. NE JAMAIS appeler buildGlobalContext(createAdminClient()) côté tech (= bypass RLS).
+- Cosmétique à polir : thème admin (navy) au lieu du vert tech ; placeholder du champ en formulation admin/tutoiement.
+
+### Divergence de garde connue (non bloquante)
+- Page /tech (layout) = roleForEmail (whitelist TECH_EMAILS) ; route API = roleForUserId (rôle DB). À réconcilier un jour.
+
+## Suite Phase 4
+- Phase 4-bis : Google PERSONNEL du tech (OAuth PAR UTILISATEUR, stockage + refresh des jetons par tech) = le gros morceau sensible.
+- Phase 4-ter : outils d'ACTION côté tech (avec confirmation).
+
+## Backlog ajouté
+- Outils d'ÉCRITURE Google pour l'assistant ADMIN : créer/modifier événement Agenda (createCalendarEvent/updateCalendarEvent dans google-calendar.ts, moule propose->confirme->exécute comme planifier_rdv) + brouillon Gmail (vérifier l'écriture dans gmail.ts). Vérifier scopes OAuth (Gmail/Drive complets, CONFIRMER Agenda en écriture). planifier_rdv ne crée PAS d'event agenda (volontaire).
+
+## Hygiène repo
+- feat/assistant-tech-chat à supprimer (Delete branch sur PR #65 après merge).
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (Assistant Phase 3 — valider_rapport + transmettre_rapport — LIVRÉ EN PROD)
 
 - Date du recap : 2026-06-07
