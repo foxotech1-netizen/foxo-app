@@ -1,3 +1,45 @@
+# État du projet FoxO — snapshot 2026-06-07 (fiabilité assistant : fix détail dossier + alignement schéma occupants)
+
+- **Date du recap** : 2026-06-07
+- **HEAD git** : `539aede` (merge PR #62)
+- **Branche** : `main`, working tree propre, aligné `origin/main`
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier fiabilité de l'assistant — fix #1 LIVRÉ EN PROD (PR #62)
+
+Bug « détail indisponible » corrigé. `get_intervention_detail` (foxo-read.ts) trouvait bien l'id du dossier (étage 1, requête simple), puis déléguait à `buildInterventionContext` (context.ts, étage 2) qui rechargeait l'intervention AVEC jointures `acp:acps(*), syndic:organisations(*), technicien:utilisateurs(*)`.
+
+- **Cause racine confirmée par les FK live** : `interventions` référence `organisations` DEUX fois — `organisation_id` (`interventions_organisation_id_fkey`) ET `syndic_id` (`interventions_syndic_id_fkey`). L'embed `syndic:organisations(*)` sans désambiguïsation → PostgREST rejette TOUTE la requête (relation ambiguë). Et le code ne lisait que `{ data: iv }` (jamais `error`) → erreur avalée → message trompeur « détail indisponible » alors que le dossier existe.
+- **Correctif** (commit `50c5a9e`, +6/−2, fichier `src/lib/assistant/context.ts`) : (1) embed désambiguïsé → `syndic:organisations!syndic_id(*)` ; (2) `error` capturé + journalisé (`console.error`) avant `return null` — fini l'aveuglement.
+- **Portée** : `buildInterventionContext` sert le contexte dossier de TOUT l'assistant (pas que l'outil détail) → fix global.
+- **Validé en prod** (aperçu Vercel = même base) sur dossier de test **2026-133** : détail complet rendu, syndic « MERTENS Syndic » affiché (preuve que le bon lien est `syndic_id`, pas `organisation_id`).
+- **Découverte #3 (get_intervention_detail cassé) → RÉSOLUE.**
+- **Découverte #4 (court-circuit : l'assistant pré-vérifiait via le détail cassé et répondait « introuvable » sans appeler l'outil propose) → très probablement résolue** (le détail marche, la pré-vérification réussit). Confirmation par un test d'ACTION sur 2026-133 encore À FAIRE (optionnel — déclenche un vrai email vers la boîte de test `foxotech1@gmail.com`).
+
+## Reprises du récap précédent — désormais actées au dépôt
+
+### Extension #1 Phase 3 — `relance_occupants` (PR #61, merge `fd08ecf`, commit `6f907cf`)
+LIVRÉE, MERGÉE, EN PROD. Outil propose-only `propose_relance_occupant(ref)` (`foxo-actions.ts`) + `case 'relance_occupants'` dans `actions/execute/route.ts` → `notifyOccupantsForIntervention`. `maxDuration` 60. Validé prod sur 2026-133 (« 1 envoi réussi » + email reçu).
+
+### Dérive de schéma `occupants` corrigée en prod (CRITIQUE)
+La migration `db/migrations/2026-05-23_occupants_response.sql` n'avait JAMAIS été appliquée à la prod. Prod : colonne égarée `confirme_at`, aucune de `confirmed_at` / `proposed_creneau_debut` / `proposed_creneau_fin` / `response_note`, ni la table `occupant_responses_log`. Symptôme : clic « je serai présent » → erreurs PostgREST. Correctif via SQL Editor : rename `confirme_at → confirmed_at` (données préservées) + ré-application idempotente complète. « Je serai présent » fonctionne.
+- **Acté au dépôt** : fichier `db/migrations/2026-06-07_occupants_response_align_prod.sql` (idempotent, no-op en prod) enregistrant ce réalignement. Inutile de le rejouer dans Supabase.
+- **Leçon clé** : toujours vérifier le schéma LIVE via `information_schema`, jamais seulement les fichiers de migration. Le dépôt était cohérent ; la PROD avait dérivé.
+
+## Repères utiles
+- **Aperçu Vercel = MÊME base Supabase que la prod.** Dossier de test sûr : **2026-133** (occupant `foxotech1@gmail.com`). Outils de LECTURE sans risque ; outils d'ACTION (relance) déclenchent de vrais envois.
+- **Bon FK syndic** : `interventions.syndic_id` (PAS `organisation_id`) pour joindre l'`organisations` syndic/courtier.
+
+## Suite (par risque croissant) — pattern Phase 3
+1. (optionnel) Confirmer #4 par un test d'action sur 2026-133.
+2. planifier RDV (`createCalendarEvent`) → valider rapport (`validateRapport`) → transmettre rapport au syndic (`dispatchRapportToSyndic`, la plus sensible). NE PAS exposer `publishRapport` (côté tech).
+3. Puis Phase 4 (assistant tech, OAuth Google par utilisateur), Phase 5 (assistant portail + analytics doc 06).
+
+## Hygiène repo
+- Supprimer les branches distantes mergées `fix/assistant-detail-join-ambiguity` (PR #62) et `feat/assistant-action-relance-occupant` (PR #61) via le bouton « Delete branch » sur GitHub.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (Phase 3 — PILOTE assistant « assigner un technicien » EN PROD)
 
 - **Date du recap** : 2026-06-07
