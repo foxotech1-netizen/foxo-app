@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from '@/lib/auth/server';
-import { assignTechnician } from '@/app/admin/actions';
+import { assignTechnician, validateRapport, resendRapportToSyndic } from '@/app/admin/actions';
 import { notifyOccupantsForIntervention } from '@/lib/occupants/notify-occupants';
 
 export const maxDuration = 60;
@@ -92,6 +92,47 @@ export async function POST(request: Request) {
         const ref = str(params.interventionRef);
         const [yy, mm, dd] = date.split('-');
         const message = `Rendez-vous planifié pour le dossier ${ref || interventionId} le ${dd}/${mm}/${yy} à ${heure}. Le dossier est passé en « attente » de confirmation.`;
+        return NextResponse.json({ ok: true, message });
+      }
+      case 'valider_rapport': {
+        const interventionId = str(params.interventionId);
+        if (!interventionId) {
+          return NextResponse.json({ ok: false, error: 'Paramètre manquant pour la validation du rapport.' }, { status: 400 });
+        }
+        const res = await validateRapport(interventionId);
+        if (!res.ok) {
+          return NextResponse.json({ ok: false, error: res.error ?? 'Échec de la validation du rapport.' }, { status: 400 });
+        }
+        const ref = str(params.interventionRef);
+        const message = `Rapport du dossier ${ref || interventionId} validé. Il peut maintenant être transmis au syndic.`;
+        return NextResponse.json({ ok: true, message });
+      }
+      case 'transmettre_rapport': {
+        const interventionId = str(params.interventionId);
+        if (!interventionId) {
+          return NextResponse.json({ ok: false, error: 'Paramètre manquant pour la transmission du rapport.' }, { status: 400 });
+        }
+        // Re-vérification serveur du statut juste avant l'envoi réel : barrière
+        // anti-double-envoi / anti-brouillon. dispatchRapportToSyndic n'impose
+        // aucune précondition de statut en interne, donc on la pose ici.
+        const { data: rapData } = await supabase
+          .from('rapports')
+          .select('statut')
+          .eq('intervention_id', interventionId)
+          .maybeSingle();
+        const statut = (rapData as { statut: string | null } | null)?.statut ?? null;
+        if (statut !== 'valide') {
+          return NextResponse.json(
+            { ok: false, error: `Transmission impossible : le rapport doit être au statut « validé » (statut actuel : « ${statut ?? 'inconnu'} »).` },
+            { status: 409 },
+          );
+        }
+        const res = await resendRapportToSyndic(interventionId);
+        if (!('ok' in res) || res.ok !== true) {
+          return NextResponse.json({ ok: false, error: res.error ?? 'Échec de la transmission du rapport.' }, { status: 400 });
+        }
+        const ref = str(params.interventionRef);
+        const message = `Rapport du dossier ${ref || interventionId} transmis au syndic.`;
         return NextResponse.json({ ok: true, message });
       }
       default:

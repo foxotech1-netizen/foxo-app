@@ -14,7 +14,12 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type ActionName = 'assign_technician' | 'relance_occupants' | 'planifier_rdv';
+export type ActionName =
+  | 'assign_technician'
+  | 'relance_occupants'
+  | 'planifier_rdv'
+  | 'valider_rapport'
+  | 'transmettre_rapport';
 
 export interface PendingAction {
   id: string;
@@ -77,6 +82,37 @@ export const FOXO_ACTION_TOOLS: Anthropic.Tool[] = [
       required: ['ref', 'date', 'heure'],
     },
   },
+  {
+    name: 'propose_valider_rapport',
+    description:
+      "PRÉPARE (sans l'exécuter) la VALIDATION du rapport d'une intervention : le rapport passe de « brouillon » à « validé ». " +
+      "Cet outil NE MODIFIE RIEN : il vérifie qu'un rapport existe et qu'il est bien en brouillon, puis renvoie une proposition. " +
+      "AUCUN envoi au syndic à ce stade — la validation est une étape interne préalable à la transmission. " +
+      "La validation réelle n'a lieu QUE si l'administrateur clique ensuite sur « Exécuter ». " +
+      "Après avoir appelé cet outil, annonce clairement la proposition (quel dossier) et précise qu'il doit confirmer via le bouton ; ne prétends JAMAIS que la validation est faite.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: "Référence du dossier d'intervention (champ ref, ex : 2026-014)." },
+      },
+      required: ['ref'],
+    },
+  },
+  {
+    name: 'propose_transmettre_rapport',
+    description:
+      "PRÉPARE (sans l'envoyer) la TRANSMISSION du rapport d'une intervention au syndic : envoi RÉEL du rapport PDF par e-mail, avec réponse dans le fil de conversation d'origine. " +
+      "Cet outil NE MODIFIE RIEN et N'ENVOIE RIEN : il vérifie qu'un rapport existe et qu'il est au statut « validé ». Un rapport en brouillon doit d'abord être validé ; un rapport déjà transmis ne peut pas être renvoyé via cet outil. " +
+      "L'envoi réel n'a lieu QUE si l'administrateur clique ensuite sur « Exécuter ». C'est l'action la plus sensible : un vrai e-mail part chez le syndic. " +
+      "Après avoir appelé cet outil, annonce clairement la proposition (quel dossier) et précise qu'il doit confirmer via le bouton ; ne prétends JAMAIS que la transmission est faite.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: "Référence du dossier d'intervention (champ ref, ex : 2026-014)." },
+      },
+      required: ['ref'],
+    },
+  },
 ];
 
 export async function executeFoxoActionTool(
@@ -93,6 +129,10 @@ export async function executeFoxoActionTool(
         return await proposeRelanceOccupants(args, supabase);
       case 'propose_planifier_rdv':
         return await proposePlanifierRdv(args, supabase);
+      case 'propose_valider_rapport':
+        return await proposeValiderRapport(args, supabase);
+      case 'propose_transmettre_rapport':
+        return await proposeTransmettreRapport(args, supabase);
       default:
         return { resultForModel: `Outil d'action inconnu : ${name}.`, pendingAction: null };
     }
@@ -126,11 +166,6 @@ async function proposeAssignTechnician(
   const iv = ivData as { id: string; ref: string | null; technicien_id: string | null; adresse: string | null } | null;
   if (!iv) return { resultForModel: `Aucun dossier trouvé pour la référence « ${ref} ».`, pendingAction: null };
 
-  // Récupère les techniciens actifs puis filtre en mémoire avec une correspondance
-  // SOUPLE PAR MOTS : on garde ceux dont CHAQUE mot de la requête figure dans le
-  // prénom OU le nom. Gère « Tech 1 » (prénom « Tech » + nom « 1 »), « Jean Dupont »,
-  // « Dupont » seul, etc. — là où une recherche de la chaîne entière dans un seul
-  // champ échouait pour tout nom composé.
   const { data: techData, error: techErr } = await supabase
     .from('utilisateurs')
     .select('id, prenom, nom')
@@ -281,5 +316,118 @@ async function proposePlanifierRdv(
   const resultForModel =
     `Proposition prête : ${summary} ` +
     `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer. Ne dis pas que c'est fait.`;
+  return { resultForModel, pendingAction };
+}
+
+async function proposeValiderRapport(
+  args: Record<string, unknown>,
+  supabase: SupabaseClient,
+): Promise<ActionToolResult> {
+  const ref = typeof args.ref === 'string' ? args.ref.trim() : '';
+  if (!ref) return { resultForModel: "Paramètre 'ref' manquant.", pendingAction: null };
+
+  const { data: ivData, error: ivErr } = await supabase
+    .from('interventions')
+    .select('id, ref, adresse')
+    .ilike('ref', ref)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+  if (ivErr) return { resultForModel: `Erreur de recherche du dossier : ${ivErr.message}`, pendingAction: null };
+  const iv = ivData as { id: string; ref: string | null; adresse: string | null } | null;
+  if (!iv) return { resultForModel: `Aucun dossier trouvé pour la référence « ${ref} ».`, pendingAction: null };
+
+  const { data: rapData, error: rapErr } = await supabase
+    .from('rapports')
+    .select('statut')
+    .eq('intervention_id', iv.id)
+    .maybeSingle();
+  if (rapErr) return { resultForModel: `Erreur de lecture du rapport : ${rapErr.message}`, pendingAction: null };
+  const rap = rapData as { statut: string | null } | null;
+  const statut = rap?.statut ?? null;
+
+  if (!rap) {
+    return { resultForModel: `Aucun rapport n'existe encore pour le dossier ${iv.ref ?? ref}. Le technicien doit d'abord publier un rapport ; il n'y a rien à valider.`, pendingAction: null };
+  }
+  if (statut === 'valide') {
+    return { resultForModel: `Le rapport du dossier ${iv.ref ?? ref} est déjà validé. Aucune action nécessaire (il peut maintenant être transmis au syndic).`, pendingAction: null };
+  }
+  if (statut === 'transmis') {
+    return { resultForModel: `Le rapport du dossier ${iv.ref ?? ref} a déjà été transmis au syndic : il ne peut plus être (re)validé.`, pendingAction: null };
+  }
+  if (statut !== 'brouillon') {
+    return { resultForModel: `Le rapport du dossier ${iv.ref ?? ref} a un statut inattendu (« ${statut} »). Validation impossible.`, pendingAction: null };
+  }
+
+  const lieu = iv.adresse ?? '—';
+  const summary =
+    `Valider le rapport du dossier ${iv.ref ?? ref}${lieu !== '—' ? ` (${lieu})` : ''} : il passera de « brouillon » à « validé ». ` +
+    `Aucun envoi au syndic à ce stade — la transmission est une étape séparée.`;
+  const pendingAction: PendingAction = {
+    id: newProposalId(),
+    action: 'valider_rapport',
+    params: { interventionId: iv.id, interventionRef: iv.ref ?? ref },
+    summary,
+  };
+  const resultForModel =
+    `Proposition prête : ${summary} ` +
+    `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer. Ne dis pas que c'est fait.`;
+  return { resultForModel, pendingAction };
+}
+
+async function proposeTransmettreRapport(
+  args: Record<string, unknown>,
+  supabase: SupabaseClient,
+): Promise<ActionToolResult> {
+  const ref = typeof args.ref === 'string' ? args.ref.trim() : '';
+  if (!ref) return { resultForModel: "Paramètre 'ref' manquant.", pendingAction: null };
+
+  const { data: ivData, error: ivErr } = await supabase
+    .from('interventions')
+    .select('id, ref, adresse')
+    .ilike('ref', ref)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+  if (ivErr) return { resultForModel: `Erreur de recherche du dossier : ${ivErr.message}`, pendingAction: null };
+  const iv = ivData as { id: string; ref: string | null; adresse: string | null } | null;
+  if (!iv) return { resultForModel: `Aucun dossier trouvé pour la référence « ${ref} ».`, pendingAction: null };
+
+  const { data: rapData, error: rapErr } = await supabase
+    .from('rapports')
+    .select('statut, transmis_at')
+    .eq('intervention_id', iv.id)
+    .maybeSingle();
+  if (rapErr) return { resultForModel: `Erreur de lecture du rapport : ${rapErr.message}`, pendingAction: null };
+  const rap = rapData as { statut: string | null; transmis_at: string | null } | null;
+  const statut = rap?.statut ?? null;
+
+  if (!rap) {
+    return { resultForModel: `Aucun rapport n'existe pour le dossier ${iv.ref ?? ref} : il n'y a rien à transmettre.`, pendingAction: null };
+  }
+  if (statut === 'brouillon') {
+    return { resultForModel: `Le rapport du dossier ${iv.ref ?? ref} n'est pas encore validé (statut « brouillon »). Il doit d'abord être validé avant de pouvoir être transmis au syndic.`, pendingAction: null };
+  }
+  if (statut === 'transmis') {
+    const quand = rap.transmis_at ? ` (le ${rap.transmis_at})` : '';
+    return { resultForModel: `Le rapport du dossier ${iv.ref ?? ref} a déjà été transmis au syndic${quand}. Cet outil ne renvoie pas un rapport déjà transmis.`, pendingAction: null };
+  }
+  if (statut !== 'valide') {
+    return { resultForModel: `Le rapport du dossier ${iv.ref ?? ref} a un statut inattendu (« ${statut} »). Transmission impossible.`, pendingAction: null };
+  }
+
+  const lieu = iv.adresse ?? '—';
+  const summary =
+    `⚠️ TRANSMISSION RÉELLE au syndic : envoi du rapport (PDF) du dossier ${iv.ref ?? ref}${lieu !== '—' ? ` (${lieu})` : ''} ` +
+    `par e-mail au syndic, avec réponse dans le fil de conversation d'origine. Le dossier passera en statut « transmis ». Cette action est irréversible.`;
+  const pendingAction: PendingAction = {
+    id: newProposalId(),
+    action: 'transmettre_rapport',
+    params: { interventionId: iv.id, interventionRef: iv.ref ?? ref },
+    summary,
+  };
+  const resultForModel =
+    `Proposition prête : ${summary} ` +
+    `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer l'envoi réel. Ne dis pas que c'est fait.`;
   return { resultForModel, pendingAction };
 }
