@@ -1,3 +1,32 @@
+# État du projet FoxO — snapshot 2026-06-07 (Assistant Phase 3 : action planifier_rdv livrée)
+
+- **Date du recap** : 2026-06-07
+- **HEAD git** : merge PR #63 sur `main` (voir `git log`)
+- **Branche** : `main`, working tree propre
+- **Production** : déployée par Vercel sur push `main`.
+
+## Extension #2 du pattern Phase 3 — `planifier_rdv` : LIVRÉE, MERGÉE, EN PROD (PR #63)
+
+Nouvel outil d'action de l'assistant admin, même moule que `assign_technician` / `relance_occupants` (propose → carte de confirmation → exécution sur clic humain).
+- **`src/lib/assistant/tools/foxo-actions.ts`** : `ActionName` étendu à `'planifier_rdv'` ; outil propose-only `propose_planifier_rdv(ref, date, heure)` (résout l'intervention, valide AAAA-MM-JJ + HH:MM en lecture seule, avertit si un créneau existe déjà) ; dispatch + fonction `proposePlanifierRdv`.
+- **`src/app/api/admin/assistant/actions/execute/route.ts`** : `case 'planifier_rdv'` → re-valide, calcule l'ISO, `update interventions set creneau_debut + statut='attente'`. AUCUN email, AUCUN événement Google Agenda. Garde `isAdminUser`.
+- **Choix d'archi** : logique recopiée à l'identique de la route manuelle sœur `src/app/api/admin/interventions/[id]/schedule/route.ts` (mini-duplication ~6 lignes assumée + commentaire), pour NE PAS toucher la route manuelle en prod. Extraction d'un helper partagé reportée à un 3e appelant.
+- Aucun changement chat ni UI (carte générique, outils câblés via `FOXO_ACTION_TOOLS`).
+- Commit feature `f3ca300` (2 fichiers, +92/−1). `tsc` vert.
+- **Validé en prod** (aperçu = même base) sur 2026-133 : carte affichée (avertissement « remplace le créneau du 9 juin 19h ») → Exécuter → dossier replanifié au 12/06/2026 10:30 + statut `attente`.
+
+## Suite (par risque croissant) — pattern Phase 3
+- planifier RDV ✅. Reste : **valider rapport** (`validateRapport`) → **transmettre rapport au syndic** (`dispatchRapportToSyndic`, la plus sensible : vrai envoi au syndic). NE PAS exposer `publishRapport`.
+- Puis Phase 4 (assistant tech, OAuth Google par utilisateur), Phase 5 (assistant portail + analytics doc 06).
+
+## Backlog / à surveiller
+- Incohérence d'adresse sur la carte de relance (2026-133 : « av Louis 22, 1050 Ixelles » vs détail « Avenue Louise 279 »). La carte `planifier_rdv` affichait la bonne adresse → l'écart venait probablement de la prose du modèle sur la relance, pas des données. Mini-vérif un jour.
+
+## Hygiène repo
+- Supprimer la branche mergée `feat/assistant-action-planifier-rdv` (PR #63).
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (fiabilité assistant : fix détail dossier + alignement schéma occupants)
 
 - **Date du recap** : 2026-06-07
