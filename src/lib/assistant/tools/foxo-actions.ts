@@ -14,7 +14,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-export type ActionName = 'assign_technician';
+export type ActionName = 'assign_technician' | 'relance_occupants';
 
 export interface PendingAction {
   id: string;
@@ -45,6 +45,21 @@ export const FOXO_ACTION_TOOLS: Anthropic.Tool[] = [
       required: ['ref', 'technicien'],
     },
   },
+  {
+    name: 'propose_relance_occupant',
+    description:
+      "PRÉPARE (sans l'envoyer) une relance des occupants d'une intervention : l'envoi d'une demande de confirmation de rendez-vous (email, et SMS/WhatsApp si coordonnées disponibles). " +
+      "Cet outil NE MODIFIE RIEN et N'ENVOIE RIEN : il vérifie que le dossier a un créneau planifié et au moins un occupant, puis renvoie une proposition portant sur TOUS les occupants du dossier. " +
+      "L'envoi réel n'a lieu QUE si l'administrateur clique ensuite sur le bouton « Exécuter ». " +
+      "Après avoir appelé cet outil, annonce clairement la proposition (combien d'occupants, quel dossier) et précise qu'il doit confirmer via le bouton ; ne prétends JAMAIS que la relance est partie.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: "Référence du dossier d'intervention (champ ref, ex : 2026-014)." },
+      },
+      required: ['ref'],
+    },
+  },
 ];
 
 export async function executeFoxoActionTool(
@@ -57,6 +72,8 @@ export async function executeFoxoActionTool(
     switch (name) {
       case 'propose_assign_technician':
         return await proposeAssignTechnician(args, supabase);
+      case 'propose_relance_occupant':
+        return await proposeRelanceOccupants(args, supabase);
       default:
         return { resultForModel: `Outil d'action inconnu : ${name}.`, pendingAction: null };
     }
@@ -138,5 +155,63 @@ async function proposeAssignTechnician(
   const resultForModel =
     `Proposition prête : ${summary} ` +
     `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer. Ne dis pas que c'est fait.`;
+  return { resultForModel, pendingAction };
+}
+
+async function proposeRelanceOccupants(
+  args: Record<string, unknown>,
+  supabase: SupabaseClient,
+): Promise<ActionToolResult> {
+  const ref = typeof args.ref === 'string' ? args.ref.trim() : '';
+  if (!ref) return { resultForModel: "Paramètre 'ref' manquant.", pendingAction: null };
+
+  const { data: ivData, error: ivErr } = await supabase
+    .from('interventions')
+    .select('id, ref, creneau_debut, adresse')
+    .ilike('ref', ref)
+    .is('deleted_at', null)
+    .limit(1)
+    .maybeSingle();
+  if (ivErr) return { resultForModel: `Erreur de recherche du dossier : ${ivErr.message}`, pendingAction: null };
+  const iv = ivData as { id: string; ref: string | null; creneau_debut: string | null; adresse: string | null } | null;
+  if (!iv) return { resultForModel: `Aucun dossier trouvé pour la référence « ${ref} ».`, pendingAction: null };
+
+  if (!iv.creneau_debut) {
+    return {
+      resultForModel: `Le dossier ${iv.ref ?? ref} n'a pas encore de créneau de rendez-vous planifié : impossible de relancer les occupants pour confirmation tant qu'aucune date n'est fixée. Planifie d'abord un créneau.`,
+      pendingAction: null,
+    };
+  }
+
+  const { data: occData, error: occErr } = await supabase
+    .from('occupants')
+    .select('id, prenom, nom, email, telephone')
+    .eq('intervention_id', iv.id);
+  if (occErr) return { resultForModel: `Erreur de recherche des occupants : ${occErr.message}`, pendingAction: null };
+  const occupants = (occData ?? []) as { id: string; prenom: string | null; nom: string | null; email: string | null; telephone: string | null }[];
+
+  if (occupants.length === 0) {
+    return { resultForModel: `Aucun occupant enregistré sur le dossier ${iv.ref ?? ref}. Il n'y a personne à relancer.`, pendingAction: null };
+  }
+
+  const noms = occupants
+    .map((o) => `${(o.prenom ?? '').trim()} ${(o.nom ?? '').trim()}`.trim() || (o.email ?? '').trim() || (o.telephone ?? '').trim() || 'occupant')
+    .join(', ');
+  const occupantIds = occupants.map((o) => o.id);
+  const lieu = iv.adresse ?? '—';
+
+  const summary =
+    `Relancer ${occupants.length} occupant(s) du dossier ${iv.ref ?? ref}${lieu !== '—' ? ` (${lieu})` : ''} : ${noms}. ` +
+    `Envoi RÉEL d'une demande de confirmation de rendez-vous (email, et SMS/WhatsApp si coordonnées disponibles).`;
+
+  const pendingAction: PendingAction = {
+    id: newProposalId(),
+    action: 'relance_occupants',
+    params: { interventionId: iv.id, occupantIds, interventionRef: iv.ref ?? ref, occupantsCount: occupants.length },
+    summary,
+  };
+  const resultForModel =
+    `Proposition prête : ${summary} ` +
+    `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer l'envoi. Ne dis pas que c'est fait.`;
   return { resultForModel, pendingAction };
 }

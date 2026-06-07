@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from '@/lib/auth/server';
 import { assignTechnician } from '@/app/admin/actions';
+import { notifyOccupantsForIntervention } from '@/lib/occupants/notify-occupants';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Route d'EXÉCUTION des actions de l'assistant.
 // Déclenchée UNIQUEMENT par un clic humain sur le bouton « Exécuter » du front —
@@ -51,6 +52,23 @@ export async function POST(request: Request) {
         const techNom = str(params.technicienNom);
         const ref = str(params.interventionRef);
         const message = `Technicien ${techNom} assigné au dossier ${ref || interventionId}.`.replace(/\s+/g, ' ').trim();
+        return NextResponse.json({ ok: true, message });
+      }
+      case 'relance_occupants': {
+        const interventionId = str(params.interventionId);
+        const rawIds = Array.isArray(params.occupantIds) ? params.occupantIds : [];
+        const occupantIds = rawIds.filter((x): x is string => typeof x === 'string' && x.trim().length > 0);
+        if (!interventionId || occupantIds.length === 0) {
+          return NextResponse.json({ ok: false, error: 'Paramètres manquants pour la relance des occupants.' }, { status: 400 });
+        }
+        const res = await notifyOccupantsForIntervention(interventionId, { occupantIds, sentBy: user.email ?? null });
+        if (!res.ok) {
+          return NextResponse.json({ ok: false, error: res.error }, { status: res.status ?? 400 });
+        }
+        const ref = str(params.interventionRef);
+        const sent = typeof res.sent === 'number' ? res.sent : occupantIds.length;
+        const failed = typeof res.failed === 'number' ? res.failed : 0;
+        const message = `Relance envoyée pour le dossier ${ref || interventionId} : ${sent} envoi(s) réussi(s)${failed ? `, ${failed} échec(s)` : ''}.`;
         return NextResponse.json({ ok: true, message });
       }
       default:
