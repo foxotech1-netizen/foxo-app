@@ -1,3 +1,43 @@
+# État du projet FoxO — snapshot 2026-06-07 (Assistant Phase 3 — valider_rapport + transmettre_rapport — LIVRÉ EN PROD)
+
+- Date du recap : 2026-06-07
+- HEAD git : b940b88 (merge PR #64)
+- Branche : main, working tree propre, aligné origin/main
+- Production : déployée par Vercel sur push main.
+
+## Chantier — Assistant Phase 3 : valider + transmettre rapport — CLOS et EN PROD
+
+Deux actions propose-only ajoutées à l'assistant IA admin, sur le moule exact des 3 précédentes (assign_technician, relance_occupants, planifier_rdv). PR #64 (merge b940b88, commit feature c2631ac, branche feat/assistant-rapport-actions). 2 fichiers, +196/-7.
+
+### Livré
+- propose_valider_rapport(ref) dans src/lib/assistant/tools/foxo-actions.ts : lecture seule, résout l'intervention par ref + lit rapports.statut. Refuse si aucun rapport / déjà valide / déjà transmis ; propose seulement si brouillon. Aucun envoi.
+- propose_transmettre_rapport(ref) : refuse si aucun rapport / brouillon (« validez d'abord ») / déjà transmis ; propose seulement si valide. Action la plus sensible (e-mail réel au syndic).
+- Case valider_rapport dans api/admin/assistant/actions/execute/route.ts : délègue à validateRapport (garde admin interne + .eq('statut','brouillon')).
+- Case transmettre_rapport : BARRIÈRE anti-double-envoi / anti-brouillon — relit rapports.statut, exige === 'valide' (sinon HTTP 409), puis délègue à resendRapportToSyndic (→ dispatchRapportToSyndic : envoi réel + reply-in-thread Gmail + upload Drive + statut transmis).
+- ActionName étendu à 5 valeurs. Aucun changement chat route (dispatch dynamique FOXO_ACTION_TOOLS.some(...)) ni UI (carte de confirmation générique). Aperçu Vercel construit OK.
+
+### Validation (aperçu Vercel PR #64, lecture seule, ZÉRO mutation, ZÉRO e-mail)
+- Validation sur dossier sans rapport (2026-133) -> refus correct « rien à valider ». OK
+- Validation sur brouillon (2026-116) -> carte de validation correcte. OK
+- Transmission sur brouillon (2026-116) -> BLOQUÉE (« doit d'abord être validé »), aucune carte d'envoi. OK
+- tsc --noEmit vert. Merge commit confirmé.
+- NON exercé volontairement : le clic « Exécuter » réel (mutation valide / envoi transmis) — sera validé à la 1re utilisation réelle. publishRapport (tech) jamais exposé.
+
+### Repères
+- Cycle rapport : brouillon (publié par tech via publishRapport) -> valide (validateRapport, createAdminClient) -> transmis (dispatchRapportToSyndic, createAdminClient).
+- dispatchRapportToSyndic n'impose AUCUNE précondition de statut en interne -> la garde « doit être validé » est portée par l'outil propose + le re-check 409 dans la route execute.
+- Lectures rapports = client RLS-bound OK pour l'admin ; mutations = createAdminClient. FK = intervention_id, un rapport par intervention (.maybeSingle()).
+- Table rapports au 2026-06-07 : 2 lignes, toutes deux brouillon (2026-116, 2026-100). Aucun valide/transmis.
+
+## Suite
+- 1re utilisation réelle valider->transmettre (ex. 2026-116 quand prêt) = bout-en-bout naturel, à accompagner en direct.
+- Phase 4 (assistant tech, OAuth Google PAR UTILISATEUR), Phase 5 (portail cloisonné + analytics doc 06).
+
+## Hygiène repo
+- Supprimer via GitHub « Delete branch » les branches mergées encore présentes (#61, #62, #63 ; #64 supprimée au merge).
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (Assistant Phase 3 : action planifier_rdv livrée)
 
 - **Date du recap** : 2026-06-07
