@@ -1,3 +1,45 @@
+# État du projet FoxO — snapshot 2026-06-07 (Phase 3 — PILOTE assistant « assigner un technicien » EN PROD)
+
+- **Date du recap** : 2026-06-07
+- **HEAD git** : `2e2e62b` (merge PR #60 — Phase 3 pilote)
+- **Branche** : `main`, working tree propre (vérifier le HEAD live en début de session)
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier Assistant IA — Phase 3 (outils d'ACTION admin) : PILOTE CLOS ET EN PROD
+
+**Décision d'architecture (cœur de la Phase 3)** : le modèle n'exécute JAMAIS une action, il la **PROPOSE** seulement. Seul un **clic humain** l'exécute.
+- Outils d'action **propose-only** : résolvent + valident en lecture seule, renvoient `{ resultForModel, pendingAction }`. Aucune mutation.
+- La route chat attache les `pendingAction` à sa réponse JSON → le front affiche une **carte de confirmation** (Exécuter / Annuler).
+- Le bouton « Exécuter » appelle une **route dédiée gardée admin** qui, elle seule, mute (via l'action canonique existante). Le modèle n'a aucun accès à cette route.
+
+**Pilote livré = action `assign_technician`** (branche `feat/assistant-action-assign-tech`, mergée PR #60). 5 commits :
+1. `687de1b` — `src/lib/assistant/tools/foxo-actions.ts` (nouveau) : `FOXO_ACTION_TOOLS` + `executeFoxoActionTool` + outil `propose_assign_technician(ref, technicien)`. Types `ActionName`, `PendingAction { id, action, params, summary }`, `ActionToolResult`.
+2. `99d681c` — câblage `src/app/api/admin/assistant/chat/route.ts` : `tools = [...FOXO_READ_TOOLS, ...GOOGLE_READ_TOOLS, ...FOXO_ACTION_TOOLS]` (désactivés en `rapport_json`) ; dispatch 3 branches dans la boucle tool-use ; accumulateur `pendingActions` ; réponse `{ ok, content, pendingActions }`.
+3. `854eed1` — `src/app/api/admin/assistant/actions/execute/route.ts` (nouveau) : `POST` gardé `isAdminUser()` (403 sinon), `case 'assign_technician'` → server action canonique `assignTechnician(interventionId, technicienId)`, `maxDuration = 30`. Déclenchée uniquement par clic humain.
+4. `f8f25d1` — UI : `src/components/admin/ActionConfirmCard.tsx` (nouveau, carte générique réutilisable, états `idle → executing → done | error | cancelled`, bouton « Réessayer » sur erreur) + `src/app/admin/assistant/AssistantChat.tsx` (`ChatMessage`/`ApiResponse` étendus de `pendingActions?`, rendu d'une carte par action sous chaque message assistant).
+5. `e7b6152` — **fix résolution technicien** : la recherche `prenom.ilike.%q% OR nom.ilike.%q%` échouait pour tout nom composé (« Tech 1 » = prénom « Tech » + nom « 1 », et plus tard « Jean Dupont »). Remplacée par une **correspondance souple par mots** : on récupère les techniciens actifs (`role='technicien'`, `actif=true`, limit 500) puis on garde ceux dont CHAQUE mot de la requête figure dans le prénom OU le nom.
+
+**Validé en prod** : « Assigne le technicien Tech 1 au dossier <ref> » → carte affichée → clic Exécuter → assignation réelle confirmée. Aucune migration SQL.
+
+**Note UI** : le widget Dashboard `src/components/admin/ChatIA.tsx` reste en **lecture seule** (il n'affiche pas les cartes d'action — il ignore `pendingActions`). Les actions sont réservées à la page `/admin/assistant`. Cohérent avec « confirmation explicite ».
+
+**Zone assistant confirmée NÔTRE** : `api/admin/assistant`, `foxo-read.ts`, `foxo-actions.ts`, `FOXO_ACTION_TOOLS`. (L'ancienne note « zone d'un associé » était périmée.)
+
+## À faire — extension du pattern (par risque croissant)
+Réutiliser l'échafaudage (outil propose-only + nouvelle branche `case` dans la route execute + carte générique existante) :
+1. **relancer occupant** — `notifyOccupantsForIntervention` (`src/lib/occupants/notify-occupants.ts`)
+2. **planifier RDV** — `createCalendarEvent` (`src/lib/google-calendar.ts`)
+3. **valider rapport** — `validateRapport` (`src/app/admin/actions.ts`)
+4. **transmettre rapport au syndic** — `dispatchRapportToSyndic` (`src/lib/rapport/dispatch.ts`) — la plus sensible
+- `publishRapport` est côté technicien → **NE PAS** l'exposer dans l'assistant admin.
+
+Puis (plus tard) : Phase 4 (assistant tech, OAuth Google par utilisateur), Phase 5 (assistant portail cloisonné + analytics doc 06).
+
+## Note data (futur test de bout en bout)
+- Comptes de test confirmés en base `utilisateurs` (actifs, rôle `technicien`) : `tech1@foxo.be` (prénom « Tech » / nom « 1 »), `tech2@foxo.be` (« Tech » / « 2 »). Pas un trou de config — c'est juste le nommage. Le test de bout en bout (7 étapes) reste à faire ; prérequis encore à confirmer : DNS Resend `send.foxo.be` vérifié, compte syndic de test.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (Notif-retard technicien — LIVRÉ EN PROD)
 
 - **Date du recap** : 2026-06-07
