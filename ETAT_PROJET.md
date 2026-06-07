@@ -14,7 +14,7 @@ Bug « détail indisponible » corrigé. `get_intervention_detail` (foxo-read.ts
 - **Portée** : `buildInterventionContext` sert le contexte dossier de TOUT l'assistant (pas que l'outil détail) → fix global.
 - **Validé en prod** (aperçu Vercel = même base) sur dossier de test **2026-133** : détail complet rendu, syndic « MERTENS Syndic » affiché (preuve que le bon lien est `syndic_id`, pas `organisation_id`).
 - **Découverte #3 (get_intervention_detail cassé) → RÉSOLUE.**
-- **Découverte #4 (court-circuit : l'assistant pré-vérifiait via le détail cassé et répondait « introuvable » sans appeler l'outil propose) → très probablement résolue** (le détail marche, la pré-vérification réussit). Confirmation par un test d'ACTION sur 2026-133 encore À FAIRE (optionnel — déclenche un vrai email vers la boîte de test `foxotech1@gmail.com`).
+- **Découverte #4 (court-circuit : l'assistant pré-vérifiait via le détail cassé et répondait « introuvable » sans appeler l'outil propose) → CONFIRMÉE RÉSOLUE (2026-06-07)** : test d'action « relance les occupants du dossier 2026-133 » en prod → l'assistant a appelé l'outil propose et affiché la carte de confirmation (aucun envoi déclenché). Le fix de `get_intervention_detail` a résolu #3 ET #4.
 
 ## Reprises du récap précédent — désormais actées au dépôt
 
@@ -29,6 +29,7 @@ La migration `db/migrations/2026-05-23_occupants_response.sql` n'avait JAMAIS é
 ## Repères utiles
 - **Aperçu Vercel = MÊME base Supabase que la prod.** Dossier de test sûr : **2026-133** (occupant `foxotech1@gmail.com`). Outils de LECTURE sans risque ; outils d'ACTION (relance) déclenchent de vrais envois.
 - **Bon FK syndic** : `interventions.syndic_id` (PAS `organisation_id`) pour joindre l'`organisations` syndic/courtier.
+- **Backlog — incohérence d'adresse (à vérifier)** : sur 2026-133, la carte de relance affichait « av Louis 22, 1050 Ixelles » alors que le détail affichait « Avenue Louise 279, 1050 Bruxelles ». Soit données de test incohérentes (`interventions.adresse` libre vs adresse de l'ACP liée), soit le modèle paraphrase/invente l'adresse dans le texte de la carte d'action (plus gênant). Mini-vérif un jour : comparer ce que renvoie l'outil propose vs ce que le modèle écrit.
 
 ## Suite (par risque croissant) — pattern Phase 3
 1. (optionnel) Confirmer #4 par un test d'action sur 2026-133.
