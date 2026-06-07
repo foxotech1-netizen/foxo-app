@@ -90,16 +90,27 @@ async function proposeAssignTechnician(
   const iv = ivData as { id: string; ref: string | null; technicien_id: string | null; adresse: string | null } | null;
   if (!iv) return { resultForModel: `Aucun dossier trouvé pour la référence « ${ref} ».`, pendingAction: null };
 
-  const tq = techQuery.replace(/[,()*%]/g, ' ').trim();
+  // Récupère les techniciens actifs puis filtre en mémoire avec une correspondance
+  // SOUPLE PAR MOTS : on garde ceux dont CHAQUE mot de la requête figure dans le
+  // prénom OU le nom. Gère « Tech 1 » (prénom « Tech » + nom « 1 »), « Jean Dupont »,
+  // « Dupont » seul, etc. — là où une recherche de la chaîne entière dans un seul
+  // champ échouait pour tout nom composé.
   const { data: techData, error: techErr } = await supabase
     .from('utilisateurs')
     .select('id, prenom, nom')
     .eq('role', 'technicien')
     .eq('actif', true)
-    .or(`prenom.ilike.%${tq}%,nom.ilike.%${tq}%`)
-    .limit(5);
+    .limit(500);
   if (techErr) return { resultForModel: `Erreur de recherche du technicien : ${techErr.message}`, pendingAction: null };
-  const techs = (techData ?? []) as { id: string; prenom: string | null; nom: string | null }[];
+  const allTechs = (techData ?? []) as { id: string; prenom: string | null; nom: string | null }[];
+
+  const tokens = techQuery.toLowerCase().split(/\s+/).filter(Boolean);
+  const techs = allTechs.filter((t) => {
+    if (tokens.length === 0) return false;
+    const prenom = (t.prenom ?? '').toLowerCase();
+    const nom = (t.nom ?? '').toLowerCase();
+    return tokens.every((tok) => prenom.includes(tok) || nom.includes(tok));
+  });
 
   if (techs.length === 0) {
     return { resultForModel: `Aucun technicien actif ne correspond à « ${techQuery} ». Vérifie le nom.`, pendingAction: null };
