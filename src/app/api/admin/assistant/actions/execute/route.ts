@@ -71,6 +71,29 @@ export async function POST(request: Request) {
         const message = `Relance envoyée pour le dossier ${ref || interventionId} : ${sent} envoi(s) réussi(s)${failed ? `, ${failed} échec(s)` : ''}.`;
         return NextResponse.json({ ok: true, message });
       }
+      case 'planifier_rdv': {
+        const interventionId = str(params.interventionId);
+        const date = str(params.date);
+        const heure = str(params.heure);
+        if (!interventionId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) {
+          return NextResponse.json({ ok: false, error: 'Paramètres manquants ou invalides pour la planification.' }, { status: 400 });
+        }
+        // Même logique que la route manuelle soeur
+        // (src/app/api/admin/interventions/[id]/schedule/route.ts) : pose le créneau
+        // et passe en 'attente'. Aucun email, aucun événement agenda.
+        const creneauDebutIso = new Date(`${date}T${heure}:00`).toISOString();
+        const { error: schedErr } = await supabase
+          .from('interventions')
+          .update({ creneau_debut: creneauDebutIso, statut: 'attente', updated_at: new Date().toISOString() })
+          .eq('id', interventionId);
+        if (schedErr) {
+          return NextResponse.json({ ok: false, error: schedErr.message }, { status: 500 });
+        }
+        const ref = str(params.interventionRef);
+        const [yy, mm, dd] = date.split('-');
+        const message = `Rendez-vous planifié pour le dossier ${ref || interventionId} le ${dd}/${mm}/${yy} à ${heure}. Le dossier est passé en « attente » de confirmation.`;
+        return NextResponse.json({ ok: true, message });
+      }
       default:
         return NextResponse.json({ ok: false, error: `Action non reconnue : ${action || '(vide)'}.` }, { status: 400 });
     }
