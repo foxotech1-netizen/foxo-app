@@ -114,7 +114,7 @@ export function TechniciensClient({
       setOpen(false);
       setColor(DEFAULT_COLOR);
       setInviteBanner(
-        `${created.prenom ?? ''} ${created.nom ?? ''} créé. Pense à l'inviter via Supabase Auth (Authentication → Users → Invite user) sinon il ne pourra pas se connecter sur tech.foxo.be.`
+        `${created.prenom ?? ''} ${created.nom ?? ''} créé. Son compte de connexion est prêt : il se connectera sur tech.foxo.be avec son email (un code à 6 chiffres lui sera envoyé par email à la première connexion).`
       );
     });
   }

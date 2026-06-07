@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import type { ActionState } from '../actions';
 
@@ -32,10 +33,36 @@ export async function createTech(form: FormData): Promise<ActionState> {
   if (!email || !EMAIL_RE.test(email)) return { error: 'Email invalide.' };
   if (!HEX_RE.test(couleur)) return { error: 'Couleur invalide (format #RRGGBB attendu).' };
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  // Client service-role : requis pour creer le compte d'authentification ET
+  // inserer la ligne utilisateurs avec id = uuid auth (FK utilisateurs_id_fkey).
+  const admin = createAdminClient();
+
+  // 1) Resoudre / creer le compte de connexion (auth.users).
+  const { data: usersData, error: usersErr } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (usersErr) {
+    return { error: `Impossible de verifier les comptes existants : ${usersErr.message}` };
+  }
+  const existing = usersData?.users.find((u) => (u.email ?? '').toLowerCase() === email);
+
+  let userId: string;
+  if (existing) {
+    userId = existing.id;
+  } else {
+    const { data: createdData, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+    });
+    if (createErr || !createdData?.user) {
+      return { error: `Impossible de creer le compte de connexion : ${createErr?.message ?? 'inconnu'}` };
+    }
+    userId = createdData.user.id;
+  }
+
+  // 2) Inserer le profil technicien avec id = uuid auth.
+  const { data, error } = await admin
     .from('utilisateurs')
     .insert({
+      id: userId,
       prenom,
       nom,
       email,
@@ -49,7 +76,7 @@ export async function createTech(form: FormData): Promise<ActionState> {
 
   if (error) {
     if ((error as { code?: string }).code === '23505') {
-      return { error: 'Cet email est déjà enregistré.' };
+      return { error: 'Cet email est deja enregistre.' };
     }
     return { error: error.message };
   }
@@ -67,7 +94,6 @@ export async function updateTech(id: string, form: FormData): Promise<ActionStat
   const nom = String(form.get('nom') ?? '').trim();
   const telephone = String(form.get('telephone') ?? '').trim() || null;
   const couleur = String(form.get('couleur') ?? '').trim() || '#1B3A6B';
-  // `actif` est piloté par setTechActive — on n'y touche pas ici si absent du form.
   const actifRaw = form.get('actif');
   const actif = actifRaw === null ? undefined : actifRaw === 'true' || actifRaw === 'on';
 
