@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X, Sparkles, Clock, Sun, Mail, BarChart3, Zap, Pause, type LucideIcon } from 'lucide-react';
+import { ActionConfirmCard, type PendingAction } from '@/components/admin/ActionConfirmCard';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  pendingActions?: PendingAction[];
 }
 
 export interface QuickAction {
@@ -46,6 +48,7 @@ interface ApiResponse {
   error?: string;
   warning?: string;
   sections?: { degats: string; inspection: string; conclusion: string; recommandations: string };
+  pendingActions?: PendingAction[];
 }
 
 export function AssistantChat({
@@ -101,7 +104,7 @@ export function AssistantChat({
         setMessages(next);
         return;
       }
-      setMessages([...next, { role: 'assistant', content: data.content }]);
+      setMessages([...next, { role: 'assistant', content: data.content, pendingActions: data.pendingActions }]);
       if (data.sections) {
         setLastSections(data.sections);
       }
@@ -216,6 +219,13 @@ export function AssistantChat({
                       → Sauvegarder comme brouillon de rapport
                     </button>
                   )}
+                </div>
+              )}
+              {m.role === 'assistant' && m.pendingActions && m.pendingActions.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {m.pendingActions.map((pa) => (
+                    <ActionConfirmCard key={pa.id} pendingAction={pa} />
+                  ))}
                 </div>
               )}
             </div>
