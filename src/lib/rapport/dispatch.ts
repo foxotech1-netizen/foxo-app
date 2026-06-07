@@ -300,7 +300,23 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
           .filter((line) => line !== null)
           .join('\n');
 
-        await sendMailReply({ mailId: originMessageId, body });
+        // Nom de la pièce jointe = même schéma que le .docx déposé sur Drive
+        // ("{ref} {acpNom}"), ex. "2026-127 Rue Willems 14.pdf". Repli sur la
+        // seule référence si acpNom est absent ("—").
+        const attachmentFilename =
+          built.acpNom && built.acpNom !== '—'
+            ? `${built.ref} ${built.acpNom}.pdf`
+            : `${built.ref}.pdf`;
+
+        await sendMailReply({
+          mailId: originMessageId,
+          body,
+          attachment: {
+            filename: attachmentFilename,
+            content: built.pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        });
       }
     }
   } catch (replyError) {
