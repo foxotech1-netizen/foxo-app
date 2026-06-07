@@ -643,6 +643,7 @@ export async function createGmailDraft(args: {
 export async function sendMailReply(args: {
   mailId: string;
   body: string;
+  attachment?: { filename: string; content: Buffer; contentType?: string };
 }): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
@@ -670,23 +671,63 @@ export async function sendMailReply(args: {
   const references = origReferences ? `${origReferences} ${origMessageId}` : origMessageId;
   const bodyNormalized = args.body.replace(/\r?\n/g, '\r\n');
 
-  // RFC 2822 — le destinataire et l'expéditeur peuvent contenir des
-  // accents → encode-MIME (=?UTF-8?B?...?=) si besoin. Ici on garde
-  // simple : les en-têtes restent ASCII (Subject géré par MIME).
   const subjectEncoded = /^[\x20-\x7E]*$/.test(subject)
     ? subject
     : `=?UTF-8?B?${Buffer.from(subject, 'utf-8').toString('base64')}?=`;
 
-  const mime = [
-    `To: ${replyTo}`,
-    `Subject: ${subjectEncoded}`,
-    `In-Reply-To: ${origMessageId}`,
-    `References: ${references}`,
-    `Content-Type: text/plain; charset="UTF-8"`,
-    `MIME-Version: 1.0`,
-    ``,
-    bodyNormalized,
-  ].join('\r\n');
+  let mime: string;
+
+  if (args.attachment) {
+    // Réponse AVEC pièce jointe → MIME multipart/mixed (texte + fichier base64).
+    const boundary = `=_foxo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+    const att = args.attachment;
+    const contentType = att.contentType ?? 'application/octet-stream';
+
+    // base64 de la pièce jointe, replié en lignes de 76 caractères (RFC 2045).
+    const attB64 = att.content.toString('base64').replace(/(.{76})/g, '$1\r\n');
+
+    // Nom de fichier : ASCII pur en filename=, + RFC 2231 (filename*) si accents.
+    const isAscii = /^[\x20-\x7E]*$/.test(att.filename);
+    const filenameAscii = att.filename.replace(/["\\]/g, '_');
+    const dispositionFilename = isAscii
+      ? `filename="${filenameAscii}"`
+      : `filename="${filenameAscii.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(att.filename)}`;
+
+    mime = [
+      `To: ${replyTo}`,
+      `Subject: ${subjectEncoded}`,
+      `In-Reply-To: ${origMessageId}`,
+      `References: ${references}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset="UTF-8"`,
+      `Content-Transfer-Encoding: 8bit`,
+      ``,
+      bodyNormalized,
+      ``,
+      `--${boundary}`,
+      `Content-Type: ${contentType}; name="${filenameAscii}"`,
+      `Content-Transfer-Encoding: base64`,
+      `Content-Disposition: attachment; ${dispositionFilename}`,
+      ``,
+      attB64,
+      `--${boundary}--`,
+    ].join('\r\n');
+  } else {
+    // Réponse texte simple — comportement historique strictement inchangé.
+    mime = [
+      `To: ${replyTo}`,
+      `Subject: ${subjectEncoded}`,
+      `In-Reply-To: ${origMessageId}`,
+      `References: ${references}`,
+      `Content-Type: text/plain; charset="UTF-8"`,
+      `MIME-Version: 1.0`,
+      ``,
+      bodyNormalized,
+    ].join('\r\n');
+  }
 
   const rawEncoded = base64url(mime);
 
