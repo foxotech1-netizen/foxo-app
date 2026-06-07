@@ -6,6 +6,7 @@ import { buildGlobalContext, buildInterventionContext } from '@/lib/assistant/co
 import { runAgent } from '@/lib/observability';
 import { FOXO_READ_TOOLS, executeFoxoReadTool } from '@/lib/assistant/tools/foxo-read';
 import { GOOGLE_READ_TOOLS, executeGoogleReadTool } from '@/lib/assistant/tools/google-read';
+import { FOXO_ACTION_TOOLS, executeFoxoActionTool, type PendingAction } from '@/lib/assistant/tools/foxo-actions';
 
 export const maxDuration = 60;
 
@@ -187,12 +188,13 @@ export async function POST(request: Request) {
   const lastUserChars = sanitized[sanitized.length - 1].content.length;
   const formatRequested = body.format ?? 'text';
   const useTools = formatRequested !== 'rapport_json';
-  const tools = useTools ? [...FOXO_READ_TOOLS, ...GOOGLE_READ_TOOLS] : undefined;
+  const tools = useTools ? [...FOXO_READ_TOOLS, ...GOOGLE_READ_TOOLS, ...FOXO_ACTION_TOOLS] : undefined;
   const interventionId = body.mode === 'intervention' ? (body.interventionId ?? null) : null;
 
   const convo: Anthropic.MessageParam[] = sanitized.map((m) => ({ role: m.role, content: m.content }));
 
   let raw = '';
+  const pendingActions: PendingAction[] = [];
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const msg = await callModel({
@@ -216,9 +218,16 @@ export async function POST(request: Request) {
         const toolUses = msg.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
         const results: Anthropic.ToolResultBlockParam[] = [];
         for (const tu of toolUses) {
-          const out = FOXO_READ_TOOLS.some((t) => t.name === tu.name)
-            ? await executeFoxoReadTool(tu.name, tu.input, supabase)
-            : await executeGoogleReadTool(tu.name, tu.input);
+          let out: string;
+          if (FOXO_ACTION_TOOLS.some((t) => t.name === tu.name)) {
+            const actionRes = await executeFoxoActionTool(tu.name, tu.input, supabase);
+            out = actionRes.resultForModel;
+            if (actionRes.pendingAction) pendingActions.push(actionRes.pendingAction);
+          } else if (FOXO_READ_TOOLS.some((t) => t.name === tu.name)) {
+            out = await executeFoxoReadTool(tu.name, tu.input, supabase);
+          } else {
+            out = await executeGoogleReadTool(tu.name, tu.input);
+          }
           results.push({ type: 'tool_result', tool_use_id: tu.id, content: out });
         }
         convo.push({ role: 'user', content: results });
@@ -253,5 +262,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, content: raw, sections });
   }
 
-  return NextResponse.json({ ok: true, content: raw });
+  return NextResponse.json({ ok: true, content: raw, pendingActions });
 }
