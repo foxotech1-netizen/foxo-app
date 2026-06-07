@@ -160,11 +160,15 @@ export async function buildGlobalContext(client?: SupabaseClient): Promise<strin
 
 export async function buildInterventionContext(interventionId: string): Promise<string | null> {
   const supabase = await createClient();
-  const { data: iv } = await supabase
+  const { data: iv, error: ivError } = await supabase
     .from('interventions')
-    .select('*, acp:acps(*), syndic:organisations(*), technicien:utilisateurs(*)')
+    .select('*, acp:acps(*), syndic:organisations!syndic_id(*), technicien:utilisateurs(*)')
     .eq('id', interventionId)
     .maybeSingle();
+  if (ivError) {
+    console.error('[assistant/context] buildInterventionContext: requete intervention en echec', ivError);
+    return null;
+  }
   if (!iv) return null;
 
   const ivTyped = iv as InterventionRow;
