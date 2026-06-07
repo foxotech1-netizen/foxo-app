@@ -28,6 +28,7 @@ export interface AssistantChatProps {
   onSpecialResult?: (sections: { degats: string; inspection: string; conclusion: string; recommandations: string }) => void;
   className?: string;
   inputClassName?: string;
+  endpoint?: string;
 }
 
 // Actions rapides du mode global — définies côté client (icônes lucide).
@@ -60,6 +61,7 @@ export function AssistantChat({
   onSpecialResult,
   className,
   inputClassName,
+  endpoint = '/api/admin/assistant/chat',
 }: AssistantChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -87,7 +89,7 @@ export function AssistantChat({
     setInput('');
     setPending(true);
     try {
-      const res = await fetch('/api/admin/assistant/chat', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
