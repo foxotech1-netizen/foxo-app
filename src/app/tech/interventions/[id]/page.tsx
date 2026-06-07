@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Phone, Zap } from 'lucide-react';
+import { MapPin, MessageCircle, MessageSquare, Phone, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
 import { TimerPanel } from './TimerPanel';
@@ -136,26 +136,52 @@ export default async function TechInterventionPage({
       {occupants.length > 0 && (
         <Block title={`Occupants (${occupants.length})`}>
           <div className="divide-y divide-[var(--color-sand-mid)]">
-            {occupants.map((o) => (
-              <div key={o.id} className="py-3 first:pt-0 last:pb-0 flex justify-between items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[14px] font-semibold text-[var(--color-ink)]">{o.nom ?? '—'}</div>
-                  <div className="text-[12px] text-[var(--color-ink)] mt-0.5">
-                    Apt. {o.appartement ?? '—'}
-                    {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
+            {occupants.map((o) => {
+              const retard = o.telephone ? buildRetardLinks(o.telephone, iv) : null;
+              return (
+                <div key={o.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-semibold text-[var(--color-ink)]">{o.nom ?? '—'}</div>
+                      <div className="text-[12px] text-[var(--color-ink)] mt-0.5">
+                        Apt. {o.appartement ?? '—'}
+                        {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
+                      </div>
+                    </div>
+                    {o.telephone && (
+                      <a
+                        href={`tel:${o.telephone}`}
+                        className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2.5 rounded-md text-[13px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center min-h-[44px] min-w-[44px] justify-center transition-colors"
+                        aria-label="Appeler"
+                      >
+                        <Phone size={16} />
+                      </a>
+                    )}
                   </div>
+                  {retard && (
+                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] text-[var(--color-ink-mid)] font-medium">Prévenir d&apos;un retard :</span>
+                      <a
+                        href={retard.smsHref}
+                        className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2 rounded-md text-[12px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center gap-1.5 min-h-[44px] transition-colors"
+                        aria-label="Prévenir l'occupant d'un retard par SMS"
+                      >
+                        <MessageSquare size={14} />SMS
+                      </a>
+                      <a
+                        href={retard.waHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2 rounded-md text-[12px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center gap-1.5 min-h-[44px] transition-colors"
+                        aria-label="Prévenir l'occupant d'un retard par WhatsApp"
+                      >
+                        <MessageCircle size={14} />WhatsApp
+                      </a>
+                    </div>
+                  )}
                 </div>
-                {o.telephone && (
-                  <a
-                    href={`tel:${o.telephone}`}
-                    className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2.5 rounded-md text-[13px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center min-h-[44px] min-w-[44px] justify-center transition-colors"
-                    aria-label="Appeler"
-                  >
-                    <Phone size={16} />
-                  </a>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Block>
       )}
@@ -236,4 +262,33 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
       {children}
     </section>
   );
+}
+
+function cleanDialNumber(phone: string): string {
+  return phone.replace(/[^\d+]/g, '');
+}
+
+function normalizeWaNumber(phone: string): string {
+  let digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  else if (digits.startsWith('0')) digits = '32' + digits.slice(1);
+  return digits;
+}
+
+function buildRetardMessage(iv: Intervention): string {
+  let phrase = 'je suis le technicien en charge de votre rendez-vous';
+  if (iv.ref) phrase += ` (réf. ${iv.ref})`;
+  if (iv.creneau_debut) {
+    const t = new Date(iv.creneau_debut).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+    phrase += ` prévu à ${t}`;
+  }
+  return `Bonjour, ${phrase}. Je vais avoir un peu de retard et j’arriverai dès que possible. Merci de votre compréhension.`;
+}
+
+function buildRetardLinks(phone: string, iv: Intervention): { smsHref: string; waHref: string } {
+  const enc = encodeURIComponent(buildRetardMessage(iv));
+  return {
+    smsHref: `sms:${cleanDialNumber(phone)}?&body=${enc}`,
+    waHref: `https://wa.me/${normalizeWaNumber(phone)}?text=${enc}`,
+  };
 }
