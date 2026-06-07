@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Clipboard, Receipt, type LucideIcon } from 'lucide-react';
+import { Home, Clipboard, Receipt, Sparkles, type LucideIcon } from 'lucide-react';
 
 interface NavItem { href: string; Icon: LucideIcon; label: string; exact?: boolean }
 const ITEMS: readonly NavItem[] = [
   { href: '/tech',             Icon: Home,      label: 'Accueil',    exact: true },
   { href: '/tech/historique',  Icon: Clipboard, label: 'Historique' },
+  { href: '/tech/assistant',   Icon: Sparkles,  label: 'Assistant'  },
   { href: '/tech/notes-frais', Icon: Receipt,   label: 'Notes'      },
 ];
 
