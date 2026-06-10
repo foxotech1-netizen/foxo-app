@@ -16,6 +16,7 @@ import {
   fmtDateShort,
 } from '@/lib/rapport/report-data-mapping';
 import { techniquesFromKeys } from '@/lib/rapport/techniques';
+import { fetchRapportPhotos } from '@/lib/rapport/photos';
 import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
@@ -136,8 +137,13 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     fait_a_date: fmtDateShort(today),
   };
 
+  // Photos (DÉGÂTS + INSPECTION) téléchargées EN AMONT et passées au moteur
+  // PDF en props — RapportPdf reste pur. Source partagée avec le docx
+  // (fetchRapportPhotos) pour un rendu jumeau. Best-effort : jamais bloquant.
+  const photos = await fetchRapportPhotos(interventionId);
+
   // PDF jumeau du template, généré depuis le MÊME ReportData que le docx.
-  const pdfBuffer = await generateRapportPdf(reportData);
+  const pdfBuffer = await generateRapportPdf(reportData, photos);
 
   return {
     ok: true,
