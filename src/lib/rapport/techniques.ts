@@ -51,3 +51,20 @@ export function techniquesToKeys(t: ReportTechniques): TechniqueKey[] {
 export function hasAnyTechnique(t: ReportTechniques): boolean {
   return ALL_KEYS.some((k) => t[k]);
 }
+
+const LABEL_TO_KEY = new Map<string, TechniqueKey>(
+  RAPPORT_TECHNIQUES.map((t) => [t.label, t.key]),
+);
+
+// Convertit une liste de LIBELLÉS (sortie de l'agent rapport v2) en CLÉS
+// canoniques (stockées dans rapports.techniques). Filtre tout libellé hors
+// liste fermée (console.warn) ; dédupliqué, ordre des clés préservé.
+export function techniquesLabelsToKeys(labels: readonly string[] | null | undefined): TechniqueKey[] {
+  const keys = new Set<TechniqueKey>();
+  for (const raw of labels ?? []) {
+    const k = LABEL_TO_KEY.get(String(raw).trim());
+    if (k) keys.add(k);
+    else if (raw) console.warn(`[techniques] libellé hors liste fermée ignoré: "${raw}"`);
+  }
+  return ALL_KEYS.filter((k) => keys.has(k));
+}
