@@ -57,6 +57,7 @@ import {
   updateInterventionStatus,
   resendRapportToSyndic,
   validateRapport,
+  reopenRapportDraft,
   assignTechnician,
   saveRapportDraftFromAdmin,
   searchAcpsForIntervention,
@@ -239,8 +240,22 @@ export function InterventionsClient({
     valide_at: string | null;
     transmis_at: string | null;
     transmis_a: string[] | null;
+    degats: string | null;
+    inspection: string | null;
+    conclusion: string | null;
+    recommandations: string | null;
   } | null>(null);
   const [rapportInfoLoading, setRapportInfoLoading] = useState(false);
+  // Galerie photos de l'intervention (consultation admin du rapport).
+  const [rapportPhotos, setRapportPhotos] = useState<Array<{
+    id: string; url: string; caption: string | null; piece: string | null;
+    ordre_rapport: number; pris_at: string | null; filename: string | null;
+  }>>([]);
+  // Édition admin des 4 sections (brouillon uniquement).
+  const [rapportEdit, setRapportEdit] = useState<{ degats: string; inspection: string; conclusion: string; recommandations: string } | null>(null);
+  const [rapportSaveMsg, setRapportSaveMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [rapportSavePending, startRapportSaveTransition] = useTransition();
+  const [rapportReopenPending, startRapportReopenTransition] = useTransition();
 
   // Modal SMS
   type SmsModalState = {
@@ -566,12 +581,54 @@ export function InterventionsClient({
 
   const refreshRapportInfo = (id: string) => {
     setRapportInfoLoading(true);
+    setRapportSaveMsg(null);
+    setRapportEdit(null);
     fetch(`/api/admin/rapports/${id}`)
       .then((r) => r.json())
-      .then((data) => { if (data.ok) setRapportInfo(data.rapport); })
+      .then((data) => {
+        if (data.ok) {
+          setRapportInfo(data.rapport);
+          setRapportPhotos(Array.isArray(data.photos) ? data.photos : []);
+          // Pré-remplit le formulaire d'édition (utilisé seulement en brouillon).
+          if (data.rapport) {
+            setRapportEdit({
+              degats: data.rapport.degats ?? '',
+              inspection: data.rapport.inspection ?? '',
+              conclusion: data.rapport.conclusion ?? '',
+              recommandations: data.rapport.recommandations ?? '',
+            });
+          }
+        }
+      })
       .catch(() => {})
       .finally(() => setRapportInfoLoading(false));
   };
+
+  function saveRapportCorrections() {
+    if (!selected || !rapportEdit) return;
+    setRapportSaveMsg(null);
+    startRapportSaveTransition(async () => {
+      const res = await saveRapportDraftFromAdmin(selected.id, rapportEdit);
+      if (res.error) setRapportSaveMsg({ kind: 'err', msg: res.error });
+      else {
+        setRapportSaveMsg({ kind: 'ok', msg: 'Corrections enregistrées.' });
+        refreshRapportInfo(selected.id);
+      }
+    });
+  }
+
+  function reopenRapport() {
+    if (!selected) return;
+    setRapportSaveMsg(null);
+    startRapportReopenTransition(async () => {
+      const res = await reopenRapportDraft(selected.id);
+      if (res.error) setRapportSaveMsg({ kind: 'err', msg: res.error });
+      else {
+        setRapportSaveMsg({ kind: 'ok', msg: 'Rapport repassé en brouillon.' });
+        refreshRapportInfo(selected.id);
+      }
+    });
+  }
 
   function resendRapport() {
     if (!selected) return;
@@ -2544,6 +2601,96 @@ export function InterventionsClient({
 
                   {rapportInfo && (
                     <Block title="Rapport au syndic">
+                        {/* Contenu du rapport : 4 sections (consultation + correction
+                            en brouillon) puis galerie photos. Le bloc statut/boutons
+                            existant suit en dessous. */}
+                        <div className="mb-4 space-y-3">
+                          {([
+                            { key: 'degats', label: 'Dégâts' },
+                            { key: 'inspection', label: 'Inspection' },
+                            { key: 'conclusion', label: 'Conclusion' },
+                            { key: 'recommandations', label: 'Recommandations' },
+                          ] as const).map((s) => (
+                            <div key={s.key}>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">{s.label}</div>
+                              {rapportInfo.statut === 'brouillon' && rapportEdit ? (
+                                <textarea
+                                  value={rapportEdit[s.key]}
+                                  onChange={(e) => setRapportEdit((cur) => cur ? { ...cur, [s.key]: e.target.value } : cur)}
+                                  rows={3}
+                                  className="w-full px-2.5 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid leading-relaxed"
+                                  placeholder={`Aucun contenu pour « ${s.label} »`}
+                                />
+                              ) : (
+                                <p className="text-[12px] text-ink whitespace-pre-wrap leading-relaxed bg-cream border border-sand-border rounded-lg px-2.5 py-2">
+                                  {(rapportInfo[s.key] ?? '').trim() || '—'}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+
+                          {/* Galerie photos */}
+                          {rapportPhotos.length > 0 && (
+                            <div>
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+                                Photos ({rapportPhotos.length})
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                {rapportPhotos.map((p) => (
+                                  <a
+                                    key={p.id}
+                                    href={p.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block group"
+                                    title={p.caption ?? p.filename ?? 'Photo'}
+                                  >
+                                    <div className="aspect-square rounded-lg overflow-hidden border border-sand-border bg-sand">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={p.url} alt={p.caption ?? p.filename ?? 'Photo'} className="w-full h-full object-cover group-hover:opacity-90" />
+                                    </div>
+                                    {(p.caption || p.piece) && (
+                                      <div className="text-[9px] text-ink-muted mt-0.5 truncate">
+                                        {p.piece ? <span className="font-semibold">{p.piece}</span> : null}
+                                        {p.piece && p.caption ? ' · ' : ''}
+                                        {p.caption ?? ''}
+                                      </div>
+                                    )}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Brouillon : enregistrer les corrections */}
+                          {rapportInfo.statut === 'brouillon' && (
+                            <button
+                              onClick={saveRapportCorrections}
+                              disabled={rapportSavePending}
+                              className="w-full bg-sand hover:bg-sand-mid text-ink border border-sand-border py-2 rounded-lg text-xs font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              {rapportSavePending ? 'Enregistrement…' : (<><Save size={14} />Enregistrer les corrections</>)}
+                            </button>
+                          )}
+
+                          {/* Validé : repasser en brouillon pour corriger */}
+                          {rapportInfo.statut === 'valide' && (
+                            <button
+                              onClick={reopenRapport}
+                              disabled={rapportReopenPending}
+                              className="w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              {rapportReopenPending ? 'Réouverture…' : (<><RefreshCw size={14} />Repasser en brouillon</>)}
+                            </button>
+                          )}
+
+                          {rapportSaveMsg && (
+                            <p className={'text-xs font-semibold ' + (rapportSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                              {rapportSaveMsg.msg}
+                            </p>
+                          )}
+                        </div>
+
                         {/* État 1 — brouillon : validation requise avant envoi */}
                         {rapportInfo.statut === 'brouillon' && (
                           <>

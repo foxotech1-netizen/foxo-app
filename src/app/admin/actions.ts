@@ -346,6 +346,43 @@ export async function validateRapport(interventionId: string) {
   return { ok: true };
 }
 
+// Réouverture admin d'un rapport validé : valide → brouillon, pour corriger
+// le contenu avant transmission. Garde-fou : ne réouvre QUE si le statut
+// courant est 'valide' (refus propre sinon). AUCUNE notification.
+export async function reopenRapportDraft(interventionId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) {
+    return { error: 'Accès refusé.' };
+  }
+  if (!interventionId) return { error: 'ID manquant.' };
+
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from('rapports')
+    .update({
+      statut: 'brouillon',
+      valide_par: null,
+      valide_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('intervention_id', interventionId)
+    .eq('statut', 'valide')        // garde-fou : ne réouvre qu'un rapport validé
+    .select('intervention_id');
+
+  if (error) {
+    console.error('[reopenRapportDraft] update failed', error);
+    return { error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { error: 'Réouverture impossible : le rapport n’est pas au statut « validé ».' };
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/validation');
+  return { ok: true };
+}
+
 // ── Facture ───────────────────────────────────────────────────────────────
 
 export type EmitFactureInput = {
