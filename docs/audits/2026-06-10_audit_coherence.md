@@ -199,4 +199,61 @@ Workflow cible : **tech publie (silencieux) → admin consulte ET corrige → ad
 10. **Remonter les échecs partiels du pipeline mail** (#9) + rétro-lier l'observabilité (#10) — fiabilité et diagnostic de l'ingestion automatique.
 
 ---
-*Audit de cohérence réalisé en lecture seule le 2026-06-10 sur HEAD `9e15b6c` (post-#68). Tâche 0 (migration cleanup observations_terrain) committée sur main ; aucun autre fichier applicatif modifié.*
+
+## E-bis — Passage dédié : portails par rôle (`src/app/portal/**`)
+
+**Architecture observée** : « Stratégie A — portail unique auto-adaptatif ». Les routes `/portal/syndic`, `/portal/courtier`, `/portal/expert` sont de **simples redirections** vers `/portal` (aucune logique ni donnée), et `/portal/page.tsx` adapte l'affichage selon `org.type` via `vocabFor(orgType)`. C'est propre : pas de duplication de code, et ces alias ne peuvent pas « casser » post-table-rase (constat positif).
+
+### [FORT] Un courtier (ou expert) lié via `dossiers_sinistres` ne voit AUCUN dossier dans son portail — `src/app/portal/interventions/page.tsx:29`, `src/app/portal/page.tsx:40`, `src/app/portal/interventions/[id]/page.tsx:39`
+- **Attendu** : un courtier voit dans son portail les dossiers sinistres où il est mandaté. La RLS le permet déjà : policy `courtier_select_via_dossier` (`2026-05-11c_rls_core_tables.sql:152`, `USING (org_in_dossier(id, current_org_id()))`), et `checkRapportAccess` gère explicitement la voie courtier-via-dossier (le courtier peut télécharger le PDF du rapport).
+- **Réel** : les **trois** requêtes du portail (dashboard, liste, détail) filtrent **uniquement** par `.or(syndic_id.eq.${org.id},organisation_id.eq.${org.id})`. Le `dossiers_sinistres` n'est utilisé qu'en **enrichissement secondaire** (`interventions/page.tsx:48`, `.in('intervention_id', ivIds)` sur des interventions déjà récupérées) pour afficher `assure`/`ref_courtier` — il **n'ajoute aucune intervention** à la liste. Conséquence : une intervention rattachée à un courtier **seulement** via `dossiers_sinistres.courtier_id` (cas d'un courtier ajouté par l'admin à un dossier d'un syndic) est **invisible** dans la liste ET provoque un `redirect('/portal/interventions')` à l'ouverture du détail (`[id]/page.tsx:43`). Le rôle courtier — l'un des 3 rôles du portail — est donc partiellement non fonctionnel.
+- **Nuance** : les dossiers **créés par le courtier lui-même** via `/portal/nouveau` restent visibles, car `submitRequest` pose `syndic_id = org.id` (le `.or` les retrouve). Le trou concerne les dossiers où le courtier est tiers (mandaté sur le sinistre d'un syndic).
+- **Correctif** : étendre les 3 requêtes pour inclure les interventions liées via `dossiers_sinistres` pour les orgs `courtier`/`expert` — soit récupérer d'abord les `intervention_id` de `dossiers_sinistres` où `courtier_id = org.id` et les ajouter au filtre (`.or(...,id.in.(...))`), soit s'appuyer sur la RLS en retirant le filtre applicatif redondant (laisser la policy scoper). La garde du détail doit accepter la même voie (sinon : visible en liste mais redirigé à l'ouverture).
+
+### [MOYEN] Vocabulaire incohérent desktop vs mobile — `src/app/portal/PortalNav.tsx:164-177`
+- **Attendu** (doc 02, architecture universelle) : zéro libellé métier hardcodé ; tout passe par `vocab.ts`.
+- **Réel** : la nav **desktop** (`NAV`, l.164-166) utilise `vocab.interventionsCap` (✔ → un courtier voit « Dossiers sinistres »), mais la **bottom-nav mobile** (`BOTTOM_NAV`, l.173-177) **hardcode** `label: 'Accueil'` et `label: 'Interventions'`. Un courtier/expert sur mobile voit donc « Interventions » alors que tout le reste de son portail dit « dossiers sinistres ». Incohérence visible et contraire à la règle vocab.
+- **Correctif** : remplacer par `vocab.interventionsCap` (et un libellé d'accueil neutre) dans `BOTTOM_NAV`.
+
+### [FAIBLE] Libellés métier hardcodés dans le dashboard malgré `vocab.ts` — `src/app/portal/page.tsx:197,206`
+- `« Carte des interventions »` (l.197) est hardcodé alors que `vocab.interventions` existe (devrait être « Carte des dossiers » pour courtier/expert). Le titre « récentes » (l.206) bricole l'accord avec `orgType === 'syndic' ? 'es' : 's'` au lieu d'un libellé vocab. Les StatCards (« En cours », « En attente », « Rapports dispo. », « Clôturées ») et « Prochaines disponibilités FoxO » sont génériques — acceptables. Correctif : router les libellés liés aux « interventions/dossiers » via `vocab`.
+
+### [FAIBLE] Calendar expose les créneaux `reserve` aux partenaires — `src/app/portal/calendar/page.tsx` (slots `reserve`)
+- Le calendrier (rôle-agnostique, montre la dispo FoxO) affiche les créneaux `reserve` (heure + ✗). Pas de PII (aucun détail client), mais un partenaire voit la charge de FoxO (quand d'autres clients ont réservé). Acceptable ; à acter consciemment. Le calendrier est correctement vide-safe (mois sans créneau → grille vide, pas de crash).
+
+### [FAIBLE — positif] États vides et agrégats post-table-rase — `src/app/portal/page.tsx:21-33,92-99,207,264`
+- **Vérifié OK** : `org` null → carte « Compte non lié » explicite ; stats calculées côté serveur sur les interventions réellement rattachées (zéro si aucune) → les StatCards affichent `0`, pas de valeur fausse ; listes « récentes » et « dispos » ont des états vides gérés ; la carte ne s'affiche que si `pins.length > 0`. **Aucun agrégat trompeur ni page cassée** quand la base est vide. (Le seul écart de complétude est le trou courtier-via-dossier ci-dessus, qui *sous-affiche* — il ne montre pas de faux, il cache du réel.)
+
+### Actions disponibles — câblage
+- `+ Nouvelle demande` / `+ Confier une mission` : rendu si `vocab.newRequestVerb` non-null (les 3 rôles l'ont) → `/portal/nouveau` → `NewRequestClient` → `submitRequest` (gardé `getCurrentSyndic`, scope `org.id`). **Câblé et fonctionnel.** Rappel (constat E #13) : le commentaire de `vocab.ts:16` « null = aucun type ne l'utilise aujourd'hui » est faux (vestige).
+
+---
+
+## Addendum au tableau récapitulatif (E-bis)
+
+| # | Impact | Constat | Localisation |
+|---|--------|---------|--------------|
+| 19 | **FORT** | Courtier/expert lié via `dossiers_sinistres` invisible dans le portail (liste + détail filtrent `.or(syndic_id,organisation_id)`, RLS l'autorise pourtant) | `portal/interventions/page.tsx:29`, `portal/page.tsx:40`, `portal/interventions/[id]/page.tsx:39` |
+| 20 | MOYEN | Vocab incohérent : bottom-nav mobile hardcode « Accueil »/« Interventions » vs desktop `vocab.interventionsCap` | `portal/PortalNav.tsx:173-177` |
+| 21 | FAIBLE | Libellés hardcodés dans le dashboard portail (« Carte des interventions », accord « récentes ») malgré `vocab.ts` | `portal/page.tsx:197,206` |
+| 22 | FAIBLE | Calendar expose les créneaux `reserve` (charge FoxO) aux partenaires | `portal/calendar/page.tsx` |
+
+*(Constats positifs E-bis : alias `/portal/{syndic,courtier,expert}` = redirections propres ; états vides et agrégats du dashboard corrects post-table-rase — pas de faux chiffre ni de page cassée.)*
+
+---
+
+## Top 10 corrections par valeur métier (révisé post E-bis)
+
+1. **Rendre visibles aux courtiers/experts leurs dossiers liés via `dossiers_sinistres`** (#19) — un rôle entier du portail est aujourd'hui aveugle aux dossiers où il est mandaté par un tiers, alors que la RLS et le téléchargement de rapport l'autorisent déjà. *Valeur : le portail courtier/expert fonctionne vraiment.*
+2. **Afficher le contenu du rapport (4 sections + photos) à l'admin** avant validation (#2) — « valider » à l'aveugle sinon.
+3. **Unifier la source du PDF transmis** (#3) — garantir que le syndic reçoit ce que l'admin a relu.
+4. **Faire avancer le dossier après transmission** (#1) — `rapport`→`cloturee`, vider le pipeline des dossiers traités.
+5. **Édition admin des sections du rapport** (#2) + régénération PDF — compléter « consulter ET corriger ».
+6. **Réintégrer l'upload PDF rapport dans le cycle `rapports`** (#4) — ou le supprimer si redondant.
+7. **Montrer la présence des occupants au technicien** (#5) — info terrain directe.
+8. **Corriger le vocabulaire mobile + dashboard portail** (#20, #21) — cohérence « dossiers sinistres » sur tous les écrans courtier/expert.
+9. **Dé-dupliquer les notifications `confirmee`** (#7) + **tracer les envois email** (#11) + exposer `occupant_responses_log` (#6).
+10. **Persister `drive_folder_id` partout** (#8) + **remonter les échecs partiels du pipeline mail** (#9) + rétro-lier l'observabilité (#10).
+
+---
+*Audit de cohérence réalisé en lecture seule le 2026-06-10 sur HEAD `9e15b6c` (post-#68), passage portails par rôle ajouté le même jour. Tâche 0 (migration cleanup observations_terrain) committée sur main ; aucun autre fichier applicatif modifié.*
