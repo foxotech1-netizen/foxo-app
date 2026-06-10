@@ -115,55 +115,61 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
   const secret = process.env.SUPABASE_AUTH_HOOK_SECRET;
 
-  if (secret) {
-    let authorized = false;
-    let mode: 'authorization' | 'webhook-signature' | null = null;
+  // Fail-closed (audit sécurité 2026-06-10) : sans secret configuré, on refuse
+  // la requête au lieu d'envoyer un email non authentifié (la route pourrait
+  // sinon relayer des emails arbitraires signés FoxO).
+  if (!secret) {
+    console.error('[auth/send-email] SUPABASE_AUTH_HOOK_SECRET non configuré — requête refusée (fail-closed).');
+    return NextResponse.json(
+      { error: 'service_unavailable', detail: 'Hook email non configuré côté serveur.' },
+      { status: 503 },
+    );
+  }
 
-    // ── Mode 1 : header Authorization (shared secret direct) ──────────
-    // Supabase peut envoyer le secret du hook dans un header
-    //   Authorization: <secret>           (valeur brute)
-    //   Authorization: Bearer <secret>    (préfixé)
-    // On compare avec SUPABASE_AUTH_HOOK_SECRET tel quel
-    // (format attendu : "v1,whsec_XXX...").
-    const authHeader = request.headers.get('authorization');
-    if (authHeader) {
-      const submitted = authHeader.replace(/^Bearer\s+/i, '').trim();
-      if (timingSafeEquals(submitted, secret)) {
+  let authorized = false;
+  let mode: 'authorization' | 'webhook-signature' | null = null;
+
+  // ── Mode 1 : header Authorization (shared secret direct) ──────────
+  // Supabase peut envoyer le secret du hook dans un header
+  //   Authorization: <secret>           (valeur brute)
+  //   Authorization: Bearer <secret>    (préfixé)
+  // On compare avec SUPABASE_AUTH_HOOK_SECRET tel quel
+  // (format attendu : "v1,whsec_XXX...").
+  const authHeader = request.headers.get('authorization');
+  if (authHeader) {
+    const submitted = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (timingSafeEquals(submitted, secret)) {
+      authorized = true;
+      mode = 'authorization';
+    }
+  }
+
+  // ── Mode 2 : Standard Webhooks (HMAC-SHA256) ──────────────────────
+  // Fallback si Authorization absent ou non matchant — beaucoup de
+  // setups Supabase utilisent ce format avec les mêmes secrets
+  // "v1,whsec_XXX".
+  if (!authorized) {
+    const webhookId = request.headers.get('webhook-id') ?? '';
+    const webhookTimestamp = request.headers.get('webhook-timestamp') ?? '';
+    const webhookSignature = request.headers.get('webhook-signature') ?? '';
+    if (webhookId && webhookTimestamp && webhookSignature) {
+      const sigOk = await verifySignature(rawBody, webhookId, webhookTimestamp, webhookSignature, secret);
+      if (sigOk) {
         authorized = true;
-        mode = 'authorization';
+        mode = 'webhook-signature';
       }
     }
+  }
 
-    // ── Mode 2 : Standard Webhooks (HMAC-SHA256) ──────────────────────
-    // Fallback si Authorization absent ou non matchant — beaucoup de
-    // setups Supabase utilisent ce format avec les mêmes secrets
-    // "v1,whsec_XXX".
-    if (!authorized) {
-      const webhookId = request.headers.get('webhook-id') ?? '';
-      const webhookTimestamp = request.headers.get('webhook-timestamp') ?? '';
-      const webhookSignature = request.headers.get('webhook-signature') ?? '';
-      if (webhookId && webhookTimestamp && webhookSignature) {
-        const sigOk = await verifySignature(rawBody, webhookId, webhookTimestamp, webhookSignature, secret);
-        if (sigOk) {
-          authorized = true;
-          mode = 'webhook-signature';
-        }
-      }
-    }
-
-    if (!authorized) {
-      return NextResponse.json(
-        { error: 'unauthorized', detail: 'Aucun mode d’authentification valide (Authorization header ou webhook-signature).' },
-        { status: 401 },
-      );
-    }
-    // En dev : trace du mode utilisé pour vérifier la config Supabase
-    if (process.env.NODE_ENV !== 'production') {
-      console.info(`[auth/send-email] webhook authentifié via : ${mode}`);
-    }
-  } else {
-    // Pas de secret configuré — log un warning. En prod, configure SUPABASE_AUTH_HOOK_SECRET.
-    console.warn('[auth/send-email] SUPABASE_AUTH_HOOK_SECRET non configuré — webhook non signé.');
+  if (!authorized) {
+    return NextResponse.json(
+      { error: 'unauthorized', detail: 'Aucun mode d’authentification valide (Authorization header ou webhook-signature).' },
+      { status: 401 },
+    );
+  }
+  // En dev : trace du mode utilisé pour vérifier la config Supabase
+  if (process.env.NODE_ENV !== 'production') {
+    console.info(`[auth/send-email] webhook authentifié via : ${mode}`);
   }
 
   let payload: HookPayload;

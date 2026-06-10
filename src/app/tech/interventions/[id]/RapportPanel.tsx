@@ -229,7 +229,7 @@ export function RapportPanel({
   }
 
   function doPublish() {
-    if (!confirm('Publier le rapport ? Le syndic et les occupants en seront informés.')) return;
+    if (!confirm('Publier le rapport ? Il sera enregistré en brouillon et soumis à validation par l\'administration. Aucune notification n\'est envoyée au syndic ni aux occupants à ce stade.')) return;
     startTransition(async () => {
       const res = await publishRapport(interventionId, values);
       if (res.ok) {

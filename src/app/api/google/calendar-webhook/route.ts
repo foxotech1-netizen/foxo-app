@@ -17,8 +17,15 @@ export const dynamic = 'force-dynamic';
 //   exists, not_exists), X-Goog-Channel-Token (pour vérif).
 export async function POST(request: Request) {
   const expectedToken = process.env.GOOGLE_CALENDAR_WEBHOOK_TOKEN;
+  // Fail-closed (audit sécurité 2026-06-10) : sans token configuré, on refuse
+  // avant tout traitement plutôt que d'accepter des POST anonymes déclenchant
+  // des écritures service-role (sync Google, DELETE de créneaux libres).
+  if (!expectedToken) {
+    console.error('[calendar-webhook] GOOGLE_CALENDAR_WEBHOOK_TOKEN non configuré — requête refusée (fail-closed).');
+    return NextResponse.json({ ok: false, error: 'Webhook non configuré.' }, { status: 503 });
+  }
   const headerToken = request.headers.get('x-goog-channel-token');
-  if (expectedToken && headerToken !== expectedToken) {
+  if (headerToken !== expectedToken) {
     return NextResponse.json({ ok: false, error: 'Bad token' }, { status: 401 });
   }
 

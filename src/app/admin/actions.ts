@@ -21,9 +21,11 @@ export async function assignTechnician(
   interventionId: string,
   technicienId: string | null,
 ): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
   if (!interventionId) return { error: 'ID manquant.' };
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from('interventions')
     .update({
@@ -42,10 +44,12 @@ export async function updateInterventionStatus(
   newStatut: StatutIntervention,
   suspensMotif?: string | null,
 ): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
   if (!id) return { error: 'ID manquant.' };
   if (!STATUTS_VALIDES.includes(newStatut)) return { error: 'Statut invalide.' };
 
-  const supabase = await createClient();
   const patch: Record<string, unknown> = {
     statut: newStatut,
     updated_at: new Date().toISOString(),
@@ -82,6 +86,8 @@ export async function getInterventionDocuments(
   interventionId: string,
 ): Promise<UploadedDocument[]> {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return [];
   const out: UploadedDocument[] = [];
 
   // Rapport : documents/{id}/rapport.pdf
@@ -195,6 +201,10 @@ export async function deleteInterventionDocument(
 }
 
 export async function createOrganisation(formData: FormData): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
+
   const nom = String(formData.get('nom') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const type = String(formData.get('type') ?? 'syndic') as TypeOrganisation;
@@ -221,7 +231,6 @@ export async function createOrganisation(formData: FormData): Promise<ActionStat
   ];
   if (!ALLOWED_ORG_TYPES.includes(type)) return { error: 'Type invalide.' };
 
-  const supabase = await createClient();
   const fullPayload: Record<string, unknown> = { nom, email, type, contact, telephone, bce, adresse, lat, lng };
   let { data, error } = await supabase
     .from('organisations')
@@ -261,6 +270,19 @@ export async function saveRapportDraftFromAdmin(
     return { error: 'Accès refusé.' };
   }
   if (!interventionId) return { error: 'ID manquant.' };
+
+  // Garde de statut (audit sécurité 2026-06-10) : ne jamais écraser le contenu
+  // d'un rapport déjà validé ou transmis. On n'autorise l'upsert que s'il
+  // n'existe aucune ligne (création) ou si elle est encore en 'brouillon'.
+  const { data: existing, error: readErr } = await supabase
+    .from('rapports')
+    .select('statut')
+    .eq('intervention_id', interventionId)
+    .maybeSingle();
+  if (readErr) return { error: readErr.message };
+  if (existing && existing.statut !== 'brouillon') {
+    return { error: 'Rapport déjà validé ou transmis — modification refusée.' };
+  }
 
   const { error } = await supabase
     .from('rapports')
@@ -485,9 +507,11 @@ export async function searchAcpsForIntervention(args: {
 // si aucune suggestion n'est en attente — empêche les race conditions
 // entre plusieurs admins ou un re-clic après refresh.
 export async function confirmAcpSuggestion(interventionId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
   if (!interventionId) return { error: 'ID manquant.' };
 
-  const supabase = await createClient();
   const { data: iv, error: getErr } = await supabase
     .from('interventions')
     .select('id, acp_id, acp_suggestion')
@@ -516,9 +540,11 @@ export async function confirmAcpSuggestion(interventionId: string): Promise<Acti
 // Ignore la suggestion : clear acp_suggestion, laisse acp_id null.
 // Idempotent (no-op si déjà null).
 export async function ignoreAcpSuggestion(interventionId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
   if (!interventionId) return { error: 'ID manquant.' };
 
-  const supabase = await createClient();
   const { error } = await supabase
     .from('interventions')
     .update({ acp_suggestion: null, updated_at: new Date().toISOString() })
