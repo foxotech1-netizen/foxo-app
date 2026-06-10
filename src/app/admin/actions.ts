@@ -271,6 +271,19 @@ export async function saveRapportDraftFromAdmin(
   }
   if (!interventionId) return { error: 'ID manquant.' };
 
+  // Garde de statut (audit sécurité 2026-06-10) : ne jamais écraser le contenu
+  // d'un rapport déjà validé ou transmis. On n'autorise l'upsert que s'il
+  // n'existe aucune ligne (création) ou si elle est encore en 'brouillon'.
+  const { data: existing, error: readErr } = await supabase
+    .from('rapports')
+    .select('statut')
+    .eq('intervention_id', interventionId)
+    .maybeSingle();
+  if (readErr) return { error: readErr.message };
+  if (existing && existing.statut !== 'brouillon') {
+    return { error: 'Rapport déjà validé ou transmis — modification refusée.' };
+  }
+
   const { error } = await supabase
     .from('rapports')
     .upsert(
