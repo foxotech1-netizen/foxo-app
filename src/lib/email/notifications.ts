@@ -1,6 +1,5 @@
 import { sendEmailResend } from '@/lib/email/resend';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { dispatchRapportToSyndic } from '@/lib/rapport/dispatch';
 import { VENDOR } from '@/lib/constants/vendor';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { StatutIntervention } from '@/lib/types/database';
@@ -265,15 +264,17 @@ export async function notifyStatusChange(
     case 'confirmee':
       await notifyConfirmee(ctx);
       break;
-    case 'rapport':
-      // Le dispatcher rapport gère déjà l'email + PDF en pièce jointe
-      await dispatchRapportToSyndic(interventionId);
-      break;
     case 'cloturee':
       await notifyCloturee(ctx);
       break;
     default:
-      // Pas de notification pour : attente, realisee, en_suspens
+      // Pas de notification automatique pour : attente, realisee, rapport,
+      // en_suspens. La TRANSMISSION du rapport au syndic ne se fait QUE via les
+      // chemins explicites (bouton admin « Envoyer au syndic » →
+      // resendRapportToSyndic, ou action assistant transmettre_rapport), après
+      // validation. On ne déclenche plus dispatchRapportToSyndic ici (audit
+      // sécurité 2026-06-10) : un simple passage en statut « rapport »
+      // (publication tech ou upload PDF admin) ne notifie plus le syndic.
       break;
   }
 }
