@@ -1,219 +1,280 @@
+import path from 'node:path';
 import {
-  Document, Page, Text, View, StyleSheet,
+  Document, Page, Text, View, Image, Font, StyleSheet,
 } from '@react-pdf/renderer';
+import type { ReportData } from '@/lib/rapport/build-docx';
+import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
+import { RAPPORT_LOGO } from '@/lib/rapport/logo';
 
-export type RapportPdfData = {
-  ref: string;
-  acpNom: string;
-  acpAdresse: string;
-  type: string;
-  description: string;
-  priorite: 'normale' | 'urgente';
-  creneauDebut: string | null;
-  startedAt: string | null;
-  endedAt: string | null;
-  syndicNom: string | null;
-  technicienNom: string | null;
-  appartements?: string[];        // ex: ['App 1706', 'App 1806', 'Cave 2']
-  rapport: {
-    degats: string;
-    inspection: string;
-    conclusion: string;
-    recommandations: string;
-  };
-  generatedAt: string;
+// Police Carlito — jumelle métrique de Calibri (licence SIL OFL, embarquable).
+// Les .ttf sont commités dans src/lib/pdf/fonts/ (+ OFL.txt) et inclus dans le
+// bundle serveur via next.config (outputFileTracingIncludes). Enregistrée une
+// seule fois au chargement du module.
+const FONTS_DIR = path.join(process.cwd(), 'src', 'lib', 'pdf', 'fonts');
+Font.register({
+  family: 'Carlito',
+  fonts: [
+    { src: path.join(FONTS_DIR, 'Carlito-Regular.ttf') },
+    { src: path.join(FONTS_DIR, 'Carlito-Bold.ttf'), fontWeight: 'bold' },
+    { src: path.join(FONTS_DIR, 'Carlito-Italic.ttf'), fontStyle: 'italic' },
+    { src: path.join(FONTS_DIR, 'Carlito-BoldItalic.ttf'), fontWeight: 'bold', fontStyle: 'italic' },
+  ],
+});
+
+// Moteur PDF du rapport — JUMEAU STRUCTUREL du template Word
+// (templates/"FOXO TEMPLATE VIERGE.docx") et du moteur docx (build-docx.ts).
+// Consomme le MÊME objet ReportData. Police : Carlito (jumelle Calibri),
+// embarquée depuis src/lib/pdf/fonts/.
+//
+// Palette alignée sur build-docx.ts.
+const C = {
+  dark: '#1B3A5C',     // titres, encadré, labels
+  mid: '#2E75B6',      // cases non cochées
+  accent: '#4A9FD4',   // ligne sous les titres de section
+  light: '#EAF4FB',    // fond cellules labels
+  body: '#1A1A1A',     // texte courant
+  muted: '#6B6B6B',    // secondaire / occupants / footer
+  divider: '#C0D4E8',  // bordures tableau
 };
 
-const COLORS = {
-  navy: '#1B3A6B',
-  ink: '#1C1A16',
-  inkMid: '#6B6558',
-  inkMuted: '#A09A8E',
-  border: '#DDD8CC',
-  cream: '#FDFBF7',
-  sand: '#F5F2EC',
-  terra: '#C4622D',
+// Largeurs du tableau d'identification (mêmes proportions que le docx :
+// C1=1900, C2=3333, C3=1900, C4=3333 — total 10466).
+const W = {
+  c1: '18.16%',
+  c2: '31.84%',
+  c3: '18.16%',
+  c4: '31.84%',
+  c1c2: '50%',
+  c3c4: '50%',
+  c2c3c4: '81.84%',
 };
 
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
-    fontFamily: 'Helvetica',
+    // paddingTop réserve la zone du header logo (fixed, répété chaque page) ;
+    // paddingBottom réserve la zone du footer (fixed).
+    paddingTop: 126,
+    paddingBottom: 58,
+    paddingHorizontal: 30,
+    fontFamily: 'Carlito',
     fontSize: 10,
-    color: COLORS.ink,
+    color: C.body,
     backgroundColor: '#FFFFFF',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    paddingBottom: 12,
+  // Encadré pleine page (4 côtés), répété sur chaque page.
+  pageBorder: {
+    position: 'absolute',
+    top: 18, left: 18, right: 18, bottom: 18,
+    borderWidth: 1.2,
+    borderColor: C.dark,
+  },
+  // Header logo (aligné gauche comme dans word/header1.xml du template),
+  // répété sur chaque page (fixed). Séparateur dark sous le logo.
+  logoHeader: {
+    position: 'absolute',
+    top: 28, left: 30, right: 30,
+  },
+  logoSep: {
+    marginTop: 6,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.navy,
-    marginBottom: 18,
+    borderBottomColor: C.dark,
   },
-  brand: { fontSize: 22, fontWeight: 700, color: COLORS.navy, letterSpacing: 1 },
-  brandSub: { fontSize: 8, color: COLORS.inkMuted, marginTop: 2, letterSpacing: 1, textTransform: 'uppercase' },
-  refBlock: { textAlign: 'right' },
-  refLabel: { fontSize: 8, color: COLORS.inkMuted, letterSpacing: 1, textTransform: 'uppercase' },
-  ref: { fontSize: 12, fontFamily: 'Courier', color: COLORS.navy, marginTop: 2 },
-  reportDate: { fontSize: 8, color: COLORS.inkMuted, marginTop: 4 },
-  title: { fontSize: 16, fontWeight: 700, color: COLORS.ink, marginBottom: 4 },
-  subtitle: { fontSize: 10, color: COLORS.inkMid, marginBottom: 16 },
-  metaGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    backgroundColor: COLORS.cream,
-    border: 1,
-    borderColor: COLORS.border,
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 18,
-  },
-  metaCell: { width: '50%', paddingVertical: 4, paddingRight: 8 },
-  metaLabel: { fontSize: 7, color: COLORS.inkMuted, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 },
-  metaValue: { fontSize: 10, color: COLORS.ink },
-  urgentTag: {
-    color: '#FFFFFF',
-    backgroundColor: COLORS.terra,
-    fontSize: 7,
-    fontWeight: 700,
-    padding: '2 6',
-    marginLeft: 6,
-    borderRadius: 8,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: COLORS.navy,
-    marginTop: 14,
-    marginBottom: 6,
-    paddingBottom: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    textTransform: 'uppercase',
+  logoFallback: { fontFamily: 'Carlito', fontWeight: 'bold', fontSize: 24, color: C.dark },
+  title: {
+    textAlign: 'center',
+    fontFamily: 'Carlito', fontWeight: 'bold',
+    fontSize: 22,
+    color: C.dark,
     letterSpacing: 1,
+    marginBottom: 14,
   },
-  paragraph: { fontSize: 10, lineHeight: 1.55, color: COLORS.ink, marginBottom: 4 },
-  empty: { fontSize: 9, color: COLORS.inkMuted, fontStyle: 'italic' },
+  // ── Tableau d'identification ──
+  table: { width: '100%', borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: C.divider },
+  row: { flexDirection: 'row' },
+  cellLabel: {
+    backgroundColor: C.light,
+    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.divider,
+    paddingVertical: 4, paddingHorizontal: 5,
+    fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark, fontSize: 8.5,
+  },
+  cellValue: {
+    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.divider,
+    paddingVertical: 4, paddingHorizontal: 5,
+    fontSize: 9.5, color: C.body,
+  },
+  facLine: { fontSize: 9.5, color: C.body, marginBottom: 1 },
+  occLine: { fontSize: 8.5, color: C.muted, marginTop: 1 },
+  // ── Techniques (cases dessinées) ──
+  techCols: { flexDirection: 'row', width: '100%' },
+  techCol: { width: '50%' },
+  checkRow: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 1.5 },
+  checkbox: {
+    width: 9, height: 9, borderWidth: 0.8,
+    alignItems: 'center', justifyContent: 'center',
+    marginRight: 4, marginTop: 0.5,
+  },
+  checkboxInner: { width: 4.5, height: 4.5 },
+  checkLabel: { fontSize: 8.5, color: C.body },
+  checkLabelOn: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
+  // ── Sections ──
+  sectionTitle: {
+    fontFamily: 'Carlito', fontWeight: 'bold',
+    fontSize: 12,
+    color: C.dark,
+    letterSpacing: 0.5,
+    marginTop: 14, marginBottom: 4,
+    paddingBottom: 3,
+    borderBottomWidth: 1, borderBottomColor: C.accent,
+  },
+  paragraph: { fontSize: 10, lineHeight: 1.5, color: C.body, marginBottom: 4 },
+  empty: { fontSize: 9.5, color: C.muted },
+  // ── Clôture ──
+  faitA: { textAlign: 'right', marginTop: 26, fontSize: 11, color: C.muted },
+  faitADate: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
+  // ── Footer 3 lignes ──
   footer: {
     position: 'absolute',
-    bottom: 28,
-    left: 40,
-    right: 40,
-    fontSize: 8,
-    color: COLORS.inkMuted,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 6,
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
+    left: 30, right: 30, bottom: 24,
+    textAlign: 'center',
+    fontSize: 7, color: C.muted, lineHeight: 1.45,
+    borderTopWidth: 0.5, borderTopColor: C.divider,
+    paddingTop: 5,
   },
 });
 
-function fmt(iso: string | null, withTime = true): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleString('fr-BE', {
-    day: 'numeric', month: 'long', year: 'numeric',
-    ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}),
-  });
+// Découpe une section sur le séparateur '||PARA||' (cf. textToParas docx).
+function paragraphs(text: string): string[] {
+  return (text ?? '')
+    .split('||PARA||')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
-function durationText(start: string | null, end: string | null): string {
-  if (!start || !end) return '—';
-  const ms = new Date(end).getTime() - new Date(start).getTime();
-  if (ms <= 0) return '—';
-  const min = Math.round(ms / 60000);
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}` : `${m} min`;
+function CheckItem({ label, checked }: { label: string; checked: boolean }) {
+  return (
+    <View style={styles.checkRow} wrap={false}>
+      <View style={[styles.checkbox, { borderColor: checked ? C.dark : C.mid }]}>
+        {checked && <View style={[styles.checkboxInner, { backgroundColor: C.dark }]} />}
+      </View>
+      <Text style={[styles.checkLabel, checked ? styles.checkLabelOn : {}]}>{label}</Text>
+    </View>
+  );
 }
 
-export function RapportPdf({ data }: { data: RapportPdfData }) {
-  const sections: Array<[string, string]> = [
-    ['Dégâts', data.rapport.degats],
-    ['Inspection', data.rapport.inspection],
-    ['Conclusion', data.rapport.conclusion],
-    ['Recommandations', data.rapport.recommandations],
-  ];
+function Section({ title, text }: { title: string; text: string }) {
+  const paras = paragraphs(text);
+  return (
+    <View>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {paras.length > 0
+        ? paras.map((p, i) => <Text key={i} style={styles.paragraph}>{p}</Text>)
+        : <Text style={styles.empty}>—</Text>}
+    </View>
+  );
+}
+
+export function RapportPdf({ data, logo }: { data: ReportData; logo?: Buffer | null }) {
+  const facturationLines = [
+    data.facturation_ligne1,
+    data.facturation_ligne2,
+    data.facturation_ligne3,
+    data.facturation_ligne4,
+  ].map((l) => (l ?? '').trim()).filter(Boolean);
+
+  const occupantLines = (data.adresse_ligne2 ?? '')
+    .split('\n').map((s) => s.trim()).filter(Boolean);
+
+  const techLeft = RAPPORT_TECHNIQUES.slice(0, 4);
+  const techRight = RAPPORT_TECHNIQUES.slice(4, 8);
 
   return (
     <Document
-      title={`Rapport intervention ${data.ref}`}
-      author="FoxO — Fox Group SRL"
-      subject="Rapport d'intervention détection de fuites"
+      title={`Rapport ${data.numero}`}
+      author="Fox Group srl"
+      subject="Rapport d'intervention — détection de fuites"
     >
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.brand}>FoxO</Text>
-            <Text style={styles.brandSub}>Détection de fuites — Belgique</Text>
+        {/* Encadré pleine page, répété sur chaque page */}
+        <View style={styles.pageBorder} fixed />
+
+        {/* Header logo (gauche, répété chaque page), comme dans le template */}
+        <View style={styles.logoHeader} fixed>
+          {logo
+            ? <Image src={{ data: logo, format: 'jpg' }} style={{ width: RAPPORT_LOGO.widthPt, height: RAPPORT_LOGO.heightPt }} />
+            : <Text style={styles.logoFallback}>FoxO</Text>}
+          <View style={styles.logoSep} />
+        </View>
+
+        <Text style={styles.title}>RAPPORT D&apos;INTERVENTION</Text>
+
+        {/* ── Tableau d'identification ── */}
+        <View style={styles.table}>
+          {/* L1 : N° Intervention : | numero | ref_label | ref_value */}
+          <View style={styles.row}>
+            <Text style={[styles.cellLabel, { width: W.c1 }]}>N° Intervention :</Text>
+            <Text style={[styles.cellValue, { width: W.c2 }]}>{data.numero || '—'}</Text>
+            <Text style={[styles.cellLabel, { width: W.c3 }]}>{data.ref_label}</Text>
+            <Text style={[styles.cellValue, { width: W.c4 }]}>{data.ref_value || '—'}</Text>
           </View>
-          <View style={styles.refBlock}>
-            <Text style={styles.refLabel}>Référence</Text>
-            <Text style={styles.ref}>{data.ref}</Text>
-            <Text style={styles.reportDate}>Émis le {fmt(data.generatedAt)}</Text>
+          {/* L2 : Objet intervention : | Adresse Facturation : */}
+          <View style={styles.row}>
+            <Text style={[styles.cellLabel, { width: W.c1c2 }]}>Objet intervention :</Text>
+            <Text style={[styles.cellLabel, { width: W.c3c4 }]}>Adresse Facturation :</Text>
+          </View>
+          {/* L3 : objet | facturation (multi-lignes) */}
+          <View style={styles.row}>
+            <Text style={[styles.cellValue, { width: W.c1c2 }]}>{data.objet || '—'}</Text>
+            <View style={[styles.cellValue, { width: W.c3c4 }]}>
+              {facturationLines.length > 0
+                ? facturationLines.map((l, i) => <Text key={i} style={styles.facLine}>{l}</Text>)
+                : <Text style={styles.facLine}>—</Text>}
+            </View>
+          </View>
+          {/* L4 : Adresse d'intervention : | adresse + occupants (1 ligne/occupant) */}
+          <View style={styles.row}>
+            <Text style={[styles.cellLabel, { width: W.c1 }]}>Adresse d&apos;intervention :</Text>
+            <View style={[styles.cellValue, { width: W.c2c3c4 }]}>
+              <Text style={styles.facLine}>{data.adresse_ligne1 || '—'}</Text>
+              {occupantLines.map((l, i) => <Text key={i} style={styles.occLine}>{l}</Text>)}
+              {data.adresse_ligne3 ? <Text style={styles.occLine}>{data.adresse_ligne3}</Text> : null}
+            </View>
+          </View>
+          {/* L5 : Techniques d'inspection : | 4 gauche | 4 droite */}
+          <View style={styles.row}>
+            <Text style={[styles.cellLabel, { width: W.c1 }]}>Techniques d&apos;inspection :</Text>
+            <View style={[styles.cellValue, { width: W.c2c3c4 }]}>
+              <View style={styles.techCols}>
+                <View style={styles.techCol}>
+                  {techLeft.map((tk) => (
+                    <CheckItem key={tk.key} label={tk.label} checked={Boolean(data.techniques[tk.key])} />
+                  ))}
+                </View>
+                <View style={styles.techCol}>
+                  {techRight.map((tk) => (
+                    <CheckItem key={tk.key} label={tk.label} checked={Boolean(data.techniques[tk.key])} />
+                  ))}
+                </View>
+              </View>
+            </View>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-          <Text style={styles.title}>{data.acpNom}</Text>
-          {data.priorite === 'urgente' && (
-            <Text style={styles.urgentTag}>URGENT</Text>
-          )}
-        </View>
-        <Text style={styles.subtitle}>{data.acpAdresse}</Text>
-        {data.appartements && data.appartements.length > 0 && (
-          <Text style={[styles.subtitle, { marginTop: 2, fontStyle: 'italic' }]}>
-            Unités inspectées : {data.appartements.join(' · ')}
-          </Text>
-        )}
+        {/* ── 4 sections ── */}
+        <Section title="DÉGÂTS" text={data.degats} />
+        <Section title="INSPECTION" text={data.inspection} />
+        <Section title="CONCLUSION" text={data.conclusion} />
+        <Section title="RECOMMANDATION" text={data.recommandation} />
 
-        <View style={styles.metaGrid}>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Demandeur</Text>
-            <Text style={styles.metaValue}>{data.syndicNom ?? '—'}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Technicien</Text>
-            <Text style={styles.metaValue}>{data.technicienNom ?? '—'}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Type d&apos;intervention</Text>
-            <Text style={styles.metaValue}>{data.type}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Créneau</Text>
-            <Text style={styles.metaValue}>{fmt(data.creneauDebut)}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Début effectif</Text>
-            <Text style={styles.metaValue}>{fmt(data.startedAt)}</Text>
-          </View>
-          <View style={styles.metaCell}>
-            <Text style={styles.metaLabel}>Durée sur place</Text>
-            <Text style={styles.metaValue}>{durationText(data.startedAt, data.endedAt)}</Text>
-          </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>Description initiale</Text>
-        <Text style={data.description ? styles.paragraph : styles.empty}>
-          {data.description || 'Aucune description fournie.'}
+        {/* ── Clôture ── */}
+        <Text style={styles.faitA}>
+          Fait à Bruxelles le,  <Text style={styles.faitADate}>{data.fait_a_date}</Text>
         </Text>
 
-        {sections.map(([title, content]) => (
-          <View key={title} wrap={false}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <Text style={content ? styles.paragraph : styles.empty}>
-              {content || '—'}
-            </Text>
-          </View>
-        ))}
-
-        <View style={styles.footer}>
-          <Text>Fox Group SRL · noreply@foxo.be</Text>
-          <Text>Rapport {data.ref}</Text>
+        {/* ── Footer 3 lignes, répété sur chaque page ── */}
+        <View style={styles.footer} fixed>
+          <Text>Fox Group srl  ·  Stationstraat 55, 3070 Kortenberg  ·  info@foxo.be  ·  +32 488 700 007</Text>
+          <Text>TVA : BE1030.109.019  ·  BEOBANK : BE62 9502 6652 9861</Text>
+          <Text>© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite</Text>
         </View>
       </Page>
     </Document>

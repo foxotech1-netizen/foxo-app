@@ -30,9 +30,8 @@ import {
   PageBorderOffsetFrom,
   PageBorderZOrder,
 } from 'docx';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { imageSize } from 'image-size';
+import { getRapportLogoBytes, RAPPORT_LOGO } from '@/lib/rapport/logo';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/google-auth';
 
@@ -81,16 +80,11 @@ const PHOTO_MAX_WIDTH_PX = 400;
 
 // ─── ReportData — input contrat du builder ────────────────────────────
 
-export interface ReportTechniques {
-  capteur: boolean;
-  thermique: boolean;
-  camera: boolean;
-  traceur: boolean;
-  acoustique: boolean;
-  pression: boolean;
-  gaz: boolean;
-  visuelle: boolean;
-}
+// ReportTechniques est désormais défini dans le module canonique partagé
+// (src/lib/rapport/techniques.ts). Importé ici et ré-exporté pour ne pas
+// casser les imports existants (report-data-mapping, etc.).
+import type { ReportTechniques } from '@/lib/rapport/techniques';
+export type { ReportTechniques };
 
 export interface ReportData {
   numero: string;
@@ -163,7 +157,8 @@ function bodyTextMuted(text: string): Paragraph {
 }
 
 // Checkbox + libellé pour la section Techniques. Cochée = ☑ bold dark_blue,
-// non cochée = ☐ mid_blue + texte body italic. Indent 80 pour aérer.
+// non cochée = ☐ mid_blue. Texte du libellé en NORMAL (conforme template :
+// pas d'italique) — cochée en gras dark_blue, non cochée en body normal.
 function checkItem(text: string, checked: boolean): Paragraph {
   return new Paragraph({
     spacing: { before: 55, after: 55 },
@@ -176,7 +171,7 @@ function checkItem(text: string, checked: boolean): Paragraph {
       }),
       t(text, {
         size: 18,
-        italic: true,
+        italic: false,
         bold: checked,
         color: checked ? DARK_BLUE : BODY_TEXT,
       }),
@@ -261,9 +256,13 @@ function buildIdentificationTable(data: ReportData): Table {
     }));
   }
   if (data.adresse_ligne2) {
-    adresseParas.push(new Paragraph({
-      children: [t(data.adresse_ligne2, { size: 19, italic: true, color: MUTED })],
-    }));
+    // Une ligne (paragraphe) par occupant — la valeur est scindée sur '\n'
+    // (cf. buildAdresseInterventionLine2).
+    for (const occLine of data.adresse_ligne2.split('\n').map((s) => s.trim()).filter(Boolean)) {
+      adresseParas.push(new Paragraph({
+        children: [t(occLine, { size: 19, italic: true, color: MUTED })],
+      }));
+    }
   }
   if (data.adresse_ligne3) {
     adresseParas.push(new Paragraph({
@@ -310,7 +309,7 @@ function buildIdentificationTable(data: ReportData): Table {
       // L1 : N° Intervention | numero | ref_label | ref_value
       new TableRow({
         children: [
-          labelCell(C1, 'N° Intervention'),
+          labelCell(C1, 'N° Intervention :'),
           valueCell(C2, data.numero),
           labelCell(C3, data.ref_label),
           valueCell(C4, data.ref_value),
@@ -528,30 +527,13 @@ export async function buildRapportDocx(args: {
 }): Promise<Uint8Array> {
   const { data } = args;
 
-  // Logo header — best-effort (si manquant, fallback texte "FoxO").
-  // Largeur cible : 200px (réduite depuis 280px pour aérer la zone
-  // header). Hauteur calculée dynamiquement depuis les vraies dimensions
-  // du PNG pour préserver le ratio et éviter une déformation visuelle si
-  // l'asset est remplacé (ex. logo "FoxO + Fox Group srl côte à côte"
-  // ratio ≈ 2.95 → height ≈ 68 à 200 de width). Fallback 200×68 si
-  // image-size échoue.
-  let logoBytes: Buffer | null = null;
-  const logoWidth = 200;
-  let logoHeight = 68;
-  try {
-    const logoPath = path.join(
-      process.cwd(),
-      'public',
-      'foxo-logo-documents.png',
-    );
-    logoBytes = await fs.readFile(logoPath);
-    const dim = imageSize(logoBytes);
-    if (dim.width && dim.height) {
-      logoHeight = Math.round(logoWidth * dim.height / dim.width);
-    }
-  } catch (e) {
-    console.warn('[build-docx] logo introuvable:', e);
-  }
+  // Logo header — extrait du template Word (asset partagé avec le moteur PDF).
+  // Best-effort : fallback texte "FoxO" si manquant. Dimensions reprises de
+  // l'extent EMU du template (≈ 205 × 108 px), aligné à gauche comme dans
+  // word/header1.xml.
+  const logoBytes: Buffer | null = await getRapportLogoBytes();
+  const logoWidth = RAPPORT_LOGO.widthPx;   // 205
+  const logoHeight = RAPPORT_LOGO.heightPx; // 108
   // fmtDate accessible aux callers ; ici utilisé uniquement si data.fait_a_date vide
   void fmtDate;
 
@@ -568,7 +550,7 @@ export async function buildRapportDocx(args: {
               new ImageRun({
                 data: logoBytes,
                 transformation: { width: logoWidth, height: logoHeight },
-                type: 'png',
+                type: 'jpg',
               }),
             ]
           : [t('FoxO', { bold: true, size: 36, color: DARK_BLUE })],
@@ -616,11 +598,14 @@ export async function buildRapportDocx(args: {
   });
 
   // ─── Body ───────────────────────────────────────────────────────────
+  // Titres en MAJUSCULES conformes au template (DÉGÂTS, INSPECTION, CONCLUSION,
+  // RECOMMANDATION). On passe les libellés déjà en capitales (en plus de
+  // allCaps dans sectionTitle) pour garantir le rendu quel que soit le client.
   const sectionsConfig: { key: SectionKey; title: string; text: string }[] = [
-    { key: 'degats',          title: 'Dégâts',         text: data.degats },
-    { key: 'inspection',      title: 'Inspection',     text: data.inspection },
-    { key: 'conclusion',      title: 'Conclusion',     text: data.conclusion },
-    { key: 'recommandations', title: 'Recommandation', text: data.recommandation },
+    { key: 'degats',          title: 'DÉGÂTS',         text: data.degats },
+    { key: 'inspection',      title: 'INSPECTION',     text: data.inspection },
+    { key: 'conclusion',      title: 'CONCLUSION',     text: data.conclusion },
+    { key: 'recommandations', title: 'RECOMMANDATION', text: data.recommandation },
   ];
 
   const bodyChildren: (Paragraph | Table)[] = [
@@ -655,8 +640,9 @@ export async function buildRapportDocx(args: {
       alignment: AlignmentType.RIGHT,
       spacing: { before: 600 },
       children: [
-        t('Fait à Bruxelles le,  ', { size: 22, italic: true, color: MUTED }),
-        t(data.fait_a_date, { size: 22, italic: true, bold: true, color: DARK_BLUE }),
+        // Conforme template : texte normal (pas d'italique), date en gras.
+        t('Fait à Bruxelles le,  ', { size: 22, italic: false, color: MUTED }),
+        t(data.fait_a_date, { size: 22, italic: false, bold: true, color: DARK_BLUE }),
       ],
     }),
   );

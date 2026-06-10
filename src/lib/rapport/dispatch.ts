@@ -15,6 +15,7 @@ import {
   buildTechniques,
   fmtDateShort,
 } from '@/lib/rapport/report-data-mapping';
+import { techniquesFromKeys } from '@/lib/rapport/techniques';
 import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
@@ -78,9 +79,6 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   const tech = techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null;
   const rapport = rapRes.data as Rapport | null;
   const occupants = (occRes.data ?? []) as Pick<Occupant, 'appartement' | 'prenom' | 'nom' | 'type_occupant'>[];
-  const appartements = occupants
-    .map((o) => o.appartement)
-    .filter((a): a is string => Boolean(a && a.trim()));
   const observations = (obsRes.data ?? []) as Array<{ test_type: string }>;
 
   if (!rapport) return { ok: false, error: 'Aucun rapport rédigé pour cette intervention.' };
@@ -89,28 +87,6 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   const techNom = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ') : null;
   const ref = iv.ref ?? '—';
   const acpNom = acp?.nom ?? '—';
-
-  const pdfBuffer = await generateRapportPdf({
-    ref,
-    acpNom,
-    acpAdresse: acpAdresse || '—',
-    type: iv.type ?? '—',
-    description: iv.description ?? '',
-    priorite: iv.priorite,
-    creneauDebut: iv.creneau_debut,
-    startedAt: iv.started_at,
-    endedAt: iv.ended_at,
-    syndicNom: syndic?.nom ?? null,
-    technicienNom: techNom,
-    appartements,
-    rapport: {
-      degats: rapport.degats ?? '',
-      inspection: rapport.inspection ?? '',
-      conclusion: rapport.conclusion ?? '',
-      recommandations: rapport.recommandations ?? '',
-    },
-    generatedAt: new Date().toISOString(),
-  });
 
   // Destinataire résolu via la cascade ACP → Syndic → legacy → particulier
   // Voir lib/notifications.ts pour le détail. On garde syndicEmail comme
@@ -121,10 +97,11 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     particulier_contact: iv.particulier_contact as ParticulierContact | null,
   }, 'rapport');
 
-  // ─── Composition ReportData (template FOXO_BASE) ────────────────────
+  // ─── Composition ReportData (template FOXO_BASE) — SOURCE UNIQUE ─────
   //
-  // Helpers partagés avec route.ts (rapport-docx export brouillon) pour
-  // garantir un mapping identique entre brouillon et envoi final.
+  // Un seul ReportData alimente les DEUX moteurs (PDF jumeau via
+  // generateRapportPdf, DOCX via buildRapportDocx) : aucun double chemin de
+  // données. Helpers partagés avec route.ts (rapport-docx export brouillon).
   const today = new Date();
 
   // Le builder splitte sur '||PARA||' pour produire un Paragraph par bloc
@@ -135,6 +112,13 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   const refLabelValue = buildRefLabelValue(iv, today);
   const facturationLines = buildFacturationLines(iv, acp, syndic);
 
+  // Techniques : snapshot persisté (rapports.techniques) prioritaire ; fallback
+  // sur la dérivation observations_terrain tant que le snapshot n'est pas peuplé.
+  const techKeys = (rapport as { techniques?: string[] | null } | null)?.techniques ?? null;
+  const techniques = techKeys && techKeys.length > 0
+    ? techniquesFromKeys(techKeys)
+    : buildTechniques(observations);
+
   const reportData: ReportData = {
     numero: ref,
     ref_label: refLabelValue.ref_label,
@@ -144,13 +128,16 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     adresse_ligne1: buildAdresseInterventionLine1(acp, iv),
     adresse_ligne2: buildAdresseInterventionLine2(occupants),
     adresse_ligne3: '',
-    techniques: buildTechniques(observations),
+    techniques,
     degats: toParaFmt(rapport.degats ?? ''),
     inspection: toParaFmt(rapport.inspection ?? ''),
     conclusion: toParaFmt(rapport.conclusion ?? ''),
     recommandation: toParaFmt(rapport.recommandations ?? ''),
     fait_a_date: fmtDateShort(today),
   };
+
+  // PDF jumeau du template, généré depuis le MÊME ReportData que le docx.
+  const pdfBuffer = await generateRapportPdf(reportData);
 
   return {
     ok: true,

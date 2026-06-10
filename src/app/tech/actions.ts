@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { roleForEmail } from '@/lib/auth/roles';
 import { syncInterventionToDrive, type DriveSyncResult } from '@/lib/drive';
+import { buildTechniques } from '@/lib/rapport/report-data-mapping';
+import { techniquesToKeys } from '@/lib/rapport/techniques';
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
 
@@ -140,6 +142,34 @@ export async function publishRapport(
     .update({ statut: 'rapport', updated_at: new Date().toISOString() })
     .eq('id', interventionId);
   if (ivErr) return { ok: false, error: ivErr.message };
+
+  // Snapshot des techniques (audit Rapport v2) : à la publication, si le
+  // tableau rapports.techniques n'est pas encore figé, on le peuple depuis la
+  // dérivation observations_terrain — il devient la source de vérité éditable
+  // côté admin. Best-effort, ne bloque pas la publication.
+  try {
+    const { data: existing } = await supabase
+      .from('rapports')
+      .select('techniques')
+      .eq('intervention_id', interventionId)
+      .maybeSingle();
+    const current = (existing as { techniques?: string[] | null } | null)?.techniques ?? [];
+    if (!current || current.length === 0) {
+      const { data: obs } = await supabase
+        .from('observations_terrain')
+        .select('test_type')
+        .eq('intervention_id', interventionId);
+      const keys = techniquesToKeys(buildTechniques((obs ?? []) as Array<{ test_type: string }>));
+      if (keys.length > 0) {
+        await supabase
+          .from('rapports')
+          .update({ techniques: keys })
+          .eq('intervention_id', interventionId);
+      }
+    }
+  } catch (e) {
+    console.warn('[publishRapport] snapshot techniques skipped:', e);
+  }
 
   revalidatePath(`/tech/interventions/${interventionId}`);
   revalidatePath('/tech');

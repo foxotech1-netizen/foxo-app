@@ -73,6 +73,7 @@ import { TypeBadge } from '@/components/TypeBadge';
 import { SendSmsModal } from '@/components/SendSmsModal';
 import { MailStepper } from './MailStepper';
 import { MessagesPanel } from '@/components/MessagesPanel';
+import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
   { icon: FileEdit, label: 'Rédiger le rapport', prompt: 'Génère les 4 sections du rapport (degats, inspection, conclusion, recommandations) en JSON pur, en te basant sur la description initiale, le contexte du dossier et les données disponibles. Respecte les règles FoxO ("capteur d\'humidité", formulations prudentes, prose française).' },
@@ -245,7 +246,10 @@ export function InterventionsClient({
     inspection: string | null;
     conclusion: string | null;
     recommandations: string | null;
+    techniques: string[] | null;
   } | null>(null);
+  // Techniques cochées (édition brouillon) — Set de clés canoniques.
+  const [rapportTech, setRapportTech] = useState<Set<string>>(new Set());
   const [rapportInfoLoading, setRapportInfoLoading] = useState(false);
   // Galerie photos de l'intervention (consultation admin du rapport).
   const [rapportPhotos, setRapportPhotos] = useState<Array<{
@@ -590,6 +594,7 @@ export function InterventionsClient({
         if (data.ok) {
           setRapportInfo(data.rapport);
           setRapportPhotos(Array.isArray(data.photos) ? data.photos : []);
+          setRapportTech(new Set(Array.isArray(data.rapport?.techniques) ? data.rapport.techniques : []));
           // Pré-remplit le formulaire d'édition (utilisé seulement en brouillon).
           if (data.rapport) {
             setRapportEdit({
@@ -609,7 +614,7 @@ export function InterventionsClient({
     if (!selected || !rapportEdit) return;
     setRapportSaveMsg(null);
     startRapportSaveTransition(async () => {
-      const res = await saveRapportDraftFromAdmin(selected.id, rapportEdit);
+      const res = await saveRapportDraftFromAdmin(selected.id, rapportEdit, Array.from(rapportTech));
       if (res.error) setRapportSaveMsg({ kind: 'err', msg: res.error });
       else {
         setRapportSaveMsg({ kind: 'ok', msg: 'Corrections enregistrées.' });
@@ -2643,6 +2648,42 @@ export function InterventionsClient({
                               )}
                             </div>
                           ))}
+
+                          {/* Techniques d'inspection — 8 cases, éditables en brouillon */}
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">Techniques d&apos;inspection</div>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                              {RAPPORT_TECHNIQUES.map((tech) => {
+                                const checked = rapportTech.has(tech.key);
+                                const editable = rapportInfo.statut === 'brouillon';
+                                return (
+                                  <label
+                                    key={tech.key}
+                                    className={
+                                      'flex items-center gap-1.5 text-[12px] ' +
+                                      (editable ? 'cursor-pointer text-ink' : 'text-ink-mid')
+                                    }
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled={!editable}
+                                      onChange={(e) => {
+                                        setRapportTech((cur) => {
+                                          const next = new Set(cur);
+                                          if (e.target.checked) next.add(tech.key);
+                                          else next.delete(tech.key);
+                                          return next;
+                                        });
+                                      }}
+                                      className="accent-navy"
+                                    />
+                                    {tech.label}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
 
                           {/* Galerie photos */}
                           {rapportPhotos.length > 0 && (

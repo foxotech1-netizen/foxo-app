@@ -263,6 +263,9 @@ export async function createOrganisation(formData: FormData): Promise<ActionStat
 export async function saveRapportDraftFromAdmin(
   interventionId: string,
   sections: { degats: string; inspection: string; conclusion: string; recommandations: string },
+  // Optionnel (audit Rapport v2) : snapshot des 8 techniques cochées côté admin
+  // (tableau de clés canoniques). Omis = on ne touche pas aux techniques.
+  techniques?: string[],
 ): Promise<ActionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -293,6 +296,7 @@ export async function saveRapportDraftFromAdmin(
         inspection: sections.inspection,
         conclusion: sections.conclusion,
         recommandations: sections.recommandations,
+        ...(techniques ? { techniques } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'intervention_id' },
