@@ -7,10 +7,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '10mb',
     },
   },
-  // S'assure que le .md du system prompt FoxO est packagé avec les fonctions
-  // serveur (sinon fs.readFileSync échoue en runtime sur Vercel).
+  // S'assure que les assets lus via fs en runtime (system prompt .md, logo du
+  // rapport) sont packagés avec les fonctions serveur (sinon fs échoue sur
+  // Vercel).
   outputFileTracingIncludes: {
-    '*': ['./src/lib/prompts/**/*.md'],
+    '*': ['./src/lib/prompts/**/*.md', './src/lib/rapport/assets/**'],
   },
 };
 

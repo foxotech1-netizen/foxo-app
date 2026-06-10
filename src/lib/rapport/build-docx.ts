@@ -30,9 +30,8 @@ import {
   PageBorderOffsetFrom,
   PageBorderZOrder,
 } from 'docx';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import { imageSize } from 'image-size';
+import { getRapportLogoBytes, RAPPORT_LOGO } from '@/lib/rapport/logo';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/google-auth';
 
@@ -528,30 +527,13 @@ export async function buildRapportDocx(args: {
 }): Promise<Uint8Array> {
   const { data } = args;
 
-  // Logo header — best-effort (si manquant, fallback texte "FoxO").
-  // Largeur cible : 200px (réduite depuis 280px pour aérer la zone
-  // header). Hauteur calculée dynamiquement depuis les vraies dimensions
-  // du PNG pour préserver le ratio et éviter une déformation visuelle si
-  // l'asset est remplacé (ex. logo "FoxO + Fox Group srl côte à côte"
-  // ratio ≈ 2.95 → height ≈ 68 à 200 de width). Fallback 200×68 si
-  // image-size échoue.
-  let logoBytes: Buffer | null = null;
-  const logoWidth = 200;
-  let logoHeight = 68;
-  try {
-    const logoPath = path.join(
-      process.cwd(),
-      'public',
-      'foxo-logo-documents.png',
-    );
-    logoBytes = await fs.readFile(logoPath);
-    const dim = imageSize(logoBytes);
-    if (dim.width && dim.height) {
-      logoHeight = Math.round(logoWidth * dim.height / dim.width);
-    }
-  } catch (e) {
-    console.warn('[build-docx] logo introuvable:', e);
-  }
+  // Logo header — extrait du template Word (asset partagé avec le moteur PDF).
+  // Best-effort : fallback texte "FoxO" si manquant. Dimensions reprises de
+  // l'extent EMU du template (≈ 205 × 108 px), aligné à gauche comme dans
+  // word/header1.xml.
+  const logoBytes: Buffer | null = await getRapportLogoBytes();
+  const logoWidth = RAPPORT_LOGO.widthPx;   // 205
+  const logoHeight = RAPPORT_LOGO.heightPx; // 108
   // fmtDate accessible aux callers ; ici utilisé uniquement si data.fait_a_date vide
   void fmtDate;
 
@@ -568,7 +550,7 @@ export async function buildRapportDocx(args: {
               new ImageRun({
                 data: logoBytes,
                 transformation: { width: logoWidth, height: logoHeight },
-                type: 'png',
+                type: 'jpg',
               }),
             ]
           : [t('FoxO', { bold: true, size: 36, color: DARK_BLUE })],
