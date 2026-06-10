@@ -62,3 +62,23 @@ export async function getCurrentSyndic(): Promise<{
     via: org ? 'legacy' : null,
   };
 }
+
+// Interventions sur lesquelles l'organisation est mandatée via un dossier
+// sinistre (dossiers_sinistres.courtier_id = org.id). Couvre courtier ET
+// expert : les deux rôles écrivent leur mandat dans la colonne courtier_id
+// (cf. portal/actions.submitRequest). Sert à étendre la visibilité du portail
+// au-delà du lien direct syndic_id/organisation_id (audit cohérence #19).
+//
+// Le client est passé par l'appelant (cookie-bound RLS-applied) pour ne pas
+// ouvrir une seconde connexion. Retourne une liste d'ids dédupliquée.
+export async function getMandatedInterventionIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  orgId: string,
+): Promise<string[]> {
+  const { data } = await supabase
+    .from('dossiers_sinistres')
+    .select('intervention_id')
+    .eq('courtier_id', orgId);
+  const ids = ((data ?? []) as { intervention_id: string }[]).map((d) => d.intervention_id);
+  return Array.from(new Set(ids));
+}

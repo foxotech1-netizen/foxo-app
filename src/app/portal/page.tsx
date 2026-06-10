@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Hand, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { getCurrentSyndic, getMandatedInterventionIds } from '@/lib/portal/syndic';
 import { getMonthSlots } from '@/lib/portal/availability';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, todayLong } from '@/lib/format';
@@ -33,11 +33,18 @@ export default async function PortalDashboard() {
   }
 
   const supabase = await createClient();
-  // Filtre par syndic_id (legacy) OU organisation_id (nouveau lien).
+  // Visibilité : lien direct syndic_id (legacy) OU organisation_id (nouveau)
+  // OU mandat via dossier sinistre (courtier/expert mandaté — audit #19). On
+  // étend le filtre applicatif avec les ids de dossiers ; clause id.in.(…)
+  // ajoutée seulement si la liste est non vide (évite un id.in.() invalide).
+  const mandatedIds = await getMandatedInterventionIds(supabase, org.id);
+  const orFilter = mandatedIds.length > 0
+    ? `syndic_id.eq.${org.id},organisation_id.eq.${org.id},id.in.(${mandatedIds.join(',')})`
+    : `syndic_id.eq.${org.id},organisation_id.eq.${org.id}`;
   const { data: interventionsData } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, creneau_debut, updated_at, acp_id, adresse')
-    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
+    .or(orFilter)
     .order('created_at', { ascending: false });
 
   const interventions: Pick<

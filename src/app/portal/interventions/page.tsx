@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { getCurrentSyndic, getMandatedInterventionIds } from '@/lib/portal/syndic';
 import { InterventionsPortalClient } from './InterventionsPortalClient';
 import type { Acp, Intervention, PrioriteIntervention, StatutIntervention } from '@/lib/types/database';
 
@@ -70,12 +70,18 @@ export default async function InterventionsPage({
   const isSinistre = org.type === 'courtier' || org.type === 'expert';
   const supabase = await createClient();
 
-  // Accepte les 2 liens : syndic_id (legacy) OU organisation_id (nouveau).
+  // Visibilité : lien direct syndic_id (legacy) OU organisation_id (nouveau)
+  // OU mandat via dossier sinistre (courtier/expert mandaté — audit #19).
+  // Clause id.in.(…) ajoutée seulement si la liste de dossiers est non vide.
   // Filtre soft delete (deleted_at IS NULL) pour rester aligné avec l'admin.
+  const mandatedIds = await getMandatedInterventionIds(supabase, org.id);
+  const orFilter = mandatedIds.length > 0
+    ? `syndic_id.eq.${org.id},organisation_id.eq.${org.id},id.in.(${mandatedIds.join(',')})`
+    : `syndic_id.eq.${org.id},organisation_id.eq.${org.id}`;
   const { data, error } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, technicien_id, assureur, reference_externe')
-    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
+    .or(orFilter)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
