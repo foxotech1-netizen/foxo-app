@@ -245,6 +245,20 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
     console.error('[dispatch] failed to mark rapport as transmis', e);
   }
 
+  // ── Clôture automatique du dossier après transmission RÉUSSIE ──
+  // On n'atteint ce point que si l'envoi email a réussi (return anticipé sinon).
+  // La transmission EST la notification : aucun notifyStatusChange ici (silencieux).
+  // Best-effort : un échec de cet UPDATE ne doit pas faire échouer la transmission.
+  try {
+    const db = createAdminClient();
+    await db
+      .from('interventions')
+      .update({ statut: 'cloturee', updated_at: new Date().toISOString() })
+      .eq('id', interventionId);
+  } catch (e) {
+    console.error('[dispatch] failed to mark intervention as cloturee', e);
+  }
+
   // Étape 4 — reply-in-thread Gmail « rapport dispo » (best-effort, jamais bloquant).
   // Quand l'intervention vient d'un mail, on répond DANS le fil d'origine
   // (In-Reply-To + References + threadId gérés par sendMailReply).
