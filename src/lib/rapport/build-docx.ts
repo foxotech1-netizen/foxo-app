@@ -262,9 +262,13 @@ function buildIdentificationTable(data: ReportData): Table {
     }));
   }
   if (data.adresse_ligne2) {
-    adresseParas.push(new Paragraph({
-      children: [t(data.adresse_ligne2, { size: 19, italic: true, color: MUTED })],
-    }));
+    // Une ligne (paragraphe) par occupant — la valeur est scindée sur '\n'
+    // (cf. buildAdresseInterventionLine2).
+    for (const occLine of data.adresse_ligne2.split('\n').map((s) => s.trim()).filter(Boolean)) {
+      adresseParas.push(new Paragraph({
+        children: [t(occLine, { size: 19, italic: true, color: MUTED })],
+      }));
+    }
   }
   if (data.adresse_ligne3) {
     adresseParas.push(new Paragraph({

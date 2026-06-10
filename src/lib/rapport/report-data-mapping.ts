@@ -106,12 +106,19 @@ export function buildFacturationLines(
     : (acp?.nom ?? '');
   const facturation_ligne1 = (iv.nom_facturation?.trim()) || acpNomBce;
 
+  // Traçabilité (audit Rapport v2) : on ne fabrique JAMAIS une donnée manquante,
+  // on omet la ligne et on logue pour que la relecture admin sache quoi compléter.
+  if (acp && !acp.bce) console.warn('[rapport] facturation : BCE ACP manquante (ligne BCE omise).');
+  if (!acp?.nom && !iv.nom_facturation?.trim()) console.warn('[rapport] facturation : nom client/ACP manquant.');
+
   // Cas standard — un syndic est rattaché : "c/o {nom} – {contact}" L2,
   // puis rue L3 et CP+ville L4 parsés depuis syndic.adresse.
   if (syndic?.nom) {
     const facturation_ligne2 =
       `c/o ${syndic.nom}${syndic.contact?.trim() ? SEP_DASH + syndic.contact.trim() : ''}`;
+    if (!syndic.contact?.trim()) console.warn('[rapport] facturation : contact syndic manquant (omis).');
     const { rue, cpVille } = splitSyndicAdresse(syndic.adresse ?? null);
+    if (!rue && !cpVille) console.warn('[rapport] facturation : adresse syndic absente/illisible (lignes rue + CP/ville omises).');
     return {
       facturation_ligne1,
       facturation_ligne2,
@@ -119,6 +126,8 @@ export function buildFacturationLines(
       facturation_ligne4: cpVille,
     };
   }
+
+  console.warn('[rapport] facturation : aucun syndic rattaché — repli sur données intervention.');
 
   // Fallback — pas de syndic : on remplit avec ce qu'on a sur
   // l'intervention (override email_facturation/bce_facturation +
@@ -184,13 +193,17 @@ export function buildAdresseInterventionLine1(
   return acpFullAddr || iv.adresse?.trim() || '';
 }
 
+// Une ligne par occupant (audit Rapport v2) : "Appartement X : Nom (statut)".
+// Le builder docx scinde sur '\n' pour rendre un paragraphe par occupant.
+// (Le template d'origine joignait par « – » sur une seule ligne ; on préfère
+// une ligne/occupant pour la lisibilité quand le dossier en compte plusieurs.)
 export function buildAdresseInterventionLine2(
   occupants: ReadonlyArray<Pick<Occupant, 'appartement' | 'prenom' | 'nom' | 'type_occupant'>>,
 ): string {
   return occupants
     .map((o) => formatOccupant(o))
     .filter((s): s is string => s !== null)
-    .join(SEP_DASH);
+    .join('\n');
 }
 
 function formatOccupant(
