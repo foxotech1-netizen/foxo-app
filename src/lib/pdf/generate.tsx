@@ -1,7 +1,10 @@
 import { renderToBuffer } from '@react-pdf/renderer';
-import { RapportPdf, type RapportPdfData } from './RapportPdf';
+import type { ReportData } from '@/lib/rapport/build-docx';
+import { RapportPdf } from './RapportPdf';
 
-export async function generateRapportPdf(data: RapportPdfData): Promise<Buffer> {
+// Génère le PDF du rapport à partir du MÊME ReportData que le moteur docx
+// (source unique de données — cf. dispatch.ts buildRapportPdf).
+export async function generateRapportPdf(data: ReportData): Promise<Buffer> {
   // renderToBuffer marche en environnement Node (Server Action / Route Handler).
   return await renderToBuffer(<RapportPdf data={data} />);
 }
