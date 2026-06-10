@@ -10,9 +10,21 @@ import { join } from 'node:path';
 
 let cached: string | null = null;
 
+// Prompt historique (foxo-rapport.md) — conservé mais plus référencé par la
+// génération (c'était une spec docx hors-sujet). Laissé pour archive.
 export function getFoxoSystemPrompt(): string {
   if (cached) return cached;
   const path = join(process.cwd(), 'src/lib/prompts/foxo-rapport.md');
   cached = readFileSync(path, 'utf-8');
   return cached;
+}
+
+// Prompt v2 — rédacteur de rapport (4 sections + techniques + photos), aligné
+// mot pour mot sur les consignes du template. Source de vérité de la PASSE 2.
+let cachedV2: string | null = null;
+export function getFoxoRapportV2Prompt(): string {
+  if (cachedV2) return cachedV2;
+  const path = join(process.cwd(), 'src/lib/prompts/foxo-rapport-v2.md');
+  cachedV2 = readFileSync(path, 'utf-8');
+  return cachedV2;
 }
