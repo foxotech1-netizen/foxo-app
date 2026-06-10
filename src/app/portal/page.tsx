@@ -201,7 +201,7 @@ export default async function PortalDashboard() {
       {pins.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="section-label">Carte des interventions</h2>
+            <h2 className="section-label">{v.mapTitle}</h2>
           </div>
           <SyndicMapWrapper pins={pins} />
         </section>
@@ -210,7 +210,7 @@ export default async function PortalDashboard() {
       <div className="grid md:grid-cols-2 gap-5">
         {/* Récentes */}
         <section>
-          <h2 className="section-label mb-3">{v.interventionsCap} récent{orgType === 'syndic' ? 'es' : 's'}</h2>
+          <h2 className="section-label mb-3">{v.recentTitle}</h2>
           {recent.length === 0 ? (
             <div className="premium-card p-4">
               {v.newRequestVerb ? (

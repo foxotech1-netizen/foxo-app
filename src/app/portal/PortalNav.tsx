@@ -171,7 +171,7 @@ export function PortalNav({
   // null). Aujourd'hui les 3 types (syndic, courtier, expert) peuvent créer.
   const BOTTOM_NAV: NavItem[] = [
     { href: '/portal',               icon: Home,            label: 'Accueil' },
-    { href: '/portal/interventions', icon: ClipboardList,   label: 'Interventions' },
+    { href: '/portal/interventions', icon: ClipboardList,   label: vocab.interventionsCap },
     { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
     ...(vocab.newRequestVerb
       ? [{ href: '/portal/nouveau', icon: Plus, label: 'Nouveau' } as NavItem]
