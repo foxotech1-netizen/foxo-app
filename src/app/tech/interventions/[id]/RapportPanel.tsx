@@ -51,6 +51,10 @@ export function RapportPanel({
   });
   const [savedAt, setSavedAt] = useState<string | null>(initial.updated_at || null);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  // Techniques (clés canoniques) issues du dernier appel à l'agent rapport v2.
+  // Transmises aux sauvegardes pour persistance dans rapports.techniques /
+  // techniques_a_confirmer. null = on n'a pas (re)généré → on ne les pousse pas.
+  const [genTechniques, setGenTechniques] = useState<{ techniques: string[]; techniques_a_confirmer: string[] } | null>(null);
 
   // Brief envoyé à l'IA pour générer les 4 sections
   const [brief, setBrief] = useState('');
@@ -216,7 +220,7 @@ export function RapportPanel({
   function doSave(showFeedback = true) {
     return new Promise<void>((resolve) => {
       startTransition(async () => {
-        const res = await saveRapport(interventionId, values);
+        const res = await saveRapport(interventionId, values, genTechniques ?? undefined);
         if (res.ok) {
           setSavedAt(new Date().toISOString());
           if (showFeedback) setFeedback({ kind: 'ok', msg: 'Brouillon enregistré.' });
@@ -231,7 +235,7 @@ export function RapportPanel({
   function doPublish() {
     if (!confirm('Publier le rapport ? Il sera enregistré en brouillon et soumis à validation par l\'administration. Aucune notification n\'est envoyée au syndic ni aux occupants à ce stade.')) return;
     startTransition(async () => {
-      const res = await publishRapport(interventionId, values);
+      const res = await publishRapport(interventionId, values, genTechniques ?? undefined);
       if (res.ok) {
         setFeedback({ kind: 'ok', msg: 'Rapport publié' });
         router.refresh();
@@ -259,6 +263,10 @@ export function RapportPanel({
         inspection: res.sections.inspection,
         conclusion: res.sections.conclusion,
         recommandations: res.sections.recommandations,
+      });
+      setGenTechniques({
+        techniques: res.techniques_utilisees,
+        techniques_a_confirmer: res.techniques_a_confirmer,
       });
       setGenerateMessage({ kind: 'ok', msg: 'Sections générées — relis et corrige avant publication.' });
     });
