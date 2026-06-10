@@ -14,6 +14,7 @@ import {
   buildTechniques,
   fmtDateShort,
 } from '@/lib/rapport/report-data-mapping';
+import { techniquesFromKeys } from '@/lib/rapport/techniques';
 
 function fmtDate(d: Date): string {
   return fmtDateShort(d);
@@ -145,6 +146,13 @@ export async function POST(request: Request) {
   const refLabelValue = buildRefLabelValue(iv, today);
   const facturationLines = buildFacturationLines(iv, acp, syndic);
 
+  // Techniques : snapshot persisté (rapports.techniques) prioritaire ; fallback
+  // sur la dérivation observations_terrain tant que le snapshot n'est pas peuplé.
+  const techKeys = (rapport as { techniques?: string[] | null } | null)?.techniques ?? null;
+  const techniques = techKeys && techKeys.length > 0
+    ? techniquesFromKeys(techKeys)
+    : buildTechniques(observations);
+
   const reportData: ReportData = {
     numero: ref,
     ref_label: refLabelValue.ref_label,
@@ -154,7 +162,7 @@ export async function POST(request: Request) {
     adresse_ligne1: buildAdresseInterventionLine1(acp, iv),
     adresse_ligne2: buildAdresseInterventionLine2(occupants),
     adresse_ligne3: '',
-    techniques: buildTechniques(observations),
+    techniques,
     degats: toParaFmt(sections.degats),
     inspection: toParaFmt(sections.inspection),
     conclusion: toParaFmt(sections.conclusion),

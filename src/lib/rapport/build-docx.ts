@@ -81,16 +81,11 @@ const PHOTO_MAX_WIDTH_PX = 400;
 
 // ─── ReportData — input contrat du builder ────────────────────────────
 
-export interface ReportTechniques {
-  capteur: boolean;
-  thermique: boolean;
-  camera: boolean;
-  traceur: boolean;
-  acoustique: boolean;
-  pression: boolean;
-  gaz: boolean;
-  visuelle: boolean;
-}
+// ReportTechniques est désormais défini dans le module canonique partagé
+// (src/lib/rapport/techniques.ts). Importé ici et ré-exporté pour ne pas
+// casser les imports existants (report-data-mapping, etc.).
+import type { ReportTechniques } from '@/lib/rapport/techniques';
+export type { ReportTechniques };
 
 export interface ReportData {
   numero: string;

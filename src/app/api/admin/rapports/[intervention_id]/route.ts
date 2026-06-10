@@ -26,7 +26,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('rapports')
-    .select('statut, valide_par, valide_at, transmis_at, transmis_a, degats, inspection, conclusion, recommandations')
+    .select('statut, valide_par, valide_at, transmis_at, transmis_a, degats, inspection, conclusion, recommandations, techniques')
     .eq('intervention_id', intervention_id)
     .maybeSingle();
 
