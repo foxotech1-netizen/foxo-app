@@ -58,6 +58,7 @@ import {
   resendRapportToSyndic,
   validateRapport,
   reopenRapportDraft,
+  reopenTransmittedRapport,
   assignTechnician,
   saveRapportDraftFromAdmin,
   searchAcpsForIntervention,
@@ -625,6 +626,20 @@ export function InterventionsClient({
       if (res.error) setRapportSaveMsg({ kind: 'err', msg: res.error });
       else {
         setRapportSaveMsg({ kind: 'ok', msg: 'Rapport repassé en brouillon.' });
+        refreshRapportInfo(selected.id);
+      }
+    });
+  }
+
+  function reopenTransmitted() {
+    if (!selected) return;
+    if (!confirm('Ce rapport a déjà été transmis au syndic. Le rouvrir permet de le corriger, puis il devra être re-validé et re-transmis (le syndic recevra la version corrigée). Continuer ?')) return;
+    setEmailMessage(null);
+    startRapportReopenTransition(async () => {
+      const res = await reopenTransmittedRapport(selected.id);
+      if (res.error) setEmailMessage({ kind: 'err', msg: res.error });
+      else {
+        setEmailMessage({ kind: 'ok', msg: 'Rapport rouvert pour correction — repassé en brouillon.' });
         refreshRapportInfo(selected.id);
       }
     });
@@ -2782,6 +2797,13 @@ export function InterventionsClient({
                               className="w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
                             >
                               {emailPending ? 'Envoi…' : (<><RefreshCw size={14} />Renvoyer au syndic</>)}
+                            </button>
+                            <button
+                              onClick={reopenTransmitted}
+                              disabled={rapportReopenPending}
+                              className="w-full mt-2 bg-white hover:bg-sand text-navy border border-navy-mid py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                              {rapportReopenPending ? 'Réouverture…' : (<><Pencil size={14} />Rouvrir pour correction</>)}
                             </button>
                             {emailMessage && (
                               <p className={
