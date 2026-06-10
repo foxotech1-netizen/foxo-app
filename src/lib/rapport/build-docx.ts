@@ -163,7 +163,8 @@ function bodyTextMuted(text: string): Paragraph {
 }
 
 // Checkbox + libellé pour la section Techniques. Cochée = ☑ bold dark_blue,
-// non cochée = ☐ mid_blue + texte body italic. Indent 80 pour aérer.
+// non cochée = ☐ mid_blue. Texte du libellé en NORMAL (conforme template :
+// pas d'italique) — cochée en gras dark_blue, non cochée en body normal.
 function checkItem(text: string, checked: boolean): Paragraph {
   return new Paragraph({
     spacing: { before: 55, after: 55 },
@@ -176,7 +177,7 @@ function checkItem(text: string, checked: boolean): Paragraph {
       }),
       t(text, {
         size: 18,
-        italic: true,
+        italic: false,
         bold: checked,
         color: checked ? DARK_BLUE : BODY_TEXT,
       }),
@@ -310,7 +311,7 @@ function buildIdentificationTable(data: ReportData): Table {
       // L1 : N° Intervention | numero | ref_label | ref_value
       new TableRow({
         children: [
-          labelCell(C1, 'N° Intervention'),
+          labelCell(C1, 'N° Intervention :'),
           valueCell(C2, data.numero),
           labelCell(C3, data.ref_label),
           valueCell(C4, data.ref_value),
@@ -616,11 +617,14 @@ export async function buildRapportDocx(args: {
   });
 
   // ─── Body ───────────────────────────────────────────────────────────
+  // Titres en MAJUSCULES conformes au template (DÉGÂTS, INSPECTION, CONCLUSION,
+  // RECOMMANDATION). On passe les libellés déjà en capitales (en plus de
+  // allCaps dans sectionTitle) pour garantir le rendu quel que soit le client.
   const sectionsConfig: { key: SectionKey; title: string; text: string }[] = [
-    { key: 'degats',          title: 'Dégâts',         text: data.degats },
-    { key: 'inspection',      title: 'Inspection',     text: data.inspection },
-    { key: 'conclusion',      title: 'Conclusion',     text: data.conclusion },
-    { key: 'recommandations', title: 'Recommandation', text: data.recommandation },
+    { key: 'degats',          title: 'DÉGÂTS',         text: data.degats },
+    { key: 'inspection',      title: 'INSPECTION',     text: data.inspection },
+    { key: 'conclusion',      title: 'CONCLUSION',     text: data.conclusion },
+    { key: 'recommandations', title: 'RECOMMANDATION', text: data.recommandation },
   ];
 
   const bodyChildren: (Paragraph | Table)[] = [
@@ -655,8 +659,9 @@ export async function buildRapportDocx(args: {
       alignment: AlignmentType.RIGHT,
       spacing: { before: 600 },
       children: [
-        t('Fait à Bruxelles le,  ', { size: 22, italic: true, color: MUTED }),
-        t(data.fait_a_date, { size: 22, italic: true, bold: true, color: DARK_BLUE }),
+        // Conforme template : texte normal (pas d'italique), date en gras.
+        t('Fait à Bruxelles le,  ', { size: 22, italic: false, color: MUTED }),
+        t(data.fait_a_date, { size: 22, italic: false, bold: true, color: DARK_BLUE }),
       ],
     }),
   );
