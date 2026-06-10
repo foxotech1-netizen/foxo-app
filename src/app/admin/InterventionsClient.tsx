@@ -2684,6 +2684,18 @@ export function InterventionsClient({
                             </button>
                           )}
 
+                          {/* Aperçu PDF fidèle (identique à l'envoi) — brouillon + validé */}
+                          {(rapportInfo.statut === 'brouillon' || rapportInfo.statut === 'valide') && (
+                            <a
+                              href={`/api/admin/rapports/${selected.id}/preview-pdf`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full bg-white hover:bg-sand text-navy border border-navy-mid py-2 rounded-lg text-xs font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                            >
+                              <FileText size={14} />Aperçu PDF
+                            </a>
+                          )}
+
                           {rapportSaveMsg && (
                             <p className={'text-xs font-semibold ' + (rapportSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
                               {rapportSaveMsg.msg}
