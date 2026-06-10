@@ -6,12 +6,18 @@
  * Exécution :  npx tsx scripts/dev/preview-rapport-pdf.ts
  * Sortie    :  /tmp/rapport-preview.pdf
  *
- * Fixtures : toutes les zones remplies, 3 techniques cochées, 2 occupants.
+ * Fixtures : toutes les zones remplies, 3 techniques cochées, 2 occupants,
+ * et 3 photos de test générées localement par sharp (rectangles de couleur
+ * unie) — un paysage standard + un très large (DÉGÂTS), un très haut
+ * (INSPECTION) — pour vérifier la grille 2 colonnes, le ratio préservé et
+ * l'absence de chevauchement avec le footer.
  */
 import { writeFileSync } from 'node:fs';
+import sharp from 'sharp';
 import { generateRapportPdf } from '../../src/lib/pdf/generate';
 import { techniquesFromKeys } from '../../src/lib/rapport/techniques';
 import type { ReportData } from '../../src/lib/rapport/build-docx';
+import type { RapportPhotoData, RapportPhotosBySection } from '../../src/lib/rapport/photos';
 
 const data: ReportData = {
   numero: '2026-000',
@@ -38,8 +44,36 @@ const data: ReportData = {
   fait_a_date: '10/06/2026',
 };
 
+// Rectangle de couleur unie → RapportPhotoData (octets JPEG + dims intrinsèques).
+async function solidPhoto(
+  width: number,
+  height: number,
+  rgb: { r: number; g: number; b: number },
+  label: string | null,
+): Promise<RapportPhotoData> {
+  const bytes = await sharp({ create: { width, height, channels: 3, background: rgb } })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+  return { bytes, width, height, label };
+}
+
+async function buildTestPhotos(): Promise<RapportPhotosBySection> {
+  return {
+    // DÉGÂTS : un paysage standard (4:3) + un cliché TRÈS LARGE (panorama).
+    degats: [
+      await solidPhoto(1600, 1200, { r: 70, g: 110, b: 160 }, 'Plafond salle de bain E44 — auréoles'),
+      await solidPhoto(2600, 650, { r: 150, g: 90, b: 80 }, 'Vue panoramique du mur mitoyen (très large)'),
+    ],
+    // INSPECTION : un cliché TRÈS HAUT (portrait étroit).
+    inspection: [
+      await solidPhoto(650, 2000, { r: 90, g: 150, b: 110 }, 'Gaine technique sur toute la hauteur (très haut)'),
+    ],
+  };
+}
+
 async function main() {
-  const buf = await generateRapportPdf(data);
+  const photos = await buildTestPhotos();
+  const buf = await generateRapportPdf(data, photos);
   const out = '/tmp/rapport-preview.pdf';
   writeFileSync(out, buf);
   // eslint-disable-next-line no-console
