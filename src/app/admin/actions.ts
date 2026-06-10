@@ -383,6 +383,88 @@ export async function reopenRapportDraft(interventionId: string): Promise<Action
   return { ok: true };
 }
 
+// Réouverture admin d'un rapport DÉJÀ TRANSMIS au syndic, pour correction
+// (le syndic demande une modification après réception). Garde-fou : ne réouvre
+// QUE si le statut courant est 'transmis' (refus propre sinon).
+//
+// Effets :
+//   - rapports.statut → 'brouillon', valide_par/valide_at remis à null ;
+//     on CONSERVE transmis_at/transmis_a comme trace de la dernière
+//     transmission (le rapport devra être re-validé puis re-transmis).
+//   - interventions.statut → 'rapport' : le dossier ressort de 'cloturee' et
+//     réapparaît dans la file /admin/validation.
+//   - AUCUNE notification.
+//   - Entrée d'historique best-effort (intervention_timeline), jamais bloquante.
+export async function reopenTransmittedRapport(interventionId: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) {
+    return { error: 'Accès refusé.' };
+  }
+  if (!interventionId) return { error: 'ID manquant.' };
+
+  const db = createAdminClient();
+
+  // Lecture préalable de la trace de transmission (pour l'entrée d'historique).
+  const { data: before } = await db
+    .from('rapports')
+    .select('transmis_at, transmis_a')
+    .eq('intervention_id', interventionId)
+    .maybeSingle();
+  const transmisAt = (before as { transmis_at?: string | null } | null)?.transmis_at ?? null;
+  const transmisA = (before as { transmis_a?: string[] | null } | null)?.transmis_a ?? null;
+
+  // Réouverture : brouillon, validation effacée, transmis_* CONSERVÉS.
+  const { data, error } = await db
+    .from('rapports')
+    .update({
+      statut: 'brouillon',
+      valide_par: null,
+      valide_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('intervention_id', interventionId)
+    .eq('statut', 'transmis')      // garde-fou : ne réouvre qu'un rapport transmis
+    .select('intervention_id');
+
+  if (error) {
+    console.error('[reopenTransmittedRapport] update failed', error);
+    return { error: error.message };
+  }
+  if (!data || data.length === 0) {
+    return { error: 'Réouverture impossible : le rapport n’est pas au statut « transmis ».' };
+  }
+
+  // Le dossier ressort de 'cloturee' et réintègre la file de validation.
+  const { error: ivErr } = await db
+    .from('interventions')
+    .update({ statut: 'rapport', updated_at: new Date().toISOString() })
+    .eq('id', interventionId);
+  if (ivErr) {
+    console.error('[reopenTransmittedRapport] intervention statut update failed', ivErr);
+    return { error: ivErr.message };
+  }
+
+  // Historique best-effort (jamais bloquant).
+  try {
+    const quand = transmisAt ? new Date(transmisAt).toLocaleDateString('fr-BE') : 'date inconnue';
+    const dest = transmisA && transmisA.length > 0 ? transmisA.join(', ') : 'destinataire inconnu';
+    await db.from('intervention_timeline').insert({
+      intervention_id: interventionId,
+      type: 'rapport_reouvert',
+      message: `Rapport rouvert pour correction après transmission (transmis le ${quand} à ${dest})`,
+      payload: { transmis_at: transmisAt, transmis_a: transmisA },
+      created_by: user.email ?? 'admin',
+    });
+  } catch (e) {
+    console.warn('[reopenTransmittedRapport] timeline insert skipped:', e);
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/validation');
+  return { ok: true };
+}
+
 // ── Facture ───────────────────────────────────────────────────────────────
 
 export type EmitFactureInput = {
