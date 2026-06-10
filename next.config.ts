@@ -11,7 +11,11 @@ const nextConfig: NextConfig = {
   // rapport) sont packagés avec les fonctions serveur (sinon fs échoue sur
   // Vercel).
   outputFileTracingIncludes: {
-    '*': ['./src/lib/prompts/**/*.md', './src/lib/rapport/assets/**'],
+    '*': [
+      './src/lib/prompts/**/*.md',
+      './src/lib/rapport/assets/**',
+      './src/lib/pdf/fonts/**',
+    ],
   },
 };
 

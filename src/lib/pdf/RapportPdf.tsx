@@ -1,13 +1,30 @@
+import path from 'node:path';
 import {
-  Document, Page, Text, View, StyleSheet,
+  Document, Page, Text, View, Image, Font, StyleSheet,
 } from '@react-pdf/renderer';
 import type { ReportData } from '@/lib/rapport/build-docx';
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
+import { RAPPORT_LOGO } from '@/lib/rapport/logo';
+
+// Police Carlito — jumelle métrique de Calibri (licence SIL OFL, embarquable).
+// Les .ttf sont commités dans src/lib/pdf/fonts/ (+ OFL.txt) et inclus dans le
+// bundle serveur via next.config (outputFileTracingIncludes). Enregistrée une
+// seule fois au chargement du module.
+const FONTS_DIR = path.join(process.cwd(), 'src', 'lib', 'pdf', 'fonts');
+Font.register({
+  family: 'Carlito',
+  fonts: [
+    { src: path.join(FONTS_DIR, 'Carlito-Regular.ttf') },
+    { src: path.join(FONTS_DIR, 'Carlito-Bold.ttf'), fontWeight: 'bold' },
+    { src: path.join(FONTS_DIR, 'Carlito-Italic.ttf'), fontStyle: 'italic' },
+    { src: path.join(FONTS_DIR, 'Carlito-BoldItalic.ttf'), fontWeight: 'bold', fontStyle: 'italic' },
+  ],
+});
 
 // Moteur PDF du rapport — JUMEAU STRUCTUREL du template Word
 // (templates/"FOXO TEMPLATE VIERGE.docx") et du moteur docx (build-docx.ts).
-// Consomme le MÊME objet ReportData. Police : Helvetica (Carlito/.ttf non
-// disponible via @fontsource — voir résumé Session B-bis).
+// Consomme le MÊME objet ReportData. Police : Carlito (jumelle Calibri),
+// embarquée depuis src/lib/pdf/fonts/.
 //
 // Palette alignée sur build-docx.ts.
 const C = {
@@ -34,9 +51,12 @@ const W = {
 
 const styles = StyleSheet.create({
   page: {
-    paddingVertical: 34,
+    // paddingTop réserve la zone du header logo (fixed, répété chaque page) ;
+    // paddingBottom réserve la zone du footer (fixed).
+    paddingTop: 126,
+    paddingBottom: 58,
     paddingHorizontal: 30,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Carlito',
     fontSize: 10,
     color: C.body,
     backgroundColor: '#FFFFFF',
@@ -48,9 +68,21 @@ const styles = StyleSheet.create({
     borderWidth: 1.2,
     borderColor: C.dark,
   },
+  // Header logo (aligné gauche comme dans word/header1.xml du template),
+  // répété sur chaque page (fixed). Séparateur dark sous le logo.
+  logoHeader: {
+    position: 'absolute',
+    top: 28, left: 30, right: 30,
+  },
+  logoSep: {
+    marginTop: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: C.dark,
+  },
+  logoFallback: { fontFamily: 'Carlito', fontWeight: 'bold', fontSize: 24, color: C.dark },
   title: {
     textAlign: 'center',
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Carlito', fontWeight: 'bold',
     fontSize: 22,
     color: C.dark,
     letterSpacing: 1,
@@ -63,7 +95,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.light,
     borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.divider,
     paddingVertical: 4, paddingHorizontal: 5,
-    fontFamily: 'Helvetica-Bold', color: C.dark, fontSize: 8.5,
+    fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark, fontSize: 8.5,
   },
   cellValue: {
     borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.divider,
@@ -83,10 +115,10 @@ const styles = StyleSheet.create({
   },
   checkboxInner: { width: 4.5, height: 4.5 },
   checkLabel: { fontSize: 8.5, color: C.body },
-  checkLabelOn: { fontFamily: 'Helvetica-Bold', color: C.dark },
+  checkLabelOn: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
   // ── Sections ──
   sectionTitle: {
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: 'Carlito', fontWeight: 'bold',
     fontSize: 12,
     color: C.dark,
     letterSpacing: 0.5,
@@ -98,7 +130,7 @@ const styles = StyleSheet.create({
   empty: { fontSize: 9.5, color: C.muted },
   // ── Clôture ──
   faitA: { textAlign: 'right', marginTop: 26, fontSize: 11, color: C.muted },
-  faitADate: { fontFamily: 'Helvetica-Bold', color: C.dark },
+  faitADate: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
   // ── Footer 3 lignes ──
   footer: {
     position: 'absolute',
@@ -141,7 +173,7 @@ function Section({ title, text }: { title: string; text: string }) {
   );
 }
 
-export function RapportPdf({ data }: { data: ReportData }) {
+export function RapportPdf({ data, logo }: { data: ReportData; logo?: Buffer | null }) {
   const facturationLines = [
     data.facturation_ligne1,
     data.facturation_ligne2,
@@ -164,6 +196,14 @@ export function RapportPdf({ data }: { data: ReportData }) {
       <Page size="A4" style={styles.page}>
         {/* Encadré pleine page, répété sur chaque page */}
         <View style={styles.pageBorder} fixed />
+
+        {/* Header logo (gauche, répété chaque page), comme dans le template */}
+        <View style={styles.logoHeader} fixed>
+          {logo
+            ? <Image src={{ data: logo, format: 'jpg' }} style={{ width: RAPPORT_LOGO.widthPt, height: RAPPORT_LOGO.heightPt }} />
+            : <Text style={styles.logoFallback}>FoxO</Text>}
+          <View style={styles.logoSep} />
+        </View>
 
         <Text style={styles.title}>RAPPORT D&apos;INTERVENTION</Text>
 
