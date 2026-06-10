@@ -29,16 +29,28 @@ export default async function InterventionDetail({
 
   const supabase = await createClient();
 
-  // Sécurité : intervention rattachée au syndic (legacy syndic_id) OU à
-  // l'org du délégué connecté (nouveau lien organisation_id). Filtre soft
-  // delete pour rester aligné avec la liste.
-  const { data: iv } = await supabase
+  // Sécurité : intervention rattachée au syndic (legacy syndic_id) OU à l'org
+  // du délégué connecté (organisation_id) OU mandat via dossier sinistre
+  // (courtier/expert mandaté — audit #19, le redirect ne doit plus éjecter un
+  // courtier mandaté). On vérifie d'abord le mandat dossier ; si présent, on
+  // lève le filtre org (l'accès est déjà prouvé), sinon on garde le filtre.
+  const { data: dossier } = await supabase
+    .from('dossiers_sinistres')
+    .select('intervention_id')
+    .eq('intervention_id', id)
+    .eq('courtier_id', org.id)
+    .maybeSingle();
+  const viaDossier = !!dossier;
+
+  let ivQuery = supabase
     .from('interventions')
     .select('*')
     .eq('id', id)
-    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
-    .is('deleted_at', null)
-    .maybeSingle();
+    .is('deleted_at', null);
+  if (!viaDossier) {
+    ivQuery = ivQuery.or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`);
+  }
+  const { data: iv } = await ivQuery.maybeSingle();
 
   if (!iv) redirect('/portal/interventions');
   const intervention = iv as Intervention;

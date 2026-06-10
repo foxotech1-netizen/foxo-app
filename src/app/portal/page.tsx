@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Hand, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { getCurrentSyndic, getMandatedInterventionIds } from '@/lib/portal/syndic';
 import { getMonthSlots } from '@/lib/portal/availability';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtDate, todayLong } from '@/lib/format';
@@ -33,11 +33,18 @@ export default async function PortalDashboard() {
   }
 
   const supabase = await createClient();
-  // Filtre par syndic_id (legacy) OU organisation_id (nouveau lien).
+  // Visibilité : lien direct syndic_id (legacy) OU organisation_id (nouveau)
+  // OU mandat via dossier sinistre (courtier/expert mandaté — audit #19). On
+  // étend le filtre applicatif avec les ids de dossiers ; clause id.in.(…)
+  // ajoutée seulement si la liste est non vide (évite un id.in.() invalide).
+  const mandatedIds = await getMandatedInterventionIds(supabase, org.id);
+  const orFilter = mandatedIds.length > 0
+    ? `syndic_id.eq.${org.id},organisation_id.eq.${org.id},id.in.(${mandatedIds.join(',')})`
+    : `syndic_id.eq.${org.id},organisation_id.eq.${org.id}`;
   const { data: interventionsData } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, creneau_debut, updated_at, acp_id, adresse')
-    .or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`)
+    .or(orFilter)
     .order('created_at', { ascending: false });
 
   const interventions: Pick<
@@ -194,7 +201,7 @@ export default async function PortalDashboard() {
       {pins.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="section-label">Carte des interventions</h2>
+            <h2 className="section-label">{v.mapTitle}</h2>
           </div>
           <SyndicMapWrapper pins={pins} />
         </section>
@@ -203,7 +210,7 @@ export default async function PortalDashboard() {
       <div className="grid md:grid-cols-2 gap-5">
         {/* Récentes */}
         <section>
-          <h2 className="section-label mb-3">{v.interventionsCap} récent{orgType === 'syndic' ? 'es' : 's'}</h2>
+          <h2 className="section-label mb-3">{v.recentTitle}</h2>
           {recent.length === 0 ? (
             <div className="premium-card p-4">
               {v.newRequestVerb ? (

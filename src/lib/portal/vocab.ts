@@ -15,6 +15,8 @@ export type PortalVocab = {
   newRequestVerb: string | null;  // null = portail en lecture seule (aucun type ne l'utilise aujourd'hui)
   emptyList: string;              // "Aucune intervention" / "Aucun dossier"
   countSuffix: string;            // "intervention(s)" / "dossier(s)"
+  recentTitle: string;            // titre section récents (accord géré ici, pas de concat)
+  mapTitle: string;               // titre carte ("Carte des interventions" / "…dossiers")
   accent: string;                 // hex couleur accent spécifique
 };
 
@@ -31,6 +33,8 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     newRequestVerb: '+ Nouvelle demande',
     emptyList: 'Aucune intervention',
     countSuffix: 'intervention(s)',
+    recentTitle: 'Interventions récentes',
+    mapTitle: 'Carte des interventions',
     accent: '#1B3A6B',
   },
   courtier: {
@@ -45,6 +49,8 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     newRequestVerb: '+ Confier une mission',
     emptyList: 'Aucun dossier',
     countSuffix: 'dossier(s)',
+    recentTitle: 'Dossiers récents',
+    mapTitle: 'Carte des dossiers',
     accent: '#1D6FA4',
   },
   expert: {
@@ -62,6 +68,8 @@ export const VOCAB: Record<OrgType, PortalVocab> = {
     newRequestVerb: '+ Confier une mission',
     emptyList: 'Aucun dossier',
     countSuffix: 'dossier(s)',
+    recentTitle: 'Dossiers récents',
+    mapTitle: 'Carte des dossiers',
     accent: '#F59E0B',
   },
 };
