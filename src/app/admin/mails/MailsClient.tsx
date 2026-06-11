@@ -4,8 +4,8 @@ import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  X, Trash2, Star, Bot, ClipboardList, CheckCircle2, Mail, Sparkles,
-  Zap, Paperclip, Circle, Tag, Archive,
+  X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
+  Paperclip, Circle, Tag, Archive, Undo2,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -26,17 +26,6 @@ type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
   | 'label' | 'important' | 'trash' | 'restore' | 'delete-permanent';
-
-interface MailAnalysis {
-  nom_client: string | null;
-  adresse: string | null;
-  type_probleme: string | null;
-  telephone: string | null;
-  email: string | null;
-  date_souhaitee: string | null;
-  priorite: 'normale' | 'urgente' | null;
-  resume: string | null;
-}
 
 const HIDDEN_BADGE_LABEL_IDS = new Set([
   'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT',
@@ -97,8 +86,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MailDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<MailAnalysis | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const refreshRef = useRef<HTMLButtonElement>(null);
 
@@ -251,10 +238,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // Charge le détail quand selectedId change.
   // L'API serveur marque le mail comme lu (retire UNREAD côté Gmail).
   useEffect(() => {
-    if (!selectedId) { setDetail(null); setAnalysis(null); setReplyOpen(false); return; }
+    if (!selectedId) { setDetail(null); setReplyOpen(false); return; }
     let mounted = true;
     setDetailLoading(true);
-    setAnalysis(null);
     setReplyOpen(false);
     setReplyBody('');
     fetch(`/api/admin/mails/${selectedId}`)
@@ -395,24 +381,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     }
   }
 
-  async function analyzeMail() {
-    if (!detail) return;
-    setAnalysis(null);
-    setAnalysisLoading(true);
-    setFeedback(null);
-    try {
-      const r = await fetch(`/api/admin/mails/${detail.id}/analyze`, { method: 'POST' });
-      const data = await r.json();
-      if (!data.ok) {
-        setFeedback({ kind: 'err', msg: data.error ?? 'Analyse échouée.' });
-      } else {
-        setAnalysis(data.analysis);
-      }
-    } finally {
-      setAnalysisLoading(false);
-    }
-  }
-
   async function modifyLabelOnDetail(args: { addId?: string; removeId?: string }) {
     if (!detail) return;
     setFeedback(null);
@@ -511,11 +479,27 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   function createIntervention() {
     if (!detail) return;
-    if (analysis) {
+    // Pré-remplissage du planning depuis l'analyse approfondie (l'analyse
+    // legacy a été retirée — la Map analyses est l'unique source). Mapping
+    // best-effort vers le payload attendu par CreateInterventionModal ;
+    // tous les champs y sont optionnels.
+    const deep = analyses.get(detail.thread_id) ?? null;
+    if (deep) {
+      const occ = deep.occupants_extraits?.[0] ?? null;
+      const nomClient = occ ? `${occ.prenom} ${occ.nom}`.trim() : '';
       try {
         sessionStorage.setItem('foxo_mail_prefill', JSON.stringify({
           source_mail_id: detail.id,
-          analysis,
+          analysis: {
+            nom_client: nomClient || null,
+            adresse: deep.adresse_extraite,
+            type_probleme: null,
+            telephone: deep.occupant_telephone ?? (occ?.telephone || null),
+            email: deep.occupant_email ?? (occ?.email || null),
+            date_souhaitee: null,
+            priorite: deep.urgence == null ? null : (deep.urgence ? 'urgente' : 'normale'),
+            resume: deep.resume,
+          },
         }));
       } catch { /* noop */ }
     }
@@ -525,6 +509,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   if (!initialConnected) return null;
 
   const inTrash = filter === 'trash';
+
+  // État lu/important du mail ouvert — dérivé de la ligne de liste si
+  // présente (source la plus fraîche), sinon des labels du détail
+  // (cas deep-link ?id= hors onglet courant). Aucun état ajouté.
+  const selectedListItem = selectedId ? mails.find((m) => m.id === selectedId) ?? null : null;
+  const detailUnread = selectedListItem
+    ? selectedListItem.unread
+    : (detail?.label_ids.includes('UNREAD') ?? false);
+  const detailImportant = (selectedListItem ?? detail)?.label_ids.includes('IMPORTANT') ?? false;
 
   return (
     <div className="h-full flex">
@@ -701,7 +694,19 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   <li key={l.id}>
                     <button
                       type="button"
-                      onClick={() => setActiveLabel(active ? null : l.name)}
+                      onClick={() => {
+                        if (active) {
+                          // Désélection : on retire le filtre sans toucher
+                          // à l'onglet courant.
+                          setActiveLabel(null);
+                          return;
+                        }
+                        setActiveLabel(l.name);
+                        // Sur « À traiter » (défaut, is:unread) un libellé
+                        // ne montrerait que ses non-lus — piège constaté.
+                        // Le clic bascule donc sur « Tous ».
+                        setFilter('tous');
+                      }}
                       className={
                         'w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-colors text-left ' +
                         (active
@@ -783,10 +788,41 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <div
                 key={m.id}
                 className={
-                  'flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
+                  'relative group flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
                   (active ? 'bg-navy-pale' : '')
                 }
               >
+                {/* Actions rapides au survol (desktop) — superposées en
+                    haut à droite sur fond sand pour ne pas chevaucher
+                    l'heure/les badges. Mobile (<sm) : rien, le tap ouvre
+                    le mail comme avant. */}
+                <div className="absolute right-2 top-1.5 z-10 hidden sm:group-hover:flex items-center gap-0.5 bg-sand-hover border border-sand-border rounded-md px-0.5 py-0.5">
+                  {inTrash ? (
+                    <RowQuickBtn
+                      title="Restaurer"
+                      disabled={bulkLoading}
+                      onClick={() => applyBulkActionForOne(m.id, 'restore')}
+                    ><Undo2 size={14} /></RowQuickBtn>
+                  ) : (
+                    <>
+                      <RowQuickBtn
+                        title="Archiver"
+                        disabled={bulkLoading}
+                        onClick={() => applyBulkActionForOne(m.id, 'archive')}
+                      ><Archive size={14} /></RowQuickBtn>
+                      <RowQuickBtn
+                        title={m.unread ? 'Marquer comme lu' : 'Marquer comme non lu'}
+                        disabled={bulkLoading}
+                        onClick={() => applyBulkActionForOne(m.id, m.unread ? 'read' : 'unread')}
+                      >{m.unread ? <CheckCircle2 size={14} /> : <Circle size={14} />}</RowQuickBtn>
+                      <RowQuickBtn
+                        title="Marquer important"
+                        disabled={bulkLoading || isImportant}
+                        onClick={() => applyBulkActionForOne(m.id, 'important')}
+                      ><Star size={14} /></RowQuickBtn>
+                    </>
+                  )}
+                </div>
                 <input
                   type="checkbox"
                   checked={checked}
@@ -907,15 +943,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </button>
               <button
                 type="button"
-                onClick={analyzeMail}
-                disabled={analysisLoading || !detail}
-                className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-              >
-                <Bot size={14} />
-                {analysisLoading ? 'Analyse…' : 'Analyser avec IA'}
-              </button>
-              <button
-                type="button"
                 onClick={createIntervention}
                 disabled={!detail}
                 className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
@@ -932,6 +959,40 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 <Archive size={14} />
                 Archiver
               </button>
+              {/* Lu/non-lu, Important, Corbeille (Mails V2 P1) — mêmes
+                  actions unitaires que le survol de liste. La corbeille
+                  ferme le volet (le mail quitte la vue courante). */}
+              {!inTrash && detail && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, detailUnread ? 'read' : 'unread')}
+                    disabled={bulkLoading}
+                    className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  >
+                    {detailUnread ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                    {detailUnread ? 'Marquer lu' : 'Marquer non lu'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, 'important')}
+                    disabled={bulkLoading || detailImportant}
+                    className="bg-amber-light text-[#8A5A1A] border border-[#E8C896] px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  >
+                    <Star size={14} />
+                    {detailImportant ? 'Important ✓' : 'Important'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, 'trash')}
+                    disabled={bulkLoading}
+                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  >
+                    <Trash2 size={14} />
+                    Corbeille
+                  </button>
+                </>
+              )}
               {/* Actions trash spécifiques au mail courant */}
               {inTrash && detail && (
                 <>
@@ -979,13 +1040,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             )}
 
-            {/* Sprint Mails enrichis : actions 1-clic sur l'analyse Claude
-                approfondie (T5/T6). Bouton 'Analyser approfondi' si pas
-                encore analysé, sinon 3 actions (brouillon syndic / confirmer
-                occupant / event Calendar) + accordion détail. Coexiste
-                avec les boutons legacy ('Analyser avec IA' simple, 'Créer
-                une intervention') ci-dessus pour ne pas casser le flow
-                actuel. */}
+            {/* Analyse IA unifiée (Mails V2 P1) : MailAnalyseActions est
+                l'unique entrée d'analyse — bouton « Analyser avec IA »
+                (POST analyse-deep) si pas encore analysé, sinon actions
+                1-clic (brouillon syndic / confirmer occupant / event
+                Calendar) + accordion détail. */}
             {detail && (
               <MailAnalyseActions
                 threadId={detail.thread_id}
@@ -1096,29 +1155,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             )}
 
-            {analysis && (
-              <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 inline-flex items-center gap-1.5">
-                  <Sparkles size={12} />
-                  Analyse IA
-                </div>
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
-                  <AnalysisRow label="Client" value={analysis.nom_client} />
-                  <AnalysisRow label="Téléphone" value={analysis.telephone} mono />
-                  <AnalysisRow label="Email" value={analysis.email} mono />
-                  <AnalysisRow label="Type" value={analysis.type_probleme} />
-                  <AnalysisRow label="Priorité" value={analysis.priorite ? (analysis.priorite === 'urgente' ? (<span className="inline-flex items-center gap-1"><Zap size={12} />Urgente</span>) : 'Normale') : null} />
-                  <AnalysisRow label="Date souhaitée" value={analysis.date_souhaitee} />
-                  <div className="sm:col-span-2">
-                    <AnalysisRow label="Adresse" value={analysis.adresse} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <AnalysisRow label="Résumé" value={analysis.resume} />
-                  </div>
-                </dl>
-              </div>
-            )}
-
             <div className="flex-1 px-4 py-4">
               {detailLoading && (
                 <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px] space-y-2.5">
@@ -1163,8 +1199,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     </div>
   );
 
-  // Helper local pour appliquer une action sur 1 seul mail (drawer)
-  // sans toucher la sélection en masse.
+  // Helper local pour appliquer une action sur 1 seul mail (survol de
+  // ligne ou volet de lecture) sans toucher la sélection en masse.
+  // Update optimiste aligné sur applyBulkAction : archive/trash/restore
+  // font quitter la vue courante (et ferment le volet si ouvert) ;
+  // lu/non-lu/important mettent à jour la ligne ET le détail en place.
   async function applyBulkActionForOne(id: string, action: BulkAction) {
     setBulkLoading(true);
     setFeedback(null);
@@ -1179,13 +1218,35 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Action échouée.' });
         return;
       }
-      setMails((arr) => arr.filter((m) => m.id !== id));
-      setSelectedId(null);
+      if (action === 'archive' || action === 'trash' || action === 'restore' || action === 'delete-permanent') {
+        setMails((arr) => arr.filter((m) => m.id !== id));
+        if (selectedId === id) setSelectedId(null);
+      } else if (action === 'read' || action === 'unread') {
+        const unread = action === 'unread';
+        const patchLabels = (ids: string[]) => unread
+          ? (ids.includes('UNREAD') ? ids : [...ids, 'UNREAD'])
+          : ids.filter((l) => l !== 'UNREAD');
+        setMails((arr) => arr.map((m) => m.id === id
+          ? { ...m, unread, label_ids: patchLabels(m.label_ids) }
+          : m));
+        setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
+      } else if (action === 'important') {
+        const patchLabels = (ids: string[]) => ids.includes('IMPORTANT') ? ids : [...ids, 'IMPORTANT'];
+        setMails((arr) => arr.map((m) => m.id === id ? { ...m, label_ids: patchLabels(m.label_ids) } : m));
+        setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
+      }
       window.dispatchEvent(new Event('foxo:mails-updated'));
-      setFeedback({
-        kind: 'ok',
-        msg: action === 'restore' ? 'Mail restauré' : action === 'archive' ? 'Mail archivé' : 'Action appliquée',
-      });
+      const oneActionMsg: Record<BulkAction, string> = {
+        read: 'Marqué comme lu',
+        unread: 'Marqué comme non lu',
+        archive: 'Mail archivé',
+        label: 'Libellé appliqué',
+        important: 'Marqué important',
+        trash: 'Mail envoyé à la corbeille',
+        restore: 'Mail restauré',
+        'delete-permanent': 'Mail supprimé définitivement',
+      };
+      setFeedback({ kind: 'ok', msg: oneActionMsg[action] });
     } finally {
       setBulkLoading(false);
     }
@@ -1308,6 +1369,30 @@ function BulkBtn({
       onClick={onClick}
       disabled={disabled}
       className={'px-2 py-2 rounded-lg text-[11px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center justify-center gap-1.5 ' + className}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Bouton icône discret des actions rapides au survol d'une ligne.
+// stopPropagation : l'action ne doit jamais ouvrir le mail.
+function RowQuickBtn({
+  title, disabled, onClick, children,
+}: {
+  title: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="p-1.5 rounded text-ink-mid hover:text-navy hover:bg-sand-mid disabled:opacity-40 inline-flex items-center justify-center"
     >
       {children}
     </button>
@@ -1488,18 +1573,5 @@ function ConfirmDeleteModal({
         </div>
       </div>
     </div>
-  );
-}
-
-function AnalysisRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  return (
-    <>
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-        {label}
-      </dt>
-      <dd className={'text-[12px] ' + (mono ? 'font-mono' : '')}>
-        {value ?? <span className="text-ink-muted italic">—</span>}
-      </dd>
-    </>
   );
 }
