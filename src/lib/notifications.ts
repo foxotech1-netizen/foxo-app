@@ -22,7 +22,7 @@
 //     3. organisation(syndic).email             (general fallback)
 //     4. particulier_contact.email
 
-import type { Acp, Organisation, ParticulierContact } from '@/lib/types/database';
+import type { Acp, Organisation } from '@/lib/types/database';
 
 export type DocType = 'facture' | 'rapport' | 'communication';
 

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
 import { uploadPhoto } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
@@ -20,22 +20,11 @@ const ALLOWED_MIME = new Set([
 ]);
 
 export async function POST(request: Request) {
-  // Auth tech
+  // Auth tech + résolution du tech courant (bloc partagé, cf.
+  // lib/auth/tech-helpers). tech.tech.id = utilisateurs.id = auth uid.
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
-
-  // Récupère l'utilisateur tech (pour l'id)
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) return NextResponse.json({ ok: false, error: 'Tech non trouvé.' }, { status: 403 });
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
 
   let formData: FormData;
   try {
@@ -72,15 +61,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'intervention_id manquant.' }, { status: 400 });
   }
 
-  // Vérifie que ce tech est assigné à l'intervention
-  const { data: iv } = await supabase
-    .from('interventions')
-    .select('id, ref, technicien_id, adresse, creneau_debut, acp:acps(adresse, code_postal, ville)')
-    .eq('id', interventionId)
-    .maybeSingle();
-  if (!iv || iv.technicien_id !== techRow.id) {
-    return NextResponse.json({ ok: false, error: 'Cette intervention ne t\'est pas assignée.' }, { status: 403 });
-  }
+  // Vérifie que ce tech est assigné à l'intervention. select avec join acps
+  // pour conserver une seule requête (les champs servent au chemin Drive).
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId, {
+    select: 'id, ref, technicien_id, adresse, creneau_debut, acp:acps(adresse, code_postal, ville)',
+  });
+  if (!owns.ok) return techError(owns);
 
   type IvJoined = {
     id: string; ref: string | null;
@@ -88,7 +74,7 @@ export async function POST(request: Request) {
     creneau_debut: string | null;
     acp: { adresse: string | null; code_postal: string | null; ville: string | null } | null;
   };
-  const ivT = iv as unknown as IvJoined;
+  const ivT = owns.intervention as unknown as IvJoined;
   const adresse = ivT.acp
     ? [ivT.acp.adresse, ivT.acp.code_postal, ivT.acp.ville].filter(Boolean).join(', ')
     : (ivT.adresse ?? '');
@@ -139,7 +125,7 @@ export async function POST(request: Request) {
         // en gardant le payload léger pour l'UI mobile/desktop.
         drive_url: `https://drive.google.com/thumbnail?id=${up.file_id}&sz=w400`,
         filename,
-        uploaded_by: user.id,
+        uploaded_by: tech.tech.id,
         section,
         ordre,
       })

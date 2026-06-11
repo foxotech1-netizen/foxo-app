@@ -1,3 +1,6 @@
+// PLACEHOLDER non branché — sera implémenté avec le module Facturation.
+// Ne pas supprimer.
+//
 // Ponto (MyPonto) — synchronisation bancaire automatique.
 //
 // Branchement futur : MyPonto agrégateur AISP (Isabel Group) pour récupérer

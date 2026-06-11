@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsObservation, techError } from '@/lib/auth/tech-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,67 +14,6 @@ const ALLOWED_TEST_TYPES = new Set([
   "Capteur d'humidité",
   'Autre',
 ]);
-
-// ─── Helper : auth tech + ownership via observation_id ──────────────────
-//
-// Look up de l'observation pour récupérer son intervention_id, puis
-// vérifie que le tech connecté est assigné à cette intervention.
-async function authObsOwnership(obsId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 }),
-    };
-  }
-
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 }),
-    };
-  }
-
-  // Service-role pour lire l'observation (RLS observations_terrain pas
-  // encore définie). Auth déjà confirmée au-dessus.
-  const admin = createAdminClient();
-  const { data: obsRow } = await admin
-    .from('observations_terrain')
-    .select('intervention_id')
-    .eq('id', obsId)
-    .maybeSingle();
-  if (!obsRow) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Observation introuvable.' }, { status: 404 }),
-    };
-  }
-
-  const { data: iv } = await supabase
-    .from('interventions')
-    .select('technicien_id')
-    .eq('id', obsRow.intervention_id)
-    .maybeSingle();
-  if (!iv || iv.technicien_id !== techRow.id) {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        { ok: false, error: 'Observation non liée à une intervention assignée.' },
-        { status: 403 },
-      ),
-    };
-  }
-
-  return { ok: true as const };
-}
 
 // ─── PATCH /api/tech/observations/[id] ───────────────────────────────────
 //
@@ -99,8 +38,11 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: 'Body JSON invalide.' }, { status: 400 });
   }
 
-  const auth = await authObsOwnership(id);
-  if (!auth.ok) return auth.response;
+  const supabase = await createClient();
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
+  const owns = await verifyTechOwnsObservation(supabase, tech.tech.id, id);
+  if (!owns.ok) return techError(owns);
 
   const patch: Record<string, unknown> = {};
   if ('test_type' in body) {
@@ -168,8 +110,11 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
-  const auth = await authObsOwnership(id);
-  if (!auth.ok) return auth.response;
+  const supabase = await createClient();
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
+  const owns = await verifyTechOwnsObservation(supabase, tech.tech.id, id);
+  if (!owns.ok) return techError(owns);
 
   const admin = createAdminClient();
 

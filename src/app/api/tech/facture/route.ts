@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
 import { generateBBA } from '@/lib/facturation/bba';
 import type { FactureLigne } from '@/lib/types/database';
 
@@ -22,12 +22,8 @@ export const dynamic = 'force-dynamic';
 // L'insert utilise le client service-role (RLS factures = is_admin).
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
 
   let body: { intervention_id?: unknown; articles?: unknown };
   try {
@@ -76,24 +72,8 @@ export async function POST(request: Request) {
   const articlesInput = body.articles !== undefined ? validateArticles(body.articles) : null;
 
   // Ownership : tech connecté = technicien_id de l'intervention
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) return NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 });
-
-  const { data: iv } = await supabase
-    .from('interventions')
-    .select('id, technicien_id')
-    .eq('id', interventionId)
-    .maybeSingle();
-  if (!iv || iv.technicien_id !== techRow.id) {
-    return NextResponse.json(
-      { ok: false, error: 'Intervention non assignée.' },
-      { status: 403 },
-    );
-  }
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId);
+  if (!owns.ok) return techError(owns);
 
   // Service-role pour les factures (RLS = is_admin only)
   const admin = createAdminClient();

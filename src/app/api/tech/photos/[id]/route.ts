@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsPhoto, techError } from '@/lib/auth/tech-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,12 +22,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
 
   const { id } = await params;
 
@@ -39,28 +35,8 @@ export async function PATCH(
   }
 
   // Ownership : photo → intervention → tech
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) return NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 });
-
-  const { data: photoRow } = await supabase
-    .from('photos_interventions')
-    .select('intervention_id')
-    .eq('id', id)
-    .maybeSingle();
-  if (!photoRow) return NextResponse.json({ ok: false, error: 'Photo introuvable.' }, { status: 404 });
-
-  const { data: ivRow } = await supabase
-    .from('interventions')
-    .select('technicien_id')
-    .eq('id', photoRow.intervention_id)
-    .maybeSingle();
-  if (!ivRow || ivRow.technicien_id !== techRow.id) {
-    return NextResponse.json({ ok: false, error: 'Photo non liée à une intervention assignée.' }, { status: 403 });
-  }
+  const owns = await verifyTechOwnsPhoto(supabase, tech.tech.id, id);
+  if (!owns.ok) return techError(owns);
 
   // Build patch
   const patch: Record<string, unknown> = {};
