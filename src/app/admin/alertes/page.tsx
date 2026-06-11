@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Pause, Circle, FileText, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { StatutBadge } from '@/components/StatutBadge';
+import { CollapsedSection } from '@/components/admin/CollapsedSection';
 import { fmtDateTime, relTime } from '@/lib/format';
 import type { Acp, Intervention, Organisation } from '@/lib/types/database';
 
@@ -59,6 +60,37 @@ export default async function AlertesPage() {
 
   const totalAlertes = enSuspens.length + nonAssignees.length + rapportsAEnvoyer.length;
 
+  // Sections dans l'ordre métier d'origine ; à l'affichage, celles qui ont
+  // des éléments passent devant, les vides sont repliées en lignes compactes.
+  const sections = [
+    {
+      key: 'en-suspens',
+      title: 'En suspens',
+      subtitle: 'Dossiers bloqués nécessitant une action',
+      icon: Pause,
+      color: 'terra' as const,
+      items: enSuspens,
+    },
+    {
+      key: 'non-assignees',
+      title: 'Nouvelles non assignées',
+      subtitle: 'Demandes reçues sans technicien attribué',
+      icon: Circle,
+      color: 'amber' as const,
+      items: nonAssignees,
+    },
+    {
+      key: 'rapports',
+      title: 'Rapports prêts à envoyer',
+      subtitle: 'Rapports publiés en attente de transmission au syndic',
+      icon: FileText,
+      color: 'navy' as const,
+      items: rapportsAEnvoyer,
+    },
+  ];
+  const actives = sections.filter((s) => s.items.length > 0);
+  const vides = sections.filter((s) => s.items.length === 0);
+
   return (
     <>
       <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
@@ -74,44 +106,38 @@ export default async function AlertesPage() {
       </div>
 
       <div className="space-y-6">
-        <Section
-          title="En suspens"
-          subtitle="Dossiers bloqués nécessitant une action"
-          icon={Pause}
-          color="terra"
-          items={enSuspens}
-          empty="Aucun dossier en suspens."
-        />
-        <Section
-          title="Nouvelles non assignées"
-          subtitle="Demandes reçues sans technicien attribué"
-          icon={Circle}
-          color="amber"
-          items={nonAssignees}
-          empty="Toutes les nouvelles demandes ont un technicien."
-        />
-        <Section
-          title="Rapports prêts à envoyer"
-          subtitle="Rapports publiés en attente de transmission au syndic"
-          icon={FileText}
-          color="navy"
-          items={rapportsAEnvoyer}
-          empty="Aucun rapport en attente."
-        />
+        {actives.map((s) => (
+          <Section
+            key={s.key}
+            title={s.title}
+            subtitle={s.subtitle}
+            icon={s.icon}
+            color={s.color}
+            items={s.items}
+          />
+        ))}
+        {vides.length > 0 && (
+          <div className="space-y-2">
+            {vides.map((s) => (
+              <CollapsedSection key={s.key} icon={s.icon} title={s.title} tone={s.color} />
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
 }
 
+// Rendue uniquement quand items.length > 0 — l'état vide est porté par
+// CollapsedSection dans la page.
 function Section({
-  title, subtitle, icon: Icon, color, items, empty,
+  title, subtitle, icon: Icon, color, items,
 }: {
   title: string;
   subtitle: string;
   icon: LucideIcon;
   color: 'terra' | 'amber' | 'navy';
   items: AlertItem[];
-  empty: string;
 }) {
   // Light : pastille pâle + texte assorti.
   // Dark : fond solide + texte blanc, ratio AA garanti même sur fond sombre.
@@ -139,12 +165,7 @@ function Section({
         <span className={`text-sm font-extrabold ${accentFg} dark:text-white`}>{items.length}</span>
       </div>
 
-      {items.length === 0 ? (
-        <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
-          {empty}
-        </p>
-      ) : (
-        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
+      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-sand">
@@ -173,8 +194,7 @@ function Section({
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+      </div>
     </section>
   );
 }
