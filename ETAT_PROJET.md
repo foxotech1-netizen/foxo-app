@@ -1,3 +1,27 @@
+# État du projet FoxO — snapshot 2026-06-11 (clôture volet design — D7 modernisation)
+
+- **Date du recap** : 2026-06-11
+- **HEAD git** : `5f8ca8a` (merge PR #87)
+- **Branche** : `main`, aligné `origin/main`.
+- **Production** : déployée par Vercel sur push `main`.
+
+## Chantier clos — D7 « modernisation » (PR #87, 4 commits, 61 fichiers)
+Dernier lot du volet design (D1→D7 tous mergés, PRs #81→#87). Systématisation du « luxe B2B sobre » existant, zéro redesign, zéro changement de logique (diff relu intégralement par Claude chat avant merge).
+- **Typo** (`3bd7229`) : échelle de titres unifiée dans `globals.css` — `.fxs-title-sm` 20px / `.fxs-section-title` 15px / `.fxs-block-title` 13px (Sora 600, sans couleur imposée), appliquée aux 3 portails. Chiffres tabulaires : règle globale `table { font-variant-numeric: tabular-nums }` + `tabular-nums` sur les KPI hors table.
+- **Élévation** (`b3bdc04`) : tokens `@theme` — ombres `--shadow-card/raised/overlay` (teinte navy-deep) et rayons `--radius-ctl 8 / --radius-card 10 / --radius-modal 14` → utilitaires Tailwind 4 auto-générés (`shadow-card`, `rounded-modal`…). 29 `boxShadow` inline dédupliqués ; `.fxs-card`/`.premium-card` pointent sur les tokens.
+- **Skeletons** (`5ae3684`) : composant `src/components/ui/Skeleton.tsx` (`Skeleton`/`SkeletonText`, classe `.fx-skeleton` sand-mid pulse 1,6s, respecte `prefers-reduced-motion`). Branché UNIQUEMENT sur des états de chargement existants (zéro nouveau fetch) : `src/app/admin/loading.tsx` (boundary Suspense des routes /admin/*), liste/libellés/détail Mails, blocs drawer interventions.
+- **Micro-interactions** (`d7c8545`) : anneau de focus clavier navy 2px global via `:where(a, button, [role=button], [role=tab], summary):focus-visible` (spécificité nulle, variante sky sur surfaces navy) ; transitions 150ms couleurs/ombres sur boutons/liens/onglets/lignes ; **reliquat D6 corrigé** — prompt serveur `api/tech/assistant/chat/route.ts` passé au tutoiement.
+
+## À faire (dans l'ordre) — mis à jour 2026-06-11
+1. **Revue visuelle finale** : nouveau tour de captures avant/après par Foxo sur la prod, corrections ponctuelles si besoin.
+2. **Volet produit** — fonctionnalités manquantes, à cadrer avec Foxo. Inclut l'artefact sandbox « 2026-0000 » (import Google Calendar, titre brut d'event) à traiter côté produit.
+3. **Module Analytics** (plan dans `PLAN_CHANTIER_Module_Analytics_FoxO.md`).
+- (Backlog temps calme) 37 erreurs ESLint react-hooks ; casts ; sécurité BASSE (UUID occupant sans TTL, `auth_read_utilisateurs USING(true)`, CSP report-mode, secret cron en query) ; classes `dark:` inertes ; chantier `feat/file-validation` en pause ; outils d'écriture Google assistant admin ; crédentials Twilio prod.
+- **Facturation = DERNIER chantier**, ne pas démarrer avant usage quotidien.
+
+## Hygiène repo
+- Branche `design/d7-modernisation` mergée → supprimer côté GitHub si pas déjà fait (bouton Delete branch).
+
 # État du projet FoxO — snapshot 2026-06-11 (Chantier Rapport v2 — LIVRÉ, PR #76 MERGÉE)
 
 - Date du recap : 2026-06-11
