@@ -77,6 +77,7 @@ import { TypeBadge } from '@/components/TypeBadge';
 import { SendSmsModal } from '@/components/SendSmsModal';
 import { MailStepper } from './MailStepper';
 import { MessagesPanel } from '@/components/MessagesPanel';
+import { SkeletonText } from '@/components/ui/Skeleton';
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
@@ -2312,7 +2313,7 @@ export function InterventionsClient({
 
                   <Block id="section-occupants" title={`Appartements / unités (${drawerOccupants.length})`}>
                     {drawerOccupantsLoading ? (
-                      <span className="text-ink-muted dark:text-[#C8C2B8]">Chargement…</span>
+                      <SkeletonText lines={3} />
                     ) : (
                       <div className="space-y-1.5">
                         {drawerOccupants.map((o) => {
@@ -3976,7 +3977,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
   }, [interventionId]);
 
   if (!loaded) {
-    return <div className="text-[12px] text-ink-mid italic dark:text-[#C8C2B8]">Chargement…</div>;
+    return <SkeletonText lines={2} />;
   }
   if (error) {
     return (

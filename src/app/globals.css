@@ -325,6 +325,21 @@ h1.fxs-page-title > span,
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Skeletons D7 — placeholders de chargement sobres (sand-mid, pulse
+   discret). Composant : src/components/ui/Skeleton.tsx. */
+.fx-skeleton {
+  background: var(--color-sand-mid);
+  border-radius: 6px;
+  animation: fx-skeleton-pulse 1.6s ease-in-out infinite;
+}
+@keyframes fx-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-skeleton { animation: none; }
+}
+
 /* Fix z-index Leaflet dans layout portal navy */
 .leaflet-container {
   z-index: 0;

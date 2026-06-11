@@ -10,6 +10,7 @@ import {
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { MailAnalyseBadges } from './MailAnalyseBadges';
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { MailAnalyseActions } from './MailAnalyseActions';
 import {
   MAIL_CLASSIFICATIONS,
@@ -662,7 +663,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           )}
 
           {labelsLoading ? (
-            <div className="text-[11px] text-ink-muted">Chargement…</div>
+            <div className="space-y-2 py-1">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-3 w-4/5" />
+            </div>
           ) : labels.length === 0 ? (
             <div className="text-[11px] text-ink-muted italic">
               Aucun libellé personnalisé.
@@ -729,6 +734,19 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           {error && (
             <div className="m-3 text-[12px] bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 font-semibold">
               {error}
+            </div>
+          )}
+          {filtered.length === 0 && loading && !error && (
+            <div className="px-3 py-2 space-y-px">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="py-2.5 border-b border-sand-border/60 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-14 ml-auto" />
+                  </div>
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
+              ))}
             </div>
           )}
           {filtered.length === 0 && !loading && !error && (
@@ -1084,7 +1102,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
             <div className="flex-1 px-4 py-4">
               {detailLoading && (
-                <div className="text-[13px] text-ink-muted text-center py-12">Chargement…</div>
+                <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px] space-y-2.5">
+                  <Skeleton className="h-4 w-2/5" />
+                  <SkeletonText lines={5} className="pt-2" />
+                </div>
               )}
               {!detailLoading && detail && (
                 <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px]">
