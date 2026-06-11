@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
-  Paperclip, Circle, Tag, Archive, Undo2,
+  Paperclip, Circle, Tag, Archive, Undo2, Eye, Download,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -26,6 +26,10 @@ type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
   | 'label' | 'important' | 'trash' | 'restore' | 'delete-permanent';
+
+// Miroir de MAX_ATTACHMENT_DOWNLOAD_BYTES côté route (plafond réponse
+// Vercel ~4,5 MB) — pré-check client : au-delà, pas de lien, pas d'appel.
+const MAX_PJ_DOWNLOAD_BYTES = 4 * 1024 * 1024;
 
 const HIDDEN_BADGE_LABEL_IDS = new Set([
   'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT',
@@ -1181,12 +1185,51 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                         Pièces jointes
                       </div>
                       <ul className="text-[12px] text-ink-mid space-y-1">
-                        {detail.attachments.map((a, i) => (
-                          <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full">
-                            <Paperclip size={12} />
-                            {a.filename} <span className="text-ink-muted">· {Math.round(a.size / 1024)} KB</span>
-                          </li>
-                        ))}
+                        {detail.attachments.map((a, i) => {
+                          const tooBig = a.size > MAX_PJ_DOWNLOAD_BYTES;
+                          const sizeKb = `${Math.round(a.size / 1024)} KB`;
+                          // > 4 MB : la route renverrait 413 (plafond
+                          // Vercel) — pas de lien, Gmail reste l'issue.
+                          if (tooBig) {
+                            return (
+                              <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full opacity-60">
+                                <Paperclip size={12} />
+                                {a.filename}
+                                <span className="text-ink-muted">· {sizeKb} · Trop volumineuse — voir dans Gmail</span>
+                              </li>
+                            );
+                          }
+                          // Sans attachment_id (part inline sans id) :
+                          // rendu inerte, comme avant.
+                          if (!a.attachment_id) {
+                            return (
+                              <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full">
+                                <Paperclip size={12} />
+                                {a.filename} <span className="text-ink-muted">· {sizeKb}</span>
+                              </li>
+                            );
+                          }
+                          const href = `/api/admin/mails/${detail.id}/attachments/${encodeURIComponent(a.attachment_id)}`
+                            + `?name=${encodeURIComponent(a.filename)}&mime=${encodeURIComponent(a.mime_type)}`;
+                          // Miroir du calcul serveur — SVG jamais inline (XSS).
+                          const inline = (a.mime_type.startsWith('image/') && a.mime_type !== 'image/svg+xml')
+                            || a.mime_type === 'application/pdf';
+                          return (
+                            <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full">
+                              <Paperclip size={12} />
+                              <a
+                                href={href}
+                                {...(inline ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                                title={inline ? 'Aperçu dans un nouvel onglet' : 'Télécharger'}
+                                className="text-navy hover:underline inline-flex items-center gap-1 truncate"
+                              >
+                                {a.filename}
+                                {inline ? <Eye size={12} aria-hidden /> : <Download size={12} aria-hidden />}
+                              </a>
+                              <span className="text-ink-muted whitespace-nowrap">· {sizeKb}</span>
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
