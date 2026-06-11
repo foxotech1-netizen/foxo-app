@@ -120,7 +120,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="text"
               value={societeNom}
               onChange={(e) => setSocieteNom(e.target.value)}
-              placeholder="Fox Group"
+              placeholder="ex : Fox Group"
               className={inputCls}
             />
           </Field>
@@ -143,7 +143,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="text"
               value={societeTva}
               onChange={(e) => setSocieteTva(e.target.value)}
-              placeholder="BE0123456789"
+              placeholder="ex : BE0123456789"
               className={inputCls + ' font-mono'}
             />
           </Field>
@@ -153,7 +153,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="text"
               value={societeBce}
               onChange={(e) => setSocieteBce(e.target.value)}
-              placeholder="0123.456.789"
+              placeholder="ex : 0123.456.789"
               className={inputCls + ' font-mono'}
             />
           </Field>
@@ -169,7 +169,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 type="text"
                 value={societeRue}
                 onChange={(e) => setSocieteRue(e.target.value)}
-                placeholder="Stationstraat"
+                placeholder="ex : Stationstraat"
                 className={inputCls}
               />
             </Field>
@@ -178,7 +178,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 type="text"
                 value={societeNumero}
                 onChange={(e) => setSocieteNumero(e.target.value)}
-                placeholder="55"
+                placeholder="ex : 55"
                 className={inputCls}
               />
             </Field>
@@ -190,7 +190,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 type="text"
                 value={societeCodePostal}
                 onChange={(e) => setSocieteCodePostal(e.target.value)}
-                placeholder="3070"
+                placeholder="ex : 3070"
                 className={inputCls + ' font-mono'}
               />
             </Field>
@@ -199,7 +199,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 type="text"
                 value={societeVille}
                 onChange={(e) => setSocieteVille(e.target.value)}
-                placeholder="Kortenberg"
+                placeholder="ex : Kortenberg"
                 className={inputCls}
               />
             </Field>
@@ -225,7 +225,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="tel"
               value={societeTel}
               onChange={(e) => setSocieteTel(e.target.value)}
-              placeholder="+32 488 700 007"
+              placeholder="ex : +32 488 700 007"
               className={inputCls + ' font-mono'}
             />
           </Field>
@@ -234,7 +234,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="email"
               value={societeEmail}
               onChange={(e) => setSocieteEmail(e.target.value)}
-              placeholder="info@foxo.be"
+              placeholder="ex : info@foxo.be"
               className={inputCls + ' font-mono'}
             />
           </Field>
@@ -243,7 +243,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="url"
               value={societeSite}
               onChange={(e) => setSocieteSite(e.target.value)}
-              placeholder="https://foxo.be"
+              placeholder="ex : https://foxo.be"
               className={inputCls + ' font-mono'}
             />
           </Field>
@@ -260,7 +260,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 type="text"
                 value={societeIban}
                 onChange={(e) => setSocieteIban(e.target.value)}
-                placeholder="BE68 5390 0754 7034"
+                placeholder="ex : BE68 5390 0754 7034"
                 className={inputCls + ' font-mono'}
               />
             </Field>
@@ -270,7 +270,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               type="text"
               value={societeBic}
               onChange={(e) => setSocieteBic(e.target.value)}
-              placeholder="TRIOBEBB"
+              placeholder="ex : TRIOBEBB"
               className={inputCls + ' font-mono'}
             />
           </Field>
@@ -280,7 +280,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 type="text"
                 value={societeBanque}
                 onChange={(e) => setSocieteBanque(e.target.value)}
-                placeholder="Beobank"
+                placeholder="ex : Beobank"
                 className={inputCls}
               />
             </Field>

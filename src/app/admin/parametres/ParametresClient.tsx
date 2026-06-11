@@ -397,7 +397,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 type="email"
                 value={emailComptable}
                 onChange={(e) => setEmailComptable(e.target.value)}
-                placeholder="comptable@cabinet.be"
+                placeholder="ex : comptable@cabinet.be"
                 className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
               />
               <SaveBtn pending={pending} onClick={() => save('email_comptable', emailComptable)} />
@@ -561,7 +561,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 <input
                   value={twilioSid}
                   onChange={(e) => setTwilioSid(e.target.value)}
-                  placeholder="ACxxxxxxxxxxxxxxxx"
+                  placeholder="ex : ACxxxxxxxxxxxxxxxx"
                   className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
                 />
                 <SaveBtn pending={pending} onClick={() => save('twilio_account_sid', twilioSid)} />
@@ -580,7 +580,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 <input
                   value={twilioSmsFrom}
                   onChange={(e) => setTwilioSmsFrom(e.target.value)}
-                  placeholder="+32..."
+                  placeholder="ex : +32..."
                   className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
                 />
                 <SaveBtn pending={pending} onClick={() => save('twilio_phone_number', twilioSmsFrom)} />
@@ -589,7 +589,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 <input
                   value={twilioWaFrom}
                   onChange={(e) => setTwilioWaFrom(e.target.value)}
-                  placeholder="+14155238886"
+                  placeholder="ex : +14155238886"
                   className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
                 />
                 <SaveBtn pending={pending} onClick={() => save('twilio_whatsapp_number', twilioWaFrom)} />
@@ -608,7 +608,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                     <input
                       value={testNumber}
                       onChange={(e) => setTestNumber(e.target.value)}
-                      placeholder="+32 488 12 34 56"
+                      placeholder="ex : +32 488 12 34 56"
                       className="flex-1 min-w-[180px] px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
                     />
                     <select

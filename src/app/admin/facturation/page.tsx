@@ -49,24 +49,19 @@ export default async function FacturationPage() {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
-        <div>
-          <h1 className="fxs-page-title mb-1">
-            Facturation
-          </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
-            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            {factures.length} facture{factures.length > 1 ? 's' : ''} chargée{factures.length > 1 ? 's' : ''}
-          </div>
+      {/* Le titre « Facturation » vit dans le layout du module, au-dessus
+          des onglets. Ici : simple barre compteur + action de création. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-4 mb-4">
+        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
+          {factures.length} facture{factures.length > 1 ? 's' : ''} chargée{factures.length > 1 ? 's' : ''}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/admin/facturation/new"
-            className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm"
-          >
-            + Nouvelle facture
-          </Link>
-        </div>
+        <Link
+          href="/admin/facturation/new"
+          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm"
+        >
+          + Nouvelle facture
+        </Link>
       </div>
 
       {error && (

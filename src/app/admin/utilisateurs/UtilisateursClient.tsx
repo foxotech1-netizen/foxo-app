@@ -187,7 +187,7 @@ export function UtilisateursClient({
           onClick={() => { setFormOpen((v) => !v); setFeedback(null); }}
           className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm"
         >
-          {formOpen ? 'Annuler' : '+ Ajouter'}
+          {formOpen ? 'Annuler' : '+ Nouvel utilisateur'}
         </button>
       </div>
 

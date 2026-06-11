@@ -140,7 +140,7 @@ export function TechniciensClient({
           onClick={() => { setOpen(true); setError(null); }}
           className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm inline-flex items-center gap-1.5"
         >
-          <Plus size={14} />Ajouter un technicien
+          <Plus size={14} />Nouveau technicien
         </button>
       </div>
 

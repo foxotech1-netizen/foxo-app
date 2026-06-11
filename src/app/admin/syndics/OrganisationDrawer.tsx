@@ -592,7 +592,7 @@ export function OrganisationDrawer({
                       type="text"
                       value={acpForm.bce}
                       onChange={(e) => setAcpForm((f) => ({ ...f, bce: e.target.value }))}
-                      placeholder="BCE (BE0xxx.xxx.xxx)"
+                      placeholder="ex : BE0xxx.xxx.xxx"
                       className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono outline-none focus:border-navy-mid"
                     />
                     <input
@@ -990,9 +990,9 @@ function SyndicEmailsBlock({
         Si vide, on retombe sur l&apos;email principal {org.email}.
       </p>
       <div className="space-y-2">
-        <EmailField label="Factures" value={factures} onChange={setFactures} placeholder={`p.ex. factures@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
-        <EmailField label="Rapports" value={rapports} onChange={setRapports} placeholder={`p.ex. rapports@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
-        <EmailField label="Communications" value={communications} onChange={setCommunications} placeholder={`p.ex. info@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Factures" value={factures} onChange={setFactures} placeholder={`ex : factures@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Rapports" value={rapports} onChange={setRapports} placeholder={`ex : rapports@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Communications" value={communications} onChange={setCommunications} placeholder={`ex : info@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
       </div>
       <div className="flex justify-end mt-3">
         <button
