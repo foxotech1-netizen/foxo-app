@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { TECH_EMAILS } from '@/lib/auth/roles';
 import { loadTokens } from '@/lib/google-auth';
 import type { CreneauDisponible, ParticulierContact, Utilisateur } from '@/lib/types/database';
 import { PlanningCalendar } from './PlanningCalendar';
@@ -49,7 +48,7 @@ export default async function PlanningPage({
     supabase
       .from('utilisateurs')
       .select('id, prenom, nom, email, couleur')
-      .in('email', TECH_EMAILS as unknown as string[])
+      .eq('role', 'technicien')
       .order('prenom', { ascending: true }),
     supabase
       .from('creneaux_disponibles')

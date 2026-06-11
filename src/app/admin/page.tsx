@@ -1,5 +1,4 @@
 import { createClient } from '@/lib/supabase/server';
-import { TECH_EMAILS } from '@/lib/auth/roles';
 import type { Acp, Delegue, Intervention, Occupant, Organisation, Utilisateur, InterventionRow, CreneauDisponible } from '@/lib/types/database';
 import { InterventionsClient } from './InterventionsClient';
 import { SyndicMapWrapper } from '@/components/portal/SyndicMapWrapper';
@@ -56,7 +55,7 @@ export default async function AdminPipelinePage() {
     supabase
       .from('utilisateurs')
       .select('id,prenom,nom,email,couleur,role,actif,organisation_id,telephone,last_seen_at,created_at')
-      .in('email', TECH_EMAILS as unknown as string[])
+      .eq('role', 'technicien')
       .order('prenom', { ascending: true }),
     supabase
       .from('creneaux_disponibles')

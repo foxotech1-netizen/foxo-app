@@ -1356,7 +1356,7 @@ function PlanningCouleursPanel() {
         </div>
         {techs.length === 0 ? (
           <div className="text-[12px] text-ink-muted italic">
-            Aucun technicien — ajoute des comptes via le code (TECH_EMAILS dans roles.ts).
+            Aucun technicien — crée des comptes avec le rôle « technicien » dans /admin/utilisateurs.
           </div>
         ) : (
           <div className="space-y-1.5">

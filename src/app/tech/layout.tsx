@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { roleForUserId } from '@/lib/auth/server';
 import { Logo } from '@/components/Logo';
 import { PWARegister } from '@/components/PWARegister';
 import { MainContentTech } from '@components/layout/MainContentTech';
@@ -34,7 +34,9 @@ export default async function TechLayout({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth/login');
-  if (roleForEmail(user.email) !== 'tech') {
+  // Accès tech basé sur le rôle DB (utilisateurs.role = 'technicien'), pas une
+  // whitelist d'emails. Espace tech-only : les admins ne sont pas routés ici.
+  if ((await roleForUserId(user.id)) !== 'tech') {
     redirect('/auth/login?error=forbidden');
   }
 

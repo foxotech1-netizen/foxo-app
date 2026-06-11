@@ -71,10 +71,9 @@ export type Role = "admin" | "tech" | "partner";
  * - Utilise le client SSR pour récupérer auth.uid() (cookies), puis le client
  *   admin (service-role) pour lire utilisateurs.role.
  *
- * Cette fonction remplace progressivement roleForEmail() dans la couche routage
- * (proxy, page d'accueil, redirect post-OTP, layouts) — voir sous-étape 3.4b.
- * roleForEmail reste consommée pour le check 'tech' via TECH_EMAILS, hors scope
- * du chantier is_admin().
+ * Cette fonction (et roleForUserId/canAccessTechSpace) a remplacé l'ancienne
+ * whitelist d'emails roleForEmail()/TECH_EMAILS dans toute la couche routage et
+ * les gardes tech (proxy, page d'accueil, redirect post-OTP, layouts, /api/tech).
  *
  * Note de perf : 1 round-trip DB par appel. Acceptable au regard du trafic
  * actuel de FoxO. Un futur chantier pourra basculer sur un JWT claim
@@ -96,6 +95,21 @@ export async function roleForUser(): Promise<Role> {
   } catch {
     return "partner";
   }
+}
+
+/**
+ * canAccessTechSpace — autorisation de l'espace technicien basée sur le RÔLE DB
+ * (utilisateurs.role), source de vérité, en remplacement de la whitelist
+ * d'emails TECH_EMAILS (supprimée). Retourne true pour un technicien
+ * (role = 'technicien' → 'tech') ET pour un admin (parité avec les gardes
+ * /api/tech/** historiques qui autorisaient `role === 'tech' || isAdminUser()`).
+ *
+ * Les appelants « tech-only » (layout /tech, server actions tech) comparent
+ * directement `roleForUserId(...) === 'tech'` plutôt que d'utiliser ce helper.
+ */
+export async function canAccessTechSpace(userId: string): Promise<boolean> {
+  const role = await roleForUserId(userId);
+  return role === 'tech' || role === 'admin';
 }
 
 /**
