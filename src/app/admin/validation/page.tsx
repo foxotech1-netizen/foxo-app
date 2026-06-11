@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { CollapsedSection } from '@/components/admin/CollapsedSection';
 import { fmtDate, relTime } from '@/lib/format';
 import {
   STATUT_FACTURE_INFO,
@@ -157,22 +158,16 @@ export default async function ValidationPage() {
   const totalAValider =
     analyses.length + rapportsAValider.length + facturesEnrichies.length + notes.length + suspensCount;
 
-  return (
-    <>
-      <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
-        <div>
-          <h1 className="fxs-page-title mb-1">File de validation</h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
-            <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
-            {totalAValider} élément{totalAValider > 1 ? 's' : ''} à valider
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-6">
-        {/* 1. Analyses mails à confirmer */}
-        <Section title="Analyses mails à confirmer" icon={Mail} count={analyses.length} empty={analyses.length === 0}>
-          <Table head={['Sujet', 'Expéditeur', 'Reçu le', 'Urgence']}>
+  // Sections dans l'ordre métier d'origine ; à l'affichage, celles qui ont
+  // des éléments passent devant, les vides sont repliées en lignes compactes.
+  const sections = [
+    {
+      key: 'mails',
+      title: 'Analyses mails à confirmer',
+      icon: Mail,
+      count: analyses.length,
+      body: (
+        <Table head={['Sujet', 'Expéditeur', 'Reçu le', 'Urgence']}>
             {analyses.map((a) => (
               <tr key={a.thread_id} className="border-b border-sand-mid hover:bg-sand-hover">
                 <td className="px-3.5 py-3">
@@ -191,11 +186,15 @@ export default async function ValidationPage() {
               </tr>
             ))}
           </Table>
-        </Section>
-
-        {/* 2. Rapports à valider */}
-        <Section title="Rapports à valider" icon={FileText} count={rapportsAValider.length} empty={rapportsAValider.length === 0}>
-          <Table head={['Réf.', 'ACP / Adresse', 'Màj', 'Statut']}>
+      ),
+    },
+    {
+      key: 'rapports',
+      title: 'Rapports à valider',
+      icon: FileText,
+      count: rapportsAValider.length,
+      body: (
+        <Table head={['Réf.', 'ACP / Adresse', 'Màj', 'Statut']}>
             {rapportsAValider.map((r) => {
               const acp = r.acp_id ? acpMap.get(r.acp_id) ?? null : null;
               return (
@@ -228,11 +227,15 @@ export default async function ValidationPage() {
               );
             })}
           </Table>
-        </Section>
-
-        {/* 3. Factures / devis en brouillon */}
-        <Section title="Factures / devis en brouillon" icon={Banknote} count={facturesEnrichies.length} empty={facturesEnrichies.length === 0}>
-          <Table head={['Numéro', 'Montant', 'Client', 'Statut']}>
+      ),
+    },
+    {
+      key: 'factures',
+      title: 'Factures / devis en brouillon',
+      icon: Banknote,
+      count: facturesEnrichies.length,
+      body: (
+        <Table head={['Numéro', 'Montant', 'Client', 'Statut']}>
             {facturesEnrichies.map((f) => {
               const info = STATUT_FACTURE_INFO[f.statut];
               return (
@@ -256,11 +259,15 @@ export default async function ValidationPage() {
               );
             })}
           </Table>
-        </Section>
-
-        {/* 4. Notes de frais à approuver */}
-        <Section title="Notes de frais à approuver" icon={Receipt} count={notes.length} empty={notes.length === 0}>
-          <Table head={['Technicien', 'Montant', 'Date', 'Statut']}>
+      ),
+    },
+    {
+      key: 'notes-frais',
+      title: 'Notes de frais à approuver',
+      icon: Receipt,
+      count: notes.length,
+      body: (
+        <Table head={['Technicien', 'Montant', 'Date', 'Statut']}>
             {notes.map((n) => (
               <tr key={n.id} className="border-b border-sand-mid hover:bg-sand-hover">
                 <td className="px-3.5 py-3">
@@ -280,39 +287,71 @@ export default async function ValidationPage() {
               </tr>
             ))}
           </Table>
-        </Section>
+      ),
+    },
+    {
+      // Pas de re-listing : compteur + lien Alertes.
+      key: 'suspens',
+      title: 'Interventions en suspens',
+      icon: Pause,
+      count: suspensCount,
+      body: (
+        <div className="bg-cream rounded-xl border border-sand-border p-4 flex items-center justify-between gap-3">
+          <p className="text-[13px] text-ink-mid">
+            {suspensCount} dossier{suspensCount > 1 ? 's' : ''} à traiter dans Alertes.
+          </p>
+          <Link
+            href="/admin/alertes"
+            className="inline-flex items-center gap-1.5 text-[12px] font-bold text-navy hover:underline whitespace-nowrap"
+          >
+            Voir dans Alertes
+            <ArrowRight size={14} aria-hidden />
+          </Link>
+        </div>
+      ),
+    },
+  ];
+  const actives = sections.filter((s) => s.count > 0);
+  const vides = sections.filter((s) => s.count === 0);
 
-        {/* 5. Interventions en suspens — pas de re-listing : compteur + lien Alertes. */}
-        <Section title="Interventions en suspens" icon={Pause} count={suspensCount} empty={false}>
-          <div className="bg-cream rounded-xl border border-sand-border p-4 flex items-center justify-between gap-3">
-            <p className="text-[13px] text-ink-mid">
-              {suspensCount > 0 ? (
-                <>{suspensCount} dossier{suspensCount > 1 ? 's' : ''} à traiter dans Alertes.</>
-              ) : (
-                <>Rien à valider.</>
-              )}
-            </p>
-            <Link
-              href="/admin/alertes"
-              className="inline-flex items-center gap-1.5 text-[12px] font-bold text-navy hover:underline whitespace-nowrap"
-            >
-              Voir dans Alertes
-              <ArrowRight size={14} aria-hidden />
-            </Link>
+  return (
+    <>
+      <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
+        <div>
+          <h1 className="fxs-page-title mb-1">File de validation</h1>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+            <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
+            {totalAValider} élément{totalAValider > 1 ? 's' : ''} à valider
           </div>
-        </Section>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        {actives.map((s) => (
+          <Section key={s.key} title={s.title} icon={s.icon} count={s.count}>
+            {s.body}
+          </Section>
+        ))}
+        {vides.length > 0 && (
+          <div className="space-y-2">
+            {vides.map((s) => (
+              <CollapsedSection key={s.key} icon={s.icon} title={s.title} />
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
 }
 
+// Rendue uniquement quand count > 0 — l'état vide est porté par
+// CollapsedSection dans la page.
 function Section({
-  title, icon: Icon, count, empty, children,
+  title, icon: Icon, count, children,
 }: {
   title: string;
   icon: LucideIcon;
   count: number;
-  empty: boolean;
   children: ReactNode;
 }) {
   return (
@@ -325,13 +364,7 @@ function Section({
         <span className="text-sm font-extrabold text-navy dark:text-white">{count}</span>
       </div>
 
-      {empty ? (
-        <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
-          Rien à valider.
-        </p>
-      ) : (
-        children
-      )}
+      {children}
     </section>
   );
 }
