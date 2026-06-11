@@ -200,6 +200,29 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     } catch { /* noop */ }
   };
 
+  // Compteur « non lus » harmonisé — même source et même définition que le
+  // badge sidebar : /api/admin/mails/unread-count → in:inbox is:unread hors
+  // mails système (cf. countUnreadMails, filtrage D1). Rafraîchi au mount,
+  // sur ↻ Actualiser et sur l'event foxo:mails-updated (lecture, actions
+  // en masse) — comme la Sidebar.
+  const [inboxUnread, setInboxUnread] = useState(0);
+  useEffect(() => {
+    if (!initialConnected) return;
+    let cancelled = false;
+    const load = () => {
+      fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => { if (!cancelled && d?.ok) setInboxUnread(d.count ?? 0); })
+        .catch(() => { /* silent — le compteur est best-effort */ });
+    };
+    load();
+    window.addEventListener('foxo:mails-updated', load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('foxo:mails-updated', load);
+    };
+  }, [initialConnected, refreshTick]);
+
   // Charge les labels Gmail
   useEffect(() => {
     if (!initialConnected) return;
@@ -496,7 +519,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   if (!initialConnected) return null;
 
-  const totalUnread = labels.reduce((acc, l) => acc + l.messages_unread, 0);
   const inTrash = filter === 'trash';
 
   return (
@@ -617,7 +639,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         <div className="p-3 border-b border-sand-border flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
-              Libellés{totalUnread > 0 ? ` · ${totalUnread} non lus` : ''}
+              Libellés{inboxUnread > 0 ? ` · ${inboxUnread} non lus` : ''}
             </span>
             <button
               type="button"
@@ -697,7 +719,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <span className="text-[11px] text-ink-muted">
               {selectedIds.size > 0
                 ? `${selectedIds.size} sélectionné(s)`
-                : `${filtered.length} mail(s)${inTrash ? ' (corbeille)' : ''}`}
+                : `${filtered.length} affiché(s)${inTrash ? ' (corbeille)' : ''}`}
             </span>
           </div>
         )}
