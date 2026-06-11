@@ -2,11 +2,11 @@
 
 ## Design system FoxO — règles obligatoires pour toute UI
 
-**Identité.** Esthétique "luxe B2B sobre" : raffinée, dense, professionnelle. Jamais d'esthétique IA générique (cartes arrondies flottantes sur fond blanc, dégradés violets, emojis décoratifs).
+**Identité.** Esthétique "luxe B2B sobre" : raffinée, dense, professionnelle. Jamais d'esthétique IA générique (cartes flottantes sur fond blanc pur, dégradés violets, emojis décoratifs). L'identité FoxO actuelle (marine / sable / ambre) est LA référence : on la modernise, on ne la remplace pas.
 
-**Typographie.** Titres : Fraunces. Texte courant et UI : Manrope. INTERDIT : Inter, Roboto, Open Sans, Lato, Arial, polices système. Contrastes de graisse marqués (ex. 300 vs 700), hiérarchie nette entre niveaux de titres.
+**Typographie.** Titres : Syne. UI : Sora. Texte courant : Inter (chargées via next/font, variables --font-syne / --font-sora / --font-inter). N'introduire AUCUNE autre police. Contrastes de graisse marqués, hiérarchie nette entre niveaux de titres, chiffres tabulaires pour les données.
 
-**Couleurs.** Primaire : #156082 (bleu FoxO). Accent : #A17244 (cuivre). Sidebar : dégradé #2C2A24 → #1A1814. Fonds neutres chauds, pas de blanc pur ni gris froids. Une seule couleur d'accent par écran ; les couleurs sémantiques (succès/erreur/attente) restent discrètes.
+**Couleurs.** Source de vérité : les tokens @theme de src/app/globals.css — primaire marine #1B3A6B (--color-navy), accent ambre #B8830A (--color-amber-foxo), fonds chauds sable/crème (--color-sand #F5F2EC, --color-cream #FDFBF7), sidebar marine. JAMAIS de couleur hex en dur dans les composants : toujours les tokens. Une seule couleur d'accent par écran ; couleurs sémantiques discrètes.
 
 **Densité.** FoxO est un back-office de gestion : privilégier tableaux denses et lisibles, filtres efficaces, actions accessibles en 1 clic. Pas de grandes cartes aérées façon landing page sur les écrans de travail.
 
