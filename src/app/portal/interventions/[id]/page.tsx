@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { DossierPortalClient } from './DossierPortalClient';
 import type { Acp, Intervention, Occupant, Utilisateur } from '@/lib/types/database';
 
@@ -29,28 +30,17 @@ export default async function InterventionDetail({
 
   const supabase = await createClient();
 
-  // Sécurité : intervention rattachée au syndic (legacy syndic_id) OU à l'org
-  // du délégué connecté (organisation_id) OU mandat via dossier sinistre
-  // (courtier/expert mandaté — audit #19, le redirect ne doit plus éjecter un
-  // courtier mandaté). On vérifie d'abord le mandat dossier ; si présent, on
-  // lève le filtre org (l'accès est déjà prouvé), sinon on garde le filtre.
-  const { data: dossier } = await supabase
-    .from('dossiers_sinistres')
-    .select('intervention_id')
-    .eq('intervention_id', id)
-    .eq('courtier_id', org.id)
-    .maybeSingle();
-  const viaDossier = !!dossier;
-
-  let ivQuery = supabase
+  // Sécurité : filtre canonique partagé (lien direct syndic_id/organisation_id
+  // OU mandat dossier sinistre — cf. @/lib/portal/org-visibility). Le redirect
+  // ne doit pas éjecter un courtier/expert mandaté (audit #19).
+  const mandatedIds = await getMandatedInterventionIds(supabase, org.id);
+  const { data: iv } = await supabase
     .from('interventions')
     .select('*')
     .eq('id', id)
-    .is('deleted_at', null);
-  if (!viaDossier) {
-    ivQuery = ivQuery.or(`syndic_id.eq.${org.id},organisation_id.eq.${org.id}`);
-  }
-  const { data: iv } = await ivQuery.maybeSingle();
+    .is('deleted_at', null)
+    .or(buildOrgVisibilityFilter(org.id, mandatedIds))
+    .maybeSingle();
 
   if (!iv) redirect('/portal/interventions');
   const intervention = iv as Intervention;
