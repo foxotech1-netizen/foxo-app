@@ -336,3 +336,12 @@ textarea::placeholder {
   font-style: italic;
   opacity: 1;
 }
+
+/* Défilement horizontal sans scrollbar visible (rangées de chips
+   mobiles — le débordement reste signalé par les pills coupées). */
+.fx-no-scrollbar {
+  scrollbar-width: none;
+}
+.fx-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

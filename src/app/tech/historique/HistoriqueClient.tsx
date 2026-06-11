@@ -89,7 +89,7 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
       />
 
       {/* Filtres — pills tactiles */}
-      <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+      <div className="flex gap-2 overflow-x-auto fx-no-scrollbar -mx-1 px-1 pb-1">
         {([
           { v: 'tous' as const,     label: 'Toutes',    n: counts.tous },
           { v: 'mois' as const,     label: 'Ce mois',   n: counts.mois },
