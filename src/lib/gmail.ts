@@ -222,7 +222,11 @@ export interface MailDetail extends MailListItem {
   cc: string;       // raw header (peut contenir plusieurs adresses séparées par virgule)
   body_text: string;
   body_html: string;
-  attachments: { filename: string; mime_type: string; size: number }[];
+  // attachment_id : identifiant Gmail servant à downloadGmailAttachment.
+  // Purement déclaratif — la donnée transitait déjà au runtime via
+  // extractAttachments (getMailDetail est en format=full). null pour les
+  // parts sans body.attachmentId.
+  attachments: { filename: string; mime_type: string; size: number; attachment_id: string | null }[];
   label_ids: string[];
 }
 
