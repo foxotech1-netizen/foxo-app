@@ -64,7 +64,10 @@ import {
   searchAcpsForIntervention,
   confirmAcpSuggestion,
   ignoreAcpSuggestion,
+  linkCourtierToDossier,
+  unlinkCourtierFromDossier,
 } from './actions';
+import { searchOrganisations } from './planning/actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
 import { PlanRowModal } from './PlanRowModal';
@@ -236,6 +239,10 @@ export function InterventionsClient({
   };
   const [drawerOccupants, setDrawerOccupants] = useState<DrawerOccupant[]>([]);
   const [drawerOccupantsLoading, setDrawerOccupantsLoading] = useState(false);
+  // Courtiers/experts mandatés sur le dossier (dossiers_sinistres), chargés
+  // avec les occupants par le même endpoint à l'ouverture du drawer.
+  type DrawerCourtier = { id: string; nom: string; type: string };
+  const [drawerCourtiers, setDrawerCourtiers] = useState<DrawerCourtier[]>([]);
   const [rapportInfo, setRapportInfo] = useState<{
     statut: 'brouillon' | 'valide' | 'transmis';
     valide_par: string | null;
@@ -498,14 +505,16 @@ export function InterventionsClient({
     setNotifyMsg(null);
     setConfirmMailMsg(null);
 
-    // Lazy-load occupants
+    // Lazy-load occupants (+ courtiers mandatés, même endpoint)
     setDrawerOccupants([]);
+    setDrawerCourtiers([]);
     setDrawerOccupantsLoading(true);
     fetch(`/api/admin/occupants/${id}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
           setDrawerOccupants(data.occupants ?? []);
+          setDrawerCourtiers(data.courtiers ?? []);
           // Cocher tous les occupants par défaut pour la notif
           setNotifySelectedIds(new Set((data.occupants ?? []).map((o: { id: string }) => o.id)));
         }
@@ -528,6 +537,7 @@ export function InterventionsClient({
     setAssignMessage(null);
     setIaSaveMessage(null);
     setDrawerOccupants([]);
+    setDrawerCourtiers([]);
     setRapportInfo(null);
     setRapportInfoLoading(false);
     setValidateMessage(null);
@@ -843,6 +853,15 @@ export function InterventionsClient({
       const r = await fetch(`/api/admin/occupants/${selected.id}`, { cache: 'no-store' });
       const data = await r.json();
       if (data.ok) setDrawerOccupants(data.occupants ?? []);
+    } catch { /* noop */ }
+  }
+
+  async function refreshCourtiers() {
+    if (!selected) return;
+    try {
+      const r = await fetch(`/api/admin/occupants/${selected.id}`, { cache: 'no-store' });
+      const data = await r.json();
+      if (data.ok) setDrawerCourtiers(data.courtiers ?? []);
     } catch { /* noop */ }
   }
 
@@ -2149,6 +2168,13 @@ export function InterventionsClient({
                       </Block>
                     );
                   })()}
+
+                  {/* 🤝 Courtier mandaté — association admin via dossiers_sinistres */}
+                  <CourtierMandatePanel
+                    interventionId={selected.id}
+                    courtiers={drawerCourtiers}
+                    onChanged={refreshCourtiers}
+                  />
 
                   {/* 🔗 Dossiers liés + 📧 Mails liés — fetch via /liens */}
                   <LiensPanel interventionId={selected.id} />
@@ -4067,6 +4093,168 @@ function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: st
         </div>
       )}
     </Link>
+  );
+}
+
+// CourtierMandatePanel — bloc « Courtier mandaté » du drawer. Affiche les
+// courtiers/experts déjà associés au dossier (dossiers_sinistres) avec un
+// bouton Retirer (confirm), et propose une recherche d'organisation filtrée
+// type courtier/expert + bouton Associer. La liste `courtiers` est fournie par
+// le parent (chargée avec les occupants) ; `onChanged` la rafraîchit après
+// chaque action.
+function CourtierMandatePanel({
+  interventionId,
+  courtiers,
+  onChanged,
+}: {
+  interventionId: string;
+  courtiers: { id: string; nom: string; type: string }[];
+  onChanged: () => void | Promise<void>;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [searchQ, setSearchQ] = useState('');
+  const [results, setResults] = useState<{ id: string; nom: string; type: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+
+  // Recherche debouncée (≥ 2 car.), restreinte aux courtiers + experts.
+  useEffect(() => {
+    if (!showAdd) return;
+    const q = searchQ.trim();
+    if (q.length < 2) {
+      queueMicrotask(() => setResults([]));
+      return;
+    }
+    let mounted = true;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const res = await searchOrganisations(q, { types: ['courtier', 'expert'] });
+      if (!mounted) return;
+      setResults(res.ok && res.data ? res.data.map((o) => ({ id: o.id, nom: o.nom, type: o.type })) : []);
+      setSearching(false);
+    }, 300);
+    return () => { mounted = false; clearTimeout(t); };
+  }, [searchQ, showAdd]);
+
+  const linkedIds = new Set(courtiers.map((c) => c.id));
+
+  async function associer(courtierId: string) {
+    setBusyId(courtierId);
+    setMsg(null);
+    try {
+      const res = await linkCourtierToDossier(interventionId, courtierId);
+      if (res.error) { setMsg({ kind: 'err', msg: res.error }); return; }
+      setMsg({ kind: 'ok', msg: 'Courtier associé.' });
+      setShowAdd(false);
+      setSearchQ(''); setResults([]);
+      await onChanged();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function retirer(c: { id: string; nom: string }) {
+    if (!confirm(`Retirer ${c.nom} de ce dossier ?`)) return;
+    setBusyId(c.id);
+    setMsg(null);
+    try {
+      const res = await unlinkCourtierFromDossier(interventionId, c.id);
+      if (res.error) { setMsg({ kind: 'err', msg: res.error }); return; }
+      setMsg({ kind: 'ok', msg: 'Courtier retiré.' });
+      await onChanged();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <Block title={<span className="inline-flex items-center gap-1.5"><Users size={12}/>Courtier mandaté ({courtiers.length})</span>}>
+      {courtiers.length === 0 ? (
+        <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+          Aucun courtier ni expert mandaté sur ce dossier.
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {courtiers.map((c) => (
+            <div key={c.id} className="flex items-center justify-between gap-2 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <Link
+                  href={`/admin/${c.type === 'expert' ? 'experts' : 'courtiers'}?id=${c.id}`}
+                  className="font-bold text-[12px] text-navy hover:underline dark:text-[#A8C4F2] truncate"
+                >
+                  {c.nom}
+                </Link>
+                <TypeBadge type={c.type} />
+              </div>
+              <button
+                type="button"
+                onClick={() => retirer(c)}
+                disabled={busyId === c.id}
+                className="text-[10px] text-terra inline-flex items-center gap-1 font-bold disabled:opacity-50 hover:underline"
+              >
+                <Trash2 size={12} />Retirer
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => { setShowAdd(!showAdd); setMsg(null); }}
+        className="mt-2 text-[10px] bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-bold inline-flex items-center gap-1 dark:bg-[rgba(255,255,255,.06)] dark:text-[#A8C4F2] dark:border-[#3D3A32]"
+      >
+        <Plus size={12} />Associer un courtier
+      </button>
+
+      {showAdd && (
+        <div className="mt-2 bg-sand border border-sand-border rounded-md p-2.5 space-y-2 dark:bg-[#141210] dark:border-[#2C2A24]">
+          <div className="relative">
+            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted" />
+            <input
+              value={searchQ}
+              onChange={(e) => setSearchQ(e.target.value)}
+              placeholder="Nom ou email du courtier / expert…"
+              className="w-full pl-7 pr-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32]"
+            />
+          </div>
+          {searching && <div className="text-[10px] text-ink-muted italic">Recherche…</div>}
+          {!searching && searchQ.trim().length >= 2 && results.length === 0 && (
+            <div className="text-[10px] text-ink-muted italic">Aucun courtier ni expert trouvé.</div>
+          )}
+          {results.length > 0 && (
+            <div className="space-y-1">
+              {results.map((o) => {
+                const already = linkedIds.has(o.id);
+                return (
+                  <div key={o.id} className="flex items-center justify-between gap-2 bg-white border border-sand-border rounded px-2 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[12px] font-bold text-ink truncate dark:text-[#F0ECE4]">{o.nom}</span>
+                      <TypeBadge type={o.type} />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => associer(o.id)}
+                      disabled={busyId === o.id || already}
+                      className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-40 inline-flex items-center gap-1"
+                    >
+                      {already ? <><Check size={12} />Associé</> : <><Plus size={12} />Associer</>}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {msg && (
+        <div className={'mt-2 text-[11px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')}>
+          {msg.msg}
+        </div>
+      )}
+    </Block>
   );
 }
 

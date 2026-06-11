@@ -20,6 +20,7 @@ import type {
   ParticulierContactSurPlace,
   PrioriteIntervention,
   TypeIntervention,
+  TypeOrganisation,
 } from '@/lib/types/database';
 
 export type ActionResult<T = void> =
@@ -639,18 +640,27 @@ export async function searchAcps(query: string): Promise<ActionResult<Acp[]>> {
   return { ok: true, data: (data ?? []) as Acp[] };
 }
 
-export async function searchOrganisations(query: string): Promise<ActionResult<Organisation[]>> {
+// Recherche d'organisations par nom/email. `opts.types` restreint au besoin
+// aux rôles voulus (ex. ['courtier', 'expert'] pour le mandat sur dossier) ;
+// sans filtre, comporte­ment historique inchangé (tous types).
+export async function searchOrganisations(
+  query: string,
+  opts?: { types?: TypeOrganisation[] },
+): Promise<ActionResult<Organisation[]>> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
   const q = query.trim();
   if (q.length < 2) return { ok: true, data: [] };
   const safe = q.replace(/[,()]/g, ' ');
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let qb = supabase
     .from('organisations')
     .select('*')
-    .or(`nom.ilike.%${safe}%,email.ilike.%${safe}%`)
-    .limit(8);
+    .or(`nom.ilike.%${safe}%,email.ilike.%${safe}%`);
+  if (opts?.types && opts.types.length > 0) {
+    qb = qb.in('type', opts.types);
+  }
+  const { data, error } = await qb.limit(8);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: (data ?? []) as Organisation[] };
 }

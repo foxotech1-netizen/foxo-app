@@ -86,6 +86,29 @@ export async function GET(
   }
   const { id } = await params;
 
+  // Courtiers/experts mandatés sur le dossier (table dossiers_sinistres) —
+  // lecture rattachée à ce même endpoint déjà appelé à l'ouverture du drawer,
+  // pour éviter un aller-retour supplémentaire. Best-effort : un échec ici ne
+  // doit pas casser le chargement des occupants (courtiers = []). L'admin voit
+  // tous les dossiers (policy admin_all_dossiers / RLS cookie-bound).
+  let courtiers: Array<{ id: string; nom: string; type: string }> = [];
+  try {
+    const { data: ds } = await supabase
+      .from('dossiers_sinistres')
+      .select('courtier_id')
+      .eq('intervention_id', id);
+    const courtierIds = Array.from(
+      new Set((ds ?? []).map((r) => (r as { courtier_id: string | null }).courtier_id).filter(Boolean) as string[]),
+    );
+    if (courtierIds.length > 0) {
+      const { data: orgs } = await supabase
+        .from('organisations')
+        .select('id, nom, type')
+        .in('id', courtierIds);
+      courtiers = (orgs ?? []) as Array<{ id: string; nom: string; type: string }>;
+    }
+  } catch { /* noop — courtiers best-effort */ }
+
   // Note : `intervention_id` (pas `id`) — l'id passé en paramètre est
   // l'id de l'intervention parente, pas celui d'un occupant.
   const errors: { level: number; cols: string; code: string | null; message: string }[] = [];
@@ -103,7 +126,7 @@ export async function GET(
       const occupants = lvl.padding
         ? rows.map((o) => ({ ...lvl.padding, ...o }))
         : rows;
-      const response: Record<string, unknown> = { ok: true, occupants };
+      const response: Record<string, unknown> = { ok: true, occupants, courtiers };
       if (i > 0) {
         response._warning = `fallback_level_${i}`;
         response._missing_columns = Object.keys(lvl.padding ?? {});
