@@ -724,6 +724,10 @@ export interface Attachment {
   target_folder: string | null;
   extracted_data: unknown;           // jsonb NOT NULL (défaut '{}') — typer plus finement plus tard
   content_summary: string | null;
+  // Anti-doublon (2026-06-11_attachments_dedup.sql) : sha256 hex du
+  // contenu décodé + id du message Gmail d'origine (texte, pas de FK).
+  contenu_hash: string | null;
+  source_mail_id: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

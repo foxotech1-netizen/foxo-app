@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
-  Paperclip, Circle, Tag, Archive, Undo2, Eye, Download,
+  Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -1181,8 +1181,18 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   )}
                   {detail.attachments.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-sand-border">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1.5">
-                        Pièces jointes
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+                          Pièces jointes
+                        </span>
+                        <AttachToDossierButton
+                          mailId={detail.id}
+                          threadId={detail.thread_id}
+                          attachments={detail.attachments}
+                          dossier={analyses.get(detail.thread_id)?.dossier ?? null}
+                          onFeedback={(kind, msg) => setFeedback({ kind, msg })}
+                          onDone={() => refreshAnalyse(detail.thread_id)}
+                        />
                       </div>
                       <ul className="text-[12px] text-ink-mid space-y-1">
                         {detail.attachments.map((a, i) => {
@@ -1415,6 +1425,136 @@ function BulkBtn({
     >
       {children}
     </button>
+  );
+}
+
+// « Joindre au dossier » (Mails V2 P2 U3) — pousse les PJ du mail ouvert
+// vers le Drive d'un dossier existant via POST attach-to-intervention
+// (Agent 2 : filtre + anti-doublon + renommage). États encapsulés ici
+// pour ne rien ajouter au composant principal. Si l'analyse a déjà
+// matché un dossier : bouton direct ; sinon petit sélecteur (réutilise
+// /api/admin/interventions/search comme ConfirmCreateForm).
+function AttachToDossierButton({
+  mailId, threadId, attachments, dossier, onFeedback, onDone,
+}: {
+  mailId: string;
+  threadId: string;
+  attachments: MailDetail['attachments'];
+  dossier: { id: string; ref: string | null } | null;
+  onFeedback: (kind: 'ok' | 'err', msg: string) => void;
+  onDone: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState<{ id: string; ref: string | null; adresse: string | null }[]>([]);
+
+  const eligible = attachments.filter((a) => a.attachment_id);
+
+  useEffect(() => {
+    if (!pickerOpen || search.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `/api/admin/interventions/search?q=${encodeURIComponent(search.trim())}`,
+          { cache: 'no-store' },
+        );
+        const data = await r.json();
+        if (data.success) setResults((data.results ?? []).slice(0, 8));
+      } catch { /* noop */ }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [pickerOpen, search]);
+
+  if (eligible.length === 0) return null;
+
+  async function attach(target: { id: string; ref: string | null }) {
+    setBusy(true);
+    setPickerOpen(false);
+    try {
+      const r = await fetch(`/api/admin/mails/${mailId}/attach-to-intervention`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interventionId: target.id,
+          threadId,
+          attachments: eligible.map((a) => ({
+            attachment_id: a.attachment_id,
+            filename: a.filename,
+            mime_type: a.mime_type,
+            size: a.size,
+          })),
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        onFeedback('err', data.error ?? 'Échec de l\'envoi vers le dossier.');
+        return;
+      }
+      const dups = (data.skipped ?? []).filter((s: { reason: string }) => s.reason === 'doublon').length;
+      onFeedback('ok',
+        `${data.uploaded} PJ envoyée(s) vers le dossier ${target.ref ?? ''}`.trim()
+        + (dups > 0 ? ` (${dups} doublon(s) ignoré(s))` : ''));
+      onDone();
+    } catch (e) {
+      onFeedback('err', e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      {dossier?.id ? (
+        <button
+          type="button"
+          onClick={() => attach(dossier)}
+          disabled={busy}
+          className="text-[11px] font-bold text-navy border border-navy bg-white px-2 py-1 rounded-md hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
+        >
+          <FolderInput size={12} aria-hidden />
+          {busy ? 'Envoi…' : `Joindre au dossier ${dossier.ref ?? ''}`.trim()}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          disabled={busy}
+          aria-expanded={pickerOpen}
+          className="text-[11px] font-bold text-navy border border-navy bg-white px-2 py-1 rounded-md hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
+        >
+          <FolderInput size={12} aria-hidden />
+          {busy ? 'Envoi…' : 'Joindre à un dossier…'}
+        </button>
+      )}
+      {pickerOpen && !dossier?.id && (
+        <div className="absolute top-full right-0 mt-1 z-20 w-[280px] bg-cream border border-sand-border rounded-card shadow-raised p-2">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ex : 2026-014, Bellevue…"
+            autoFocus
+            className="w-full px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white outline-none focus:border-navy-mid"
+          />
+          <div className="mt-1.5 max-h-[180px] overflow-y-auto space-y-0.5">
+            {results.map((res) => (
+              <button
+                key={res.id}
+                type="button"
+                onClick={() => attach(res)}
+                className="w-full text-left px-2 py-1.5 rounded text-[12px] hover:bg-sand-hover"
+              >
+                <span className="font-bold text-ink">{res.ref ?? 'Sans réf.'}</span>
+                {res.adresse && <span className="text-ink-muted"> — {res.adresse}</span>}
+              </button>
+            ))}
+            {search.trim().length >= 2 && results.length === 0 && (
+              <div className="px-2 py-1.5 text-[11px] text-ink-muted italic">Aucun dossier trouvé.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
