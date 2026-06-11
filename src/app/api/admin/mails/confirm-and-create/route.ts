@@ -426,6 +426,7 @@ export async function POST(request: Request) {
             mime_type: att.mime_type,
             size_bytes: typeof att.size === 'number' ? att.size : 0,
             content_base64: data64,
+            source_mail_id: att.message_id,
           });
         } catch (e) {
           errors.push(`download pj ${att.filename}: ${e instanceof Error ? e.message : 'inconnu'}`);

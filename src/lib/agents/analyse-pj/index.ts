@@ -12,6 +12,7 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createHash } from 'crypto';
 import { classifyAttachment } from './filter';
 import { analyzeOneAttachment } from './analyze-one';
 import { buildNewFilename, folderFor } from './rename';
@@ -28,6 +29,16 @@ import type {
 } from './types';
 
 export type { AnalyseInput, AnalyseOutput, AttachmentInput } from './types';
+
+// sha256 hex du contenu DÉCODÉ — même tolérance base64 standard/URL-safe
+// que decodeBase64 (create-intervention-folder.ts) : Gmail renvoie de
+// l'URL-safe, d'autres appelants du standard. Jamais de dédup sur
+// l'attachment_id Gmail (instable entre deux lectures d'un même mail).
+function sha256OfBase64Content(input: string): string {
+  const cleaned = input.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = cleaned.length % 4 === 0 ? '' : '='.repeat(4 - (cleaned.length % 4));
+  return createHash('sha256').update(Buffer.from(cleaned + padding, 'base64')).digest('hex');
+}
 
 export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOutput> {
   const supabase = createAdminClient();
@@ -49,6 +60,24 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
       continue;
     }
 
+    // ── Anti-doublon (U2) : skip journalisé si une row vivante porte déjà
+    // ce contenu pour cette intervention (index partiel attachments_dedup_idx).
+    const contenuHash = sha256OfBase64Content(att.content_base64);
+    if (input.context.intervention_id) {
+      const { data: dup } = await supabase
+        .from('attachments')
+        .select('id')
+        .eq('intervention_id', input.context.intervention_id)
+        .eq('contenu_hash', contenuHash)
+        .is('deleted_at', null)
+        .limit(1)
+        .maybeSingle();
+      if (dup) {
+        skipped.push({ original_filename: att.filename, reason: 'doublon' });
+        continue;
+      }
+    }
+
     // ── Branche office_v0_skip : pas d analyse LLM, mais on archive Drive
     if (decision.mime_class === 'office_v0_skip') {
       const { data, error } = await supabase
@@ -63,6 +92,8 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
           target_folder: null,
           extracted_data: {},
           content_summary: 'Format non analysé en V0 (Word/Excel/autre).',
+          contenu_hash: contenuHash,
+          source_mail_id: att.source_mail_id ?? null,
         })
         .select('id')
         .single();
@@ -146,6 +177,8 @@ export async function analyseAttachments(input: AnalyseInput): Promise<AnalyseOu
           target_folder: targetFolder,
           extracted_data: output.extracted_data ?? {},
           content_summary: output.content_summary ?? null,
+          contenu_hash: contenuHash,
+          source_mail_id: att.source_mail_id ?? null,
         })
         .select('id')
         .single();

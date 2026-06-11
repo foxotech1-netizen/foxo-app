@@ -22,6 +22,9 @@ export type AttachmentInput = {
   size_bytes: number;
   /** Contenu encodé en base64 (sans préfixe data:). */
   content_base64: string;
+  /** Id du message Gmail d'origine (par PJ — un thread peut en mélanger
+      plusieurs). Persisté dans attachments.source_mail_id. */
+  source_mail_id?: string | null;
 };
 
 export type AnalyseContext = {
@@ -54,7 +57,7 @@ export type AnalysedAttachment = {
 
 export type SkippedAttachment = {
   original_filename: string;
-  reason: 'signature_image' | 'vcard_ics' | 'too_large' | 'unsupported_format_v0';
+  reason: 'signature_image' | 'vcard_ics' | 'too_large' | 'unsupported_format_v0' | 'doublon';
 };
 
 export type AttachmentError = {
