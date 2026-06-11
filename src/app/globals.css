@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* ── Mode sombre neutralisé (D7-bis) ─────────────────────────────────────
+   FoxO est mono-thème clair. Par défaut Tailwind 4 résout `dark:` via
+   @media (prefers-color-scheme: dark) : les ~590 classes `dark:`
+   résiduelles s'activaient donc avec l'OS en thème sombre (blocs noirs
+   isolés au milieu de l'UI claire). On rebase la variante sur une classe
+   `.dark` que personne ne pose → toutes les `dark:` deviennent inertes,
+   sans avoir à les supprimer fichier par fichier. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ─────────────────────────────────────────────────────────────────────────
    PALETTE — variables FoxO de base utilisées par les utilitaires Tailwind
    (bg-sand, text-ink, border-sand-border, etc.). Ces tokens sont mappés
