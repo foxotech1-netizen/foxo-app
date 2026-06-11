@@ -75,7 +75,7 @@ export type AcpInput = {
 
 export async function createAcp(input: AcpInput): Promise<ActionResult<Acp>> {
   const session = await getCurrentSyndic();
-  if (!session?.org) return { ok: false, error: 'Compte non lié à un syndic.' };
+  if (!session?.org) return { ok: false, error: 'Compte non lié à un partenaire.' };
 
   const nom = input.nom.trim();
   if (!nom) return { ok: false, error: 'Le nom est obligatoire.' };
@@ -321,7 +321,7 @@ export async function updateReferenceExterne(
   value: string,
 ): Promise<ActionResult> {
   const session = await getCurrentSyndic();
-  if (!session?.org) return { ok: false, error: 'Compte non lié à un syndic.' };
+  if (!session?.org) return { ok: false, error: 'Compte non lié à un partenaire.' };
   if (session.org.type !== 'syndic') {
     return { ok: false, error: 'Action réservée aux syndics.' };
   }

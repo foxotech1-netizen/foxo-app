@@ -116,8 +116,10 @@ export type VerifyOwnershipResult =
  * intervention assignée au tech.
  *
  * Reproduit observations/[id] : lookup observation via le client **admin**
- * (RLS observations_terrain non définie), puis ownership intervention via le
- * client SSR. Statuts conservés : 404 'Observation introuvable.', 403
+ * (la table observations_terrain A une RLS depuis la PR #68 ; le client admin
+ * reste utilisé pour reproduire le comportement historique de la route,
+ * l'ownership étant vérifié en code juste après), puis ownership intervention
+ * via le client SSR. Statuts conservés : 404 'Observation introuvable.', 403
  * 'Observation non liée à une intervention assignée.'.
  */
 export async function verifyTechOwnsObservation(

@@ -59,7 +59,7 @@ export function RapportPanel({
   // Brief envoyé à l'IA pour générer les 4 sections
   const [brief, setBrief] = useState('');
   const [generating, startGenerateTransition] = useTransition();
-  const [generateMessage, setGenerateMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [generateMessage, setGenerateMessage] = useState<{ kind: 'ok' | 'warn' | 'err'; msg: string } | null>(null);
 
   // Photos par section (cf. migration 2026-05-28_photos_section).
   // Map<sectionKey, photos[]> — chaque liste triée par ordre asc.
@@ -268,7 +268,17 @@ export function RapportPanel({
         techniques: res.techniques_utilisees,
         techniques_a_confirmer: res.techniques_a_confirmer,
       });
-      setGenerateMessage({ kind: 'ok', msg: 'Sections générées — relis et corrige avant publication.' });
+      // Avertissement non bloquant : des photos n'ont pas pu être analysées
+      // par l'IA (passe 1 best-effort), le rapport est généré sans elles.
+      const n = res.photosNonAnalysees ?? 0;
+      if (n > 0) {
+        setGenerateMessage({
+          kind: 'warn',
+          msg: `Sections générées — relis et corrige avant publication. ${n} photo${n > 1 ? 's' : ''} n'${n > 1 ? 'ont' : 'a'} pas pu être analysée${n > 1 ? 's' : ''} par l'IA — le rapport a été généré sans elle${n > 1 ? 's' : ''}.`,
+        });
+      } else {
+        setGenerateMessage({ kind: 'ok', msg: 'Sections générées — relis et corrige avant publication.' });
+      }
     });
   }
 
@@ -374,7 +384,9 @@ export function RapportPanel({
                 'text-[12px] rounded-md px-3 py-2 mt-2 border font-semibold ' +
                 (generateMessage.kind === 'ok'
                   ? 'bg-[var(--color-ok-light)] border-[var(--color-ok-mid)] text-[var(--color-ok)]'
-                  : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
+                  : generateMessage.kind === 'warn'
+                    ? 'bg-[var(--color-amber-foxo)]/10 border-[var(--color-amber-foxo)]/40 text-[var(--color-amber-foxo)]'
+                    : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
               }
             >
               {generateMessage.msg}

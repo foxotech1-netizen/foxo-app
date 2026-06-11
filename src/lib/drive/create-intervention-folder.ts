@@ -17,6 +17,7 @@
 // getValidAccessToken depuis @/lib/google-auth, pas de SDK googleapis).
 
 import { getValidAccessToken } from '@/lib/google-auth';
+import { getDriveFolders } from '@/lib/drive/config';
 import {
   createInterventionFolder as createInterventionFolderHierarchical,
   ensureFolder,
@@ -62,12 +63,11 @@ async function getAccessToken(): Promise<string> {
   return auth.access_token;
 }
 
+// Racine RAPPORTS via la config centralisée (@/lib/drive/config) — throw une
+// Error explicite si la variable d'env manque (chemin strict, le caller
+// décide du fallback).
 function getRapportsRootId(): string {
-  const id = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
-  if (!id || !id.trim()) {
-    throw new Error('Drive: GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquante (cf. .env.example).');
-  }
-  return id.trim();
+  return getDriveFolders().rapportsFolderId;
 }
 
 // Liste paginée de tous les sous-dossiers d'un parent (sans corbeille).

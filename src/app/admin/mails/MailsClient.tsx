@@ -201,7 +201,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (!mounted) return;
         if (data.ok) setLabels(data.labels ?? []);
       })
-      .catch(() => { /* noop */ })
+      .catch((e) => console.warn('[admin/mails] chargement labels Gmail échoué (best-effort)', e))
       .finally(() => { if (mounted) setLabelsLoading(false); });
     return () => { mounted = false; };
   }, [initialConnected]);

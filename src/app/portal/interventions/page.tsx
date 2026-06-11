@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentSyndic, getMandatedInterventionIds } from '@/lib/portal/syndic';
+import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { InterventionsPortalClient } from './InterventionsPortalClient';
 import type { Acp, Intervention, PrioriteIntervention, StatutIntervention } from '@/lib/types/database';
 
@@ -70,18 +71,14 @@ export default async function InterventionsPage({
   const isSinistre = org.type === 'courtier' || org.type === 'expert';
   const supabase = await createClient();
 
-  // Visibilité : lien direct syndic_id (legacy) OU organisation_id (nouveau)
-  // OU mandat via dossier sinistre (courtier/expert mandaté — audit #19).
-  // Clause id.in.(…) ajoutée seulement si la liste de dossiers est non vide.
+  // Visibilité : filtre canonique partagé (lien direct syndic_id/organisation_id
+  // OU mandat dossier sinistre — cf. @/lib/portal/org-visibility).
   // Filtre soft delete (deleted_at IS NULL) pour rester aligné avec l'admin.
   const mandatedIds = await getMandatedInterventionIds(supabase, org.id);
-  const orFilter = mandatedIds.length > 0
-    ? `syndic_id.eq.${org.id},organisation_id.eq.${org.id},id.in.(${mandatedIds.join(',')})`
-    : `syndic_id.eq.${org.id},organisation_id.eq.${org.id}`;
   const { data, error } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, description, creneau_debut, updated_at, created_at, acp_id, adresse, technicien_id, assureur, reference_externe')
-    .or(orFilter)
+    .or(buildOrgVisibilityFilter(org.id, mandatedIds))
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
