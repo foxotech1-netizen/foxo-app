@@ -62,7 +62,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
       style={{ background: 'rgba(15, 32, 64, 0.45)' }}
     >
       <div
-        className="w-full max-w-[500px] rounded-[10px] overflow-hidden"
+        className="w-full max-w-[500px] max-h-[90vh] flex flex-col rounded-[10px] overflow-hidden"
         style={{
           background: 'var(--color-cream)',
           boxShadow: '0 1px 2px rgba(15,32,64,0.06), 0 12px 32px rgba(15,32,64,0.18), 0 0 0 1px rgba(15,32,64,0.06)',
@@ -87,7 +87,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
           </button>
         </div>
 
-        <div className="px-5 py-4 space-y-3">
+        <div className="px-5 py-4 space-y-3 flex-1 min-h-0 overflow-y-auto">
           <label className="block">
             <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-ink-muted)' }}>
               Téléphone

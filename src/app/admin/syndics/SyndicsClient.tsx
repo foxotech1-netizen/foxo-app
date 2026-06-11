@@ -227,7 +227,7 @@ export function SyndicsClient({
                 </div>
               )}
 
-              <div className="flex justify-end gap-2.5 pt-2">
+              <div className="sticky bottom-0 -mx-6 -mb-5 px-6 py-4 mt-1 bg-cream border-t border-sand-border flex justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => { setOpen(false); setAddr(emptyAddress()); }}
