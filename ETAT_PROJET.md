@@ -1,3 +1,34 @@
+# État du projet FoxO — snapshot 2026-06-11 (Chantier Rapport v2 — LIVRÉ, PR #76 MERGÉE)
+
+- Date du recap : 2026-06-11
+- HEAD git : d34a1ae (merge PR #76)
+- Branche : main, working tree propre, aligné origin/main
+- Production : déployée par Vercel sur push main
+
+## Chantier Rapport v2 — CLOS, MERGÉ (PR #76), VALIDÉ END-TO-END
+
+Refonte complète de la génération du rapport d'intervention. PR #76 « Rapport v2 — fidélité template, pipeline vision photos, techniques cochées », branche `feat/rapport-v2`, mergée (merge commit `d34a1ae`, 15 fichiers, +833/−224). Test end-to-end VALIDÉ par Foxo sur le dossier 2026-000 : pipeline vision, techniques cochées, photos présentes dans le PDF ET le Word, fidélité au template.
+
+### Contenu livré
+- **Fidélité visuelle au template** : rendu docx fidèle au template de référence ; PDF jumeau entièrement réécrit — structure de données unifiée `ReportData` partagée entre les deux moteurs, logo extrait du template, police Carlito embarquée.
+- **Données admin complètes** : facturation et occupants injectés dans le rapport.
+- **Techniques d'intervention** : persistées en base (`rapports.techniques`) + cases à cocher éditables côté admin ; `rapports.techniques_a_confirmer` pour les suggestions IA en attente de validation.
+- **Pipeline IA en 2 passes** : (1) agent `analyse_photo` — analyse vision de chaque photo, persistée dans `photos_interventions.analyse_ia` ; (2) agent rapport v2 — génération avec le prompt `foxo-rapport-v2.md`, alimenté par les analyses photos.
+- **Photos par section** : helper partagé de répartition des photos par section du rapport, utilisé par les deux moteurs (PDF et Word), grille 2 colonnes.
+- **Garde-fous** : paramètre `photos` rendu obligatoire dans les signatures concernées (garde anti-régression) ; guards sur le statut du dossier avant génération.
+
+### Migration SQL — DÉJÀ APPLIQUÉE EN PROD
+Colonnes `rapports.techniques`, `rapports.techniques_a_confirmer`, `photos_interventions.analyse_ia`. Rien à rejouer.
+
+### Notes
+- Les checks Netlify rouges sur la PR = bruit résiduel non bloquant (Netlify déconnecté du repo ; prod = Vercel).
+- Hygiène repo : branche `feat/rapport-v2` à supprimer côté GitHub (« Delete branch » sur la PR #76).
+
+## Backlog
+- **Session D2 rapport** : champ légende par photo dans la PWA tech (alimente `photos_interventions.label`) ; galerie photos éditable dans le drawer admin (section/légende/ordre + badge techniques à confirmer) ; fix previews photos cassées via route proxy streamant `files/{id}?alt=media`.
+
+---
+
 # État du projet FoxO — snapshot 2026-06-07 (Nettoyage complet de la base — TABLE RASE avant réencodage)
 
 - Date du recap : 2026-06-07
