@@ -1792,7 +1792,10 @@ export function InterventionsClient({
               </div>
             </header>
 
-            <nav className="flex bg-[var(--color-cream)] px-5 border-b border-[var(--color-sand-border)] overflow-x-auto">
+            {/* flex-wrap : en drawer 460px les 5 onglets passent sur 2
+                lignes au lieu de déborder en scroll horizontal
+                (« Historique » coupé). En plein écran, une seule ligne. */}
+            <nav className="flex flex-wrap bg-[var(--color-cream)] px-5 border-b border-[var(--color-sand-border)]">
               {(['dossier','suivi','documents','ia','historique'] as const).map((t) => (
                 <button
                   key={t}
