@@ -1,3 +1,27 @@
+# État du projet FoxO — snapshot 2026-06-11 (VOLET DESIGN CLOS — D7-bis, revue visuelle finale validée)
+
+- **Date du recap** : 2026-06-11
+- **HEAD git** : `791402b` (merge PR #88)
+- **Branche** : `main`, aligné `origin/main`.
+- **Production** : déployée par Vercel sur push `main`.
+
+## Volet design : CLOS (D1→D7 + D7-bis, PRs #81→#88)
+Revue visuelle finale sur 15 captures prod (3 portails + mobile tech) : conforme. Heures Europe/Brussels OK partout, titres/ombres/rayons unifiés, états vides repliés, skeletons actifs, tutoiement assistant tech confirmé en conditions réelles.
+
+### D7-bis (PR #88, commits `ca7ee68` + `0e3d8aa`) — 3 finitions issues de la revue
+- **Assistants en texte brut** : `AssistantChat.tsx` rend `{m.content}` sans parseur markdown → les réponses IA sortaient des tableaux `|...|` et du `**gras**` littéraux. Règle de formatage ajoutée aux 3 consignes système (tech tutoiement ; admin modes `global` + `intervention`, mode `rapport_json` explicitement préservé en JSON pur).
+- **Mode sombre neutralisé globalement** : ~590 classes `dark:` résiduelles (36 fichiers) s'activaient via `prefers-color-scheme` quand l'OS est sombre → blocs noirs isolés (drawer admin ACP/Courtier/Messages, bloc Messages portail). Fix : `@custom-variant dark (&:where(.dark, .dark *));` dans `globals.css` juste après l'import Tailwind — la classe `.dark` n'étant jamais posée, toutes les `dark:` sont inertes (vérifié par compilation : zéro règle `prefers-color-scheme: dark` émise). FoxO = mono-thème clair, définitif. Les classes `dark:` dans les composants sont conservées mais mortes — nettoyage cosmétique possible en temps calme, non prioritaire.
+- **Bouton Publier RapportPanel** : audit → rien à corriger. Actif = navy plein ; le « délavé » observé = état désactivé légitime (`disabled:opacity-40` quand `pending`/`!canPublish`/`exportingWord`, avec `title` explicatif).
+
+## À faire (dans l'ordre) — mis à jour 2026-06-11
+1. **Volet produit** — fonctionnalités manquantes, à cadrer avec Foxo. Inclut : artefact sandbox « 2026-0000 » (import Google Calendar d'un créneau de dispo importé comme intervention, titre brut d'event) à traiter côté produit.
+2. **Module Analytics** (plan dans `PLAN_CHANTIER_Module_Analytics_FoxO.md`).
+- (Backlog temps calme) 37 erreurs ESLint react-hooks ; casts ; sécurité BASSE (UUID occupant sans TTL, `auth_read_utilisateurs USING(true)`, CSP report-mode, secret cron en query) ; classes `dark:` mortes à purger ; chantier `feat/file-validation` en pause ; outils d'écriture Google assistant admin ; crédentials Twilio prod.
+- **Facturation = DERNIER chantier**, ne pas démarrer avant usage quotidien.
+
+## Hygiène repo
+- Branche `design/d7bis-finitions` mergée → supprimer côté GitHub si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-11 (clôture volet design — D7 modernisation)
 
 - **Date du recap** : 2026-06-11
