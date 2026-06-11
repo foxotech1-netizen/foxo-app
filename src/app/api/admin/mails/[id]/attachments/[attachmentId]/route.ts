@@ -84,7 +84,8 @@ export async function GET(
 
   // inline pour ce que le navigateur prévisualise nativement, attachment
   // sinon. filename* RFC 5987 pour les accents ; filename ASCII en repli.
-  const inline = mime.startsWith('image/') || mime === 'application/pdf';
+  // SVG exclu de l'inline : il peut embarquer du script → XSS sur l'origine admin.
+  const inline = (mime.startsWith('image/') && mime !== 'image/svg+xml') || mime === 'application/pdf';
   const asciiName = filename.replace(/[^\x20-\x7E]/g, '_');
   const disposition =
     `${inline ? 'inline' : 'attachment'}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
@@ -95,6 +96,10 @@ export async function GET(
       'Content-Disposition': disposition,
       'Content-Length': String(buf.byteLength),
       'Cache-Control': 'private, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+      // Défense en profondeur : neutralise tout script même si un type
+      // inline était un jour mal classé.
+      'Content-Security-Policy': 'sandbox',
     },
   });
 }

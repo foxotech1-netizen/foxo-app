@@ -1211,7 +1211,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           }
                           const href = `/api/admin/mails/${detail.id}/attachments/${encodeURIComponent(a.attachment_id)}`
                             + `?name=${encodeURIComponent(a.filename)}&mime=${encodeURIComponent(a.mime_type)}`;
-                          const inline = a.mime_type.startsWith('image/') || a.mime_type === 'application/pdf';
+                          // Miroir du calcul serveur — SVG jamais inline (XSS).
+                          const inline = (a.mime_type.startsWith('image/') && a.mime_type !== 'image/svg+xml')
+                            || a.mime_type === 'application/pdf';
                           return (
                             <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full">
                               <Paperclip size={12} />
