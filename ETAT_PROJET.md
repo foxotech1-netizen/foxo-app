@@ -1,3 +1,32 @@
+# État du projet FoxO — snapshot 2026-06-11 (Mails V2 — Phase 2 sessions 1/3 + 2/3 livrées, PRs #91 + #92)
+
+- **Date du recap** : 2026-06-11
+- **HEAD git** : `8bee31a` (merge PR #92)
+- **Branche** : `main`, aligné `origin/main`. Production via Vercel.
+- **Spec** : `SPEC_Chantier_Mails_V2_v1-2.md` (project knowledge — inclut la Phase 8 messagerie portail). ⚠️ CRONS MAILS VOLONTAIREMENT FERMÉS — rallumage = dernière étape du chantier, précédée du marquage en lu des mails déjà traités.
+- Note : le snapshot de la session 1/3 n'avait pas été poussé — ce snapshot couvre les DEUX sessions.
+
+## Mails V2 — Phase 2 (pièces jointes) : sessions 1/3 et 2/3 LIVRÉES
+Audit d'ouverture : pipeline Agent 2 → Drive à confirm-and-create DÉJÀ complet et conforme (filtre, runAgent, table attachments, renommage [ref]_[type]_[date], résolution drive_folder_id direct, légitime car dossier créé en amont).
+
+### Session 1/3 — U1 (PR #91, `5a48bbb`+`b8b92ac`+`08afa8d`+`6d4357c`)
+- `attachment_id` exposé dans le type `MailDetail.attachments` (donnée transitait déjà au runtime).
+- Route `GET /api/admin/mails/[id]/attachments/[attachmentId]` : garde admin ; name/mime fournis par le client et sanitisés serveur (JAMAIS de re-fetch Gmail — attachment_id instable entre deux lectures) ; base64url→Buffer ; 413 >4 MB (plafond Vercel) ; Content-Disposition inline images/PDF sinon attachment, filename* RFC 5987 ; **SVG jamais inline (XSS)** ; `X-Content-Type-Options: nosniff` + `CSP: sandbox` ; cache privé 5 min.
+- Volet : PJ cliquables (aperçu/téléchargement), >4 MB atténué « voir dans Gmail » (pré-check client), sans attachment_id = inerte.
+- Abandonné (assumé) : indicateur PJ dans la liste (format=metadata sans info PJ).
+
+### Session 2/3 — U2 + U3 (PR #92, `f1d1359`+`f8e4ebf`+`0176a53`)
+- **Migration** `db/migrations/2026-06-11_attachments_dedup.sql` committée (appliquée en prod le 2026-06-11 via SQL Editor AVANT le code) : `attachments.contenu_hash` (sha256 hex du contenu décodé), `attachments.source_mail_id`, index partiel `attachments_dedup_idx`.
+- **U2 anti-doublon** : dans `analyseAttachments` — hash calculé après le filtre (décodage tolérant base64/base64url, aligné upload Drive), skip journalisé `reason:'doublon'` si row vivante (intervention_id, contenu_hash), hash+source persistés dans les deux branches d'insert ; `AttachmentInput.source_mail_id` par PJ (un thread mélange plusieurs messages — confirm-and-create passe `att.message_id`). JAMAIS de dédup sur l'attachment_id Gmail (instable).
+- **U3 « Joindre au dossier »** : route `POST /api/admin/mails/[id]/attach-to-intervention` (garde admin, maxDuration 60, UUID validé, bornes 20 PJ/25 MB, liste des PJ fournie par le client — jamais de re-fetch des attachment_id, download best-effort par PJ) → délègue à `analyseAttachments` (filtre + anti-doublon + renommage + Drive hérités) ; `pj_drive_ids` MERGÉ (union) dans `mails_analyses` — jamais remplacé, et seulement si la row existe. UI : `AttachToDossierButton` encapsulé en tête de section PJ — direct vers le dossier matché, sinon sélecteur debounce sur `/api/admin/interventions/search` (route préexistante) ; feedback avec compte des doublons ignorés.
+
+## À faire (Phase 2 puis suite)
+1. **Session 3/3 — U4** : panel Documents côté tech — `listFolderFiles(drive_folder_id)` (google-drive.ts:464) + fallback `resolveInterventionFolderByName(ref, year)` (:521) ; route proxy `alt=media` À CRÉER, gardée par rôle (tech ASSIGNÉ à l'intervention ou admin — la RLS ne protège pas Drive), cache court pour les vignettes. Aucun panel Documents tech n'existe aujourd'hui (seul PhotosPanel).
+2. Puis Phases 3→8 selon spec v1.2 (Phase 8 messagerie portail de préférence après Phase 2).
+
+## Hygiène repo
+- Branche `feat/mails-v2-phase2b` mergée → supprimer côté GitHub si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-11 (Mails V2 — Phase 1 CLOSE, PRs #89 + #90)
 
 - **Date du recap** : 2026-06-11
