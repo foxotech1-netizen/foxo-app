@@ -34,7 +34,7 @@ async function loadTwilioConfig(): Promise<TwilioConfig> {
   const envWa = process.env.TWILIO_WHATSAPP_NUMBER ?? '';
 
   // Fallback DB parametres
-  let dbConfig: Record<string, string> = {};
+  const dbConfig: Record<string, string> = {};
   try {
     const supabase = await createClient();
     const { data } = await supabase

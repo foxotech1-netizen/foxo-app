@@ -23,7 +23,7 @@ import type {
   FactureDetailsIntervention,
   RemiseType,
 } from '@/lib/types/database';
-import { applyRemise, computeInvoiceTotals } from '@/lib/facturation/remises';
+import { computeInvoiceTotals } from '@/lib/facturation/remises';
 
 const COLORS = {
   navy: '#1B3A6B',
