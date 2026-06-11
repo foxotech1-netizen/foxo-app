@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,54 +15,6 @@ const ALLOWED_TEST_TYPES = new Set([
   'Autre',
 ]);
 
-// ─── Auth + ownership helper ──────────────────────────────────────────────
-//
-// Vérifie que l'utilisateur courant est un tech (whitelist hardcoded ou
-// utilisateurs.role='technicien') ET qu'il est assigné à l'intervention
-// passée en paramètre. Renvoie soit { ok: true, techId } soit
-// { ok: false, response: NextResponse } à propager directement.
-async function authAndOwnership(interventionId: string) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 }),
-    };
-  }
-
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 }),
-    };
-  }
-
-  const { data: iv } = await supabase
-    .from('interventions')
-    .select('technicien_id')
-    .eq('id', interventionId)
-    .maybeSingle();
-  if (!iv || iv.technicien_id !== techRow.id) {
-    return {
-      ok: false as const,
-      response: NextResponse.json(
-        { ok: false, error: 'Intervention non assignée.' },
-        { status: 403 },
-      ),
-    };
-  }
-
-  return { ok: true as const, techId: techRow.id as string };
-}
-
 // ─── GET /api/tech/observations?intervention_id=X ────────────────────────
 //
 // Retourne les observations de l'intervention triées par ordre puis date,
@@ -74,8 +26,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'intervention_id requis.' }, { status: 400 });
   }
 
-  const auth = await authAndOwnership(interventionId);
-  if (!auth.ok) return auth.response;
+  const supabase = await createClient();
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId);
+  if (!owns.ok) return techError(owns);
 
   // Service-role : RLS observations_terrain pas encore définie dans le
   // schéma — on bypass pour rester cohérent avec les autres routes.
@@ -155,8 +110,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const auth = await authAndOwnership(interventionId);
-  if (!auth.ok) return auth.response;
+  const supabase = await createClient();
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId);
+  if (!owns.ok) return techError(owns);
 
   const etage = typeof body.etage === 'string' ? body.etage.trim().slice(0, 100) || null : null;
   const localisation = typeof body.localisation === 'string'

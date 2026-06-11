@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,12 +12,8 @@ export const dynamic = 'force-dynamic';
 // assigné à l'intervention (sinon 403).
 export async function GET(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
 
   const url = new URL(request.url);
   const interventionId = url.searchParams.get('intervention_id');
@@ -26,21 +22,8 @@ export async function GET(request: Request) {
   }
 
   // Ownership check — le tech doit être assigné à cette intervention.
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) return NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 });
-
-  const { data: iv } = await supabase
-    .from('interventions')
-    .select('technicien_id')
-    .eq('id', interventionId)
-    .maybeSingle();
-  if (!iv || iv.technicien_id !== techRow.id) {
-    return NextResponse.json({ ok: false, error: 'Intervention non assignée.' }, { status: 403 });
-  }
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId);
+  if (!owns.ok) return techError(owns);
 
   const { data, error } = await supabase
     .from('photos_interventions')

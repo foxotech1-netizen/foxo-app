@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, techError } from '@/lib/auth/tech-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,27 +16,9 @@ export const dynamic = 'force-dynamic';
 //      autre intervention, ce qui n'a pas de sens métier)
 async function authBothOwnerships(obsId: string, photoId: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 }),
-    };
-  }
-
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) {
-    return {
-      ok: false as const,
-      response: NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 }),
-    };
-  }
+  // Auth + résolution du tech (bloc partagé, cf. lib/auth/tech-helpers).
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return { ok: false as const, response: techError(tech) };
 
   const admin = createAdminClient();
   const { data: obsRow } = await admin
@@ -78,7 +60,7 @@ async function authBothOwnerships(obsId: string, photoId: string) {
     .select('technicien_id')
     .eq('id', obsRow.intervention_id)
     .maybeSingle();
-  if (!iv || iv.technicien_id !== techRow.id) {
+  if (!iv || iv.technicien_id !== tech.tech.id) {
     return {
       ok: false as const,
       response: NextResponse.json(

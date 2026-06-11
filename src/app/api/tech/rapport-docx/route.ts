@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
 import { buildRapportDocx, type ReportData } from '@/lib/rapport/build-docx';
 import { uploadRapport } from '@/lib/google-drive';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
@@ -34,12 +34,8 @@ export const dynamic = 'force-dynamic';
 // Sécurité : tech connecté + ownership intervention (technicien_id).
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
 
   let body: { intervention_id?: unknown };
   try {
@@ -52,27 +48,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'intervention_id requis.' }, { status: 400 });
   }
 
-  // Ownership : tech connecté = technicien_id de l'intervention
-  const { data: techRow } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!techRow) return NextResponse.json({ ok: false, error: 'Tech inconnu.' }, { status: 403 });
-
-  const { data: ivData } = await supabase
-    .from('interventions')
-    .select('*')
-    .eq('id', interventionId)
-    .maybeSingle();
-  if (!ivData) return NextResponse.json({ ok: false, error: 'Intervention introuvable.' }, { status: 404 });
-  const iv = ivData as Intervention;
-  if (iv.technicien_id !== techRow.id) {
-    return NextResponse.json(
-      { ok: false, error: 'Intervention non assignée.' },
-      { status: 403 },
-    );
-  }
+  // Ownership : tech connecté = technicien_id de l'intervention.
+  // select '*' + splitNotFound pour conserver le 404 'Intervention
+  // introuvable.' distinct du 403 'Intervention non assignée.'.
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId, {
+    select: '*',
+    splitNotFound: true,
+  });
+  if (!owns.ok) return techError(owns);
+  const iv = owns.intervention as unknown as Intervention;
 
   // Charge ACP + rapport + syndic + occupants + observations en parallèle.
   // Colonnes étendues pour le mapping rapport modèle 2026-101 :

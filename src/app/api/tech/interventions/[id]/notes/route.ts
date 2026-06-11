@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { canAccessTechSpace } from "@/lib/auth/server";
+import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,35 +13,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
-  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
-  if (!user || !(await canAccessTechSpace(user.id))) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
-  }
+  const tech = await getCurrentTech(supabase);
+  if (!tech.ok) return techError(tech);
   const { id } = await params;
 
   // Vérifie l'ownership : le tech connecté doit être assigné à cette
   // intervention (sinon il pourrait écrire sur le carnet d'un collègue).
-  const { data: u } = await supabase
-    .from('utilisateurs')
-    .select('id')
-    .eq('email', (user.email ?? '').toLowerCase())
-    .maybeSingle();
-  if (!u) {
-    return NextResponse.json({ ok: false, error: 'Compte tech inconnu.' }, { status: 404 });
-  }
-  const { data: iv } = await supabase
-    .from('interventions')
-    .select('id, technicien_id')
-    .eq('id', id)
-    .maybeSingle();
-  if (!iv) {
-    return NextResponse.json({ ok: false, error: 'Intervention introuvable.' }, { status: 404 });
-  }
-  if (iv.technicien_id !== u.id) {
-    return NextResponse.json({ ok: false, error: 'Tu n\'es pas assigné à cette intervention.' }, { status: 403 });
-  }
+  // splitNotFound : conserve le 404 'Intervention introuvable.' distinct
+  // du 403 sur intervention assignée à un autre tech.
+  const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, id, { splitNotFound: true });
+  if (!owns.ok) return techError(owns);
 
   let body: { notes_tech?: unknown };
   try {
