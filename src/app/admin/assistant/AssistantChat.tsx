@@ -25,6 +25,9 @@ export interface AssistantChatProps {
   quickActions?: QuickAction[];
   emptyTitle?: string;
   emptyHint?: string;
+  // Placeholder du champ de saisie — surchargé par le portail tech
+  // (libellé court, écrans ~390px).
+  placeholder?: string;
   onSpecialResult?: (sections: { degats: string; inspection: string; conclusion: string; recommandations: string }) => void;
   className?: string;
   inputClassName?: string;
@@ -58,6 +61,7 @@ export function AssistantChat({
   quickActions,
   emptyTitle,
   emptyHint,
+  placeholder,
   onSpecialResult,
   className,
   inputClassName,
@@ -255,7 +259,7 @@ export function AssistantChat({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={mode === 'global' ? 'Pose une question sur l\'activité FoxO…' : 'Pose une question sur ce dossier…'}
+          placeholder={placeholder ?? (mode === 'global' ? 'Pose une question sur l\'activité FoxO…' : 'Pose une question sur ce dossier…')}
           disabled={pending}
           className={inputClassName ?? 'flex-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid disabled:opacity-50'}
         />

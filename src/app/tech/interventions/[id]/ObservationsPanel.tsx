@@ -486,14 +486,18 @@ export function ObservationsPanel({
                           className="w-full h-full object-cover"
                         />
                         {!disabled && (
+                          // Zone tactile 40px (coin haut-droit de la vignette
+                          // 80px), badge visuel rond 24px discret.
                           <button
                             type="button"
                             onClick={() => unlinkPhoto(obs.id, p)}
-                            className="absolute top-0 right-0 w-7 h-7 bg-[var(--color-terra)] text-[var(--color-cream)] text-[14px] leading-none rounded-bl-md flex items-center justify-center transition-opacity opacity-90"
+                            className="absolute top-0 right-0 w-10 h-10 flex items-start justify-end p-1.5"
                             title="Détacher"
                             aria-label="Détacher la photo"
                           >
-                            ×
+                            <span className="w-6 h-6 rounded-full bg-black/55 text-white flex items-center justify-center">
+                              <X size={13} />
+                            </span>
                           </button>
                         )}
                       </div>

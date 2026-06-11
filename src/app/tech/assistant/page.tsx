@@ -21,8 +21,9 @@ export default function TechAssistantPage() {
           mode="global"
           endpoint="/api/tech/assistant/chat"
           quickActions={TECH_QUICK_ACTIONS}
-          emptyTitle="Comment puis-je vous aider ?"
-          emptyHint="J'ai accès à vos interventions et à votre planning. Touchez une suggestion ci-dessus, ou posez votre question."
+          emptyTitle="Comment puis-je t'aider ?"
+          emptyHint="J'ai accès à tes interventions et à ton planning. Touche une suggestion ci-dessus, ou pose ta question."
+          placeholder="Pose ta question…"
           className="flex flex-col h-full"
         />
       </div>

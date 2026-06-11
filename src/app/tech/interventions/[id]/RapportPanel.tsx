@@ -367,7 +367,7 @@ export function RapportPanel({
             onChange={(e) => setBrief(e.target.value)}
             placeholder="Dicte librement ce que tu as vu, fait, conclu et recommandé. L'IA rédigera les 4 sections du rapport."
             rows={5}
-            className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[100px]"
+            className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 pt-3 pb-4 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[120px] [field-sizing:content]"
           />
           <button
             type="button"
@@ -410,9 +410,9 @@ export function RapportPanel({
                 value={values[key]}
                 onChange={(e) => update(key, e.target.value)}
                 placeholder={placeholder}
-                rows={4}
+                rows={5}
                 disabled={alreadyPublished}
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[80px] disabled:opacity-70 disabled:bg-[var(--color-sand-mid)]"
+                className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 pt-3 pb-4 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[120px] [field-sizing:content] disabled:opacity-70 disabled:bg-[var(--color-sand-mid)]"
               />
 
               {/* Photos liées à cette section */}
@@ -446,39 +446,39 @@ export function RapportPanel({
 
       {!alreadyPublished ? (
         <>
-          {/* grid-cols-3 → largeurs uniformes garanties (équipartition).
-              whitespace-nowrap empêche "Exporter Word" et "Génération Word…"
-              de casser sur 2 lignes sur petits écrans. min-h-[48px] préservé
+          {/* Hiérarchie D6 : 3 secondaires homogènes (outline crème), puis
+              Publier en primaire navy pleine largeur. Libellés entiers :
+              wrap autorisé, pas de nowrap/truncate. min-h-[48px] préservé
               pour cible tactile (Apple HIG). */}
           <div className="grid grid-cols-3 gap-2 mt-4">
             <button
               onClick={() => doSave()}
               disabled={pending || exportingWord}
-              className="bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px] whitespace-nowrap"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px]"
             >
               {pending ? '…' : 'Enregistrer'}
             </button>
             <button
               onClick={doExportWord}
               disabled={exportingWord || pending}
-              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px] whitespace-nowrap"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[48px]"
             >
               {exportingWord ? 'Génération…' : (
-                <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><FileText size={14} />Exporter Word</span>
+                <span className="inline-flex items-center justify-center gap-1.5 flex-wrap"><FileText size={14} className="shrink-0" />Exporter Word</span>
               )}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
-              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] active:opacity-80 transition-colors min-h-[48px] whitespace-nowrap"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] active:opacity-80 transition-colors min-h-[48px]"
             >
-              <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><Eye size={14} />Aperçu</span>
+              <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} className="shrink-0" />Aperçu</span>
             </button>
           </div>
           <button
             onClick={doPublish}
             disabled={pending || !canPublish || exportingWord}
             title={!canPublish ? 'Clôture l\'intervention avant de publier' : ''}
-            className="w-full mt-2 bg-[var(--color-ok)] text-[var(--color-cream)] py-3.5 rounded-xl font-semibold text-[14px] disabled:opacity-40 active:opacity-80 hover:opacity-90 transition-opacity min-h-[48px]"
+            className="w-full mt-2 bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3.5 rounded-xl font-bold text-[14px] disabled:opacity-40 active:opacity-80 transition-colors min-h-[48px]"
           >
             <span className="inline-flex items-center justify-center gap-1.5">Publier<Check size={16} /></span>
           </button>
@@ -492,28 +492,30 @@ export function RapportPanel({
             <button
               onClick={doExportWord}
               disabled={exportingWord}
-              className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] py-3 rounded-xl font-semibold text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[44px] whitespace-nowrap"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] disabled:opacity-50 active:opacity-80 transition-colors min-h-[44px]"
             >
               {exportingWord ? 'Génération…' : (
-                <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><FileText size={14} />Exporter Word</span>
+                <span className="inline-flex items-center justify-center gap-1.5 flex-wrap"><FileText size={14} className="shrink-0" />Exporter Word</span>
               )}
             </button>
             <button
               onClick={() => setPreviewOpen(true)}
-              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] transition-colors min-h-[44px] whitespace-nowrap"
+              className="bg-[var(--color-sand-mid)] hover:bg-[var(--color-sand-border)] text-[var(--color-ink)] border border-[var(--color-sand-border)] py-3 rounded-xl font-medium text-[13px] transition-colors min-h-[44px]"
             >
-              <span className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap"><Eye size={14} />Aperçu</span>
+              <span className="inline-flex items-center justify-center gap-1.5"><Eye size={14} className="shrink-0" />Aperçu</span>
             </button>
           </div>
         </>
       )}
 
+      {/* Utilitaire discret — ne doit plus concurrencer Enregistrer (ambre
+          identique avant D6) ni Publier. */}
       <button
         onClick={doDriveSync}
         disabled={pending}
-        className="w-full mt-2 bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-3 rounded-xl text-[13px] font-semibold disabled:opacity-50 transition-colors min-h-[44px]"
+        className="w-full mt-2 bg-transparent hover:bg-[var(--color-sand-hover)] text-[var(--color-ink-mid)] border border-[var(--color-sand-border)] py-2.5 rounded-xl text-[12px] font-medium disabled:opacity-50 transition-colors min-h-[44px]"
       >
-        <span className="inline-flex items-center justify-center gap-1.5"><Cloud size={14} />Synchroniser vers Google Drive</span>
+        <span className="inline-flex items-center justify-center gap-1.5"><Cloud size={14} className="shrink-0" />Synchroniser vers Google Drive</span>
       </button>
 
       {/* Modal Aperçu — overlay plein écran, fond cream, sections en
