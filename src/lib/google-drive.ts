@@ -16,6 +16,7 @@
 // `{ ok: false, error }` sans planter (best-effort).
 
 import { getValidAccessToken } from '@/lib/google-auth';
+import { getDriveFoldersSafe } from '@/lib/drive/config';
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -189,7 +190,7 @@ export async function createInterventionFolder(args: {
   adresse: string;
   year: number;
 }): Promise<DriveFolderResult> {
-  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  const root = getDriveFoldersSafe().rapportsFolderId;
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' };
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté (voir /admin/parametres).' };
@@ -220,7 +221,7 @@ export async function createInterventionFolder(args: {
 
 // Localise (ou crée) le dossier intervention puis le sous-dossier photos.
 async function getPhotosFolder(token: string, ref: string, adresse: string, year: number): Promise<string | null> {
-  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  const root = getDriveFoldersSafe().rapportsFolderId;
   if (!root) return null;
   const yearF = await ensureFolder(token, root, String(year));
   if (!yearF) return null;
@@ -261,7 +262,7 @@ export async function uploadPhoto(args: {
 }): Promise<DriveUploadResult> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
-  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  const root = getDriveFoldersSafe().rapportsFolderId;
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' };
   const verify = await verifyDriveFolder(root);
   if (!verify.ok) return { ok: false, error: verify.error ?? 'Dossier RAPPORTS inaccessible.' };
@@ -285,7 +286,7 @@ export async function uploadRapport(args: {
 }): Promise<DriveUploadResult> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
-  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  const root = getDriveFoldersSafe().rapportsFolderId;
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_RAPPORTS_FOLDER_ID manquant.' };
   const verify = await verifyDriveFolder(root);
   if (!verify.ok) return { ok: false, error: verify.error ?? 'Dossier RAPPORTS inaccessible.' };
@@ -311,7 +312,7 @@ export async function uploadFacture(args: {
   date: Date;
   bytes: Uint8Array;
 }): Promise<DriveUploadResult> {
-  const root = process.env.GOOGLE_DRIVE_FACTURES_FOLDER_ID;
+  const root = getDriveFoldersSafe().facturesFolderId;
   if (!root) return { ok: false, error: 'GOOGLE_DRIVE_FACTURES_FOLDER_ID manquant.' };
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
@@ -357,7 +358,7 @@ export interface TestDriveResult {
 export async function getLastDriveRef(): Promise<{ year: number; num: number } | null> {
   const auth = await getValidAccessToken();
   if (!auth) return null;
-  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  const root = getDriveFoldersSafe().rapportsFolderId;
   if (!root) return null;
 
   const REF_RE = /^(\d{4})-(\d{3,5})\s/;
@@ -410,8 +411,9 @@ export async function getLastDriveRef(): Promise<{ year: number; num: number } |
 }
 
 export async function testDriveConnection(): Promise<TestDriveResult> {
-  const rRapports = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID ?? '';
-  const rFactures = process.env.GOOGLE_DRIVE_FACTURES_FOLDER_ID ?? '';
+  const folders = getDriveFoldersSafe();
+  const rRapports = folders.rapportsFolderId ?? '';
+  const rFactures = folders.facturesFolderId ?? '';
 
   const auth = await getValidAccessToken();
   if (!auth) {
@@ -522,7 +524,7 @@ export async function resolveInterventionFolderByName(
 ): Promise<string | null> {
   const auth = await getValidAccessToken();
   if (!auth) return null;
-  const root = process.env.GOOGLE_DRIVE_RAPPORTS_FOLDER_ID;
+  const root = getDriveFoldersSafe().rapportsFolderId;
   if (!root) return null;
 
   const cleanRef = ref.trim();
