@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
-import { listInboxMails } from '@/lib/gmail';
+import { EXCLUDE_PLATFORM_MAILS_Q, ONLY_PLATFORM_MAILS_Q, listInboxMails } from '@/lib/gmail';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,9 +33,16 @@ export async function GET(request: Request) {
   const parts: string[] = [];
   if (filter === 'trash') {
     parts.push('in:trash');
+  } else if (filter === 'system') {
+    // Vue « Système » : uniquement les mails transactionnels émis par FoxO.
+    parts.push('in:inbox', ONLY_PLATFORM_MAILS_Q);
   } else {
     parts.push('in:inbox');
     if (filter === 'unread') parts.push('is:unread');
+    // Par défaut, les mails envoyés par la plateforme elle-même sont
+    // masqués (visibles via filter=system) : la liste reflète les mails
+    // réellement à traiter.
+    parts.push(EXCLUDE_PLATFORM_MAILS_Q);
   }
   if (label) parts.push(`label:"${label.replace(/"/g, '')}"`);
   const q = parts.join(' ');

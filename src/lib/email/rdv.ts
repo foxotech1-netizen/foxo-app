@@ -1,3 +1,4 @@
+import { fmtDateTime } from '@/lib/format';
 import { sendEmailResend, type SendResult } from '@/lib/email/resend';
 import { VENDOR } from '@/lib/constants/vendor';
 
@@ -24,11 +25,7 @@ function escapeHtml(s: string): string {
 
 function fmtCreneau(iso: string | null): string {
   if (!iso) return 'À définir avec FoxO';
-  const d = new Date(iso);
-  return d.toLocaleString('fr-BE', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return fmtDateTime(iso, true);
 }
 
 function buildClientHtml(d: RdvEmailData): string {

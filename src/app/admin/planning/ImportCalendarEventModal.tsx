@@ -1,5 +1,6 @@
 'use client';
 
+import { TZ_BRUSSELS } from '@/lib/format';
 import { useState } from 'react';
 import { Calendar, X, Clock, MapPin, AlertTriangle, ClipboardList } from 'lucide-react';
 import type { TypeIntervention, Utilisateur } from '@/lib/types/database';
@@ -26,8 +27,8 @@ export interface CalendarEventLite {
 function fmtDateTime(iso: string, allDay: boolean): string {
   if (!iso) return '';
   const d = new Date(iso);
-  if (allDay) return d.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  return d.toLocaleString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  if (allDay) return d.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ_BRUSSELS });
+  return d.toLocaleString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS });
 }
 
 export function ImportCalendarEventModal({

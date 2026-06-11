@@ -1,5 +1,6 @@
 'use server';
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -81,13 +82,13 @@ function buildContextSummary(args: {
   lines.push(`Priorité : ${iv.priorite}`);
   if (iv.creneau_debut) {
     const d = new Date(iv.creneau_debut);
-    lines.push(`Date d'intervention : ${d.toLocaleString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+    lines.push(`Date d'intervention : ${d.toLocaleString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}`);
   }
   if (iv.started_at && iv.ended_at) {
     const a = new Date(iv.started_at);
     const b = new Date(iv.ended_at);
     const min = Math.round((b.getTime() - a.getTime()) / 60000);
-    lines.push(`Durée sur place : ${min} min (${a.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })} → ${b.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })})`);
+    lines.push(`Durée sur place : ${min} min (${fmtTime(a.toISOString())} → ${fmtTime(b.toISOString())})`);
   }
 
   if (acp) {

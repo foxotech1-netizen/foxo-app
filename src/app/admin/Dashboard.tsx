@@ -8,6 +8,7 @@ import {
   ArrowUpRight, type LucideIcon,
 } from 'lucide-react';
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
+import { fmtTime } from '@/lib/format';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -24,11 +25,6 @@ const TECH_AVATAR_COLORS = [
   { bg: 'var(--color-ok)',         soft: 'var(--color-ok-light)' },
   { bg: 'var(--color-terra)',      soft: 'var(--color-terra-light)' },
 ];
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-}
 
 function isSameDay(iso: string | null, ref: Date): boolean {
   if (!iso) return false;
@@ -118,7 +114,8 @@ export function Dashboard({
     const confirmedToday = rows.filter(
       (r) => r.statut === 'confirmee' && isSameDay(r.creneau_debut, today),
     );
-    const rapportToSend = rows.filter((r) => r.statut === 'rapport');
+    // NB : les rapports à valider ne sont plus listés ici — même compteur
+    // que la carte KPI « Rapports à valider » du haut (statut === 'rapport').
     const occupantsPending: { iv: InterventionRow; pending: { id: string; appartement: string | null; nom: string | null }[] }[] = [];
     for (const iv of rows) {
       if (iv.statut === 'cloturee') continue;
@@ -127,7 +124,7 @@ export function Dashboard({
         occupantsPending.push({ iv, pending: list });
       }
     }
-    return { confirmedToday, rapportToSend, occupantsPending };
+    return { confirmedToday, occupantsPending };
   }, [rows, today, dashboard.occupantsPendingByIv]);
 
   // ── Sections "détaillées" ─────────────────────────────────────────────
@@ -161,73 +158,66 @@ export function Dashboard({
         />
       )}
 
-      {/* 4. À faire aujourd'hui */}
+      {/* 4. À faire aujourd'hui — compact : seuls les compteurs non nuls
+          affichent une carte ; tout à zéro = une seule ligne discrète. */}
       <section>
         <h3 className="section-label mb-2">À faire aujourd&apos;hui</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <TodoCard
-            title="Confirmées aujourd'hui"
-            count={todoToday.confirmedToday.length}
-            color="navy"
-            empty="Aucune intervention confirmée pour aujourd'hui."
-          >
-            {todoToday.confirmedToday.map((iv) => (
-              <button
-                key={iv.id}
-                type="button"
-                onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+        {todoToday.confirmedToday.length === 0 && todoToday.occupantsPending.length === 0 ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-sand)] border border-[var(--color-sand-mid)] rounded-md text-[12px] text-ink-muted">
+            <Check size={14} className="text-ok" aria-hidden />
+            Rien à traiter aujourd&apos;hui
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {todoToday.confirmedToday.length > 0 && (
+              <TodoCard
+                title="Confirmées aujourd'hui"
+                count={todoToday.confirmedToday.length}
+                color="navy"
+                empty="Aucune intervention confirmée pour aujourd'hui."
               >
-                <span className="font-mono text-[11px] text-navy font-bold">{fmtTime(iv.creneau_debut)}</span>
-                <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
-                <span className="text-[10px] text-ink-muted">{iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}</span>
-              </button>
-            ))}
-          </TodoCard>
+                {todoToday.confirmedToday.map((iv) => (
+                  <button
+                    key={iv.id}
+                    type="button"
+                    onClick={() => onOpenIntervention(iv.id)}
+                    className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                  >
+                    <span className="font-mono text-[11px] text-navy font-bold">{fmtTime(iv.creneau_debut)}</span>
+                    <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
+                    <span className="text-[10px] text-ink-muted">{iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}</span>
+                  </button>
+                ))}
+              </TodoCard>
+            )}
 
-          <TodoCard
-            title="Rapports à valider/envoyer"
-            count={todoToday.rapportToSend.length}
-            color="ok"
-            empty="Aucun rapport en attente d'envoi."
-          >
-            {todoToday.rapportToSend.map((iv) => (
-              <button
-                key={iv.id}
-                type="button"
-                onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-[var(--color-sand)] hover:bg-ok-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+            {todoToday.occupantsPending.length > 0 && (
+              <TodoCard
+                title="Occupants à relancer"
+                count={todoToday.occupantsPending.length}
+                color="amber"
+                empty="Tous les occupants ont confirmé."
               >
-                <span className="font-mono text-[11px] text-ok font-bold">{iv.ref ?? '?'}</span>
-                <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
-              </button>
-            ))}
-          </TodoCard>
-
-          <TodoCard
-            title="Occupants à relancer"
-            count={todoToday.occupantsPending.length}
-            color="amber"
-            empty="Tous les occupants ont confirmé."
-          >
-            {todoToday.occupantsPending.map(({ iv, pending }) => (
-              <button
-                key={iv.id}
-                type="button"
-                onClick={() => onOpenIntervention(iv.id)}
-                className="w-full text-left bg-[var(--color-sand)] hover:bg-amber-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-sora text-[11px] text-[var(--color-amber-foxo)] font-semibold tracking-[0.01em]">{iv.ref ?? '?'}</span>
-                  <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
-                </div>
-                <div className="text-[10px] text-ink-muted mt-0.5">
-                  {pending.length} occupant(s) sans réponse
-                </div>
-              </button>
-            ))}
-          </TodoCard>
-        </div>
+                {todoToday.occupantsPending.map(({ iv, pending }) => (
+                  <button
+                    key={iv.id}
+                    type="button"
+                    onClick={() => onOpenIntervention(iv.id)}
+                    className="w-full text-left bg-[var(--color-sand)] hover:bg-amber-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-sora text-[11px] text-[var(--color-amber-foxo)] font-semibold tracking-[0.01em]">{iv.ref ?? '?'}</span>
+                      <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
+                    </div>
+                    <div className="text-[10px] text-ink-muted mt-0.5">
+                      {pending.length} occupant(s) sans réponse
+                    </div>
+                  </button>
+                ))}
+              </TodoCard>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, MessageCircle, MessageSquare, Phone, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
 import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
@@ -90,8 +91,8 @@ export default async function TechInterventionPage({
         )}
         {iv.creneau_debut && (() => {
           const d = new Date(iv.creneau_debut);
-          const time = d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-          const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+          const time = fmtTime(iv.creneau_debut);
+          const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ_BRUSSELS });
           return (
             <div className="text-[12px] text-[var(--color-ink-mid)] mt-2.5 font-mono flex items-center gap-2">
               <span className="font-semibold text-[var(--accent-tech)]">{time}</span>
@@ -279,7 +280,7 @@ function buildRetardMessage(iv: Intervention): string {
   let phrase = 'je suis le technicien en charge de votre rendez-vous';
   if (iv.ref) phrase += ` (réf. ${iv.ref})`;
   if (iv.creneau_debut) {
-    const t = new Date(iv.creneau_debut).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+    const t = fmtTime(iv.creneau_debut);
     phrase += ` prévu à ${t}`;
   }
   return `Bonjour, ${phrase}. Je vais avoir un peu de retard et j’arriverai dès que possible. Merci de votre compréhension.`;

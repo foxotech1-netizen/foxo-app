@@ -5,6 +5,7 @@
 // de problème, log via console.warn). Les Server Actions appelantes ne
 // doivent pas dépendre de son résultat.
 
+import { fmtDateTime } from '@/lib/format';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmailResend } from '@/lib/email/resend';
 import { getEmailForDoc } from '@/lib/notifications';
@@ -35,11 +36,7 @@ function escapeHtml(s: string): string {
 }
 
 function fmtCreneau(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleString('fr-BE', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return fmtDateTime(iso, true);
 }
 
 function buildHtml(args: {

@@ -1,3 +1,4 @@
+import { fmtDateISO, fmtDateTime, fmtTime } from '@/lib/format';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -28,10 +29,7 @@ interface OccupantRow {
 }
 
 function fmtDateTimeFr(iso: string): string {
-  return new Date(iso).toLocaleString('fr-BE', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return fmtDateTime(iso, true);
 }
 
 function escapeHtml(s: string): string {
@@ -44,7 +42,7 @@ function buildAcceptedEmail(args: {
   endIso: string | null;
 }): string {
   const dateStr = fmtDateTimeFr(args.startIso);
-  const endStr = args.endIso ? ` (jusqu'à ${new Date(args.endIso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })})` : '';
+  const endStr = args.endIso ? ` (jusqu'à ${fmtTime(args.endIso)})` : '';
   return `<!DOCTYPE html><html><body style="margin:0;background:#F5F2EC;font-family:'DM Sans',Arial,sans-serif;color:#1C1A16">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F2EC;padding:32px 16px">
     <tr><td align="center">
@@ -166,15 +164,9 @@ export async function POST(
       .eq('intervention_id', interventionId)
       .maybeSingle();
 
-    const start = new Date(newStartIso);
-    const date = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-    const heureDebut = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-    const heureFin = newEndIso
-      ? (() => {
-          const e = new Date(newEndIso);
-          return `${String(e.getHours()).padStart(2, '0')}:${String(e.getMinutes()).padStart(2, '0')}`;
-        })()
-      : null;
+    const date = fmtDateISO(newStartIso);
+    const heureDebut = fmtTime(newStartIso);
+    const heureFin = newEndIso ? fmtTime(newEndIso) : null;
 
     if (creneau?.id) {
       await admin

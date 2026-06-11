@@ -1,5 +1,6 @@
 'use client';
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -17,7 +18,7 @@ import {
   type MailClassification,
 } from '@/lib/mail/categories';
 
-type FilterMode = 'tous' | 'unread' | 'lies' | 'trash';
+type FilterMode = 'tous' | 'unread' | 'lies' | 'system' | 'trash';
 type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
@@ -55,8 +56,8 @@ function fmtDate(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: 'short' });
+  if (sameDay) return fmtTime(iso);
+  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', timeZone: TZ_BRUSSELS });
 }
 
 function senderName(from: string): string {
@@ -133,6 +134,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setError(null);
     const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
     if (filter === 'unread') params.set('filter', 'unread');
+    if (filter === 'system') params.set('filter', 'system');
     if (filter === 'trash') params.set('filter', 'trash');
     if (activeLabel) params.set('label', activeLabel);
     fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
@@ -530,11 +532,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             placeholder="Rechercher — expéditeur, sujet…"
             className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-5 gap-1.5">
             {([
               ['tous', 'Tous', null],
               ['unread', 'Non lus', null],
               ['lies', 'Avec interv.', null],
+              ['system', 'Système', null],
               ['trash', 'Corbeille', Trash2],
             ] as [FilterMode, string, typeof Trash2 | null][]).map(([f, label, Icon]) => (
               <button
@@ -803,7 +806,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     <span className="font-semibold">{senderName(detail.from)}</span>
                     <span className="ml-1 font-mono text-[10px]">&lt;{senderEmail(detail.from)}&gt;</span>
                     <span className="mx-1.5">·</span>
-                    {new Date(detail.date).toLocaleString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(detail.date).toLocaleString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}
                   </div>
                 )}
               </div>

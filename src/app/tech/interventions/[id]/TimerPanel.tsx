@@ -1,5 +1,6 @@
 'use client';
 
+import { fmtTime } from '@/lib/format';
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play, Square } from 'lucide-react';
@@ -110,7 +111,7 @@ export function TimerPanel({
               {elapsed}
             </div>
             <div className="text-[12px] text-[var(--color-ink-mid)] mt-1">
-              Démarré à <span className="font-mono text-[var(--color-ink)]">{new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+              Démarré à <span className="font-mono text-[var(--color-ink)]">{fmtTime(startedAt)}</span>
             </div>
           </div>
           <button
@@ -132,9 +133,9 @@ export function TimerPanel({
             {elapsed}
           </div>
           <div className="text-[12px] text-[var(--color-ink-mid)] mt-1.5 font-mono">
-            {startedAt && new Date(startedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+            {startedAt && fmtTime(startedAt)}
             {' — '}
-            {new Date(endedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+            {fmtTime(endedAt)}
           </div>
           <div className="text-[12px] text-[var(--color-ink-mid)] mt-2">Statut actuel : {statut}</div>
         </div>

@@ -51,6 +51,7 @@ import {
   type StatutIntervention,
 } from '@/lib/types/database';
 import type { Acp, TypeOccupant, Utilisateur } from '@/lib/types/database';
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { TYPE_OCCUPANT_LABEL } from '@/lib/types/database';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
 import {
@@ -102,10 +103,11 @@ function fmtDate(iso: string | null, full = false): string {
   return full
     ? d.toLocaleString('fr-BE', {
         weekday: 'long', day: 'numeric', month: 'long',
-        hour: '2-digit', minute: '2-digit',
+        hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS,
       })
     : d.toLocaleDateString('fr-BE', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+        timeZone: TZ_BRUSSELS,
       });
 }
 
@@ -872,11 +874,9 @@ export function InterventionsClient({
     const fullName = [occ.prenom, occ.nom].filter(Boolean).join(' ') || 'l\'occupant';
     const debutFr = new Date(occ.proposed_creneau_debut).toLocaleString('fr-BE', {
       weekday: 'long', day: 'numeric', month: 'long',
-      hour: '2-digit', minute: '2-digit',
+      hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS,
     });
-    const finFr = occ.proposed_creneau_fin
-      ? new Date(occ.proposed_creneau_fin).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
-      : null;
+    const finFr = occ.proposed_creneau_fin ? fmtTime(occ.proposed_creneau_fin) : null;
     const rangeStr = finFr ? `${debutFr} – ${finFr}` : debutFr;
     const ok = window.confirm(
       `Accepter le créneau proposé par ${fullName} : ${rangeStr} ?\n\n` +
@@ -2346,7 +2346,7 @@ export function InterventionsClient({
                                       className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[var(--color-navy-light)] text-[var(--color-navy)] border border-[var(--color-navy-light)] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
                                       title="L'occupant a proposé un autre créneau"
                                     >
-                                      <RefreshCw size={10} />Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                      <RefreshCw size={10} />Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}
                                     </span>
                                   )}
                                   {o.type_occupant && (
@@ -2481,7 +2481,7 @@ export function InterventionsClient({
                                 {o.appartement && <span className="text-ink-muted font-normal ml-1.5">· {o.appartement}</span>}
                               </span>
                               {sentAt && (
-                                <span className="text-[9px] text-ok font-bold whitespace-nowrap inline-flex items-center gap-0.5" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE')}`}>
+                                <span className="text-[9px] text-ok font-bold whitespace-nowrap inline-flex items-center gap-0.5" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS })}`}>
                                   <Check size={10} />envoyé
                                 </span>
                               )}
