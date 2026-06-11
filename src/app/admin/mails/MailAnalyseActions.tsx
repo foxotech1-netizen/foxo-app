@@ -1,7 +1,7 @@
 'use client';
 
 // Composant qui rend, sous le panel détail d'un mail :
-//   - Si pas analysé : bouton "Analyser approfondi" (POST analyse-deep)
+//   - Si pas analysé : bouton "Analyser avec IA" (POST analyse-deep — unique entrée d'analyse depuis Mails V2 P1)
 //   - Si analysé :
 //       * 3 actions 1-clic (Brouillon syndic / Confirmer occupant ▼ / Event Calendar)
 //       * Modal SMS
@@ -157,7 +157,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
           style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
         >
           <Sparkles size={14} aria-hidden />
-          {analyseLoading ? 'Analyse en cours (5-15s)…' : 'Analyser approfondi'}
+          {analyseLoading ? 'Analyse en cours (5-15s)…' : 'Analyser avec IA'}
         </button>
         {toast && <ToastInline toast={toast} />}
       </div>

@@ -4,8 +4,8 @@ import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  X, Trash2, Star, Bot, ClipboardList, CheckCircle2, Mail, Sparkles,
-  Zap, Paperclip, Circle, Tag, Archive, Undo2,
+  X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
+  Paperclip, Circle, Tag, Archive, Undo2,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -26,17 +26,6 @@ type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
   | 'label' | 'important' | 'trash' | 'restore' | 'delete-permanent';
-
-interface MailAnalysis {
-  nom_client: string | null;
-  adresse: string | null;
-  type_probleme: string | null;
-  telephone: string | null;
-  email: string | null;
-  date_souhaitee: string | null;
-  priorite: 'normale' | 'urgente' | null;
-  resume: string | null;
-}
 
 const HIDDEN_BADGE_LABEL_IDS = new Set([
   'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT',
@@ -97,8 +86,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MailDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<MailAnalysis | null>(null);
-  const [analysisLoading, setAnalysisLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const refreshRef = useRef<HTMLButtonElement>(null);
 
@@ -251,10 +238,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // Charge le détail quand selectedId change.
   // L'API serveur marque le mail comme lu (retire UNREAD côté Gmail).
   useEffect(() => {
-    if (!selectedId) { setDetail(null); setAnalysis(null); setReplyOpen(false); return; }
+    if (!selectedId) { setDetail(null); setReplyOpen(false); return; }
     let mounted = true;
     setDetailLoading(true);
-    setAnalysis(null);
     setReplyOpen(false);
     setReplyBody('');
     fetch(`/api/admin/mails/${selectedId}`)
@@ -395,24 +381,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     }
   }
 
-  async function analyzeMail() {
-    if (!detail) return;
-    setAnalysis(null);
-    setAnalysisLoading(true);
-    setFeedback(null);
-    try {
-      const r = await fetch(`/api/admin/mails/${detail.id}/analyze`, { method: 'POST' });
-      const data = await r.json();
-      if (!data.ok) {
-        setFeedback({ kind: 'err', msg: data.error ?? 'Analyse échouée.' });
-      } else {
-        setAnalysis(data.analysis);
-      }
-    } finally {
-      setAnalysisLoading(false);
-    }
-  }
-
   async function modifyLabelOnDetail(args: { addId?: string; removeId?: string }) {
     if (!detail) return;
     setFeedback(null);
@@ -511,11 +479,27 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   function createIntervention() {
     if (!detail) return;
-    if (analysis) {
+    // Pré-remplissage du planning depuis l'analyse approfondie (l'analyse
+    // legacy a été retirée — la Map analyses est l'unique source). Mapping
+    // best-effort vers le payload attendu par CreateInterventionModal ;
+    // tous les champs y sont optionnels.
+    const deep = analyses.get(detail.thread_id) ?? null;
+    if (deep) {
+      const occ = deep.occupants_extraits?.[0] ?? null;
+      const nomClient = occ ? `${occ.prenom} ${occ.nom}`.trim() : '';
       try {
         sessionStorage.setItem('foxo_mail_prefill', JSON.stringify({
           source_mail_id: detail.id,
-          analysis,
+          analysis: {
+            nom_client: nomClient || null,
+            adresse: deep.adresse_extraite,
+            type_probleme: null,
+            telephone: deep.occupant_telephone ?? (occ?.telephone || null),
+            email: deep.occupant_email ?? (occ?.email || null),
+            date_souhaitee: null,
+            priorite: deep.urgence == null ? null : (deep.urgence ? 'urgente' : 'normale'),
+            resume: deep.resume,
+          },
         }));
       } catch { /* noop */ }
     }
@@ -525,6 +509,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   if (!initialConnected) return null;
 
   const inTrash = filter === 'trash';
+
+  // État lu/important du mail ouvert — dérivé de la ligne de liste si
+  // présente (source la plus fraîche), sinon des labels du détail
+  // (cas deep-link ?id= hors onglet courant). Aucun état ajouté.
+  const selectedListItem = selectedId ? mails.find((m) => m.id === selectedId) ?? null : null;
+  const detailUnread = selectedListItem
+    ? selectedListItem.unread
+    : (detail?.label_ids.includes('UNREAD') ?? false);
+  const detailImportant = (selectedListItem ?? detail)?.label_ids.includes('IMPORTANT') ?? false;
 
   return (
     <div className="h-full flex">
@@ -938,15 +931,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </button>
               <button
                 type="button"
-                onClick={analyzeMail}
-                disabled={analysisLoading || !detail}
-                className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-              >
-                <Bot size={14} />
-                {analysisLoading ? 'Analyse…' : 'Analyser avec IA'}
-              </button>
-              <button
-                type="button"
                 onClick={createIntervention}
                 disabled={!detail}
                 className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
@@ -963,6 +947,40 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 <Archive size={14} />
                 Archiver
               </button>
+              {/* Lu/non-lu, Important, Corbeille (Mails V2 P1) — mêmes
+                  actions unitaires que le survol de liste. La corbeille
+                  ferme le volet (le mail quitte la vue courante). */}
+              {!inTrash && detail && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, detailUnread ? 'read' : 'unread')}
+                    disabled={bulkLoading}
+                    className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  >
+                    {detailUnread ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                    {detailUnread ? 'Marquer lu' : 'Marquer non lu'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, 'important')}
+                    disabled={bulkLoading || detailImportant}
+                    className="bg-amber-light text-[#8A5A1A] border border-[#E8C896] px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  >
+                    <Star size={14} />
+                    {detailImportant ? 'Important ✓' : 'Important'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyBulkActionForOne(detail.id, 'trash')}
+                    disabled={bulkLoading}
+                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  >
+                    <Trash2 size={14} />
+                    Corbeille
+                  </button>
+                </>
+              )}
               {/* Actions trash spécifiques au mail courant */}
               {inTrash && detail && (
                 <>
@@ -1010,13 +1028,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             )}
 
-            {/* Sprint Mails enrichis : actions 1-clic sur l'analyse Claude
-                approfondie (T5/T6). Bouton 'Analyser approfondi' si pas
-                encore analysé, sinon 3 actions (brouillon syndic / confirmer
-                occupant / event Calendar) + accordion détail. Coexiste
-                avec les boutons legacy ('Analyser avec IA' simple, 'Créer
-                une intervention') ci-dessus pour ne pas casser le flow
-                actuel. */}
+            {/* Analyse IA unifiée (Mails V2 P1) : MailAnalyseActions est
+                l'unique entrée d'analyse — bouton « Analyser avec IA »
+                (POST analyse-deep) si pas encore analysé, sinon actions
+                1-clic (brouillon syndic / confirmer occupant / event
+                Calendar) + accordion détail. */}
             {detail && (
               <MailAnalyseActions
                 threadId={detail.thread_id}
@@ -1124,29 +1140,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     </div>
                   </div>
                 )}
-              </div>
-            )}
-
-            {analysis && (
-              <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2 inline-flex items-center gap-1.5">
-                  <Sparkles size={12} />
-                  Analyse IA
-                </div>
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
-                  <AnalysisRow label="Client" value={analysis.nom_client} />
-                  <AnalysisRow label="Téléphone" value={analysis.telephone} mono />
-                  <AnalysisRow label="Email" value={analysis.email} mono />
-                  <AnalysisRow label="Type" value={analysis.type_probleme} />
-                  <AnalysisRow label="Priorité" value={analysis.priorite ? (analysis.priorite === 'urgente' ? (<span className="inline-flex items-center gap-1"><Zap size={12} />Urgente</span>) : 'Normale') : null} />
-                  <AnalysisRow label="Date souhaitée" value={analysis.date_souhaitee} />
-                  <div className="sm:col-span-2">
-                    <AnalysisRow label="Adresse" value={analysis.adresse} />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <AnalysisRow label="Résumé" value={analysis.resume} />
-                  </div>
-                </dl>
               </div>
             )}
 
@@ -1568,18 +1561,5 @@ function ConfirmDeleteModal({
         </div>
       </div>
     </div>
-  );
-}
-
-function AnalysisRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
-  return (
-    <>
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-        {label}
-      </dt>
-      <dd className={'text-[12px] ' + (mono ? 'font-mono' : '')}>
-        {value ?? <span className="text-ink-muted italic">—</span>}
-      </dd>
-    </>
   );
 }
