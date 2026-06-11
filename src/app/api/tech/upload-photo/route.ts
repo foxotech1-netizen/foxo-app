@@ -6,6 +6,19 @@ import { uploadPhoto } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 
+// Bornes upload photo terrain (constat sécurité #9) — aligné sur upload-logo.
+// 15 Mo couvre largement une photo de smartphone (HEIC/JPEG haute résolution)
+// sans permettre l'épuisement du quota Drive / du temps serveur. MIME en
+// whitelist stricte : jpeg/png/webp + heic/heif (photos iOS).
+const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+const ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]);
+
 export async function POST(request: Request) {
   // Auth tech
   const supabase = await createClient();
@@ -42,6 +55,18 @@ export async function POST(request: Request) {
     : null;
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ ok: false, error: 'Fichier vide.' }, { status: 400 });
+  }
+  if (!ALLOWED_MIME.has(file.type)) {
+    return NextResponse.json(
+      { ok: false, error: `Type non supporté (${file.type || 'inconnu'}). Attendu : jpg, png, webp, heic.` },
+      { status: 400 },
+    );
+  }
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json(
+      { ok: false, error: `Photo trop lourde (${Math.round(file.size / (1024 * 1024))} Mo, max 15 Mo).` },
+      { status: 400 },
+    );
   }
   if (!interventionId) {
     return NextResponse.json({ ok: false, error: 'intervention_id manquant.' }, { status: 400 });
