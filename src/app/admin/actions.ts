@@ -469,6 +469,108 @@ export async function reopenTransmittedRapport(interventionId: string): Promise<
   return { ok: true };
 }
 
+// ── Courtier mandaté sur un dossier (table dossiers_sinistres) ──────────────
+// Association admin d'un courtier/expert à une intervention EXISTANTE. Jusqu'ici
+// la seule écriture de dossiers_sinistres était submitRequest (self-service
+// portail, à la création de la demande par le courtier) : aucun chemin admin
+// n'existait. Idempotent via upsert sur la contrainte UNIQUE
+// (intervention_id, courtier_id) — ignoreDuplicates pour ne JAMAIS écraser un
+// dossier déjà rempli côté portail (assure / ref_courtier / numero).
+// Historique best-effort dans intervention_timeline, AUCUNE notification.
+
+// Vérifie que l'organisation ciblée est bien un courtier OU un expert (les deux
+// rôles mandatables partagent la colonne courtier_id, cf. submitRequest).
+async function assertOrgIsCourtierOrExpert(
+  db: ReturnType<typeof createAdminClient>,
+  courtierId: string,
+): Promise<{ ok: true; nom: string } | { ok: false; error: string }> {
+  const { data, error } = await db
+    .from('organisations')
+    .select('id, nom, type')
+    .eq('id', courtierId)
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Organisation introuvable.' };
+  const org = data as Pick<Organisation, 'id' | 'nom' | 'type'>;
+  if (org.type !== 'courtier' && org.type !== 'expert') {
+    return { ok: false, error: 'Seule une organisation de type courtier ou expert peut être mandatée.' };
+  }
+  return { ok: true, nom: org.nom };
+}
+
+export async function linkCourtierToDossier(
+  interventionId: string,
+  courtierId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
+  if (!interventionId || !courtierId) return { error: 'ID manquant.' };
+
+  const db = createAdminClient();
+  const guard = await assertOrgIsCourtierOrExpert(db, courtierId);
+  if (!guard.ok) return { error: guard.error };
+
+  // numero NOT NULL DEFAULT '' au schéma → on pose '' explicitement à l'insert.
+  // ignoreDuplicates : si le dossier existe déjà (créé au portail), on n'écrase
+  // rien et l'opération reste idempotente.
+  const { error } = await db
+    .from('dossiers_sinistres')
+    .upsert(
+      { intervention_id: interventionId, courtier_id: courtierId, numero: '' },
+      { onConflict: 'intervention_id,courtier_id', ignoreDuplicates: true },
+    );
+  if (error) return { error: error.message };
+
+  try {
+    await db.from('intervention_timeline').insert({
+      intervention_id: interventionId,
+      type: 'courtier_lie',
+      message: `Courtier mandaté associé : ${guard.nom}`,
+      payload: { courtier_id: courtierId },
+      created_by: user.email ?? 'admin',
+    });
+  } catch (e) {
+    console.warn('[linkCourtierToDossier] timeline insert skipped:', e);
+  }
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
+export async function unlinkCourtierFromDossier(
+  interventionId: string,
+  courtierId: string,
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) return { error: 'Accès refusé.' };
+  if (!interventionId || !courtierId) return { error: 'ID manquant.' };
+
+  const db = createAdminClient();
+  const { error } = await db
+    .from('dossiers_sinistres')
+    .delete()
+    .eq('intervention_id', interventionId)
+    .eq('courtier_id', courtierId);
+  if (error) return { error: error.message };
+
+  try {
+    await db.from('intervention_timeline').insert({
+      intervention_id: interventionId,
+      type: 'courtier_retire',
+      message: 'Courtier mandaté retiré du dossier',
+      payload: { courtier_id: courtierId },
+      created_by: user.email ?? 'admin',
+    });
+  } catch (e) {
+    console.warn('[unlinkCourtierFromDossier] timeline insert skipped:', e);
+  }
+
+  revalidatePath('/admin');
+  return { ok: true };
+}
+
 // ── Facture ───────────────────────────────────────────────────────────────
 
 export type EmitFactureInput = {
