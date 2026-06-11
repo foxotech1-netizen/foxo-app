@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
-import { isAdminUser } from "@/lib/auth/server";
+import { isAdminUser, canAccessTechSpace } from "@/lib/auth/server";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -29,22 +28,10 @@ const EXT_BY_MIME: Record<string, string> = {
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  // Autorise les techs whitelist (TECH_EMAILS), les admins, et tout
-  // utilisateur dont la row utilisateurs porte role = 'technicien'
-  // (techs créés en DB sans être hardcodés dans roles.ts).
-  const role = roleForEmail(user?.email);
   const isAdmin = await isAdminUser();
-  const isTech = role === 'tech' || isAdmin;
-  const isTechDB = user
-    ? await supabase
-        .from('utilisateurs')
-        .select('id')
-        .eq('email', (user.email ?? '').toLowerCase())
-        .eq('role', 'technicien')
-        .maybeSingle()
-        .then((r) => !!r.data)
-    : false;
-  if (!user || (!isTech && !isTechDB)) {
+  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
+  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
+  if (!user || !(await canAccessTechSpace(user.id))) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 

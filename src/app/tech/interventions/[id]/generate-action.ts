@@ -3,8 +3,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
-import { isAdminUser } from "@/lib/auth/server";
+import { canAccessTechSpace } from "@/lib/auth/server";
 import { getFoxoRapportV2Prompt } from '@/lib/prompts/rapport';
 import type { Acp, Intervention, Occupant, Organisation, Utilisateur } from '@/lib/types/database';
 import { runAgent } from '@/lib/observability';
@@ -37,7 +36,7 @@ type PhotoRow = {
 async function assertTechOwner(interventionId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || (roleForEmail(user.email) !== 'tech' && !(await isAdminUser()))) return { ok: false, error: 'Accès refusé.' };
+  if (!user || !(await canAccessTechSpace(user.id))) return { ok: false, error: 'Accès refusé.' };
 
   const { data: u } = await supabase
     .from('utilisateurs')

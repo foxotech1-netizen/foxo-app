@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { roleForEmail } from '@/lib/auth/roles';
+import { roleForUserId } from '@/lib/auth/server';
 import { syncInterventionToDrive, type DriveSyncResult } from '@/lib/drive';
 import { buildTechniques } from '@/lib/rapport/report-data-mapping';
 import { techniquesToKeys } from '@/lib/rapport/techniques';
@@ -13,7 +13,7 @@ export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; 
 async function getCurrentTech(): Promise<{ utilisateurId: string | null; email: string } | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || roleForEmail(user.email) !== 'tech') return null;
+  if (!user || (await roleForUserId(user.id)) !== 'tech') return null;
 
   const { data: u } = await supabase
     .from('utilisateurs')

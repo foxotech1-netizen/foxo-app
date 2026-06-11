@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { TECH_EMAILS } from '@/lib/auth/roles';
 import { isAdminUser } from "@/lib/auth/server";
 import type { Utilisateur } from '@/lib/types/database';
 
@@ -67,7 +66,7 @@ export async function GET() {
   const { data: techRows } = await supabase
     .from('utilisateurs')
     .select('id, prenom, nom, email, couleur')
-    .in('email', TECH_EMAILS as unknown as string[])
+    .eq('role', 'technicien')
     .order('prenom', { ascending: true });
   type TechRow = Pick<Utilisateur, 'id' | 'prenom' | 'nom' | 'email' | 'couleur'>;
   const techniciens = ((techRows ?? []) as TechRow[]).map((t) => ({

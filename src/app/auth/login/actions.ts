@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { TECH_EMAILS, pathForRole } from '@/lib/auth/roles';
+import { pathForRole } from '@/lib/auth/roles';
 import { roleForUserId } from "@/lib/auth/server";
 
 export type AuthState = { error?: string; sentTo?: string };
@@ -43,18 +43,18 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
 
   // Whitelist applicative — bloque les signups sauvages, indépendamment du
   // toggle Supabase « Allow new users to sign up » (qu'on peut donc laisser
-  // activé). Trois sources d'autorité, dans l'ordre :
-  //   1. Whitelist hardcodée de roles.ts (techniciens uniquement — les admins
-  //      passent par le gate DB ci-dessous) — court-circuit (bouclier tech).
-  //   2. Table public.utilisateurs filtrée sur actif=true. Soft delete via
-  //      le toggle « Désactiver » d'/admin/techniciens → bloqué au login.
-  //   3. Table public.delegues filtrée sur actif=true — partenaire
-  //      désactivé = bloqué au login (toggle dans le drawer syndic).
+  // activé). Deux sources d'autorité, dans l'ordre (la whitelist d'emails
+  // hardcodée TECH_EMAILS a été supprimée : les techniciens vivent désormais
+  // dans utilisateurs avec role='technicien' et passent par le gate DB) :
+  //   1. Table public.utilisateurs filtrée sur actif=true (techniciens + autres
+  //      comptes internes). Soft delete via « Désactiver » d'/admin/techniciens
+  //      → bloqué au login.
+  //   2. Table public.delegues filtrée sur actif=true — partenaire désactivé =
+  //      bloqué au login (toggle dans le drawer syndic).
   // shouldCreateUser reste à true : la whitelist DB est le seul gate.
-  const isHardcoded = (TECH_EMAILS as readonly string[]).includes(email);
-  if (!isHardcoded) {
+  {
     const admin = createAdminClient();
-    // 2. utilisateurs (techniciens et autres comptes internes)
+    // 1. utilisateurs (techniciens et autres comptes internes)
     const { data: u } = await admin
       .from('utilisateurs')
       .select('email')
@@ -62,7 +62,7 @@ export async function sendOtp(_prev: AuthState, formData: FormData): Promise<Aut
       .eq('actif', true)
       .maybeSingle();
     if (!u) {
-      // 3. delegues (partenaires syndic/courtier)
+      // 2. delegues (partenaires syndic/courtier)
       const { data: d } = await admin
         .from('delegues')
         .select('email')

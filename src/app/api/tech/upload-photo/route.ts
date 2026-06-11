@@ -1,31 +1,31 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { roleForEmail } from '@/lib/auth/roles';
-import { isAdminUser } from "@/lib/auth/server";
+import { canAccessTechSpace } from "@/lib/auth/server";
 import { uploadPhoto } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
+
+// Bornes upload photo terrain (constat sécurité #9) — aligné sur upload-logo.
+// 15 Mo couvre largement une photo de smartphone (HEIC/JPEG haute résolution)
+// sans permettre l'épuisement du quota Drive / du temps serveur. MIME en
+// whitelist stricte : jpeg/png/webp + heic/heif (photos iOS).
+const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+const ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]);
 
 export async function POST(request: Request) {
   // Auth tech
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  // Autorise les techs whitelist (TECH_EMAILS), les admins, et tout
-  // utilisateur dont la row utilisateurs porte role = 'technicien'
-  // (techs créés en DB sans être hardcodés dans roles.ts).
-  const role = roleForEmail(user?.email);
-  const isTech = role === 'tech' || (await isAdminUser());
-  const isTechDB = user
-    ? await supabase
-        .from('utilisateurs')
-        .select('id')
-        .eq('email', (user.email ?? '').toLowerCase())
-        .eq('role', 'technicien')
-        .maybeSingle()
-        .then((r) => !!r.data)
-    : false;
-  if (!user || (!isTech && !isTechDB)) {
+  // Accès tech via le rôle DB (utilisateurs.role), pas une whitelist d'emails.
+  // canAccessTechSpace autorise technicien ET admin (parité avec l'historique).
+  if (!user || !(await canAccessTechSpace(user.id))) {
     return NextResponse.json({ ok: false, error: 'Accès refusé.' }, { status: 403 });
   }
 
@@ -55,6 +55,18 @@ export async function POST(request: Request) {
     : null;
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ ok: false, error: 'Fichier vide.' }, { status: 400 });
+  }
+  if (!ALLOWED_MIME.has(file.type)) {
+    return NextResponse.json(
+      { ok: false, error: `Type non supporté (${file.type || 'inconnu'}). Attendu : jpg, png, webp, heic.` },
+      { status: 400 },
+    );
+  }
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json(
+      { ok: false, error: `Photo trop lourde (${Math.round(file.size / (1024 * 1024))} Mo, max 15 Mo).` },
+      { status: 400 },
+    );
   }
   if (!interventionId) {
     return NextResponse.json({ ok: false, error: 'intervention_id manquant.' }, { status: 400 });
