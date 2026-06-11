@@ -156,7 +156,11 @@ export function SyndicsClient({
             <form action={onSubmit} className="px-6 py-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
               <div>
                 <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {/* Grille fluide : les breakpoints viewport (lg:grid-cols-5)
+                    donnaient ~88px par carte dans la modale 520px → libellés
+                    tronqués et radio chevauchant le texte. auto-fill/minmax
+                    adapte le nombre de colonnes à la largeur réelle. */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2">
                   {ORG_TYPES.map((t) => {
                     const Icon = t.icon;
                     return (
@@ -170,9 +174,9 @@ export function SyndicsClient({
                           type="radio" name="type" value={t.v}
                           checked={type === t.v}
                           onChange={() => setType(t.v)}
-                          className="accent-[#1B3A6B]"
+                          className="accent-[#1B3A6B] shrink-0"
                         />
-                        <Icon size={14} />
+                        <Icon size={14} className="shrink-0" />
                         <span>{t.l}</span>
                       </label>
                     );
