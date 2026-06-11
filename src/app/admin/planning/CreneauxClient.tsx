@@ -150,7 +150,7 @@ export function CreneauxClient({
     <div className="space-y-6">
       {/* Sélecteur tech */}
       <section className="bg-cream border border-sand-border rounded-2xl p-4">
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-3">
+        <h3 className="section-label mb-3">
           Technicien
         </h3>
         <div className="flex flex-wrap gap-2">
@@ -174,7 +174,7 @@ export function CreneauxClient({
 
       {/* Générateur */}
       <section className="bg-cream border border-sand-border rounded-2xl p-4">
-        <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-3">
+        <h3 className="section-label mb-3">
           Générer des créneaux
         </h3>
 
@@ -285,7 +285,7 @@ export function CreneauxClient({
       {/* Liste */}
       <section className="bg-cream border border-sand-border rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
+          <h3 className="section-label">
             Créneaux existants
           </h3>
           <span className="text-[11px] text-ink-muted">{filteredCreneaux.length} au total</span>

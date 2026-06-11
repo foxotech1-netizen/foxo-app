@@ -20,7 +20,7 @@ export function ComingSoon({
     <>
       <header className="px-6 py-4 flex items-center justify-between bg-sand border-b border-sand-border flex-shrink-0">
         <div>
-          <h1 className="text-xl font-extrabold text-ink">{title}</h1>
+          <h1 className="fxs-title-sm">{title}</h1>
           {subtitle && (
             <p className="text-[11px] text-ink-muted mt-0.5">{subtitle}</p>
           )}
@@ -30,7 +30,7 @@ export function ComingSoon({
       <div className="flex-1 overflow-auto px-6 py-8">
         <div className="bg-cream border border-sand-border rounded-2xl p-8 sm:p-10 max-w-[640px] mx-auto text-center">
           <div className="mb-3 flex justify-center text-ink-mid"><Icon size={48} /></div>
-          <h2 className="text-lg font-extrabold text-ink mb-2">
+          <h2 className="fxs-section-title text-ink mb-2">
             En cours de développement
           </h2>
           <p className="text-sm text-ink-mid leading-relaxed">

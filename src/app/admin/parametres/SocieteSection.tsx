@@ -101,7 +101,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
   return (
     <section className="bg-cream rounded-xl border border-sand-border p-5 space-y-5">
       <div>
-        <h2 className="text-[13px] font-extrabold text-ink flex items-center gap-1.5">
+        <h2 className="fxs-block-title text-ink flex items-center gap-1.5">
           <Building2 size={16} aria-hidden /> Société
         </h2>
         <p className="text-[11px] text-ink-muted mt-0.5">

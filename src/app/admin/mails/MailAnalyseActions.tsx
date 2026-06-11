@@ -362,7 +362,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
               boxShadow: '0 12px 32px rgba(15,32,64,0.18)',
             }}
           >
-            <h2 className="font-sora text-[14px] font-semibold m-0 mb-2" style={{ color: 'var(--color-ink)' }}>
+            <h2 className="fxs-block-title m-0 mb-2" style={{ color: 'var(--color-ink)' }}>
               Créer l&apos;event Calendar ?
             </h2>
             <p className="text-[13px] m-0 mb-3" style={{ color: 'var(--color-ink-mid)' }}>

@@ -713,7 +713,7 @@ function PreviewModal({
           const photos = photosBySection[key];
           return (
             <section key={key} className="mb-6 pb-6 border-b border-sand-mid last:border-b-0">
-              <h2 className="text-[15px] font-extrabold text-navy mb-2">{label}</h2>
+              <h2 className="fxs-section-title text-navy mb-2">{label}</h2>
               {text ? (
                 <p className="text-[13px] text-ink leading-relaxed whitespace-pre-wrap">{text}</p>
               ) : (

@@ -876,7 +876,7 @@ export function ModalShell({
       <div className="bg-cream w-full sm:max-w-[640px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl">
         <header className="px-5 py-4 border-b border-sand-border flex items-start justify-between gap-3 flex-shrink-0">
           <div>
-            <h2 className="text-base font-extrabold text-ink">{title}</h2>
+            <h2 className="fxs-section-title text-ink">{title}</h2>
             {subtitle && (
               <p className="text-[11px] text-ink-muted mt-0.5">{subtitle}</p>
             )}

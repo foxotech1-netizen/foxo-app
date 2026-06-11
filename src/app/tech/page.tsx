@@ -36,7 +36,7 @@ export default async function TechHome() {
         className="bg-[var(--color-cream)] rounded-xl p-6 text-center"
         style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
       >
-        <h1 className="font-sora text-[20px] font-semibold text-[var(--color-ink)] mb-2">Compte non encodé</h1>
+        <h1 className="fxs-title-sm mb-2">Compte non encodé</h1>
         <p className="text-[14px] text-[var(--color-ink-mid)] leading-relaxed">
           {user?.email} n&apos;existe pas dans la table utilisateurs.<br />
           Contacte l&apos;administrateur pour finaliser ton accès.
@@ -138,7 +138,7 @@ export default async function TechHome() {
 function Section({ title, missions, empty }: { title: string; missions: Mission[]; empty: string }) {
   return (
     <section>
-      <h2 className="text-[11px] font-medium tracking-[0.12em] uppercase text-[var(--color-ink-mid)] mb-3">
+      <h2 className="section-label mb-3">
         {title}
       </h2>
       {missions.length === 0 ? (

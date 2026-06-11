@@ -412,7 +412,7 @@ function Step1({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">1. Immeuble concerné</h3>
+      <h3 className="fxs-block-title text-navy">1. Immeuble concerné</h3>
 
       {selectedAcp ? (
         <div className="bg-navy-pale border border-navy-light rounded-lg p-3.5">
@@ -565,7 +565,7 @@ function Step2({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">2. Description du problème</h3>
+      <h3 className="fxs-block-title text-navy">2. Description du problème</h3>
       <div>
         <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
         <select
@@ -630,7 +630,7 @@ function Step3({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-bold text-navy">3. Occupants concernés</h3>
+        <h3 className="fxs-block-title text-navy">3. Occupants concernés</h3>
         <p className="text-[12px] text-ink-mid mt-1">
           Optionnel. Chacun recevra un lien de confirmation personnalisé une fois la demande validée.
         </p>
@@ -680,7 +680,7 @@ function Step4({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">4. Créneau souhaité</h3>
+      <h3 className="fxs-block-title text-navy">4. Créneau souhaité</h3>
       <p className="text-[12px] text-ink-mid">
         Non contractuel — FoxO confirmera sous 24h ouvrables.
       </p>
@@ -722,7 +722,7 @@ function Step5({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold text-navy">5. Facturation</h3>
+      <h3 className="fxs-block-title text-navy">5. Facturation</h3>
       <p className="text-[12px] text-ink-mid">
         Pré-rempli avec les coordonnées de votre société. Modifiez si nécessaire.
       </p>
@@ -761,7 +761,7 @@ function Step1Courtier({
 }) {
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-bold" style={{ color: '#1D6FA4' }}>1. Sinistre</h3>
+      <h3 className="fxs-block-title" style={{ color: '#1D6FA4' }}>1. Sinistre</h3>
 
       <Field label="Nom de l'assuré *" value={assureNom} onChange={setAssureNom} placeholder="ex : SPRL Dupont — Cabinet d'expertise" />
 

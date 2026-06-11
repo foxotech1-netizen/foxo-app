@@ -1261,7 +1261,7 @@ export function InterventionsClient({
             onClick={(e) => e.stopPropagation()}
             style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
           >
-            <h3 className="font-sora text-[15px] font-semibold text-[var(--color-ink)] mb-1.5">
+            <h3 className="fxs-section-title text-[var(--color-ink)] mb-1.5">
               Relancer les occupants de ce dossier ?
             </h3>
             <p className="text-[13px] text-[var(--color-ink-mid)] leading-relaxed mb-4">
@@ -3123,7 +3123,7 @@ function SoftDeleteRowModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-        <h2 className="text-[14px] font-extrabold text-ink mb-2 inline-flex items-center gap-1.5 dark:text-[#F0ECE4]">
+        <h2 className="fxs-block-title text-ink mb-2 inline-flex items-center gap-1.5 dark:text-[#F0ECE4]">
           <Trash2 size={16} />Supprimer cette intervention ?
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
@@ -3175,7 +3175,7 @@ function DeleteInterventionModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[460px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
-        <h2 className="text-[14px] font-extrabold text-terra mb-2 inline-flex items-center gap-1.5 dark:text-[#FFB897]">
+        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5 dark:text-[#FFB897]">
           <Trash2 size={16} />Supprimer l&apos;intervention
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">

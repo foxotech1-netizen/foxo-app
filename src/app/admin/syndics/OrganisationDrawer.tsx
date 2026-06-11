@@ -296,7 +296,7 @@ export function OrganisationDrawer({
                 <TypeBadge type={org.type} />
                 {org.bce && <span className="font-mono text-[10px] text-ink-muted dark:text-[#C8C2B8]">{org.bce}</span>}
               </div>
-              <h2 className="text-base font-extrabold text-ink truncate dark:text-[#F0ECE4]">{org.nom}</h2>
+              <h2 className="fxs-section-title text-ink truncate dark:text-[#F0ECE4]">{org.nom}</h2>
               <div className="text-[11px] text-ink-mid mt-0.5 dark:text-[#C8C2B8] font-mono">{org.email}</div>
             </div>
             <button

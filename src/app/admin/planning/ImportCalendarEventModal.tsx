@@ -102,7 +102,7 @@ export function ImportCalendarEventModal({
       {/* Pattern D4 : header fixe, corps scrollable unique, actions fixes. */}
       <div className="bg-cream border border-sand-border rounded-2xl w-full max-w-[560px] max-h-[90vh] flex flex-col">
         <div className="px-5 pt-5 pb-3 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-[14px] font-extrabold text-ink inline-flex items-center gap-1.5">
+          <h2 className="fxs-block-title text-ink inline-flex items-center gap-1.5">
             <Calendar size={14} /> Importer cet événement Calendar
           </h2>
           <button

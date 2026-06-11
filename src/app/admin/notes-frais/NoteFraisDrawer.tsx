@@ -182,7 +182,7 @@ export function NoteFraisDrawer({
             <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
               Note de frais
             </div>
-            <h2 className="text-[14px] font-extrabold text-ink mt-0.5 truncate">
+            <h2 className="fxs-block-title text-ink mt-0.5 truncate">
               {note.titre}
             </h2>
           </div>

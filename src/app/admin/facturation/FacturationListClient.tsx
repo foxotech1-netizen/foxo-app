@@ -637,7 +637,7 @@ function StatCard({
   }
   return (
     <div className={`${bg} ${border} border rounded-xl px-4 py-3`}>
-      <div className={`text-[18px] font-extrabold leading-tight ${numColor || 'stat-num'}`}>{num}</div>
+      <div className={`text-[18px] font-extrabold leading-tight tabular-nums ${numColor || 'stat-num'}`}>{num}</div>
       <div className={`text-[10px] ${labelColor} mt-1 font-semibold`}>{label}</div>
     </div>
   );

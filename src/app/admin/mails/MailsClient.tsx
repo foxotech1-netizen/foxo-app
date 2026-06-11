@@ -838,7 +838,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   >
                     ← Retour
                   </button>
-                  <h2 className="text-[14px] font-extrabold text-ink truncate">
+                  <h2 className="fxs-block-title text-ink truncate">
                     {detail?.subject ?? '…'}
                   </h2>
                 </div>
@@ -1334,7 +1334,7 @@ function CreateLabelModal({
     >
       <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px]">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[14px] font-extrabold text-ink">
+          <h2 className="fxs-block-title text-ink">
             Nouveau libellé Gmail
           </h2>
           <button
@@ -1419,7 +1419,7 @@ function ConfirmDeleteModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px]">
-        <h2 className="text-[14px] font-extrabold text-terra mb-2 inline-flex items-center gap-1.5">
+        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={14} />
           Supprimer définitivement
         </h2>

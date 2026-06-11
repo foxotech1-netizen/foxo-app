@@ -501,7 +501,7 @@ function StatCard({
 function MiniStat({ num, label, accent }: { num: number; label: string; accent?: boolean }) {
   return (
     <div className={(accent ? 'bg-navy-pale border-navy-light' : 'bg-sand border-sand-border') + ' border rounded-lg px-2.5 py-2'}>
-      <div className={'text-[18px] font-extrabold leading-none ' + (accent ? 'text-navy' : 'stat-num')}>
+      <div className={'text-[18px] font-extrabold leading-none tabular-nums ' + (accent ? 'text-navy' : 'stat-num')}>
         {num}
       </div>
       <div className="text-[9px] text-ink-muted mt-0.5 font-semibold uppercase tracking-wider">
@@ -1008,7 +1008,7 @@ function NewMailSection({
             className="border border-terra rounded-2xl p-5 w-full max-w-[420px]"
             style={{ background: 'var(--color-cream)'}}
           >
-            <h2 className="text-[14px] font-extrabold text-terra mb-2 flex items-center gap-1.5">
+            <h2 className="fxs-block-title text-terra mb-2 flex items-center gap-1.5">
               <Trash2 size={16} aria-hidden /> Supprimer cette intervention
             </h2>
             <p className="text-[13px] text-ink-mid leading-relaxed">

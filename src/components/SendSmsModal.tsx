@@ -102,7 +102,7 @@ export function SendSmsModal({
       <div className="bg-cream w-full sm:max-w-[520px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <header className="px-5 py-4 border-b border-sand-border flex items-start justify-between gap-3 dark:border-[#2C2A24]">
           <div>
-            <h2 className="text-base font-extrabold text-ink dark:text-[#F0ECE4] inline-flex items-center gap-1.5">
+            <h2 className="fxs-section-title text-ink dark:text-[#F0ECE4] inline-flex items-center gap-1.5">
               {channel === 'whatsapp' ? (
                 <><MessageCircle size={16} /> Envoyer un WhatsApp</>
               ) : (

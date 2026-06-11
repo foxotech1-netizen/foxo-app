@@ -1441,7 +1441,7 @@ function PlanningCouleursPanel() {
 function Section({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
     <section className="bg-cream border border-sand-border rounded-2xl p-4">
-      <h2 className="text-sm font-extrabold text-ink mb-1">{title}</h2>
+      <h2 className="fxs-block-title text-ink mb-1">{title}</h2>
       <p className="text-[12px] text-ink-mid mb-3">{desc}</p>
       <div className="space-y-3">{children}</div>
     </section>

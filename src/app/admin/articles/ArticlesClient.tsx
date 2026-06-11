@@ -309,7 +309,7 @@ function ArticleEditor({
     >
       <div className="bg-cream w-full sm:max-w-[520px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl">
         <header className="px-5 py-4 border-b border-sand-border">
-          <h2 className="text-base font-extrabold text-ink">
+          <h2 className="fxs-section-title text-ink">
             {initial ? 'Modifier l\'article' : 'Nouvel article'}
           </h2>
         </header>

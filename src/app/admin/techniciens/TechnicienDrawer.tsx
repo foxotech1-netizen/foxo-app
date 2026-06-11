@@ -89,7 +89,7 @@ export function TechnicienDrawer({
                 {((tech.prenom ?? '').charAt(0) + (tech.nom ?? '').charAt(0)).toUpperCase() || '?'}
               </div>
               <div className="min-w-0">
-                <h2 className="text-base font-extrabold text-ink truncate dark:text-[#F0ECE4]">
+                <h2 className="fxs-section-title text-ink truncate dark:text-[#F0ECE4]">
                   {[tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email || '—'}
                 </h2>
                 <div className="text-[11px] text-ink-mid mt-0.5 dark:text-[#C8C2B8] font-mono truncate">

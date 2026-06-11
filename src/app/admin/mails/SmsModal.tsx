@@ -72,7 +72,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
           className="flex items-center justify-between px-5 py-3 border-b"
           style={{ borderColor: 'var(--color-sand-mid)' }}
         >
-          <h2 className="font-sora text-[14px] font-semibold m-0" style={{ color: 'var(--color-ink)' }}>
+          <h2 className="fxs-block-title m-0" style={{ color: 'var(--color-ink)' }}>
             Confirmer occupant — SMS
           </h2>
           <button

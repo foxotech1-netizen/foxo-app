@@ -61,7 +61,7 @@ export default async function ClientDetailPage({
         <ClientForm initial={client} redirectAfter={`/admin/clients/${client.id}`} />
 
         <section className="max-w-[760px]">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-ink-muted mb-3 dark:text-[#C8C2B8]">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-mid mb-3 dark:text-[#C8C2B8]">
             Historique des factures
           </h2>
           {factures.length === 0 ? (
