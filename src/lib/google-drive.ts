@@ -512,6 +512,88 @@ export async function listFolderFiles(folderId: string, maxFiles = 200): Promise
   return { ok: true, files: collected };
 }
 
+// ─── Lecture seule : métadonnées + téléchargement borné d'un fichier ──────
+//
+// Utilisés par les routes documents du portail tech (Mails V2 P2 U4).
+// getDriveFileMeta sert aussi de garde anti-énumération : `parents`
+// permet de vérifier qu'un fileId appartient bien au dossier de
+// l'intervention avant de servir le contenu (la RLS ne protège pas Drive).
+
+export async function getDriveFileMeta(fileId: string): Promise<
+  | { ok: true; name: string; mimeType: string; size: number | null; parents: string[] }
+  | { ok: false; error: string }
+> {
+  if (!fileId) return { ok: false, error: 'ID fichier vide.' };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${DRIVE_API}/files/${encodeURIComponent(fileId)}?fields=name,mimeType,size,parents`,
+      { headers: { Authorization: `Bearer ${auth.access_token}` } },
+    );
+  } catch (e) {
+    return { ok: false, error: `Échec réseau Drive : ${e instanceof Error ? e.message : 'inconnu'}` };
+  }
+  if (res.status === 404) return { ok: false, error: `Fichier Drive introuvable (${fileId}).` };
+  if (res.status === 403) return { ok: false, error: `Accès refusé au fichier ${fileId}.` };
+  if (!res.ok) {
+    const txt = await res.text();
+    return { ok: false, error: `Drive HTTP ${res.status} : ${txt.slice(0, 200)}` };
+  }
+  const j = (await res.json()) as { name?: string; mimeType?: string; size?: string; parents?: string[] };
+  return {
+    ok: true,
+    name: j.name ?? 'fichier',
+    mimeType: j.mimeType ?? 'application/octet-stream',
+    size: j.size != null ? Number(j.size) : null,
+    parents: j.parents ?? [],
+  };
+}
+
+export async function downloadDriveFile(
+  fileId: string,
+  maxBytes: number,
+): Promise<{ ok: true; data: Buffer } | { ok: false; error: string; tooLarge?: boolean }> {
+  if (!fileId) return { ok: false, error: 'ID fichier vide.' };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`,
+      { headers: { Authorization: `Bearer ${auth.access_token}` } },
+    );
+  } catch (e) {
+    return { ok: false, error: `Échec réseau Drive : ${e instanceof Error ? e.message : 'inconnu'}` };
+  }
+  if (res.status === 404) return { ok: false, error: `Fichier Drive introuvable (${fileId}).` };
+  if (res.status === 403) return { ok: false, error: `Accès refusé au fichier ${fileId}.` };
+  if (!res.ok) {
+    const txt = await res.text();
+    return { ok: false, error: `Drive HTTP ${res.status} : ${txt.slice(0, 200)}` };
+  }
+
+  // Refus rapide via Content-Length quand Drive le fournit ; re-vérifié
+  // après lecture (l'en-tête peut manquer).
+  const len = res.headers.get('content-length');
+  if (len && Number(len) > maxBytes) {
+    return { ok: false, error: 'Fichier trop volumineux.', tooLarge: true };
+  }
+  let data: Buffer;
+  try {
+    data = Buffer.from(await res.arrayBuffer());
+  } catch (e) {
+    return { ok: false, error: `Lecture du fichier échouée : ${e instanceof Error ? e.message : 'inconnu'}` };
+  }
+  if (data.byteLength > maxBytes) {
+    return { ok: false, error: 'Fichier trop volumineux.', tooLarge: true };
+  }
+  return { ok: true, data };
+}
+
 // Résout (LECTURE SEULE, sans création) l'ID du dossier Drive d'une
 // intervention par sa RÉFÉRENCE, qui préfixe toujours le nom du dossier
 // ("2026-127 Rue Willems 14"). On ignore l'adresse stockée en base, qui ne
