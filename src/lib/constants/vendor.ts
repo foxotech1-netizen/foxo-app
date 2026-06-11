@@ -17,3 +17,9 @@ export const VENDOR = {
 export const VENDOR_BILLING_FROM = 'FoxO <facturation@send.foxo.be>'
 
 export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'FoxO <noreply@send.foxo.be>'
+
+// Domaine d'envoi transactionnel de la plateforme (Resend). Tous les mails
+// émis par FoxO lui-même (noreply@, facturation@…) portent ce domaine en
+// From — sert à les exclure des compteurs « à traiter » et de la liste
+// par défaut de la boîte mail admin.
+export const PLATFORM_MAIL_DOMAIN = 'send.foxo.be'

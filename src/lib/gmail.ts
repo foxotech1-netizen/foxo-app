@@ -4,8 +4,16 @@
 // les réponses-mail déclenchées depuis l'admin.
 
 import { getValidAccessToken } from '@/lib/google-auth';
+import { PLATFORM_MAIL_DOMAIN } from '@/lib/constants/vendor';
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
+
+// Clause Gmail excluant les mails transactionnels envoyés par FoxO
+// lui-même (Code de connexion, factures… — From *@send.foxo.be). Ils ne
+// sont pas « à traiter » : on les retire des compteurs et de la liste
+// par défaut, mais ils restent visibles via le filtre « Système ».
+export const EXCLUDE_PLATFORM_MAILS_Q = `-from:${PLATFORM_MAIL_DOMAIN}`;
+export const ONLY_PLATFORM_MAILS_Q = `from:${PLATFORM_MAIL_DOMAIN}`;
 
 export interface GmailAttachmentRef {
   filename: string;
@@ -273,7 +281,7 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
 export async function countUnreadMails(): Promise<number> {
   const auth = await getValidAccessToken();
   if (!auth) return 0;
-  const url = `${API}/messages?q=${encodeURIComponent('in:inbox is:unread')}&maxResults=1`;
+  const url = `${API}/messages?q=${encodeURIComponent(`in:inbox is:unread ${EXCLUDE_PLATFORM_MAILS_Q}`)}&maxResults=1`;
   try {
     const r = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
     if (!r.ok) return 0;

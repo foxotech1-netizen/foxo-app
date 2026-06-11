@@ -18,7 +18,7 @@ import {
   type MailClassification,
 } from '@/lib/mail/categories';
 
-type FilterMode = 'tous' | 'unread' | 'lies' | 'trash';
+type FilterMode = 'tous' | 'unread' | 'lies' | 'system' | 'trash';
 type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
@@ -134,6 +134,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setError(null);
     const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
     if (filter === 'unread') params.set('filter', 'unread');
+    if (filter === 'system') params.set('filter', 'system');
     if (filter === 'trash') params.set('filter', 'trash');
     if (activeLabel) params.set('label', activeLabel);
     fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
@@ -531,11 +532,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             placeholder="Rechercher — expéditeur, sujet…"
             className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
-          <div className="grid grid-cols-4 gap-1.5">
+          <div className="grid grid-cols-5 gap-1.5">
             {([
               ['tous', 'Tous', null],
               ['unread', 'Non lus', null],
               ['lies', 'Avec interv.', null],
+              ['system', 'Système', null],
               ['trash', 'Corbeille', Trash2],
             ] as [FilterMode, string, typeof Trash2 | null][]).map(([f, label, Icon]) => (
               <button
