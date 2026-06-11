@@ -1,3 +1,25 @@
+# État du projet FoxO — snapshot 2026-06-11 (Mails V2 — Phase 1 CLOSE, PRs #89 + #90)
+
+- **Date du recap** : 2026-06-11
+- **HEAD git** : merge PR #90 (voir git log)
+- **Branche** : `main`, aligné `origin/main`. Production via Vercel.
+- **Spec du chantier** : `SPEC_Chantier_Mails_V2_v1-1.md` (project knowledge). ⚠️ CRONS MAILS VOLONTAIREMENT FERMÉS pendant tout le chantier (réencodage manuel en cours) — rallumage = toute dernière étape, précédée du marquage en lu des mails déjà traités.
+
+## Chantier Mails V2 — Phase 1 (ergonomie) : CLOSE
+Audit d'ouverture : la moitié de la Phase 1 était déjà livrée (layout 2 panneaux D3, sélection multiple + masse /batch chunké, badge dossier via mails_analyses, deep-link ?id=).
+- **PR #89** (`3380e5c` + `4a7234e`, mergée) : 7 onglets métier résolus côté serveur — À traiter (défaut, badge = countUnreadMails, même définition donc cohérence gratuite) / Demandes (label FoxO/Intervention) / Occupants (FoxO/Occupant) / Tous / Archivés (query `-in:inbox -in:trash -in:spam -in:draft -in:sent`, documentée) / Système / Corbeille. Filtre regex « Avec interv. » supprimé (hasInterventionRef = code mort retiré ; lien mail↔dossier = badge mails_analyses uniquement). Recherche relayée à la query Gmail (debounce 400 ms, guillemets neutralisés, borne 200 c., combinée à l'onglet actif) ; filtrage client texte retiré.
+- **PR #90** (`020c611` + `a0fb69a` + `beefa53`, mergée) : actions rapides au survol des lignes (desktop : Archiver / Lu-Non lu / Important ; corbeille : Restaurer) via applyBulkActionForOne généralisé (archive/trash/restore quittent la vue ; read/unread/important patchent ligne + détail en place). Barre du volet complétée (Lu/Non-lu sur état dérivé selectedListItem ?? detail.label_ids — deep-link couvert ; Important ; Corbeille ferme le volet). Analyse unifiée : bouton + bloc legacy /analyze supprimés du client (route conservée, zéro appelant), MailAnalyseActions renommé « Analyser avec IA » = unique entrée (analyse-deep) ; préremplissage planning rebranché sur l'analyse approfondie (1er occupant_extrait → nom/tél/email, adresse_extraite, urgence → priorité, resume). Clic libellé bascule l'onglet sur Tous (piège is:unread).
+- **Notes** : onglets Demandes/Occupants quasi vides tant que le cron (poseur des labels FoxO/*) est fermé — normal. Badge À traiter non décrémenté instantanément au marquage lu (rafraîchissement suivant) — cosmétique, backlog.
+- **P0 (hors code)** : côté code rien à nettoyer (1 commentaire documentaire). Foxo supprime les libellés FOXO_TRAITE/FOXO_LU dans Gmail (Paramètres → Libellés) quand il veut.
+
+## À faire (chantier Mails V2, ordre spec)
+1. **Phase 2 — Pièces jointes** : téléchargement/aperçu PJ (route Gmail attachmentId, downloadGmailAttachment existe dans gmail.ts) ; copie PJ utiles → Drive dossier à confirm-and-create (filtre Agent 2, renommage <ref>_<type>.<ext>, résolution Drive par préfixe ref JAMAIS par adresse, anti-doublons, best-effort) ; bouton « Joindre au dossier » ; section Documents côté tech (à auditer).
+2. Phase 3 (fiche structurée IA) → Phase 4 (confirmations occupants) → Phase 5 (sortant) → Phase 6 (relances/urgences) → Phase 7 (timeline/assistant).
+- **Pièges connus pour Phase 2+** : rafale 1+N appels Gmail par fetch de liste (cache court à envisager) ; pas de pagination (limite 100) ; 3 sources lien mail↔dossier réduites à mails_analyses côté UI mais intervention_mails reste la table canonique côté serveur.
+
+## Hygiène repo
+- Branches `feat/mails-v2-phase1` et `feat/mails-v2-phase1b` mergées → supprimer côté GitHub si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-11 (VOLET DESIGN CLOS — D7-bis, revue visuelle finale validée)
 
 - **Date du recap** : 2026-06-11
