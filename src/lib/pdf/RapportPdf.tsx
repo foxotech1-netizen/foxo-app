@@ -3,6 +3,7 @@ import {
   Document, Page, Text, View, Image, Font, StyleSheet,
 } from '@react-pdf/renderer';
 import type { ReportData } from '@/lib/rapport/build-docx';
+import type { RapportPhotoData, RapportPhotosBySection } from '@/lib/rapport/photos';
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
 import { RAPPORT_LOGO } from '@/lib/rapport/logo';
 
@@ -128,6 +129,13 @@ const styles = StyleSheet.create({
   },
   paragraph: { fontSize: 10, lineHeight: 1.5, color: C.body, marginBottom: 4 },
   empty: { fontSize: 9.5, color: C.muted },
+  // ── Photos (grille 2 colonnes, jumelle du moteur docx) ──
+  photosGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, marginBottom: 2 },
+  photoCell: { width: '50%', paddingHorizontal: 4, marginBottom: 8, alignItems: 'center' },
+  photoCaption: {
+    fontFamily: 'Carlito', fontStyle: 'italic',
+    fontSize: 8, color: C.muted, textAlign: 'center', marginTop: 3,
+  },
   // ── Clôture ──
   faitA: { textAlign: 'right', marginTop: 26, fontSize: 11, color: C.muted },
   faitADate: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
@@ -173,7 +181,48 @@ function Section({ title, text }: { title: string; text: string }) {
   );
 }
 
-export function RapportPdf({ data, logo }: { data: ReportData; logo?: Buffer | null }) {
+// Largeur utile A4 (595.28pt) − paddingHorizontal (2×30) = 535.28pt ; chaque
+// cellule occupe 50% (− padding interne). Hauteur dérivée du ratio intrinsèque
+// (préservé) ; plafonnée pour qu'un cliché portrait ne dévore pas la page.
+const PHOTO_COL_W = 255; // pt (≈ moitié de la largeur utile, marge comprise)
+const PHOTO_MAX_H = 330; // pt
+
+function photoDisplaySize(p: RapportPhotoData): { width: number; height: number } {
+  const ratio = p.width > 0 && p.height > 0 ? p.width / p.height : 4 / 3;
+  let width = PHOTO_COL_W;
+  let height = width / ratio;
+  if (height > PHOTO_MAX_H) {
+    height = PHOTO_MAX_H;
+    width = height * ratio;
+  }
+  return { width, height };
+}
+
+// Grille 2 colonnes (max 2 par ligne, règle métier Foxo) rendue en fin de
+// section. Chaque paire image+légende est insécable (wrap={false}) → une
+// légende ne se retrouve jamais seule en haut de page, détachée de son cliché.
+function PhotosGrid({ photos }: { photos: RapportPhotoData[] | undefined }) {
+  if (!photos || photos.length === 0) return null;
+  return (
+    <View style={styles.photosGrid}>
+      {photos.map((p, i) => {
+        const { width, height } = photoDisplaySize(p);
+        return (
+          <View key={i} style={styles.photoCell} wrap={false}>
+            <Image src={{ data: p.bytes, format: 'jpg' }} style={{ width, height }} />
+            {p.label ? <Text style={styles.photoCaption}>{p.label}</Text> : null}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+export function RapportPdf({ data, logo, photos }: {
+  data: ReportData;
+  logo?: Buffer | null;
+  photos: RapportPhotosBySection;
+}) {
   const facturationLines = [
     data.facturation_ligne1,
     data.facturation_ligne2,
@@ -259,9 +308,11 @@ export function RapportPdf({ data, logo }: { data: ReportData; logo?: Buffer | n
           </View>
         </View>
 
-        {/* ── 4 sections ── */}
+        {/* ── 4 sections ── Photos en fin de DÉGÂTS et d'INSPECTION uniquement. */}
         <Section title="DÉGÂTS" text={data.degats} />
+        <PhotosGrid photos={photos.degats} />
         <Section title="INSPECTION" text={data.inspection} />
+        <PhotosGrid photos={photos.inspection} />
         <Section title="CONCLUSION" text={data.conclusion} />
         <Section title="RECOMMANDATION" text={data.recommandation} />
 

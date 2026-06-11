@@ -33,6 +33,7 @@ export type AgentName =
   | "triage_mail"
   | "analyse_pj"
   | "rapport"
+  | "analyse_photo"
   // Utilitaires (chantier #7)
   | "draft_reply"
   | "sms_compose"

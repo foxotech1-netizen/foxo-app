@@ -30,10 +30,8 @@ import {
   PageBorderOffsetFrom,
   PageBorderZOrder,
 } from 'docx';
-import { imageSize } from 'image-size';
 import { getRapportLogoBytes, RAPPORT_LOGO } from '@/lib/rapport/logo';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { getValidAccessToken } from '@/lib/google-auth';
+import { fetchRapportPhotos, type RapportPhotoData } from '@/lib/rapport/photos';
 
 // ─── Constantes du template (FOXO_BASE.js) ────────────────────────────
 
@@ -69,14 +67,15 @@ const CELL_SHARED = {
   verticalAlign: VerticalAlign.CENTER,
 };
 
-// Photos — hauteur fixe 302px, largeur calculée au ratio réel + clamp
-// largeur ≤ moitié de TW (layout 2-cols).
-const PHOTO_HEIGHT_PX = 302;
-const PHOTO_FALLBACK_WIDTH_PX = 403; // 302 * 4/3
-// Cap unique ~400px : photos rendues en colonne CENTRÉE (1 par row), pas
-// en grille 2 cols. La largeur est plafonnée pour rester confortable à
-// la lecture sans dévorer la page.
-const PHOTO_MAX_WIDTH_PX = 400;
+// Photos — grille 2 colonnes (max 2 par ligne, règle métier validée Foxo).
+// Largeur de cellule = (largeur utile − gouttière) / 2. L'image occupe la
+// largeur de la cellule (moins une marge interne), sa hauteur découle du
+// ratio intrinsèque (préservé). Plafond de hauteur pour qu'un cliché portrait
+// ne dévore pas la page. 1px ≈ 15 DXA.
+const PHOTO_GUTTER_DXA = 240;
+const PHOTO_CELL_DXA = Math.floor((TW - PHOTO_GUTTER_DXA) / 2); // 5113
+const PHOTO_CELL_W_PX = Math.floor(PHOTO_CELL_DXA / 15) - 16;   // ≈ 324 (marge interne)
+const PHOTO_MAX_H_PX = 460;
 
 // ─── ReportData — input contrat du builder ────────────────────────────
 
@@ -347,172 +346,108 @@ function buildIdentificationTable(data: ReportData): Table {
   });
 }
 
-// ─── Photos par section (inchangé) ────────────────────────────────────
+// ─── Photos par section (grille 2 colonnes, jumelle du moteur PDF) ─────
+// Source de données partagée : fetchRapportPhotos (src/lib/rapport/photos.ts)
+// — DÉGÂTS + INSPECTION uniquement, triées par `ordre`, octets normalisés
+// JPEG + dimensions intrinsèques. Le rendu ci-dessous calque celui du PDF :
+// 2 photos par ligne, légende (label) sous chaque image, ratio préservé,
+// paire image+légende insécable (cantSplit) pour ne jamais couper une
+// légende du cliché qu'elle décrit en bas de page.
 
 function fmtDate(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-function detectImageType(filename: string | null): 'jpg' | 'png' | 'gif' | 'bmp' {
-  const ext = (filename ?? '').toLowerCase().match(/\.([a-z]+)$/)?.[1];
-  if (ext === 'png') return 'png';
-  if (ext === 'gif') return 'gif';
-  if (ext === 'bmp') return 'bmp';
-  return 'jpg';
-}
+type SectionKey = 'degats' | 'inspection' | 'conclusion' | 'recommandations';
+type PhotoSectionKey = 'degats' | 'inspection';
 
-async function fetchDrivePhotoBytes(
-  fileId: string,
-  token: string,
-): Promise<Buffer | null> {
-  try {
-    const r = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (!r.ok) return null;
-    const ab = await r.arrayBuffer();
-    return Buffer.from(ab);
-  } catch {
-    return null;
-  }
-}
-
-interface SectionPhoto {
-  bytes: Buffer;
-  type: 'jpg' | 'png' | 'gif' | 'bmp';
-  filename: string;
-  width: number;
-  height: number;
-  label: string | null;
-}
-
-function computePhotoDimensions(bytes: Buffer): { width: number; height: number } {
-  let realW = 0;
-  let realH = 0;
-  try {
-    const dim = imageSize(bytes);
-    realW = dim.width ?? 0;
-    realH = dim.height ?? 0;
-  } catch {
-    // image-size jette si format non détecté
-  }
-  if (!realW || !realH) {
-    return { width: PHOTO_FALLBACK_WIDTH_PX, height: PHOTO_HEIGHT_PX };
-  }
-  const ratio = realW / realH;
-  let height = PHOTO_HEIGHT_PX;
-  let width = Math.round(height * ratio);
-  if (width > PHOTO_MAX_WIDTH_PX) {
-    width = PHOTO_MAX_WIDTH_PX;
-    height = Math.round(width / ratio);
+// Dimensions d'affichage : largeur = largeur de cellule, hauteur dérivée du
+// ratio intrinsèque (préservé). Plafond de hauteur pour un cliché portrait.
+function photoDisplaySize(photo: RapportPhotoData): { width: number; height: number } {
+  const ratio = photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 4 / 3;
+  let width = PHOTO_CELL_W_PX;
+  let height = Math.round(width / ratio);
+  if (height > PHOTO_MAX_H_PX) {
+    height = PHOTO_MAX_H_PX;
+    width = Math.round(height * ratio);
   }
   return { width, height };
 }
 
-type SectionKey = 'degats' | 'inspection' | 'conclusion' | 'recommandations';
+const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'auto' };
+const CELL_NO_BORDERS = {
+  top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
+};
 
-async function fetchPhotosBySection(
-  interventionId: string,
-): Promise<Record<SectionKey, SectionPhoto[]>> {
-  const empty: Record<SectionKey, SectionPhoto[]> = {
-    degats: [], inspection: [], conclusion: [], recommandations: [],
-  };
-
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from('photos_interventions')
-    .select('drive_file_id, drive_url, filename, section, ordre, label')
-    .eq('intervention_id', interventionId)
-    .not('section', 'is', null)
-    .order('section', { ascending: true })
-    .order('ordre', { ascending: true });
-
-  const rows = (data ?? []) as Array<{
-    drive_file_id: string;
-    drive_url: string;
-    filename: string | null;
-    section: SectionKey;
-    ordre: number;
-    label: string | null;
-  }>;
-  if (rows.length === 0) return empty;
-
-  const auth = await getValidAccessToken();
-  if (!auth) return empty;
-
-  for (const p of rows) {
-    const bytes = await fetchDrivePhotoBytes(p.drive_file_id, auth.access_token);
-    if (!bytes) continue;
-    const { width, height } = computePhotoDimensions(bytes);
-    empty[p.section].push({
-      bytes,
-      type: detectImageType(p.filename),
-      filename: p.filename ?? 'photo',
-      width,
-      height,
-      label: p.label,
+// Une cellule = une photo (image centrée + légende sous l'image), ou une
+// cellule vide pour compléter une ligne impaire.
+function photoCell(photo: RapportPhotoData | null): TableCell {
+  if (!photo) {
+    return new TableCell({
+      width: { size: PHOTO_CELL_DXA, type: WidthType.DXA },
+      borders: CELL_NO_BORDERS,
+      children: [new Paragraph({ children: [] })],
     });
   }
-  return empty;
-}
-
-function photosTable(photos: SectionPhoto[]): Table | null {
-  if (photos.length === 0) return null;
-
-  // Layout : 1 photo par row, cellule pleine largeur (TW), paragraph
-  // centré horizontalement, spacing { before: 200, after: 200 } pour
-  // aérer entre les clichés. Label en italique muted centré sous chaque
-  // photo. La largeur image elle-même est plafonnée à PHOTO_MAX_WIDTH_PX
-  // (cap ~400px) via computePhotoDimensions, donc le centrage du Paragraph
-  // gère l'alignement visuel sans avoir besoin de cellules vides.
-  const rows: TableRow[] = photos.map((photo) => {
-    const cellChildren: Paragraph[] = [
+  const { width, height } = photoDisplaySize(photo);
+  const children: Paragraph[] = [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 120, after: photo.label ? 40 : 160 },
+      children: [
+        new ImageRun({
+          data: photo.bytes,
+          transformation: { width, height },
+          type: 'jpg',
+        }),
+      ],
+    }),
+  ];
+  if (photo.label) {
+    children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 200, after: photo.label ? 60 : 200 },
+        spacing: { before: 0, after: 160 },
         children: [
-          new ImageRun({
-            data: photo.bytes,
-            transformation: { width: photo.width, height: photo.height },
-            type: photo.type,
+          new TextRun({
+            text: photo.label,
+            size: 18,
+            color: MUTED,
+            italics: true,
+            font: FONT,
           }),
         ],
       }),
-    ];
-    if (photo.label) {
-      cellChildren.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 0, after: 200 },
-          children: [
-            new TextRun({
-              text: photo.label,
-              size: 18,
-              color: MUTED,
-              italics: true,
-              font: FONT,
-            }),
-          ],
-        }),
-      );
-    }
-    return new TableRow({
-      children: [
-        new TableCell({
-          width: { size: TW, type: WidthType.DXA },
-          children: cellChildren,
-        }),
-      ],
-    });
+    );
+  }
+  return new TableCell({
+    width: { size: PHOTO_CELL_DXA, type: WidthType.DXA },
+    borders: CELL_NO_BORDERS,
+    verticalAlign: VerticalAlign.TOP,
+    margins: { top: 60, bottom: 60, left: 80, right: 80 },
+    children,
   });
+}
 
-  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'auto' };
+function photosTable(photos: RapportPhotoData[]): Table | null {
+  if (photos.length === 0) return null;
+
+  const rows: TableRow[] = [];
+  for (let i = 0; i < photos.length; i += 2) {
+    rows.push(
+      new TableRow({
+        cantSplit: true, // paire(s) image+légende insécable(s) → pas de coupure de page
+        children: [photoCell(photos[i]), photoCell(photos[i + 1] ?? null)],
+      }),
+    );
+  }
+
   return new Table({
-    width: { size: TW, type: WidthType.DXA },
+    width: { size: PHOTO_CELL_DXA * 2, type: WidthType.DXA },
+    columnWidths: [PHOTO_CELL_DXA, PHOTO_CELL_DXA],
     borders: {
-      top: noBorder, bottom: noBorder, left: noBorder, right: noBorder,
-      insideHorizontal: noBorder, insideVertical: noBorder,
+      top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
+      insideHorizontal: NO_BORDER, insideVertical: NO_BORDER,
     },
     rows,
   });
@@ -537,8 +472,9 @@ export async function buildRapportDocx(args: {
   // fmtDate accessible aux callers ; ici utilisé uniquement si data.fait_a_date vide
   void fmtDate;
 
-  // Photos par section (download Drive séquentiel pour préserver l'ordre).
-  const photosBySection = await fetchPhotosBySection(args.interventionId);
+  // Photos par section (source partagée avec le moteur PDF) — DÉGÂTS +
+  // INSPECTION uniquement, normalisées JPEG + dimensions intrinsèques.
+  const photosBySection = await fetchRapportPhotos(args.interventionId);
 
   // ─── Header ─────────────────────────────────────────────────────────
   const header = new Header({
@@ -626,12 +562,15 @@ export async function buildRapportDocx(args: {
     gap(200, 200),
   ];
 
-  // 4 sections : titre + corps (split sur ||PARA||) + photos rattachées
+  // 4 sections : titre + corps (split sur ||PARA||). Les photos ne sont
+  // rattachées qu'en fin de DÉGÂTS et d'INSPECTION (règle métier Foxo).
   for (const s of sectionsConfig) {
     bodyChildren.push(sectionTitle(s.title));
     bodyChildren.push(...textToParas(s.text));
-    const tbl = photosTable(photosBySection[s.key]);
-    if (tbl) bodyChildren.push(tbl);
+    if (s.key === 'degats' || s.key === 'inspection') {
+      const tbl = photosTable(photosBySection[s.key as PhotoSectionKey]);
+      if (tbl) bodyChildren.push(tbl);
+    }
   }
 
   // Clôture (alignée droite)

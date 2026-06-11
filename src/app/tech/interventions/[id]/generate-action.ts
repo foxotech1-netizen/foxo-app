@@ -2,17 +2,36 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { canAccessTechSpace } from "@/lib/auth/server";
-import { getFoxoSystemPrompt } from '@/lib/prompts/rapport';
+import { getFoxoRapportV2Prompt } from '@/lib/prompts/rapport';
 import type { Acp, Intervention, Occupant, Organisation, Utilisateur } from '@/lib/types/database';
 import { runAgent } from '@/lib/observability';
+import { analysePhoto, type PhotoAnalyse } from '@/lib/rapport/analyse-photo';
+import { techniquesLabelsToKeys } from '@/lib/rapport/techniques';
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOKENS = 4096;
 
 export type GenerateResult =
-  | { ok: true; sections: { degats: string; inspection: string; conclusion: string; recommandations: string } }
+  | {
+      ok: true;
+      sections: { degats: string; inspection: string; conclusion: string; recommandations: string };
+      // Clés canoniques (cf. techniques.ts), persistées par saveRapport/publishRapport.
+      techniques_utilisees: string[];
+      techniques_a_confirmer: string[];
+    }
   | { ok: false; error: string };
+
+type PhotoRow = {
+  id: string;
+  drive_file_id: string | null;
+  filename: string | null;
+  section: string | null;
+  label: string | null;
+  observation_id: string | null;
+  analyse_ia: PhotoAnalyse | null;
+};
 
 async function assertTechOwner(interventionId: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
@@ -175,16 +194,18 @@ export async function generateRapportSections(
 
   const obsRes = await supabase
     .from('observations_terrain')
-    .select('test_type, etage, localisation, notes, created_at')
+    .select('id, test_type, etage, localisation, notes, created_at')
     .eq('intervention_id', interventionId)
     .order('created_at', { ascending: true });
   const observations = (obsRes.data ?? []) as Array<{
+    id: string;
     test_type: string;
     etage: string | null;
     localisation: string | null;
     notes: string | null;
     created_at: string;
   }>;
+  const obsTestTypeById = new Map(observations.map((o) => [o.id, o.test_type]));
 
   const ctx = buildContextSummary({
     iv,
@@ -195,8 +216,46 @@ export async function generateRapportSections(
     observations,
   });
 
+  // ── PASSE 1 : analyse vision des photos non encore analysées ──
+  const objet = (iv.description ?? '').trim().slice(0, 300) || iv.type || '';
+  const { data: photosData } = await supabase
+    .from('photos_interventions')
+    .select('id, drive_file_id, filename, section, label, observation_id, analyse_ia')
+    .eq('intervention_id', interventionId)
+    .order('ordre', { ascending: true });
+  const photos = (photosData ?? []) as PhotoRow[];
+
+  // Analyse en parallèle UNIQUEMENT les photos dont analyse_ia est null
+  // (jamais de ré-analyse). Best-effort : les échecs sont ignorés.
+  const toAnalyse = photos.filter((p) => !p.analyse_ia && p.drive_file_id);
+  if (toAnalyse.length > 0) {
+    const results = await Promise.allSettled(
+      toAnalyse.map((p) => analysePhoto({
+        interventionId,
+        objet,
+        photo: {
+          id: p.id,
+          drive_file_id: p.drive_file_id,
+          filename: p.filename,
+          section: p.section,
+          label: p.label,
+          observation_test_type: p.observation_id ? (obsTestTypeById.get(p.observation_id) ?? null) : null,
+        },
+      })),
+    );
+    results.forEach((r, idx) => {
+      if (r.status === 'fulfilled' && r.value) toAnalyse[idx].analyse_ia = r.value;
+    });
+  }
+
+  // Tableau des photos sérialisé pour la passe 2.
+  const photosForPrompt = photos.map((p) => ({
+    id: p.id, section: p.section, label: p.label, analyse_ia: p.analyse_ia,
+  }));
+
+  // ── PASSE 2 : agent rapport v2 ──
   const userMessage = [
-    `Génère le rapport pour cette intervention FoxO.`,
+    `Génère le rapport pour cette intervention FoxO (corps + techniques + classement des photos).`,
     ``,
     `## CONTEXTE DOSSIER`,
     ctx,
@@ -204,26 +263,22 @@ export async function generateRapportSections(
     `## DICTÉE DU TECHNICIEN`,
     trimmed,
     ``,
-    `## INSTRUCTIONS DE SORTIE`,
-    `- Pour cette demande, tu génères UNIQUEMENT les 4 sections texte du corps : Dégâts, Inspection, Conclusion, Recommandation.`,
-    `- Pas de génération .docx, pas de code Node.js, pas d'instructions d'extraction d'images : juste la prose française.`,
-    `- Google Calendar et Gmail ne sont PAS disponibles ici — base-toi exclusivement sur le contexte fourni et la dictée.`,
-    `- Respecte strictement les règles rédactionnelles du system prompt (prose, "capteur d'humidité", formulations prudentes).`,
-    `- Format de réponse : JSON pur, sans backticks, sans markdown autour, avec exactement ces 4 clés :`,
-    `  {"degats": "...", "inspection": "...", "conclusion": "...", "recommandations": "..."}`,
-    `- Chaque valeur est un texte en prose, plusieurs phrases par section, paragraphes simples séparés par "\\n\\n".`,
+    `## PHOTOS (analyse IA — JSON)`,
+    photosForPrompt.length > 0 ? JSON.stringify(photosForPrompt, null, 2) : 'Aucune photo.',
+    ``,
+    `## RAPPEL DE SORTIE`,
+    `- JSON pur, clés : degats, inspection, conclusion, recommandations, techniques_utilisees, techniques_a_confirmer, photos[].`,
+    `- N'invente aucune donnée administrative non dictée. Prose française, sans liste ni numérotation.`,
   ].join('\n');
 
-  // Agent 3 (rapport) — interventionId connu d'entrée (1er argument).
-  // inputSummary STRICTEMENT non-PII : aucune dictée, aucune observation,
-  // aucun nom occupant, aucune adresse. Métriques uniquement.
-  // outputSummary : indicateurs de présence des sections, jamais le texte
-  // rédigé (qui contient potentiellement des PII : occupants, adresses,
-  // descriptions de dégâts).
-  type RapportSections = { degats?: string; inspection?: string; conclusion?: string; recommandations?: string };
-  let parsed: RapportSections;
+  type RapportV2 = {
+    degats?: string; inspection?: string; conclusion?: string; recommandations?: string;
+    techniques_utilisees?: unknown; techniques_a_confirmer?: unknown;
+    photos?: Array<{ id?: unknown; section?: unknown; legende?: unknown; ordre?: unknown }>;
+  };
+  let parsed: RapportV2;
   try {
-    const result = await runAgent<RapportSections>({
+    const result = await runAgent<RapportV2>({
       agentName: 'rapport',
       model: MODEL,
       interventionId,
@@ -235,52 +290,48 @@ export async function generateRapportSections(
         brief_length: trimmed.length,
         observations_count: observations.length,
         occupants_count: (occRes.data ?? []).length,
+        photos_count: photos.length,
+        photos_analyzed: photos.filter((p) => p.analyse_ia).length,
         has_acp: Boolean(acpRes.data),
         has_syndic: Boolean(orgRes.data),
-        has_tech: Boolean(techRes.data),
-        has_started_at: Boolean(iv.started_at),
-        has_ended_at: Boolean(iv.ended_at),
       },
       run: async () => {
         const client = new Anthropic({ apiKey });
-        const msg = await client.messages.create({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system: getFoxoSystemPrompt(),
-          messages: [{ role: 'user', content: userMessage }],
-        });
-        const block = msg.content[0];
-        const rawText = block && block.type === 'text' ? block.text : '';
-
-        const parsedRaw = tryParseJson(rawText);
-        if (!parsedRaw) {
-          console.warn('[tech/generateRapport] JSON parse failed. Raw response:', rawText.slice(0, 500));
-          const preview = rawText.slice(0, 200).replace(/\s+/g, ' ');
-          throw new Error(`JSON parse: Réponse Claude non parsable (preview: ${preview})`);
+        let parsedOut: RapportV2 | null = null;
+        let lastMsg: Anthropic.Message | null = null;
+        for (let attempt = 0; attempt < 2 && !parsedOut; attempt++) {
+          const msg = await client.messages.create({
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            system: getFoxoRapportV2Prompt(),
+            messages: [{ role: 'user', content: userMessage }],
+          });
+          lastMsg = msg;
+          const block = msg.content[0];
+          const rawText = block && block.type === 'text' ? block.text : '';
+          const pj = tryParseJson(rawText) as RapportV2 | null;
+          if (pj) parsedOut = pj;
+          else console.warn(`[tech/generateRapport] JSON invalide (tentative ${attempt + 1})`);
         }
-
-        const sections: RapportSections = parsedRaw;
+        if (!parsedOut) throw new Error('JSON parse: reponse non parsable');
+        const pp = parsedOut;
         const lengths = {
-          degats: typeof sections.degats === 'string' ? sections.degats.trim().length : 0,
-          inspection: typeof sections.inspection === 'string' ? sections.inspection.trim().length : 0,
-          conclusion: typeof sections.conclusion === 'string' ? sections.conclusion.trim().length : 0,
-          recommandations: typeof sections.recommandations === 'string' ? sections.recommandations.trim().length : 0,
+          degats: typeof pp.degats === 'string' ? pp.degats.trim().length : 0,
+          inspection: typeof pp.inspection === 'string' ? pp.inspection.trim().length : 0,
+          conclusion: typeof pp.conclusion === 'string' ? pp.conclusion.trim().length : 0,
+          recommandations: typeof pp.recommandations === 'string' ? pp.recommandations.trim().length : 0,
         };
-        const sectionsCount = (Object.values(lengths) as number[]).filter((n) => n > 0).length;
-
         return {
-          message: msg,
-          output: sections,
+          message: lastMsg ?? ({ usage: { input_tokens: 0, output_tokens: 0 } } as Anthropic.Message),
+          output: pp,
           outputSummary: {
             has_degats: lengths.degats > 0,
             has_inspection: lengths.inspection > 0,
             has_conclusion: lengths.conclusion > 0,
             has_recommandations: lengths.recommandations > 0,
-            sections_count: sectionsCount,
-            degats_length: lengths.degats,
-            inspection_length: lengths.inspection,
-            conclusion_length: lengths.conclusion,
-            recommandations_length: lengths.recommandations,
+            sections_count: (Object.values(lengths) as number[]).filter((n) => n > 0).length,
+            techniques_count: Array.isArray(pp.techniques_utilisees) ? pp.techniques_utilisees.length : 0,
+            photos_classified: Array.isArray(pp.photos) ? pp.photos.length : 0,
           },
         };
       },
@@ -295,6 +346,48 @@ export async function generateRapportSections(
     return { ok: false, error: 'Anthropic : ' + errMsg };
   }
 
+  // ── Validation applicative ──
+  const asLabels = (v: unknown): string[] => Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  const techKeysUtil = techniquesLabelsToKeys(asLabels(parsed.techniques_utilisees));
+  const utilSet = new Set(techKeysUtil);
+  const techKeysConfirm = techniquesLabelsToKeys(asLabels(parsed.techniques_a_confirmer)).filter((k) => !utilSet.has(k));
+
+  // ── Persistance des photos (section/ordre/label) — guard statut ──
+  const photoIds = new Set(photos.map((p) => p.id));
+  const labelById = new Map(photos.map((p) => [p.id, p.label]));
+  const validSections = new Set(['degats', 'inspection']);
+  const photoUpdates = Array.isArray(parsed.photos)
+    ? parsed.photos
+        .filter((ph) => typeof ph.id === 'string' && photoIds.has(ph.id as string))
+        .map((ph) => {
+          const id = ph.id as string;
+          const rawSection = typeof ph.section === 'string' ? ph.section : 'exclue';
+          const section = validSections.has(rawSection) ? rawSection : null; // 'exclue'/inconnu → null
+          const ordre = typeof ph.ordre === 'number' && Number.isFinite(ph.ordre) ? Math.trunc(ph.ordre) : 0;
+          const legende = typeof ph.legende === 'string' ? ph.legende.trim() : '';
+          return { id, section, ordre, legende };
+        })
+    : [];
+
+  if (photoUpdates.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const { data: rapStatut } = await admin
+        .from('rapports').select('statut').eq('intervention_id', interventionId).maybeSingle();
+      const statut = (rapStatut as { statut?: string } | null)?.statut ?? null;
+      if (statut !== 'valide' && statut !== 'transmis') {
+        for (const u of photoUpdates) {
+          const patch: Record<string, unknown> = { section: u.section, ordre: u.ordre };
+          // La légende ne remplit `label` QUE s'il est vide (jamais écraser une légende humaine).
+          if (u.legende && !(labelById.get(u.id) ?? '').trim()) patch.label = u.legende;
+          await admin.from('photos_interventions').update(patch).eq('id', u.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[tech/generateRapport] persistance photos échouée:', e);
+    }
+  }
+
   return {
     ok: true,
     sections: {
@@ -303,5 +396,7 @@ export async function generateRapportSections(
       conclusion: String(parsed.conclusion ?? '').trim(),
       recommandations: String(parsed.recommandations ?? '').trim(),
     },
+    techniques_utilisees: techKeysUtil,
+    techniques_a_confirmer: techKeysConfirm,
   };
 }
