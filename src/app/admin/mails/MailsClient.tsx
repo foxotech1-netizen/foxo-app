@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, Bot, ClipboardList, CheckCircle2, Mail, Sparkles,
-  Zap, Paperclip, Circle, Tag, Archive,
+  Zap, Paperclip, Circle, Tag, Archive, Undo2,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -783,10 +783,41 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <div
                 key={m.id}
                 className={
-                  'flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
+                  'relative group flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
                   (active ? 'bg-navy-pale' : '')
                 }
               >
+                {/* Actions rapides au survol (desktop) — superposées en
+                    haut à droite sur fond sand pour ne pas chevaucher
+                    l'heure/les badges. Mobile (<sm) : rien, le tap ouvre
+                    le mail comme avant. */}
+                <div className="absolute right-2 top-1.5 z-10 hidden sm:group-hover:flex items-center gap-0.5 bg-sand-hover border border-sand-border rounded-md px-0.5 py-0.5">
+                  {inTrash ? (
+                    <RowQuickBtn
+                      title="Restaurer"
+                      disabled={bulkLoading}
+                      onClick={() => applyBulkActionForOne(m.id, 'restore')}
+                    ><Undo2 size={14} /></RowQuickBtn>
+                  ) : (
+                    <>
+                      <RowQuickBtn
+                        title="Archiver"
+                        disabled={bulkLoading}
+                        onClick={() => applyBulkActionForOne(m.id, 'archive')}
+                      ><Archive size={14} /></RowQuickBtn>
+                      <RowQuickBtn
+                        title={m.unread ? 'Marquer comme lu' : 'Marquer comme non lu'}
+                        disabled={bulkLoading}
+                        onClick={() => applyBulkActionForOne(m.id, m.unread ? 'read' : 'unread')}
+                      >{m.unread ? <CheckCircle2 size={14} /> : <Circle size={14} />}</RowQuickBtn>
+                      <RowQuickBtn
+                        title="Marquer important"
+                        disabled={bulkLoading || isImportant}
+                        onClick={() => applyBulkActionForOne(m.id, 'important')}
+                      ><Star size={14} /></RowQuickBtn>
+                    </>
+                  )}
+                </div>
                 <input
                   type="checkbox"
                   checked={checked}
@@ -1163,8 +1194,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     </div>
   );
 
-  // Helper local pour appliquer une action sur 1 seul mail (drawer)
-  // sans toucher la sélection en masse.
+  // Helper local pour appliquer une action sur 1 seul mail (survol de
+  // ligne ou volet de lecture) sans toucher la sélection en masse.
+  // Update optimiste aligné sur applyBulkAction : archive/trash/restore
+  // font quitter la vue courante (et ferment le volet si ouvert) ;
+  // lu/non-lu/important mettent à jour la ligne ET le détail en place.
   async function applyBulkActionForOne(id: string, action: BulkAction) {
     setBulkLoading(true);
     setFeedback(null);
@@ -1179,13 +1213,35 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         setFeedback({ kind: 'err', msg: data.error ?? 'Action échouée.' });
         return;
       }
-      setMails((arr) => arr.filter((m) => m.id !== id));
-      setSelectedId(null);
+      if (action === 'archive' || action === 'trash' || action === 'restore' || action === 'delete-permanent') {
+        setMails((arr) => arr.filter((m) => m.id !== id));
+        if (selectedId === id) setSelectedId(null);
+      } else if (action === 'read' || action === 'unread') {
+        const unread = action === 'unread';
+        const patchLabels = (ids: string[]) => unread
+          ? (ids.includes('UNREAD') ? ids : [...ids, 'UNREAD'])
+          : ids.filter((l) => l !== 'UNREAD');
+        setMails((arr) => arr.map((m) => m.id === id
+          ? { ...m, unread, label_ids: patchLabels(m.label_ids) }
+          : m));
+        setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
+      } else if (action === 'important') {
+        const patchLabels = (ids: string[]) => ids.includes('IMPORTANT') ? ids : [...ids, 'IMPORTANT'];
+        setMails((arr) => arr.map((m) => m.id === id ? { ...m, label_ids: patchLabels(m.label_ids) } : m));
+        setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
+      }
       window.dispatchEvent(new Event('foxo:mails-updated'));
-      setFeedback({
-        kind: 'ok',
-        msg: action === 'restore' ? 'Mail restauré' : action === 'archive' ? 'Mail archivé' : 'Action appliquée',
-      });
+      const oneActionMsg: Record<BulkAction, string> = {
+        read: 'Marqué comme lu',
+        unread: 'Marqué comme non lu',
+        archive: 'Mail archivé',
+        label: 'Libellé appliqué',
+        important: 'Marqué important',
+        trash: 'Mail envoyé à la corbeille',
+        restore: 'Mail restauré',
+        'delete-permanent': 'Mail supprimé définitivement',
+      };
+      setFeedback({ kind: 'ok', msg: oneActionMsg[action] });
     } finally {
       setBulkLoading(false);
     }
@@ -1308,6 +1364,30 @@ function BulkBtn({
       onClick={onClick}
       disabled={disabled}
       className={'px-2 py-2 rounded-lg text-[11px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center justify-center gap-1.5 ' + className}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Bouton icône discret des actions rapides au survol d'une ligne.
+// stopPropagation : l'action ne doit jamais ouvrir le mail.
+function RowQuickBtn({
+  title, disabled, onClick, children,
+}: {
+  title: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      disabled={disabled}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className="p-1.5 rounded text-ink-mid hover:text-navy hover:bg-sand-mid disabled:opacity-40 inline-flex items-center justify-center"
     >
       {children}
     </button>
