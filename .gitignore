@@ -46,3 +46,7 @@ next-env.d.ts
 # Claude Code local config (skills are versioned)
 .claude/*
 !.claude/skills/
+
+# skills CLI artifacts (duplicates of .claude/skills)
+.agents/
+skills-lock.json
