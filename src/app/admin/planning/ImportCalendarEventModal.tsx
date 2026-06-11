@@ -97,10 +97,11 @@ export function ImportCalendarEventModal({
   return (
     <div
       onClick={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
-      className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[560px] my-8">
-        <div className="flex items-center justify-between mb-3">
+      {/* Pattern D4 : header fixe, corps scrollable unique, actions fixes. */}
+      <div className="bg-cream border border-sand-border rounded-2xl w-full max-w-[560px] max-h-[90vh] flex flex-col">
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between flex-shrink-0">
           <h2 className="text-[14px] font-extrabold text-ink inline-flex items-center gap-1.5">
             <Calendar size={14} /> Importer cet événement Calendar
           </h2>
@@ -113,6 +114,7 @@ export function ImportCalendarEventModal({
           ><X size={16} /></button>
         </div>
 
+        <div className="px-5 pb-2 flex-1 min-h-0 overflow-y-auto">
         {/* Aperçu de l'event Calendar */}
         <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-lg p-3 mb-4">
           <div className="text-[13px] font-bold text-[#4338CA]">
@@ -209,8 +211,9 @@ export function ImportCalendarEventModal({
             {error}
           </div>
         )}
+        </div>
 
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="px-5 py-4 border-t border-sand-border flex justify-end gap-2 flex-shrink-0">
           <button
             type="button"
             onClick={onClose}

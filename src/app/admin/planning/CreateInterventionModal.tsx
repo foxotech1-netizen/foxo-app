@@ -896,8 +896,10 @@ export function ModalShell({
 }
 
 export function ModalFooter({ children }: { children: React.ReactNode }) {
+  // Sticky : la rangée d'actions reste visible pendant que le corps
+  // scrolle (critère D5-c), sans sortir les boutons du <form>.
   return (
-    <div className="flex justify-end gap-2 mt-5 pt-4 border-t border-sand-border">
+    <div className="sticky bottom-0 -mx-5 -mb-4 px-5 py-4 mt-5 bg-cream border-t border-sand-border flex justify-end gap-2">
       {children}
     </div>
   );
