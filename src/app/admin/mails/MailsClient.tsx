@@ -124,6 +124,14 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [replyBody, setReplyBody] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
 
+  // Présélection via ?id=… (liens profonds : File de validation, drawer
+  // intervention « mails liés »). Lu une fois au mount — window.location
+  // évite le boundary Suspense exigé par useSearchParams.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (id) setSelectedId(id);
+  }, []);
+
   // Charge la liste — déclenché au mount + quand filter/activeLabel/refreshTick changent.
   // `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare. `cache: 'no-store'`
   // ajoute une ceinture côté fetch.
@@ -191,6 +199,29 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       });
     } catch { /* noop */ }
   };
+
+  // Compteur « non lus » harmonisé — même source et même définition que le
+  // badge sidebar : /api/admin/mails/unread-count → in:inbox is:unread hors
+  // mails système (cf. countUnreadMails, filtrage D1). Rafraîchi au mount,
+  // sur ↻ Actualiser et sur l'event foxo:mails-updated (lecture, actions
+  // en masse) — comme la Sidebar.
+  const [inboxUnread, setInboxUnread] = useState(0);
+  useEffect(() => {
+    if (!initialConnected) return;
+    let cancelled = false;
+    const load = () => {
+      fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d) => { if (!cancelled && d?.ok) setInboxUnread(d.count ?? 0); })
+        .catch(() => { /* silent — le compteur est best-effort */ });
+    };
+    load();
+    window.addEventListener('foxo:mails-updated', load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('foxo:mails-updated', load);
+    };
+  }, [initialConnected, refreshTick]);
 
   // Charge les labels Gmail
   useEffect(() => {
@@ -488,7 +519,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
   if (!initialConnected) return null;
 
-  const totalUnread = labels.reduce((acc, l) => acc + l.messages_unread, 0);
   const inTrash = filter === 'trash';
 
   return (
@@ -517,10 +547,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       {/* Liste à gauche — position relative pour ancrer la BulkActionBar
           en absolute bottom (la chaîne min-h-screen → flex-1 → h-full ne
           garantit pas une hauteur bornée, donc on ne peut pas se reposer
-          sur flex-shrink-0 pour épingler la barre au bas de l'aside). */}
+          sur flex-shrink-0 pour épingler la barre au bas de l'aside).
+          Largeur ~40% bornée : la lecture occupe ~60%, la liste ne flotte
+          plus seule sur les grands écrans. */}
       <aside
         className={
-          'relative flex flex-col w-full sm:w-[380px] border-r border-sand-border bg-cream ' +
+          'relative flex flex-col w-full sm:w-[40%] sm:min-w-[340px] sm:max-w-[520px] border-r border-sand-border bg-cream ' +
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
@@ -607,7 +639,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         <div className="p-3 border-b border-sand-border flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
-              Libellés{totalUnread > 0 ? ` · ${totalUnread} non lus` : ''}
+              Libellés{inboxUnread > 0 ? ` · ${inboxUnread} non lus` : ''}
             </span>
             <button
               type="button"
@@ -636,7 +668,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               Aucun libellé personnalisé.
             </div>
           ) : (
-            <ul className="space-y-0.5 max-h-[180px] overflow-y-auto">
+            // ~10 libellés visibles (~26px/ligne) avant de scroller.
+            <ul className="space-y-0.5 max-h-[260px] overflow-y-auto">
               {labels.map((l) => {
                 const active = activeLabel === l.name;
                 const swatch = l.color ?? null;
@@ -686,7 +719,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <span className="text-[11px] text-ink-muted">
               {selectedIds.size > 0
                 ? `${selectedIds.size} sélectionné(s)`
-                : `${filtered.length} mail(s)${inTrash ? ' (corbeille)' : ''}`}
+                : `${filtered.length} affiché(s)${inTrash ? ' (corbeille)' : ''}`}
             </span>
           </div>
         )}
@@ -780,8 +813,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         }
       >
         {!selectedId && (
-          <div className="flex-1 flex items-center justify-center text-[13px] text-ink-muted">
-            Sélectionnez un mail pour l&apos;ouvrir.
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="flex flex-col items-center gap-3 bg-cream border border-sand-border rounded-xl px-10 py-8 text-center">
+              <Mail size={28} className="text-ink-muted" aria-hidden />
+              <div className="text-[13px] font-bold text-ink-mid">
+                Sélectionne un mail pour le lire
+              </div>
+              <div className="text-[11px] text-ink-muted">
+                Le contenu, les libellés et les actions s&apos;affichent ici.
+              </div>
+            </div>
           </div>
         )}
 
