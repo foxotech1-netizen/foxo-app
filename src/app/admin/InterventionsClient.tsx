@@ -616,7 +616,7 @@ export function InterventionsClient({
           }
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn('[admin/interventions] chargement état rapport échoué (best-effort)', e))
       .finally(() => setRapportInfoLoading(false));
   };
 

@@ -257,7 +257,7 @@ export function PlanningCalendar({
         if (!mounted) return;
         if (data.ok) setGcalEvents(data.events ?? []);
       })
-      .catch(() => { /* noop */ })
+      .catch((e) => console.warn('[admin/planning] chargement événements Google Calendar échoué (best-effort)', e))
       .finally(() => { if (mounted) setGcalLoading(false); });
     return () => { mounted = false; };
   }, [googleConnected, showGoogle, viewMode, weekMonday, year, month]);
