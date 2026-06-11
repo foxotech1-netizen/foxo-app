@@ -19,7 +19,9 @@ import {
   type MailClassification,
 } from '@/lib/mail/categories';
 
-type FilterMode = 'tous' | 'unread' | 'lies' | 'system' | 'trash';
+// Onglets métier (Mails V2 P1) — résolus côté serveur en query Gmail
+// (cf. api/admin/mails/route.ts). a_traiter = non lus inbox hors plateforme.
+type FilterMode = 'a_traiter' | 'demandes' | 'occupants' | 'tous' | 'archives' | 'system' | 'trash';
 type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
@@ -71,17 +73,13 @@ function senderEmail(from: string): string {
   return (m ? m[1] : from).trim();
 }
 
-function hasInterventionRef(m: MailListItem): boolean {
-  return /\b\d{4}-\d{3,5}\b/.test(`${m.subject} ${m.snippet}`);
-}
-
 export function MailsClient({ initialConnected }: { initialConnected: boolean }) {
   const router = useRouter();
   const [mails, setMails] = useState<MailListItem[]>([]);
   const [loading, setLoading] = useState(initialConnected);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<FilterMode>('tous');
+  const [filter, setFilter] = useState<FilterMode>('a_traiter');
   // Filtre métier par classification canonique (U4). Purement client :
   // croise la Map des analyses (thread_id → MailAnalyse). 'toutes' = pas
   // de filtre. Un mail non analysé est exclu dès qu'une catégorie précise
@@ -142,9 +140,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setLoading(true);
     setError(null);
     const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
-    if (filter === 'unread') params.set('filter', 'unread');
-    if (filter === 'system') params.set('filter', 'system');
-    if (filter === 'trash') params.set('filter', 'trash');
+    // L'onglet est toujours relayé : la résolution en query Gmail est
+    // entièrement côté serveur ('tous' = défaut serveur).
+    params.set('filter', filter);
     if (activeLabel) params.set('label', activeLabel);
     fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
       .then((r) => r.json())
@@ -275,7 +273,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         const matches = [m.from, m.subject, m.snippet].some((s) => s.toLowerCase().includes(q));
         if (!matches) return false;
       }
-      if (filter === 'lies' && !hasInterventionRef(m)) return false;
       if (categoryFilter !== 'toutes') {
         const analyse = analyses.get(m.thread_id);
         // Pas d'analyse → pas de classification → exclu du filtre métier.
@@ -565,11 +562,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             placeholder="Rechercher — expéditeur, sujet…"
             className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
-          <div className="grid grid-cols-5 gap-1.5">
+          {/* Onglets métier (Mails V2 P1) — chips compactes, passage sur
+              2 lignes accepté sur mobile. Compteur non-lus sur « À traiter »
+              uniquement (inboxUnread déjà chargé, aucun compteur ajouté). */}
+          <div className="flex flex-wrap gap-1.5">
             {([
+              ['a_traiter', 'À traiter', null],
+              ['demandes', 'Demandes', null],
+              ['occupants', 'Occupants', null],
               ['tous', 'Tous', null],
-              ['unread', 'Non lus', null],
-              ['lies', 'Avec interv.', null],
+              ['archives', 'Archivés', Archive],
               ['system', 'Système', null],
               ['trash', 'Corbeille', Trash2],
             ] as [FilterMode, string, typeof Trash2 | null][]).map(([f, label, Icon]) => (
@@ -586,6 +588,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               >
                 {Icon && <Icon size={12} />}
                 {label}
+                {f === 'a_traiter' && inboxUnread > 0 && (
+                  <span
+                    className={
+                      'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
+                      (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
+                    }
+                  >
+                    {inboxUnread}
+                  </span>
+                )}
               </button>
             ))}
           </div>

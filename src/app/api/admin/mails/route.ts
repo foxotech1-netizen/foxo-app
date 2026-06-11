@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
 import { EXCLUDE_PLATFORM_MAILS_Q, ONLY_PLATFORM_MAILS_Q, listInboxMails } from '@/lib/gmail';
+import { CLASSIFICATION_TO_LABEL } from '@/lib/mail/categories';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -30,18 +31,36 @@ export async function GET(request: Request) {
   const filter = url.searchParams.get('filter');
   const label = url.searchParams.get('label');
   // Construit la query Gmail. trash et inbox sont exclusifs.
+  // Onglets métier (Mails V2 P1) : a_traiter / demandes / occupants /
+  // archives s'ajoutent aux modes historiques tous / system / trash.
   const parts: string[] = [];
   if (filter === 'trash') {
     parts.push('in:trash');
   } else if (filter === 'system') {
     // Vue « Système » : uniquement les mails transactionnels émis par FoxO.
     parts.push('in:inbox', ONLY_PLATFORM_MAILS_Q);
+  } else if (filter === 'a_traiter') {
+    // « À traiter » métier = non lus de l'inbox, hors mails plateforme.
+    // Même définition que countUnreadMails → le badge de l'onglet et la
+    // liste restent cohérents sans compteur supplémentaire.
+    parts.push('in:inbox', 'is:unread', EXCLUDE_PLATFORM_MAILS_Q);
+  } else if (filter === 'demandes') {
+    parts.push(`label:"${CLASSIFICATION_TO_LABEL.nouvelle_demande}"`, EXCLUDE_PLATFORM_MAILS_Q);
+  } else if (filter === 'occupants') {
+    parts.push(`label:"${CLASSIFICATION_TO_LABEL.reponse_occupant}"`, EXCLUDE_PLATFORM_MAILS_Q);
+  } else if (filter === 'archives') {
+    // Gmail n'a pas d'opérateur « archivé » : un mail archivé est un mail
+    // qui n'a plus le label INBOX. On approxime donc par exclusion — ni
+    // inbox, ni corbeille, ni spam, ni brouillons, ni envoyés (sans
+    // -in:sent la vue serait noyée par le courrier sortant, lui aussi
+    // hors inbox). Vérifié sur l'API : les opérateurs négatifs -in: sont
+    // supportés dans messages.list?q= comme dans la barre Gmail.
+    parts.push('-in:inbox', '-in:trash', '-in:spam', '-in:draft', '-in:sent', EXCLUDE_PLATFORM_MAILS_Q);
   } else {
     parts.push('in:inbox');
-    if (filter === 'unread') parts.push('is:unread');
-    // Par défaut, les mails envoyés par la plateforme elle-même sont
-    // masqués (visibles via filter=system) : la liste reflète les mails
-    // réellement à traiter.
+    // Par défaut (« Tous »), les mails envoyés par la plateforme elle-même
+    // sont masqués (visibles via filter=system) : la liste reflète les
+    // mails réellement à traiter.
     parts.push(EXCLUDE_PLATFORM_MAILS_Q);
   }
   if (label) parts.push(`label:"${label.replace(/"/g, '')}"`);
