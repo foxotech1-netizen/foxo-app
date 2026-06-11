@@ -56,8 +56,8 @@ export function ConfirmDialog({
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={() => { if (!pending) onCancel(); }}
       />
-      <div className="relative bg-cream rounded-xl border border-sand-border shadow-2xl w-full max-w-md p-5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
-        <h2 id="confirm-dialog-title" className="text-base font-extrabold text-ink mb-2 dark:text-[#F0ECE4]">
+      <div className="relative bg-cream rounded-modal border border-sand-border shadow-overlay w-full max-w-md p-5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+        <h2 id="confirm-dialog-title" className="fxs-section-title text-ink mb-2 dark:text-[#F0ECE4]">
           {title}
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8] whitespace-pre-line">

@@ -297,7 +297,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           className="rounded-2xl p-4"
           style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}
         >
-          <h2 className="inline-flex items-center gap-1.5 text-sm font-bold mb-3" style={{ color: '#1D6FA4' }}>
+          <h2 className="inline-flex items-center gap-1.5 fxs-block-title mb-3" style={{ color: '#1D6FA4' }}>
             <Landmark size={14} /> Informations assurance
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
@@ -331,7 +331,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       {/* Occupants */}
       {occupants.length > 0 && (
         <section>
-          <h2 className="text-sm font-bold text-ink mb-3">
+          <h2 className="fxs-block-title text-ink mb-3">
             Occupants — {confirmedCount}/{occupants.length} confirmé(s)
           </h2>
           <div className="bg-cream rounded-xl border border-sand-border divide-y divide-sand-mid">
@@ -363,7 +363,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       {/* Bloc facturation (récap, si renseigné) */}
       {showFacturationBlock && (
         <section>
-          <h2 className="text-sm font-bold text-ink mb-3">Facturation</h2>
+          <h2 className="fxs-block-title text-ink mb-3">Facturation</h2>
           <div className="bg-cream border border-sand-border rounded-xl p-4 text-[13px] grid grid-cols-1 sm:grid-cols-2 gap-3">
             {iv.nom_facturation && (
               <div>
@@ -401,7 +401,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="bg-cream rounded-2xl p-5 border border-sand-border">
-      <h2 className="text-sm font-bold text-ink mb-3">{title}</h2>
+      <h2 className="fxs-block-title text-ink mb-3">{title}</h2>
       {children}
     </section>
   );

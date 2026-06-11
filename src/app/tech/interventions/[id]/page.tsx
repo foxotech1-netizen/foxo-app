@@ -70,7 +70,7 @@ export default async function TechInterventionPage({
       {/* En-tête */}
       <header
         className="bg-[var(--color-cream)] rounded-xl p-5"
-        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <span className="font-sora text-[12px] font-semibold tracking-[0.01em] text-[var(--accent-tech)]">{iv.ref ?? '—'}</span>
@@ -252,7 +252,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   return (
     <section
       className="bg-[var(--color-cream)] rounded-xl p-4"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center gap-2.5 mb-3">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>

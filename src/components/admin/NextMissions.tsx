@@ -38,7 +38,7 @@ export function NextMissions({ missions, limit = 10, onOpenIntervention }: NextM
 
   return (
     <div
-      className="rounded-[10px] overflow-hidden"
+      className="rounded-card overflow-hidden"
       style={{
         background: 'var(--color-cream)',
         boxShadow:

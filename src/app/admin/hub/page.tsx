@@ -155,7 +155,7 @@ export default async function HubPage() {
           {tiles.map((t) => {
             const Icon = t.icon;
             const tileClass =
-              'relative w-[140px] sm:w-[160px] aspect-square bg-white border border-[#E6E2DC] rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.03] hover:shadow-lg';
+              'relative w-[140px] sm:w-[160px] aspect-square bg-white border border-[#E6E2DC] rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.03] hover:shadow-raised';
             const inner = (
               <>
                 {/* Barre couleur accent en haut (4px) */}

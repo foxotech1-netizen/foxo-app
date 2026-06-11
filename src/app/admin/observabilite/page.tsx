@@ -249,7 +249,7 @@ export default async function ObservabilitePage({
         {/* Section : Stats par agent (NOUVEAU) */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-ink">Par agent</h2>
+            <h2 className="fxs-section-title text-ink">Par agent</h2>
             <span className="text-[10px] text-ink-muted italic">
               Tous les agents connus apparaissent, même à 0 sur la période.
             </span>
@@ -308,7 +308,7 @@ export default async function ObservabilitePage({
         {/* Section Agents IA (table brute) */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-ink">Agents IA (détails)</h2>
+            <h2 className="fxs-section-title text-ink">Agents IA (détails)</h2>
             <div className="flex gap-1">
               <FilterLink href={buildHref({ agent_status: 'all' })} active={agentStatusActive === 'all'}>Tous</FilterLink>
               <FilterLink href={buildHref({ agent_status: 'success' })} active={agentStatusActive === 'success'}>Réussis</FilterLink>
@@ -382,7 +382,7 @@ export default async function ObservabilitePage({
         {/* Section Automatisations */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-ink">Automatisations</h2>
+            <h2 className="fxs-section-title text-ink">Automatisations</h2>
             <div className="flex gap-1">
               <FilterLink href={buildHref({ auto_status: 'all' })} active={autoStatusActive === 'all'}>Tous</FilterLink>
               <FilterLink href={buildHref({ auto_status: 'success' })} active={autoStatusActive === 'success'}>Réussis</FilterLink>
@@ -444,7 +444,7 @@ export default async function ObservabilitePage({
         {/* Section Erreurs cron mails (lot E) — détail texte depuis sms_logs */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-ink">Erreurs cron mails</h2>
+            <h2 className="fxs-section-title text-ink">Erreurs cron mails</h2>
             <span className="text-[10px] text-ink-muted">{cronErrors.length} récente(s)</span>
           </div>
 

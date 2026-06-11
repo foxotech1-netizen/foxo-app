@@ -138,7 +138,7 @@ export function SyndicsClient({
         >
           {/* flex-col : header fixe, le formulaire est l'unique zone
               scrollable (plus de sticky qui glisse sous un 2e scroller). */}
-          <div className="bg-cream rounded-2xl w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+          <div className="bg-cream rounded-modal w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-overlay">
             <div className="px-6 py-5 border-b border-sand-border flex justify-between items-center flex-shrink-0 bg-cream">
               <div>
                 <div className="text-base font-extrabold text-ink">Nouveau partenaire</div>

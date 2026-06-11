@@ -77,6 +77,7 @@ import { TypeBadge } from '@/components/TypeBadge';
 import { SendSmsModal } from '@/components/SendSmsModal';
 import { MailStepper } from './MailStepper';
 import { MessagesPanel } from '@/components/MessagesPanel';
+import { SkeletonText } from '@/components/ui/Skeleton';
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
@@ -1259,9 +1260,9 @@ export function InterventionsClient({
           <div
             className="bg-[var(--color-cream)] rounded-xl p-5 w-full max-w-[360px]"
             onClick={(e) => e.stopPropagation()}
-            style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+            style={{ boxShadow: 'var(--shadow-card)' }}
           >
-            <h3 className="font-sora text-[15px] font-semibold text-[var(--color-ink)] mb-1.5">
+            <h3 className="fxs-section-title text-[var(--color-ink)] mb-1.5">
               Relancer les occupants de ce dossier ?
             </h3>
             <p className="text-[13px] text-[var(--color-ink-mid)] leading-relaxed mb-4">
@@ -1430,8 +1431,8 @@ export function InterventionsClient({
       {/* Table — desktop only (cf. cards mobile plus bas) */}
       <div className="flex-1 overflow-auto px-6 pt-3 pb-4">
         <div
-          className="hidden md:block bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="hidden md:block bg-[var(--color-cream)] rounded-card overflow-hidden"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           <table className="w-full border-collapse min-w-[700px]">
             <thead>
@@ -1746,7 +1747,7 @@ export function InterventionsClient({
           <div className={
             fullPage
               ? 'w-full max-w-[1100px] mx-auto bg-[var(--color-cream)] flex-1 min-h-0 flex flex-col'
-              : 'w-[460px] bg-[var(--color-cream)] h-screen shadow-2xl border-l border-[var(--color-sand-border)] flex flex-col'
+              : 'w-[460px] bg-[var(--color-cream)] h-screen shadow-overlay border-l border-[var(--color-sand-border)] flex flex-col'
           }>
             <header className="px-5 pt-5 bg-[var(--color-sand)] border-b border-[var(--color-sand-border)]">
               <div className="flex justify-between items-start">
@@ -2312,7 +2313,7 @@ export function InterventionsClient({
 
                   <Block id="section-occupants" title={`Appartements / unités (${drawerOccupants.length})`}>
                     {drawerOccupantsLoading ? (
-                      <span className="text-ink-muted dark:text-[#C8C2B8]">Chargement…</span>
+                      <SkeletonText lines={3} />
                     ) : (
                       <div className="space-y-1.5">
                         {drawerOccupants.map((o) => {
@@ -3123,7 +3124,7 @@ function SoftDeleteRowModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-        <h2 className="text-[14px] font-extrabold text-ink mb-2 inline-flex items-center gap-1.5 dark:text-[#F0ECE4]">
+        <h2 className="fxs-block-title text-ink mb-2 inline-flex items-center gap-1.5 dark:text-[#F0ECE4]">
           <Trash2 size={16} />Supprimer cette intervention ?
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
@@ -3175,7 +3176,7 @@ function DeleteInterventionModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[460px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
-        <h2 className="text-[14px] font-extrabold text-terra mb-2 inline-flex items-center gap-1.5 dark:text-[#FFB897]">
+        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5 dark:text-[#FFB897]">
           <Trash2 size={16} />Supprimer l&apos;intervention
         </h2>
         <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
@@ -3976,7 +3977,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
   }, [interventionId]);
 
   if (!loaded) {
-    return <div className="text-[12px] text-ink-mid italic dark:text-[#C8C2B8]">Chargement…</div>;
+    return <SkeletonText lines={2} />;
   }
   if (error) {
     return (
@@ -4612,8 +4613,8 @@ function Block({ title, children, id }: { title: React.ReactNode; children: Reac
   return (
     <div
       id={id}
-      className="bg-[var(--color-cream)] rounded-[10px] px-3.5 py-3 mb-3 scroll-mt-4"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      className="bg-[var(--color-cream)] rounded-card px-3.5 py-3 mb-3 scroll-mt-4"
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center gap-2.5 mb-2">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>

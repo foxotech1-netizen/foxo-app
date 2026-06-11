@@ -22,7 +22,7 @@ export default async function PortalDashboard() {
   if (!org) {
     return (
       <div className="premium-card p-8 text-center">
-        <h1 className="text-xl font-extrabold text-ink mb-2">Compte non lié</h1>
+        <h1 className="fxs-title-sm mb-2">Compte non lié</h1>
         <p className="text-sm text-ink-mid leading-relaxed max-w-md mx-auto">
           L&apos;adresse <strong>{user.email}</strong> n&apos;est pas encore associée
           à un syndic, un courtier ou un expert dans nos fichiers. Contactez{' '}

@@ -62,17 +62,17 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
       style={{ background: 'rgba(15, 32, 64, 0.45)' }}
     >
       <div
-        className="w-full max-w-[500px] max-h-[90vh] flex flex-col rounded-[10px] overflow-hidden"
+        className="w-full max-w-[500px] max-h-[90vh] flex flex-col rounded-card overflow-hidden"
         style={{
           background: 'var(--color-cream)',
-          boxShadow: '0 1px 2px rgba(15,32,64,0.06), 0 12px 32px rgba(15,32,64,0.18), 0 0 0 1px rgba(15,32,64,0.06)',
+          boxShadow: 'var(--shadow-overlay)',
         }}
       >
         <div
           className="flex items-center justify-between px-5 py-3 border-b"
           style={{ borderColor: 'var(--color-sand-mid)' }}
         >
-          <h2 className="font-sora text-[14px] font-semibold m-0" style={{ color: 'var(--color-ink)' }}>
+          <h2 className="fxs-block-title m-0" style={{ color: 'var(--color-ink)' }}>
             Confirmer occupant — SMS
           </h2>
           <button

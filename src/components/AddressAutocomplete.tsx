@@ -239,7 +239,7 @@ export function AddressAutocomplete({
       {open && (suggestions.length > 0 || loading || error || (query.trim().length >= 4 && !loading)) && (
         <div
           className="absolute z-30 mt-1 w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg max-h-[280px] overflow-y-auto"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           {error && (
             <div className="px-3 py-2.5 text-[12px] text-[var(--color-terra)] font-semibold inline-flex items-center gap-1.5">

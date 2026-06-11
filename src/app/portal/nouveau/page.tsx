@@ -16,7 +16,7 @@ export default async function NewRequestPage({
   if (!session.org) {
     return (
       <div className="bg-cream border border-sand-border rounded-2xl p-8 text-center">
-        <h1 className="text-xl font-extrabold text-ink mb-2">Compte non lié</h1>
+        <h1 className="fxs-title-sm mb-2">Compte non lié</h1>
         <p className="text-sm text-ink-mid mb-3">
           Vous devez être associé à un syndic ou un courtier pour créer une demande.
         </p>

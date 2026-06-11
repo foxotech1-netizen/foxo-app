@@ -56,7 +56,7 @@ export default async function InterventionsPage({
   if (!org) {
     return (
       <div className="bg-cream border border-sand-border rounded-2xl p-8 text-center">
-        <h1 className="text-xl font-extrabold text-ink mb-2">Compte non lié</h1>
+        <h1 className="fxs-title-sm mb-2">Compte non lié</h1>
         <p className="text-sm text-ink-mid">
           {user.email} n&apos;est pas associé à un partenaire. Contactez{' '}
           <a href="mailto:info@foxo.be" className="text-navy underline">info@foxo.be</a>.

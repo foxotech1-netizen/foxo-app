@@ -99,6 +99,30 @@
 
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+
+  /* ── Élévation D7 — 3 niveaux d'ombre teintée navy-deep ────────────────
+     card    : surface posée au repos (cartes, panels, tuiles KPI)
+     raised  : élément au-dessus du flux (menus, popovers, hover de carte)
+     overlay : couche bloquante (modales, drawers, dialogs)
+     Utilisables en utilitaires (shadow-card…) ou en var(--shadow-card). */
+  --shadow-card:
+    0 1px 2px rgba(15, 32, 64, 0.04),
+    0 4px 12px rgba(15, 32, 64, 0.05),
+    0 0 0 1px rgba(15, 32, 64, 0.04);
+  --shadow-raised:
+    0 2px 4px rgba(15, 32, 64, 0.06),
+    0 8px 24px rgba(15, 32, 64, 0.10);
+  --shadow-overlay:
+    0 1px 2px rgba(15, 32, 64, 0.06),
+    0 12px 32px rgba(15, 32, 64, 0.18),
+    0 0 0 1px rgba(15, 32, 64, 0.06);
+
+  /* ── Rayons D7 — échelle unique ────────────────────────────────────────
+     ctl 8px (boutons, inputs, chips) · card 10px (cartes, panels, menus)
+     · modal 14px (modales, drawers). Utilitaires : rounded-ctl/card/modal. */
+  --radius-ctl: 8px;
+  --radius-card: 10px;
+  --radius-modal: 14px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -119,6 +143,7 @@ body {
    FacturationListClient KPI tile). */
 .stat-num {
   color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Utility : applique Syne (font display, --font-syne défini par
@@ -147,21 +172,53 @@ body {
    Évite de répéter inline `style={{boxShadow: '...'}}` sur 40 pages. */
 .fxs-card {
   background: var(--color-cream);
-  border-radius: 10px;
-  box-shadow:
-    0 1px 2px rgba(15, 32, 64, 0.04),
-    0 4px 12px rgba(15, 32, 64, 0.05),
-    0 0 0 1px rgba(15, 32, 64, 0.04);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 .fxs-card-hover {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .fxs-card-hover:hover {
   transform: translateY(-2px);
-  box-shadow:
-    0 2px 4px rgba(15, 32, 64, 0.06),
-    0 8px 24px rgba(15, 32, 64, 0.10),
-    0 0 0 1px var(--color-navy-light);
+  box-shadow: var(--shadow-raised), 0 0 0 1px var(--color-navy-light);
+}
+
+/* ── Échelle typographique D7 — titres harmonisés des 3 portails ─────────
+   Hiérarchie unique (Sora semibold, contrastes nets avec le body 14px) :
+     .fxs-page-title     24px — h1 de page (existant, inchangé)
+     .fxs-title-sm       20px — h1 d'écrans secondaires / états vides / PWA tech
+     .fxs-section-title  15px — h2 de section
+     .fxs-block-title    13px — h2/h3 intra-carte
+   Ces classes ne fixent PAS la couleur (sauf .fxs-page-title, legacy) :
+   la couleur reste aux utilitaires du callsite (text-ink, text-terra,
+   variantes dark:) pour ne pas écraser les overrides Tailwind layered. */
+.fxs-title-sm {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 1.25rem;      /* 20px */
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.fxs-section-title {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 0.9375rem;    /* 15px */
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.fxs-block-title {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 0.8125rem;    /* 13px */
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+/* Chiffres tabulaires (D7) — données alignables par défaut : toutes les
+   cellules de tableau + classes data legacy. Pour les KPI/montants hors
+   table, utiliser l'utilitaire Tailwind `tabular-nums` au callsite. */
+table {
+  font-variant-numeric: tabular-nums;
 }
 
 /* H1 de page — un seul style uniforme (Sora 600 ink), plus de découpage
@@ -193,18 +250,12 @@ h1.fxs-page-title > span,
   position: relative;
   background: var(--color-cream);
   border: 1px solid var(--color-sand-border);
-  border-radius: 12px;
-  box-shadow:
-    0 1px 2px rgba(15, 32, 64, 0.04),
-    0 4px 12px rgba(15, 32, 64, 0.05),
-    0 0 0 1px rgba(15, 32, 64, 0.04);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .premium-card:hover {
-  box-shadow:
-    0 2px 4px rgba(15, 32, 64, 0.06),
-    0 8px 24px rgba(15, 32, 64, 0.10),
-    0 0 0 1px var(--color-navy-light);
+  box-shadow: var(--shadow-raised), 0 0 0 1px var(--color-navy-light);
   transform: translateY(-2px);
 }
 
@@ -254,7 +305,7 @@ h1.fxs-page-title > span,
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border-radius: 14px;
+  border-radius: var(--radius-modal);
   transition: background-color 0.25s ease, border-color 0.25s ease,
               transform 0.25s ease, box-shadow 0.25s ease;
   text-decoration: none;
@@ -272,6 +323,47 @@ h1.fxs-page-title > span,
 @keyframes hubFadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Micro-interactions D7 ────────────────────────────────────────────────
+   Focus clavier : anneau navy uniforme sur les contrôles non textuels
+   (les inputs/textarea/select gardent leurs styles de focus propres).
+   :where() = spécificité nulle → surchargeable par n'importe quel
+   utilitaire au callsite. */
+:where(a, button, [role='button'], [role='tab'], summary):focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 2px;
+}
+/* Surfaces navy (sidebar, hubs) : l'anneau navy serait invisible. */
+:where(.foxo-sidebar-desktop, .hub-tile) :focus-visible,
+:where(.hub-tile):focus-visible {
+  outline-color: var(--color-sky-foxo);
+}
+
+/* Survols : transition homogène ~150ms sur boutons, liens, onglets et
+   lignes de tableau (couleurs/ombres uniquement — pas de transform). */
+:where(button, a, [role='button'], [role='tab']) {
+  transition: background-color 0.15s ease, color 0.15s ease,
+              border-color 0.15s ease, box-shadow 0.15s ease,
+              opacity 0.15s ease;
+}
+:where(tbody tr) {
+  transition: background-color 0.15s ease;
+}
+
+/* ── Skeletons D7 — placeholders de chargement sobres (sand-mid, pulse
+   discret). Composant : src/components/ui/Skeleton.tsx. */
+.fx-skeleton {
+  background: var(--color-sand-mid);
+  border-radius: 6px;
+  animation: fx-skeleton-pulse 1.6s ease-in-out infinite;
+}
+@keyframes fx-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-skeleton { animation: none; }
 }
 
 /* Fix z-index Leaflet dans layout portal navy */

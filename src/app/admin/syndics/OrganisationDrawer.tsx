@@ -288,7 +288,7 @@ export function OrganisationDrawer({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 bg-navy-deep/45 z-50 flex justify-end"
     >
-      <div className="w-[480px] max-w-full bg-cream h-screen shadow-2xl border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="w-[480px] max-w-full bg-cream h-screen shadow-overlay border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <header className="px-5 pt-5 pb-3 bg-sand border-b border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]">
           <div className="flex justify-between items-start">
             <div className="min-w-0">
@@ -296,7 +296,7 @@ export function OrganisationDrawer({
                 <TypeBadge type={org.type} />
                 {org.bce && <span className="font-mono text-[10px] text-ink-muted dark:text-[#C8C2B8]">{org.bce}</span>}
               </div>
-              <h2 className="text-base font-extrabold text-ink truncate dark:text-[#F0ECE4]">{org.nom}</h2>
+              <h2 className="fxs-section-title text-ink truncate dark:text-[#F0ECE4]">{org.nom}</h2>
               <div className="text-[11px] text-ink-mid mt-0.5 dark:text-[#C8C2B8] font-mono">{org.email}</div>
             </div>
             <button

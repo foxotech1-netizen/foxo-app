@@ -10,6 +10,7 @@ import {
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { MailAnalyseBadges } from './MailAnalyseBadges';
+import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { MailAnalyseActions } from './MailAnalyseActions';
 import {
   MAIL_CLASSIFICATIONS,
@@ -662,7 +663,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           )}
 
           {labelsLoading ? (
-            <div className="text-[11px] text-ink-muted">Chargement…</div>
+            <div className="space-y-2 py-1">
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-2/3" />
+              <Skeleton className="h-3 w-4/5" />
+            </div>
           ) : labels.length === 0 ? (
             <div className="text-[11px] text-ink-muted italic">
               Aucun libellé personnalisé.
@@ -729,6 +734,19 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           {error && (
             <div className="m-3 text-[12px] bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 font-semibold">
               {error}
+            </div>
+          )}
+          {filtered.length === 0 && loading && !error && (
+            <div className="px-3 py-2 space-y-px">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="py-2.5 border-b border-sand-border/60 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-32" />
+                    <Skeleton className="h-3 w-14 ml-auto" />
+                  </div>
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
+              ))}
             </div>
           )}
           {filtered.length === 0 && !loading && !error && (
@@ -838,7 +856,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   >
                     ← Retour
                   </button>
-                  <h2 className="text-[14px] font-extrabold text-ink truncate">
+                  <h2 className="fxs-block-title text-ink truncate">
                     {detail?.subject ?? '…'}
                   </h2>
                 </div>
@@ -1084,7 +1102,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
             <div className="flex-1 px-4 py-4">
               {detailLoading && (
-                <div className="text-[13px] text-ink-muted text-center py-12">Chargement…</div>
+                <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px] space-y-2.5">
+                  <Skeleton className="h-4 w-2/5" />
+                  <SkeletonText lines={5} className="pt-2" />
+                </div>
               )}
               {!detailLoading && detail && (
                 <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px]">
@@ -1223,7 +1244,7 @@ function BulkActionBar({
           </div>
 
           {menuOpen && (
-            <div className="absolute top-full left-3 right-3 mt-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto z-20">
+            <div className="absolute top-full left-3 right-3 mt-2 bg-cream border border-sand-border rounded-card p-2 shadow-raised max-h-[220px] overflow-y-auto z-20">
               <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Appliquer un libellé
               </div>
@@ -1334,7 +1355,7 @@ function CreateLabelModal({
     >
       <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px]">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[14px] font-extrabold text-ink">
+          <h2 className="fxs-block-title text-ink">
             Nouveau libellé Gmail
           </h2>
           <button
@@ -1419,7 +1440,7 @@ function ConfirmDeleteModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px]">
-        <h2 className="text-[14px] font-extrabold text-terra mb-2 inline-flex items-center gap-1.5">
+        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={14} />
           Supprimer définitivement
         </h2>

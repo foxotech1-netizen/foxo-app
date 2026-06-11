@@ -20,7 +20,7 @@ export function Accordion({ title, defaultOpen = false, children, badge }: Accor
 
   return (
     <div
-      className="rounded-[10px]"
+      className="rounded-card"
       style={{
         background: 'var(--color-cream)',
         boxShadow:

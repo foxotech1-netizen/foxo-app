@@ -107,7 +107,7 @@ export function ExportClient({
     <div className="space-y-6">
       <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-3">
         <div>
-          <h2 className="text-[13px] font-extrabold text-ink inline-flex items-center gap-1.5"><Calendar size={14} aria-hidden /> Période</h2>
+          <h2 className="fxs-block-title text-ink inline-flex items-center gap-1.5"><Calendar size={14} aria-hidden /> Période</h2>
           <p className="text-[11px] text-ink-muted mt-0.5">
             Range actuel : <strong className="font-mono">{range.from}</strong> → <strong className="font-mono">{range.to}</strong>
           </p>
@@ -195,7 +195,7 @@ export function ExportClient({
       </section>
 
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
+        <h2 className="fxs-block-title text-ink mb-2 flex items-center gap-2">
           <Archive size={14} aria-hidden /> Historique des exports
         </h2>
         {history.length === 0 ? (

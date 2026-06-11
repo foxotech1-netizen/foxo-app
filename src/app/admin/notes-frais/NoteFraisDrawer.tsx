@@ -175,14 +175,14 @@ export function NoteFraisDrawer({
       />
 
       {/* Panel */}
-      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-cream shadow-2xl z-50 flex flex-col">
+      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-cream shadow-overlay z-50 flex flex-col">
         {/* Header */}
         <header className="border-b border-sand-border px-5 py-3 flex items-start justify-between">
           <div className="min-w-0">
             <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
               Note de frais
             </div>
-            <h2 className="text-[14px] font-extrabold text-ink mt-0.5 truncate">
+            <h2 className="fxs-block-title text-ink mt-0.5 truncate">
               {note.titre}
             </h2>
           </div>

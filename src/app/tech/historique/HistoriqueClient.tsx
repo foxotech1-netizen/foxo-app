@@ -116,7 +116,7 @@ export function HistoriqueClient({ rows }: { rows: MissionRow[] }) {
       {filtered.length === 0 ? (
         <div
           className="bg-[var(--color-cream)] rounded-xl p-6 text-center text-[14px] text-[var(--color-ink-mid)]"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           Aucune intervention ne correspond aux critères.
         </div>
@@ -134,7 +134,7 @@ function MissionCard({ m }: { m: MissionRow }) {
     <Link
       href={`/tech/interventions/${m.id}`}
       className="block bg-[var(--color-cream)] rounded-xl p-4 transition-all active:scale-[0.99] min-h-[44px]"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 flex-wrap">

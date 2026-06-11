@@ -359,7 +359,7 @@ function Section({
       <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-navy-pale border-navy-light dark:bg-[#1B3A6B] dark:border-[#2A5298] mb-3">
         <Icon size={18} className="text-navy dark:text-white" aria-hidden />
         <div className="flex-1">
-          <h2 className="text-sm font-bold text-navy dark:text-[#F0ECE4]">{title}</h2>
+          <h2 className="fxs-block-title text-navy dark:text-[#F0ECE4]">{title}</h2>
         </div>
         <span className="text-sm font-extrabold text-navy dark:text-white">{count}</span>
       </div>

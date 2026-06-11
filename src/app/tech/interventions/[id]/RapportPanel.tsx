@@ -339,7 +339,7 @@ export function RapportPanel({
   return (
     <section
       className="bg-[var(--color-cream)] rounded-xl p-4"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2.5">
@@ -713,7 +713,7 @@ function PreviewModal({
           const photos = photosBySection[key];
           return (
             <section key={key} className="mb-6 pb-6 border-b border-sand-mid last:border-b-0">
-              <h2 className="text-[15px] font-extrabold text-navy mb-2">{label}</h2>
+              <h2 className="fxs-section-title text-navy mb-2">{label}</h2>
               {text ? (
                 <p className="text-[13px] text-ink leading-relaxed whitespace-pre-wrap">{text}</p>
               ) : (

@@ -170,7 +170,7 @@ export function RappelsClient({
       {/* Paramètres */}
       <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-4">
         <div>
-          <h2 className="text-[13px] font-extrabold text-ink inline-flex items-center gap-1.5"><Settings size={14} aria-hidden /> Paramètres rappels</h2>
+          <h2 className="fxs-block-title text-ink inline-flex items-center gap-1.5"><Settings size={14} aria-hidden /> Paramètres rappels</h2>
           <p className="text-[11px] text-ink-muted mt-0.5">
             Variables disponibles dans le template : <code className="font-mono">{'{ref}'}</code>{' '}
             <code className="font-mono">{'{montant}'}</code>{' '}
@@ -254,7 +254,7 @@ export function RappelsClient({
       {/* Factures en retard */}
       <section>
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <h2 className="text-[13px] font-extrabold text-ink flex items-center gap-2">
+          <h2 className="fxs-block-title text-ink flex items-center gap-2">
             <Bell size={14} aria-hidden /> Factures en retard
             <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
               {enRetard.length}

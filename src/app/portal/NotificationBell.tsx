@@ -126,7 +126,7 @@ export function NotificationBell({
                 background: '#fff',
                 border: '1px solid var(--color-sand-border, #E7E0D4)',
                 borderRadius: 12,
-                boxShadow: '0 12px 32px rgba(0,0,0,.18)',
+                boxShadow: 'var(--shadow-overlay)',
                 zIndex: 1000,
                 color: '#1a1a1a',
               }}

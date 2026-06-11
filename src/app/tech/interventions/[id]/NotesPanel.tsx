@@ -119,7 +119,7 @@ export function NotesPanel({
   return (
     <section
       className="bg-[var(--color-cream)] rounded-xl p-4"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2.5">

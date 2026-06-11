@@ -225,7 +225,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
                 style={{
                   background: 'var(--color-cream)',
                   border: '1px solid var(--color-sand-border)',
-                  boxShadow: '0 4px 12px rgba(15,32,64,0.10)',
+                  boxShadow: 'var(--shadow-raised)',
                 }}
                 onMouseLeave={() => setOccupantDropdownOpen(false)}
               >
@@ -356,13 +356,13 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
           style={{ background: 'rgba(15, 32, 64, 0.45)' }}
         >
           <div
-            className="w-full max-w-[420px] rounded-[10px] p-5"
+            className="w-full max-w-[420px] rounded-card p-5"
             style={{
               background: 'var(--color-cream)',
-              boxShadow: '0 12px 32px rgba(15,32,64,0.18)',
+              boxShadow: 'var(--shadow-overlay)',
             }}
           >
-            <h2 className="font-sora text-[14px] font-semibold m-0 mb-2" style={{ color: 'var(--color-ink)' }}>
+            <h2 className="fxs-block-title m-0 mb-2" style={{ color: 'var(--color-ink)' }}>
               Créer l&apos;event Calendar ?
             </h2>
             <p className="text-[13px] m-0 mb-3" style={{ color: 'var(--color-ink-mid)' }}>

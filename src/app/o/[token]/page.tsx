@@ -75,8 +75,8 @@ export default async function OccupantPortal({
         </div>
 
         <div
-          className="bg-[var(--color-cream)] rounded-[10px] p-5 sm:p-7 space-y-5"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="bg-[var(--color-cream)] rounded-card p-5 sm:p-7 space-y-5"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           {/* Statut courant */}
           <StatusBanner
@@ -89,7 +89,7 @@ export default async function OccupantPortal({
             <div className="font-sora text-[12px] text-[var(--color-navy)] font-semibold tracking-[0.01em]">
               Réf. {iv.ref ?? '—'}
             </div>
-            <h1 className="font-sora text-[22px] font-semibold text-[var(--color-ink)] mt-1.5 tracking-tight">
+            <h1 className="fxs-page-title mt-1.5">
               {acp?.nom ?? '—'}
             </h1>
             <div className="text-[13px] text-[var(--color-ink)] mt-1">
@@ -245,10 +245,10 @@ function NotFoundCard() {
           <Logo size={56} variant="noir" />
         </div>
         <div
-          className="bg-[var(--color-cream)] rounded-[10px] p-7 text-center"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="bg-[var(--color-cream)] rounded-card p-7 text-center"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
-          <h1 className="font-sora text-[20px] font-semibold text-[var(--color-ink)] mb-2 tracking-tight">Lien invalide</h1>
+          <h1 className="fxs-title-sm mb-2">Lien invalide</h1>
           <p className="text-[14px] text-[var(--color-ink-mid)] leading-relaxed">
             Ce lien de confirmation n&apos;est plus valide ou n&apos;existe pas.
             <br />

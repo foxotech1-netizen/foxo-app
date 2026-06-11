@@ -65,7 +65,7 @@ export function PaiementsClient({
     <div className="space-y-6">
       {/* Import Beobank */}
       <section className="bg-cream rounded-xl border border-sand-border p-4">
-        <h2 className="text-[13px] font-extrabold text-ink mb-1 inline-flex items-center gap-1.5">
+        <h2 className="fxs-block-title text-ink mb-1 inline-flex items-center gap-1.5">
           <Download size={14} aria-hidden /> Import Beobank CSV
         </h2>
         <p className="text-[11px] text-ink-muted mb-3">
@@ -106,7 +106,7 @@ export function PaiementsClient({
 
       {/* En attente */}
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
+        <h2 className="fxs-block-title text-ink mb-2 flex items-center gap-2">
           <Hourglass size={14} aria-hidden /> En attente de paiement
           <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
             {enAttente.length}
@@ -123,7 +123,7 @@ export function PaiementsClient({
 
       {/* Récents paiements */}
       <section>
-        <h2 className="text-[13px] font-extrabold text-ink mb-2 flex items-center gap-2">
+        <h2 className="fxs-block-title text-ink mb-2 flex items-center gap-2">
           <CheckCircle2 size={14} aria-hidden /> Paiements récents
           <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
             {recentes.length}
