@@ -86,7 +86,7 @@ export default function GoHubPage() {
               >
                 <div className="flex items-start gap-4 p-7 h-full">
                   <div
-                    className="w-11 h-11 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                    className="w-11 h-11 rounded-card flex items-center justify-center flex-shrink-0"
                     style={{ background: `${t.iconColor}26` }}
                   >
                     <Icon size={22} style={{ color: t.iconColor }} />

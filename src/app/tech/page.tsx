@@ -34,7 +34,7 @@ export default async function TechHome() {
     return (
       <div
         className="bg-[var(--color-cream)] rounded-xl p-6 text-center"
-        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <h1 className="fxs-title-sm mb-2">Compte non encodé</h1>
         <p className="text-[14px] text-[var(--color-ink-mid)] leading-relaxed">
@@ -144,7 +144,7 @@ function Section({ title, missions, empty }: { title: string; missions: Mission[
       {missions.length === 0 ? (
         <div
           className="bg-[var(--color-cream)] rounded-xl p-5"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           <p className="text-[14px] text-[var(--color-ink-mid)]">{empty}</p>
         </div>
@@ -172,7 +172,7 @@ function MissionCard({ m }: { m: Mission }) {
     <Link
       href={`/tech/interventions/${m.id}`}
       className="block bg-[var(--color-cream)] rounded-xl p-4 transition-all active:scale-[0.99] min-h-[44px]"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 flex-wrap">

@@ -20,7 +20,7 @@ export default async function TechHistoriquePage() {
     return (
       <div
         className="bg-[var(--color-cream)] rounded-xl p-6 text-center"
-        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <h1 className="fxs-title-sm mb-2">Compte non trouvé</h1>
         <p className="text-[14px] text-[var(--color-ink-mid)]">Contacte l&apos;administrateur.</p>

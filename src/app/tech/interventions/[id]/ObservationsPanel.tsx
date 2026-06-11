@@ -304,7 +304,7 @@ export function ObservationsPanel({
     }
   }
 
-  const cardStyle = { boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' };
+  const cardStyle = { boxShadow: 'var(--shadow-card)' };
 
   // ─── Loading ─────────────────────────────────────────────────────────
   if (loading) {

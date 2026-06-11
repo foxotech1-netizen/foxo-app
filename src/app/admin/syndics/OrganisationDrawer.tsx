@@ -288,7 +288,7 @@ export function OrganisationDrawer({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 bg-navy-deep/45 z-50 flex justify-end"
     >
-      <div className="w-[480px] max-w-full bg-cream h-screen shadow-2xl border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="w-[480px] max-w-full bg-cream h-screen shadow-overlay border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <header className="px-5 pt-5 pb-3 bg-sand border-b border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]">
           <div className="flex justify-between items-start">
             <div className="min-w-0">

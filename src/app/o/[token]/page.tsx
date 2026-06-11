@@ -75,8 +75,8 @@ export default async function OccupantPortal({
         </div>
 
         <div
-          className="bg-[var(--color-cream)] rounded-[10px] p-5 sm:p-7 space-y-5"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="bg-[var(--color-cream)] rounded-card p-5 sm:p-7 space-y-5"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           {/* Statut courant */}
           <StatusBanner
@@ -245,8 +245,8 @@ function NotFoundCard() {
           <Logo size={56} variant="noir" />
         </div>
         <div
-          className="bg-[var(--color-cream)] rounded-[10px] p-7 text-center"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="bg-[var(--color-cream)] rounded-card p-7 text-center"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           <h1 className="fxs-title-sm mb-2">Lien invalide</h1>
           <p className="text-[14px] text-[var(--color-ink-mid)] leading-relaxed">

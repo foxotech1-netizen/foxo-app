@@ -83,7 +83,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
 
   return (
     <div
-      className="rounded-[10px] overflow-hidden"
+      className="rounded-card overflow-hidden"
       style={{
         background: 'var(--color-cream)',
         boxShadow:

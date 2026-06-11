@@ -511,7 +511,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
               style={{
                 background: 'var(--color-cream)',
                 border: '1px solid var(--color-sand-border)',
-                boxShadow: '0 4px 12px rgba(15,32,64,0.12)',
+                boxShadow: 'var(--shadow-raised)',
               }}
             >
               {visibleResults.map((r) => (

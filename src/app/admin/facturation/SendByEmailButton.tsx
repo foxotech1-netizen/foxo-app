@@ -115,7 +115,7 @@ export function SendByEmailButton({
           />
           <form
             onSubmit={handleSubmit}
-            className="relative bg-cream rounded-xl border border-sand-border shadow-2xl w-full max-w-lg p-5 max-h-[90vh] overflow-y-auto"
+            className="relative bg-cream rounded-modal border border-sand-border shadow-overlay w-full max-w-lg p-5 max-h-[90vh] overflow-y-auto"
           >
             <h2 id="send-email-dialog-title" className="fxs-section-title text-ink mb-1">
               Envoyer {labelForType(facture.type)} <span className="font-mono">{facture.numero}</span>

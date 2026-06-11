@@ -99,6 +99,30 @@
 
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+
+  /* ── Élévation D7 — 3 niveaux d'ombre teintée navy-deep ────────────────
+     card    : surface posée au repos (cartes, panels, tuiles KPI)
+     raised  : élément au-dessus du flux (menus, popovers, hover de carte)
+     overlay : couche bloquante (modales, drawers, dialogs)
+     Utilisables en utilitaires (shadow-card…) ou en var(--shadow-card). */
+  --shadow-card:
+    0 1px 2px rgba(15, 32, 64, 0.04),
+    0 4px 12px rgba(15, 32, 64, 0.05),
+    0 0 0 1px rgba(15, 32, 64, 0.04);
+  --shadow-raised:
+    0 2px 4px rgba(15, 32, 64, 0.06),
+    0 8px 24px rgba(15, 32, 64, 0.10);
+  --shadow-overlay:
+    0 1px 2px rgba(15, 32, 64, 0.06),
+    0 12px 32px rgba(15, 32, 64, 0.18),
+    0 0 0 1px rgba(15, 32, 64, 0.06);
+
+  /* ── Rayons D7 — échelle unique ────────────────────────────────────────
+     ctl 8px (boutons, inputs, chips) · card 10px (cartes, panels, menus)
+     · modal 14px (modales, drawers). Utilitaires : rounded-ctl/card/modal. */
+  --radius-ctl: 8px;
+  --radius-card: 10px;
+  --radius-modal: 14px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -148,21 +172,15 @@ body {
    Évite de répéter inline `style={{boxShadow: '...'}}` sur 40 pages. */
 .fxs-card {
   background: var(--color-cream);
-  border-radius: 10px;
-  box-shadow:
-    0 1px 2px rgba(15, 32, 64, 0.04),
-    0 4px 12px rgba(15, 32, 64, 0.05),
-    0 0 0 1px rgba(15, 32, 64, 0.04);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 .fxs-card-hover {
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .fxs-card-hover:hover {
   transform: translateY(-2px);
-  box-shadow:
-    0 2px 4px rgba(15, 32, 64, 0.06),
-    0 8px 24px rgba(15, 32, 64, 0.10),
-    0 0 0 1px var(--color-navy-light);
+  box-shadow: var(--shadow-raised), 0 0 0 1px var(--color-navy-light);
 }
 
 /* ── Échelle typographique D7 — titres harmonisés des 3 portails ─────────
@@ -232,18 +250,12 @@ h1.fxs-page-title > span,
   position: relative;
   background: var(--color-cream);
   border: 1px solid var(--color-sand-border);
-  border-radius: 12px;
-  box-shadow:
-    0 1px 2px rgba(15, 32, 64, 0.04),
-    0 4px 12px rgba(15, 32, 64, 0.05),
-    0 0 0 1px rgba(15, 32, 64, 0.04);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 .premium-card:hover {
-  box-shadow:
-    0 2px 4px rgba(15, 32, 64, 0.06),
-    0 8px 24px rgba(15, 32, 64, 0.10),
-    0 0 0 1px var(--color-navy-light);
+  box-shadow: var(--shadow-raised), 0 0 0 1px var(--color-navy-light);
   transform: translateY(-2px);
 }
 
@@ -293,7 +305,7 @@ h1.fxs-page-title > span,
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border-radius: 14px;
+  border-radius: var(--radius-modal);
   transition: background-color 0.25s ease, border-color 0.25s ease,
               transform 0.25s ease, box-shadow 0.25s ease;
   text-decoration: none;

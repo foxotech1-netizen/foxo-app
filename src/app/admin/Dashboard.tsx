@@ -463,8 +463,8 @@ function StatCard({
 
   const content = (
     <div
-      className={`relative bg-[var(--color-cream)] rounded-[10px] p-4 transition-all hover:-translate-y-0.5 ${activeRing}`}
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      className={`relative bg-[var(--color-cream)] rounded-card p-4 transition-all hover:-translate-y-0.5 ${activeRing}`}
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="text-[10px] font-medium tracking-[0.12em] uppercase text-[var(--color-ink-muted)] mb-2.5">
         {label}
@@ -533,8 +533,8 @@ function TodoCard({
 
   return (
     <div
-      className="bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      className="bg-[var(--color-cream)] rounded-card overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[var(--color-sand-mid)]">
         <span className="w-[3px] h-3.5 rounded-sm" style={{ background: swatchColor }}></span>
@@ -951,7 +951,7 @@ function NewMailSection({
                 {showMenu && (
                   <div
                     ref={menuRef}
-                    className="absolute top-full right-0 mt-1 z-20 border rounded-md shadow-lg min-w-[200px]"
+                    className="absolute top-full right-0 mt-1 z-20 border rounded-card shadow-raised min-w-[200px]"
                     style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
                     onClick={(e) => e.stopPropagation()}
                   >

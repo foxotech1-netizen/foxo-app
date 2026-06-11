@@ -873,7 +873,7 @@ export function ModalShell({
       className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-cream w-full sm:max-w-[640px] sm:rounded-2xl rounded-t-2xl border border-sand-border max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-cream w-full sm:max-w-[640px] sm:rounded-modal rounded-t-modal border border-sand-border max-h-[90vh] flex flex-col shadow-overlay">
         <header className="px-5 py-4 border-b border-sand-border flex items-start justify-between gap-3 flex-shrink-0">
           <div>
             <h2 className="fxs-section-title text-ink">{title}</h2>

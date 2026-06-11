@@ -1259,7 +1259,7 @@ export function InterventionsClient({
           <div
             className="bg-[var(--color-cream)] rounded-xl p-5 w-full max-w-[360px]"
             onClick={(e) => e.stopPropagation()}
-            style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+            style={{ boxShadow: 'var(--shadow-card)' }}
           >
             <h3 className="fxs-section-title text-[var(--color-ink)] mb-1.5">
               Relancer les occupants de ce dossier ?
@@ -1430,8 +1430,8 @@ export function InterventionsClient({
       {/* Table — desktop only (cf. cards mobile plus bas) */}
       <div className="flex-1 overflow-auto px-6 pt-3 pb-4">
         <div
-          className="hidden md:block bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="hidden md:block bg-[var(--color-cream)] rounded-card overflow-hidden"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           <table className="w-full border-collapse min-w-[700px]">
             <thead>
@@ -1746,7 +1746,7 @@ export function InterventionsClient({
           <div className={
             fullPage
               ? 'w-full max-w-[1100px] mx-auto bg-[var(--color-cream)] flex-1 min-h-0 flex flex-col'
-              : 'w-[460px] bg-[var(--color-cream)] h-screen shadow-2xl border-l border-[var(--color-sand-border)] flex flex-col'
+              : 'w-[460px] bg-[var(--color-cream)] h-screen shadow-overlay border-l border-[var(--color-sand-border)] flex flex-col'
           }>
             <header className="px-5 pt-5 bg-[var(--color-sand)] border-b border-[var(--color-sand-border)]">
               <div className="flex justify-between items-start">
@@ -4612,8 +4612,8 @@ function Block({ title, children, id }: { title: React.ReactNode; children: Reac
   return (
     <div
       id={id}
-      className="bg-[var(--color-cream)] rounded-[10px] px-3.5 py-3 mb-3 scroll-mt-4"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      className="bg-[var(--color-cream)] rounded-card px-3.5 py-3 mb-3 scroll-mt-4"
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center gap-2.5 mb-2">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>

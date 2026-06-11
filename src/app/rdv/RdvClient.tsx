@@ -200,8 +200,8 @@ export function RdvClient({ months }: { months: MonthData[] }) {
     return (
       <div className="px-4 sm:px-6 py-12 max-w-[1100px] mx-auto w-full">
         <div
-          className="bg-[var(--color-cream)] rounded-[10px] p-8 sm:p-10 text-center max-w-[560px] mx-auto"
-          style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+          className="bg-[var(--color-cream)] rounded-card p-8 sm:p-10 text-center max-w-[560px] mx-auto"
+          style={{ boxShadow: 'var(--shadow-card)' }}
         >
           {/* Icône Check géante dans cercle ok-light */}
           <div className="flex justify-center mb-5">
@@ -321,8 +321,8 @@ export function RdvClient({ months }: { months: MonthData[] }) {
       {/* FORM */}
       <div
         ref={formRef}
-        className="bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
-        style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+        className="bg-[var(--color-cream)] rounded-card overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <StepIndicator step={step} />
 
@@ -440,8 +440,8 @@ function CalendarWidget({
 
   return (
     <section
-      className="bg-[var(--color-cream)] rounded-[10px] overflow-hidden"
-      style={{ boxShadow: '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)' }}
+      className="bg-[var(--color-cream)] rounded-card overflow-hidden"
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-4 border-b border-[var(--color-sand-mid)]">
         <div>

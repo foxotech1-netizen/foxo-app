@@ -1223,7 +1223,7 @@ function BulkActionBar({
           </div>
 
           {menuOpen && (
-            <div className="absolute top-full left-3 right-3 mt-2 bg-cream border border-sand-border rounded-xl p-2 shadow-lg max-h-[220px] overflow-y-auto z-20">
+            <div className="absolute top-full left-3 right-3 mt-2 bg-cream border border-sand-border rounded-card p-2 shadow-raised max-h-[220px] overflow-y-auto z-20">
               <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
                 Appliquer un libellé
               </div>

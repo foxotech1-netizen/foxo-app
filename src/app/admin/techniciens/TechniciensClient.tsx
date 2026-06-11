@@ -235,7 +235,7 @@ export function TechniciensClient({
           onClick={(e) => { if (e.target === e.currentTarget && !pending) { setOpen(false); setColor(DEFAULT_COLOR); } }}
           className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
         >
-          <div className="bg-cream rounded-2xl w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+          <div className="bg-cream rounded-modal w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-overlay">
             <div className="px-6 py-5 border-b border-sand-border flex justify-between items-center flex-shrink-0 bg-cream">
               <div>
                 <div className="text-base font-extrabold text-ink">Nouveau technicien</div>

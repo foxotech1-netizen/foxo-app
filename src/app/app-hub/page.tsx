@@ -117,7 +117,7 @@ function CompactTile({ tile, delayMs }: { tile: Tile; delayMs: number }) {
     >
       <div className="flex items-start gap-3 p-4 sm:p-5">
         <div
-          className="w-11 h-11 rounded-[10px] flex items-center justify-center flex-shrink-0"
+          className="w-11 h-11 rounded-card flex items-center justify-center flex-shrink-0"
           style={{ background: `${tile.iconColor}26` }}
         >
           <Icon size={22} style={{ color: tile.iconColor }} />
