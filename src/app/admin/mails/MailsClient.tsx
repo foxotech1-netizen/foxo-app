@@ -79,6 +79,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [loading, setLoading] = useState(initialConnected);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Recherche serveur (Mails V2 P1) : la saisie est debouncée 400 ms puis
+  // relayée telle quelle à GET /api/admin/mails?search=… qui la combine à
+  // la query Gmail de l'onglet actif. Champ vidé → retour au comportement
+  // normal de l'onglet (debouncedQuery '').
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 400);
+    return () => clearTimeout(t);
+  }, [query]);
   const [filter, setFilter] = useState<FilterMode>('a_traiter');
   // Filtre métier par classification canonique (U4). Purement client :
   // croise la Map des analyses (thread_id → MailAnalyse). 'toutes' = pas
@@ -144,6 +153,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     // entièrement côté serveur ('tous' = défaut serveur).
     params.set('filter', filter);
     if (activeLabel) params.set('label', activeLabel);
+    if (debouncedQuery) params.set('search', debouncedQuery);
     fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
@@ -155,7 +165,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [initialConnected, filter, activeLabel, refreshTick]);
+  }, [initialConnected, filter, activeLabel, refreshTick, debouncedQuery]);
 
   // Charge les analyses Claude pour tous les thread_id visibles. Évite
   // d'attendre le clic d'un mail pour savoir s'il a déjà été analysé
@@ -266,13 +276,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     return () => { mounted = false; };
   }, [selectedId]);
 
+  // La recherche texte est désormais serveur (query Gmail) — seul le
+  // filtre catégorie reste client (croisement avec la Map analyses).
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return mails.filter((m) => {
-      if (q) {
-        const matches = [m.from, m.subject, m.snippet].some((s) => s.toLowerCase().includes(q));
-        if (!matches) return false;
-      }
       if (categoryFilter !== 'toutes') {
         const analyse = analyses.get(m.thread_id);
         // Pas d'analyse → pas de classification → exclu du filtre métier.
@@ -282,7 +289,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       }
       return true;
     });
-  }, [mails, query, filter, categoryFilter, analyses]);
+  }, [mails, categoryFilter, analyses]);
 
   const labelById = useMemo(() => {
     const m = new Map<string, GmailLabel>();
@@ -748,7 +755,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               {error}
             </div>
           )}
-          {filtered.length === 0 && loading && !error && (
+          {loading && !error && (
             <div className="px-3 py-2 space-y-px">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="py-2.5 border-b border-sand-border/60 space-y-2">
@@ -766,7 +773,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
             </div>
           )}
-          {filtered.map((m) => {
+          {!loading && filtered.map((m) => {
             const active = selectedId === m.id;
             const checked = selectedIds.has(m.id);
             const badges = userBadgesForMail(m);

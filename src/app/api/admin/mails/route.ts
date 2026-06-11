@@ -30,6 +30,14 @@ export async function GET(request: Request) {
   const limit = Math.min(Math.max(1, limitRaw), 100);    // borne dure
   const filter = url.searchParams.get('filter');
   const label = url.searchParams.get('label');
+  // Recherche plein-texte relayée à Gmail (Mails V2 P1), combinée à la
+  // query de l'onglet actif. Les guillemets sont neutralisés pour ne pas
+  // casser le quoting des labels dans la query ; longueur bornée.
+  const search = (url.searchParams.get('search') ?? '')
+    .replace(/"/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
   // Construit la query Gmail. trash et inbox sont exclusifs.
   // Onglets métier (Mails V2 P1) : a_traiter / demandes / occupants /
   // archives s'ajoutent aux modes historiques tous / system / trash.
@@ -64,6 +72,7 @@ export async function GET(request: Request) {
     parts.push(EXCLUDE_PLATFORM_MAILS_Q);
   }
   if (label) parts.push(`label:"${label.replace(/"/g, '')}"`);
+  if (search) parts.push(search);
   const q = parts.join(' ');
 
   const res = await listInboxMails({ limit, q });
