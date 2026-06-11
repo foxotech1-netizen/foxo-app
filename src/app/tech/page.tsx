@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Check, Circle, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { StatutBadge } from '@/components/StatutBadge';
-import { todayLong } from '@/lib/format';
+import { fmtTime, todayLong, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Organisation } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -164,9 +164,9 @@ function MissionCard({ m }: { m: Mission }) {
   const done = Boolean(m.ended_at);
   // Split date / heure pour mettre l'heure en accent vert tech (--accent-tech).
   const dt = m.creneau_debut ? new Date(m.creneau_debut) : null;
-  const time = dt ? dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }) : null;
+  const time = dt ? fmtTime(m.creneau_debut) : null;
   const dateLabel = dt
-    ? dt.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' })
+    ? dt.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ_BRUSSELS })
     : null;
   return (
     <Link

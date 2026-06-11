@@ -1,5 +1,6 @@
 'use client';
 
+import { TZ_BRUSSELS } from '@/lib/format';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   AlertTriangle, Bell, Building2, Check, CheckCircle2, Cloud, CreditCard,
@@ -703,7 +704,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
                 <span className="inline-flex items-center gap-1.5"><Check size={14} />Connecté en tant que <strong className="font-mono">{googleStatus.email ?? '—'}</strong></span>
                 {googleStatus.expiry && (
                   <span className="block text-[10px] text-ink-muted mt-1">
-                    Token expire : {new Date(googleStatus.expiry).toLocaleString('fr-BE')}
+                    Token expire : {new Date(googleStatus.expiry).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS })}
                   </span>
                 )}
               </div>
@@ -1143,19 +1144,19 @@ function CalendarWatchPanel({
     if (watch.status === 'active') {
       return {
         cls: 'bg-ok-light border-ok-mid text-ok',
-        text: <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} />Active — expire le <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong></span>,
+        text: <span className="inline-flex items-center gap-1.5"><CheckCircle2 size={14} />Active — expire le <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : '?'}</strong></span>,
       };
     }
     if (watch.status === 'expiring_soon') {
       return {
         cls: 'bg-amber-light border-[#E8C896] text-[#8A5A1A]',
-        text: <span className="inline-flex items-center gap-1.5"><AlertTriangle size={14} />Expire dans moins de 24h — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Le cron quotidien renouvellera automatiquement.</span>,
+        text: <span className="inline-flex items-center gap-1.5"><AlertTriangle size={14} />Expire dans moins de 24h — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : '?'}</strong>. Le cron quotidien renouvellera automatiquement.</span>,
       };
     }
     if (watch.status === 'expired') {
       return {
         cls: 'bg-terra-light border-terra-mid text-terra',
-        text: <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Expirée — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE') : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</span>,
+        text: <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Expirée — <strong className="font-mono">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</span>,
       };
     }
     return {

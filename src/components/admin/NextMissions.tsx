@@ -9,6 +9,7 @@
 
 import Link from 'next/link';
 import type { InterventionRow } from '@/lib/types/database';
+import { fmtTime } from '@/lib/format';
 
 const TECH_DOT_COLORS = [
   'var(--color-amber-foxo)',
@@ -16,11 +17,6 @@ const TECH_DOT_COLORS = [
   'var(--color-ok)',
   'var(--color-terra)',
 ];
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-}
 
 function techDotColor(techId: string | null): string {
   if (!techId) return 'var(--color-ink-muted)';

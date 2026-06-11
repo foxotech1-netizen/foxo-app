@@ -1,5 +1,6 @@
 'use client';
 
+import { fmtTime } from '@/lib/format';
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, MessageCircle, Save } from 'lucide-react';
 
@@ -110,7 +111,7 @@ export function NotesPanel({
       : dirty
         ? '… modifications en attente'
         : savedAt
-          ? <span className="inline-flex items-center gap-1"><Check size={11} />Sauvegardé {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</span>
+          ? <span className="inline-flex items-center gap-1"><Check size={11} />Sauvegardé {fmtTime(savedAt)}</span>
           : initial
             ? <span className="inline-flex items-center gap-1"><Check size={11} />Synchronisé</span>
             : '';

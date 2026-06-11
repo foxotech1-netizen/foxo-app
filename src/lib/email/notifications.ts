@@ -1,3 +1,4 @@
+import { fmtDateTime } from '@/lib/format';
 import { sendEmailResend } from '@/lib/email/resend';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VENDOR } from '@/lib/constants/vendor';
@@ -138,10 +139,7 @@ async function loadContext(interventionId: string): Promise<Context | null> {
 
 function fmtCreneau(iso: string | null): string {
   if (!iso) return 'À définir';
-  return new Date(iso).toLocaleString('fr-BE', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return fmtDateTime(iso, true);
 }
 
 // ── Notifications par statut ───────────────────────────────────────

@@ -1,5 +1,6 @@
 'use client';
 
+import { fmtTime } from '@/lib/format';
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, FileText, Eye, Check, X, Cloud, Camera } from 'lucide-react';
@@ -349,7 +350,7 @@ export function RapportPanel({
         </div>
         {savedAt && (
           <span className="text-[11px] text-[var(--color-ink-mid)] font-mono">
-            Enregistré {new Date(savedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+            Enregistré {fmtTime(savedAt)}
           </span>
         )}
       </div>

@@ -6,6 +6,7 @@
 //                 syndics actifs, retards, urgentes)
 //   - intervention : dossier complet d'une intervention donnée
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { searchEmailsByDossier } from '@/lib/gmail';
@@ -81,7 +82,7 @@ export async function buildGlobalContext(client?: SupabaseClient): Promise<strin
   });
 
   const lines: string[] = [];
-  lines.push(`## CONTEXTE FOXO (${new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })})`);
+  lines.push(`## CONTEXTE FOXO (${new Date().toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ_BRUSSELS })})`);
   lines.push('');
   lines.push(`### Statistiques`);
   lines.push(`- Interventions chargées (80 plus récentes) : ${interventions.length}`);
@@ -105,7 +106,7 @@ export async function buildGlobalContext(client?: SupabaseClient): Promise<strin
     for (const iv of enRetard.slice(0, 10)) {
       const acp = acpMap.get(iv.acp_id ?? '');
       const tech = iv.technicien_id ? techMap.get(iv.technicien_id) : null;
-      lines.push(`- ${iv.ref ?? '?'} · ${iv.type ?? '?'} · ${acp?.nom ?? '—'} · ${iv.statut} · prévu ${new Date(iv.creneau_debut!).toLocaleString('fr-BE')} · tech : ${tech ? `${tech.prenom} ${tech.nom}` : 'non assigné'}`);
+      lines.push(`- ${iv.ref ?? '?'} · ${iv.type ?? '?'} · ${acp?.nom ?? '—'} · ${iv.statut} · prévu ${new Date(iv.creneau_debut!).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS })} · tech : ${tech ? `${tech.prenom} ${tech.nom}` : 'non assigné'}`);
     }
     lines.push('');
   }
@@ -122,7 +123,7 @@ export async function buildGlobalContext(client?: SupabaseClient): Promise<strin
     lines.push(`### Programme du jour`);
     for (const iv of aujourdhui) {
       const tech = iv.technicien_id ? techMap.get(iv.technicien_id) : null;
-      const t = new Date(iv.creneau_debut!).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+      const t = fmtTime(iv.creneau_debut!);
       lines.push(`- ${t} · ${iv.ref ?? '?'} · ${acpMap.get(iv.acp_id ?? '')?.nom ?? '—'} · ${iv.type ?? ''} · ${tech ? `${tech.prenom} ${tech.nom}` : 'non assigné'}`);
     }
     lines.push('');
@@ -189,13 +190,13 @@ export async function buildInterventionContext(interventionId: string): Promise<
   lines.push(`- Statut : ${ivTyped.statut}`);
   if (ivTyped.suspens_motif) lines.push(`- Motif suspension : ${ivTyped.suspens_motif}`);
   if (ivTyped.creneau_debut) {
-    lines.push(`- Créneau : ${new Date(ivTyped.creneau_debut).toLocaleString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`);
+    lines.push(`- Créneau : ${new Date(ivTyped.creneau_debut).toLocaleString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}`);
   }
   if (ivTyped.started_at && ivTyped.ended_at) {
     const a = new Date(ivTyped.started_at);
     const b = new Date(ivTyped.ended_at);
     const min = Math.round((b.getTime() - a.getTime()) / 60000);
-    lines.push(`- Durée sur place : ${min} min (${a.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })} → ${b.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })})`);
+    lines.push(`- Durée sur place : ${min} min (${fmtTime(a.toISOString())} → ${fmtTime(b.toISOString())})`);
   }
   lines.push(`- Date demande : ${ivTyped.date_demande ? new Date(ivTyped.date_demande).toLocaleDateString('fr-BE') : '—'}`);
   if (ivTyped.description) lines.push(`- Description initiale : ${ivTyped.description}`);

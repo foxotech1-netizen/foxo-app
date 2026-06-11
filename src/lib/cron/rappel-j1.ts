@@ -1,6 +1,7 @@
 // Logique partagée entre POST /api/cron/rappel-j1 (envoi) et
 // GET /api/cron/rappel-j1/preview (dry-run).
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendSMS, sendWhatsApp, applyTemplateVars, logSmsSend } from '@/lib/sms';
 import { sendRappelJ1Email } from '@/lib/email/rappel-j1';
@@ -164,8 +165,8 @@ export async function runRappelJ1(dryRun: boolean): Promise<{ result: CronResult
     }
 
     const dt = new Date(t.creneau_debut);
-    const dateLabel = dt.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' });
-    const heureLabel = dt.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+    const dateLabel = dt.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS });
+    const heureLabel = fmtTime(t.creneau_debut);
 
     const channels: ('email' | 'sms' | 'whatsapp')[] = (() => {
       if (t.contact_preference === 'both') return ['email', 'sms'];

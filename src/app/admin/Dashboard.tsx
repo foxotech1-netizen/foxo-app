@@ -8,6 +8,7 @@ import {
   ArrowUpRight, type LucideIcon,
 } from 'lucide-react';
 import type { InterventionRow, Utilisateur } from '@/lib/types/database';
+import { fmtTime } from '@/lib/format';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from './page';
 import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterventionModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -24,11 +25,6 @@ const TECH_AVATAR_COLORS = [
   { bg: 'var(--color-ok)',         soft: 'var(--color-ok-light)' },
   { bg: 'var(--color-terra)',      soft: 'var(--color-terra-light)' },
 ];
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-}
 
 function isSameDay(iso: string | null, ref: Date): boolean {
   if (!iso) return false;

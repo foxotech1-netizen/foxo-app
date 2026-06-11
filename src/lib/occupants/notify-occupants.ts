@@ -15,6 +15,7 @@
 //     l'incohérence app.foxo.be / portal.foxo.be n'est PAS corrigée ici ;
 //   - token_sent_at = now() uniquement si au moins un canal a réussi.
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { randomBytes } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmailResend } from '@/lib/email/resend';
@@ -143,8 +144,8 @@ export async function notifyOccupantsForIntervention(
     return { ok: false, error: 'Aucun créneau défini sur cette intervention.', status: 400 };
   }
   const creneauDate = new Date(intervention.creneau_debut);
-  const dateFr = creneauDate.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' });
-  const heureFr = creneauDate.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+  const dateFr = creneauDate.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS });
+  const heureFr = fmtTime(intervention.creneau_debut);
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.foxo.be';
 

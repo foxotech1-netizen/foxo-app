@@ -1,5 +1,6 @@
 'use client';
 
+import { fmtTime } from '@/lib/format';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -656,7 +657,7 @@ export function PlanningCalendar({
                       {showGoogle && cellGcal.map((ev) => {
                         const time = ev.all_day
                           ? 'Journée'
-                          : new Date(ev.start).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+                          : fmtTime(ev.start);
                         const tooltip = [ev.title, time, ev.location].filter(Boolean).join(' · ');
                         return (
                           <button
@@ -793,7 +794,7 @@ export function PlanningCalendar({
                 {showGoogle && c.inMonth && (gcalByDate.get(c.iso) ?? []).map((ev) => {
                   const time = ev.all_day
                     ? 'Journée'
-                    : new Date(ev.start).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+                    : fmtTime(ev.start);
                   const tooltip = [ev.title, time, ev.location].filter(Boolean).join(' · ');
                   return (
                     <button

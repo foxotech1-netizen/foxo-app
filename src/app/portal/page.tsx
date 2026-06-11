@@ -5,7 +5,7 @@ import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { getMonthSlots } from '@/lib/portal/availability';
 import { StatutBadge } from '@/components/StatutBadge';
-import { fmtDate, todayLong } from '@/lib/format';
+import { fmtDate, fmtTime, todayLong, TZ_BRUSSELS } from '@/lib/format';
 import { vocabFor, type OrgType } from '@/lib/portal/vocab';
 import { SyndicMapWrapper } from '@/components/portal/SyndicMapWrapper';
 import type { Intervention } from '@/lib/types/database';
@@ -176,9 +176,9 @@ export default async function PortalDashboard() {
                 const d = new Date(prochainRdv.creneau_debut);
                 return (
                   <div className="mt-1 text-[13px] font-bold capitalize" style={{ color: '#60A5FA' }}>
-                    {d.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {d.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })}
                     {' · '}
-                    {d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                    {fmtTime(prochainRdv.creneau_debut)}
                   </div>
                 );
               })()}
@@ -244,8 +244,8 @@ export default async function PortalDashboard() {
                     <span>{iv.type ?? 'Type non précisé'}</span>
                     {iv.creneau_debut && (() => {
                       const d = new Date(iv.creneau_debut);
-                      const time = d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-                      const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' });
+                      const time = fmtTime(iv.creneau_debut);
+                      const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ_BRUSSELS });
                       return (
                         <>
                           <span>·</span>

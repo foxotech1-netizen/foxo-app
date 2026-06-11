@@ -1,5 +1,6 @@
 'use client';
 
+import { TZ_BRUSSELS } from '@/lib/format';
 import { useEffect, useRef, useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 
@@ -183,7 +184,7 @@ export function MessagesPanel({
                       'text-[10px] text-ink-muted mt-0.5 dark:text-[#8A8278] ' +
                       (alignRight ? 'text-right' : 'text-left')
                     }
-                    title={`${m.auteur_email} · ${new Date(m.created_at).toLocaleString('fr-BE')}`}
+                    title={`${m.auteur_email} · ${new Date(m.created_at).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS })}`}
                   >
                     {AUTEUR_LABEL[m.auteur_type]} · {relTime(m.created_at, now)}
                   </div>

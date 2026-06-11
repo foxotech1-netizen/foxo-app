@@ -1,5 +1,6 @@
 'use client';
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -55,8 +56,8 @@ function fmtDate(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: 'short' });
+  if (sameDay) return fmtTime(iso);
+  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: 'short', timeZone: TZ_BRUSSELS });
 }
 
 function senderName(from: string): string {
@@ -803,7 +804,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     <span className="font-semibold">{senderName(detail.from)}</span>
                     <span className="ml-1 font-mono text-[10px]">&lt;{senderEmail(detail.from)}&gt;</span>
                     <span className="mx-1.5">·</span>
-                    {new Date(detail.date).toLocaleString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(detail.date).toLocaleString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}
                   </div>
                 )}
               </div>

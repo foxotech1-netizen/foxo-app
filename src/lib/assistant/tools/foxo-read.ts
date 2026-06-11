@@ -10,6 +10,7 @@
 //
 // Aucun de ces outils n'écrit, n'envoie ou ne supprime quoi que ce soit.
 
+import { TZ_BRUSSELS } from '@/lib/format';
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildInterventionContext } from '@/lib/assistant/context';
@@ -170,7 +171,7 @@ async function searchInterventions(args: Record<string, unknown>, supabase: Supa
     const acp = r.acp_id ? acpMap.get(r.acp_id) : null;
     const syn = r.syndic_id ? synMap.get(r.syndic_id) : null;
     const tech = r.technicien_id ? techMap.get(r.technicien_id) : null;
-    const creneau = r.creneau_debut ? new Date(r.creneau_debut).toLocaleString('fr-BE') : 'non planifié';
+    const creneau = r.creneau_debut ? new Date(r.creneau_debut).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : 'non planifié';
     const techStr = tech ? `${tech.prenom ?? ''} ${tech.nom ?? ''}`.trim() : 'non assigné';
     const lieu = acp?.nom ?? r.adresse ?? '—';
     const ville = acp?.ville ? ` (${acp.ville})` : '';
@@ -282,7 +283,7 @@ async function listInterventionDocuments(args: Record<string, unknown>, supabase
 
   const lines = res.files.map((f) => {
     const kind = f.isFolder ? 'dossier' : (f.mimeType || 'fichier');
-    const when = f.modifiedTime ? new Date(f.modifiedTime).toLocaleString('fr-BE') : '?';
+    const when = f.modifiedTime ? new Date(f.modifiedTime).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : '?';
     const link = f.webViewLink ? ` · ${f.webViewLink}` : '';
     const size = f.isFolder ? '' : fmtBytes(f.size);
     return `- ${f.name} · ${kind} · modifié ${when}${size}${link}`;

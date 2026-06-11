@@ -1,5 +1,6 @@
 'use client';
 
+import { TZ_BRUSSELS } from '@/lib/format';
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Calendar, Download, Send, AlertTriangle, Archive, Check, X } from 'lucide-react';
@@ -44,7 +45,7 @@ function fmtDateTime(iso: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('fr-BE', {
     day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
+    hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS,
   });
 }
 

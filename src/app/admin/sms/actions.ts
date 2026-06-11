@@ -1,5 +1,6 @@
 'use server';
 
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
@@ -83,10 +84,10 @@ export async function buildSmsPreview(input: {
   const ivT = iv as unknown as IvJoined;
 
   const date = ivT.creneau_debut
-    ? new Date(ivT.creneau_debut).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })
+    ? new Date(ivT.creneau_debut).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })
     : '';
   const heure = ivT.creneau_debut
-    ? new Date(ivT.creneau_debut).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })
+    ? fmtTime(ivT.creneau_debut)
     : '';
   const adresse = ivT.acp
     ? [ivT.acp.adresse, ivT.acp.code_postal, ivT.acp.ville].filter(Boolean).join(', ')
@@ -119,7 +120,7 @@ export async function buildSmsPreview(input: {
 export async function testSmsAction(input: { to: string; channel: 'sms' | 'whatsapp' }): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
-  const message = `[Test FoxO] Envoi de test depuis /admin/parametres — ${new Date().toLocaleTimeString('fr-BE')}.`;
+  const message = `[Test FoxO] Envoi de test depuis /admin/parametres — ${new Date().toLocaleTimeString('fr-BE', { timeZone: TZ_BRUSSELS })}.`;
   const result = input.channel === 'whatsapp'
     ? await sendWhatsApp(input.to, message)
     : await sendSMS(input.to, message);

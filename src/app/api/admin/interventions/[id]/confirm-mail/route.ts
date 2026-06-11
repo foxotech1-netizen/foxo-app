@@ -1,3 +1,4 @@
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -113,8 +114,8 @@ export async function POST(
   }
 
   const creneauDate = new Date(intervention.creneau_debut);
-  const dateFr = creneauDate.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  const heureFr = creneauDate.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+  const dateFr = creneauDate.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ_BRUSSELS });
+  const heureFr = fmtTime(intervention.creneau_debut);
   const adresseStr = intervention.adresse
     ?? (pc?.adresse ? [pc.adresse.rue, pc.adresse.code_postal, pc.adresse.ville].filter(Boolean).join(', ') : '');
 

@@ -13,6 +13,7 @@
 // (la route ne journalise que des compteurs) — ils ne transitent que dans la
 // conversation envoyée au modèle, ce qui est nécessaire et voulu.
 
+import { TZ_BRUSSELS } from '@/lib/format';
 import type Anthropic from '@anthropic-ai/sdk';
 import { listInboxMails, getEmailThread, countUnreadMails } from '@/lib/gmail';
 import { getCalendarEvents } from '@/lib/google-calendar';
@@ -90,7 +91,7 @@ export async function executeGoogleReadTool(name: string, input: unknown): Promi
 function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '?';
   const d = new Date(iso);
-  return isNaN(d.getTime()) ? '?' : d.toLocaleString('fr-BE');
+  return isNaN(d.getTime()) ? '?' : d.toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS });
 }
 
 async function searchEmailsTool(args: Record<string, unknown>): Promise<string> {
@@ -162,7 +163,7 @@ async function listCalendarEventsTool(args: Record<string, unknown>): Promise<st
 
   const lines = res.events.map((e) => {
     const allDay = !e.start.dateTime && !!e.start.date;
-    const when = e.start.dateTime ? new Date(e.start.dateTime).toLocaleString('fr-BE') : (e.start.date ?? '?');
+    const when = e.start.dateTime ? new Date(e.start.dateTime).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : (e.start.date ?? '?');
     const loc = e.location ? ` · ${e.location}` : '';
     return `- ${when}${allDay ? ' (journée)' : ''} · ${e.summary || '(sans titre)'}${loc}`;
   });
