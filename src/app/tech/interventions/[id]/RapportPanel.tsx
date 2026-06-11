@@ -367,7 +367,7 @@ export function RapportPanel({
             onChange={(e) => setBrief(e.target.value)}
             placeholder="Dicte librement ce que tu as vu, fait, conclu et recommandé. L'IA rédigera les 4 sections du rapport."
             rows={5}
-            className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[100px]"
+            className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 pt-3 pb-4 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[120px] [field-sizing:content]"
           />
           <button
             type="button"
@@ -410,9 +410,9 @@ export function RapportPanel({
                 value={values[key]}
                 onChange={(e) => update(key, e.target.value)}
                 placeholder={placeholder}
-                rows={4}
+                rows={5}
                 disabled={alreadyPublished}
-                className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 py-3 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[80px] disabled:opacity-70 disabled:bg-[var(--color-sand-mid)]"
+                className="w-full bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg px-3.5 pt-3 pb-4 text-[14px] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] resize-y min-h-[120px] [field-sizing:content] disabled:opacity-70 disabled:bg-[var(--color-sand-mid)]"
               />
 
               {/* Photos liées à cette section */}
