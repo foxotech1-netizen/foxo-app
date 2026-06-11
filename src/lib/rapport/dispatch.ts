@@ -43,6 +43,15 @@ export type BuildResult =
   | { ok: false; error: string };
 
 // Charge les données pour une intervention, génère le PDF du rapport.
+//
+// POINT DE CONSTRUCTION UNIQUE du PDF : assemble ReportData + photos
+// (fetchRapportPhotos) et délègue le rendu (logo inclus) à generateRapportPdf.
+// TOUS les chemins PDF passent par ici — aperçu admin
+// (/api/admin/rapports/[id]/preview-pdf), envoi syndic (dispatchRapportToSyndic),
+// archivage Drive (drive.ts), export /api/rapport/[id]. C'est ce qui garantit
+// que l'aperçu admin est strictement identique au PDF réellement transmis :
+// aucun chemin ne doit appeler generateRapportPdf directement.
+//
 // Pas de vérification de droits ici : à appeler uniquement après un contrôle
 // d'autorisation côté caller (server action / route handler).
 export async function buildRapportPdf(interventionId: string): Promise<BuildResult> {

@@ -221,7 +221,7 @@ function PhotosGrid({ photos }: { photos: RapportPhotoData[] | undefined }) {
 export function RapportPdf({ data, logo, photos }: {
   data: ReportData;
   logo?: Buffer | null;
-  photos?: RapportPhotosBySection | null;
+  photos: RapportPhotosBySection;
 }) {
   const facturationLines = [
     data.facturation_ligne1,
@@ -310,9 +310,9 @@ export function RapportPdf({ data, logo, photos }: {
 
         {/* ── 4 sections ── Photos en fin de DÉGÂTS et d'INSPECTION uniquement. */}
         <Section title="DÉGÂTS" text={data.degats} />
-        <PhotosGrid photos={photos?.degats} />
+        <PhotosGrid photos={photos.degats} />
         <Section title="INSPECTION" text={data.inspection} />
-        <PhotosGrid photos={photos?.inspection} />
+        <PhotosGrid photos={photos.inspection} />
         <Section title="CONCLUSION" text={data.conclusion} />
         <Section title="RECOMMANDATION" text={data.recommandation} />
 
