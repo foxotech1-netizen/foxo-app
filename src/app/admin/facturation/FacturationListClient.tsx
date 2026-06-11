@@ -616,16 +616,29 @@ function StatCard({
   num: string; label: string;
   accent?: boolean; muted?: boolean; warning?: boolean;
 }) {
+  // Dark : fond solide assorti (pattern des bandeaux Alertes) — sans quoi
+  // dark:text-white tombait sur le fond pâle inchangé (illisible).
   let bg = 'bg-cream';
   let border = 'border-sand-border';
   let numColor = '';
-  if (accent) { bg = 'bg-navy-pale'; border = 'border-navy-light'; numColor = 'text-navy dark:text-white'; }
+  let labelColor = 'text-ink-muted';
+  if (accent) {
+    bg = 'bg-navy-pale dark:bg-[#1B3A6B]';
+    border = 'border-navy-light dark:border-[#2A5298]';
+    numColor = 'text-navy dark:text-white';
+    labelColor = 'text-ink-mid dark:text-[#C8C2B8]';
+  }
   if (muted) numColor = 'text-ink-mid';
-  if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra dark:text-white'; }
+  if (warning) {
+    bg = 'bg-terra-light dark:bg-[#C4622D]';
+    border = 'border-terra-mid dark:border-[#D87A45]';
+    numColor = 'text-terra dark:text-white';
+    labelColor = 'text-ink-mid dark:text-[#F0ECE4]';
+  }
   return (
     <div className={`${bg} ${border} border rounded-xl px-4 py-3`}>
       <div className={`text-[18px] font-extrabold leading-tight ${numColor || 'stat-num'}`}>{num}</div>
-      <div className="text-[10px] text-ink-muted mt-1 font-semibold">{label}</div>
+      <div className={`text-[10px] ${labelColor} mt-1 font-semibold`}>{label}</div>
     </div>
   );
 }

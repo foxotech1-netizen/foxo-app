@@ -210,7 +210,7 @@ export default function Sidebar({
       .then((data) => {
         if (!cancelled && data?.ok) setUnreadMails(data.count ?? 0)
       })
-      .catch(() => { /* ignoré (Google non connecté = silent) */ })
+      .catch((e) => console.warn('[mails] compteur non-lus indisponible', e))
     return () => { cancelled = true }
   }, [])
 
@@ -226,7 +226,7 @@ export default function Sidebar({
         fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
           .then((r) => r.ok ? r.json() : null)
           .then((data) => { if (data?.ok) setUnreadMails(data.count ?? 0) })
-          .catch(() => {})
+          .catch((e) => console.warn('[mails] compteur non-lus indisponible', e))
       }, 800)
     }
     window.addEventListener('foxo:mails-updated', onMailsUpdated)

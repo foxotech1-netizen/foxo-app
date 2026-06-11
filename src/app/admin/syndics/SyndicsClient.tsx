@@ -136,8 +136,10 @@ export function SyndicsClient({
           onClick={(e) => { if (e.target === e.currentTarget && !pending) { setOpen(false); setAddr(emptyAddress()); } }}
           className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
         >
-          <div className="bg-cream rounded-2xl w-full max-w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
-            <div className="px-6 py-5 border-b border-sand-border flex justify-between items-center sticky top-0 bg-cream">
+          {/* flex-col : header fixe, le formulaire est l'unique zone
+              scrollable (plus de sticky qui glisse sous un 2e scroller). */}
+          <div className="bg-cream rounded-2xl w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            <div className="px-6 py-5 border-b border-sand-border flex justify-between items-center flex-shrink-0 bg-cream">
               <div>
                 <div className="text-base font-extrabold text-ink">Nouveau partenaire</div>
                 <div className="text-[11px] text-ink-muted mt-0.5">Syndic ou courtier d&apos;assurance</div>
@@ -151,7 +153,7 @@ export function SyndicsClient({
               </button>
             </div>
 
-            <form action={onSubmit} className="px-6 py-5 space-y-4">
+            <form action={onSubmit} className="px-6 py-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
               <div>
                 <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">

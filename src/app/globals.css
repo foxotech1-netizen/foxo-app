@@ -286,3 +286,53 @@ h1.fxs-page-title > span,
 .leaflet-bottom {
   z-index: 2;
 }
+
+/* ── Scrollbars FoxO — fines, discrètes, aux tokens du thème (D4) ────────
+   Firefox : scrollbar-width/color. WebKit : 8px, track sand, pouce
+   sand-border arrondi. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-sand-border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: var(--color-sand);
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-sand-border);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-muted);
+}
+
+/* Sidebar admin (fond navy sombre) : la nav déborde souvent de 100vh —
+   gouttière invisible au repos, pouce discret au survol uniquement. */
+.foxo-sidebar-desktop {
+  scrollbar-color: transparent transparent;
+}
+.foxo-sidebar-desktop:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+.foxo-sidebar-desktop::-webkit-scrollbar-track {
+  background: transparent;
+}
+.foxo-sidebar-desktop::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+.foxo-sidebar-desktop:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ── Placeholders (D4) — un exemple ne doit pas ressembler à une valeur
+   enregistrée : italique + ink-muted, et les exemples sont préfixés
+   « ex : » dans les formulaires. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-ink-muted);
+  font-style: italic;
+  opacity: 1;
+}

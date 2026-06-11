@@ -288,7 +288,7 @@ export function OrganisationDrawer({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 bg-navy-deep/45 z-50 flex justify-end"
     >
-      <div className="w-[480px] max-w-full bg-cream h-screen overflow-y-auto shadow-2xl border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+      <div className="w-[480px] max-w-full bg-cream h-screen shadow-2xl border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
         <header className="px-5 pt-5 pb-3 bg-sand border-b border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]">
           <div className="flex justify-between items-start">
             <div className="min-w-0">
@@ -328,7 +328,7 @@ export function OrganisationDrawer({
           ))}
         </nav>
 
-        <div className="px-5 py-4 flex-1 overflow-y-auto bg-sand dark:bg-[#141210]">
+        <div className="px-5 py-4 flex-1 min-h-0 overflow-y-auto bg-sand dark:bg-[#141210]">
           {feedback && (
             <div className={
               'mb-3 px-3 py-2 text-[12px] font-semibold border rounded-md ' +
@@ -592,7 +592,7 @@ export function OrganisationDrawer({
                       type="text"
                       value={acpForm.bce}
                       onChange={(e) => setAcpForm((f) => ({ ...f, bce: e.target.value }))}
-                      placeholder="BCE (BE0xxx.xxx.xxx)"
+                      placeholder="ex : BE0xxx.xxx.xxx"
                       className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono outline-none focus:border-navy-mid"
                     />
                     <input
@@ -990,9 +990,9 @@ function SyndicEmailsBlock({
         Si vide, on retombe sur l&apos;email principal {org.email}.
       </p>
       <div className="space-y-2">
-        <EmailField label="Factures" value={factures} onChange={setFactures} placeholder={`p.ex. factures@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
-        <EmailField label="Rapports" value={rapports} onChange={setRapports} placeholder={`p.ex. rapports@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
-        <EmailField label="Communications" value={communications} onChange={setCommunications} placeholder={`p.ex. info@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Factures" value={factures} onChange={setFactures} placeholder={`ex : factures@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Rapports" value={rapports} onChange={setRapports} placeholder={`ex : rapports@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
+        <EmailField label="Communications" value={communications} onChange={setCommunications} placeholder={`ex : info@${org.email.split('@')[1] ?? 'foxo.be'}`} cls={inputCls} />
       </div>
       <div className="flex justify-end mt-3">
         <button

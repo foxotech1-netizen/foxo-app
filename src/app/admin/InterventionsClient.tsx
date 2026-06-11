@@ -1745,8 +1745,8 @@ export function InterventionsClient({
         >
           <div className={
             fullPage
-              ? 'w-full max-w-[1100px] mx-auto bg-[var(--color-cream)] flex-1 overflow-y-auto flex flex-col'
-              : 'w-[460px] bg-[var(--color-cream)] h-screen overflow-y-auto shadow-2xl border-l border-[var(--color-sand-border)] flex flex-col'
+              ? 'w-full max-w-[1100px] mx-auto bg-[var(--color-cream)] flex-1 min-h-0 flex flex-col'
+              : 'w-[460px] bg-[var(--color-cream)] h-screen shadow-2xl border-l border-[var(--color-sand-border)] flex flex-col'
           }>
             <header className="px-5 pt-5 bg-[var(--color-sand)] border-b border-[var(--color-sand-border)]">
               <div className="flex justify-between items-start">
@@ -1792,7 +1792,10 @@ export function InterventionsClient({
               </div>
             </header>
 
-            <nav className="flex bg-[var(--color-cream)] px-5 border-b border-[var(--color-sand-border)] overflow-x-auto">
+            {/* flex-wrap : en drawer 460px les 5 onglets passent sur 2
+                lignes au lieu de déborder en scroll horizontal
+                (« Historique » coupé). En plein écran, une seule ligne. */}
+            <nav className="flex flex-wrap bg-[var(--color-cream)] px-5 border-b border-[var(--color-sand-border)]">
               {(['dossier','suivi','documents','ia','historique'] as const).map((t) => (
                 <button
                   key={t}
@@ -1806,7 +1809,7 @@ export function InterventionsClient({
               ))}
             </nav>
 
-            <div className="px-5 py-4 flex-1 overflow-y-auto bg-[var(--color-sand)]">
+            <div className="px-5 py-4 flex-1 min-h-0 overflow-y-auto bg-[var(--color-sand)]">
               {tab === 'dossier' && (
                 <>
                   {/* Stepper + bandeau — seulement pour interventions source='mail' */}

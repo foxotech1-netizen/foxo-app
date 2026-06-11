@@ -76,7 +76,7 @@ export function Dashboard({
     fetch('/api/admin/mails/unread-count')
       .then((r) => r.json())
       .then((d) => { if (active && d?.ok) setUnreadMails(d.count ?? 0); })
-      .catch(() => { /* garde 0 */ });
+      .catch((e) => console.warn('[mails] compteur non-lus indisponible', e));
     return () => { active = false; };
   }, []);
 
