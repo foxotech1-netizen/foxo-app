@@ -213,7 +213,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       fetch('/api/admin/mails/unread-count', { cache: 'no-store' })
         .then((r) => r.json())
         .then((d) => { if (!cancelled && d?.ok) setInboxUnread(d.count ?? 0); })
-        .catch(() => { /* silent — le compteur est best-effort */ });
+        .catch((e) => console.warn('[mails] compteur non-lus indisponible', e));
     };
     load();
     window.addEventListener('foxo:mails-updated', load);
