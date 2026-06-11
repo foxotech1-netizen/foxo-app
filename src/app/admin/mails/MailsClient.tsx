@@ -694,7 +694,19 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   <li key={l.id}>
                     <button
                       type="button"
-                      onClick={() => setActiveLabel(active ? null : l.name)}
+                      onClick={() => {
+                        if (active) {
+                          // Désélection : on retire le filtre sans toucher
+                          // à l'onglet courant.
+                          setActiveLabel(null);
+                          return;
+                        }
+                        setActiveLabel(l.name);
+                        // Sur « À traiter » (défaut, is:unread) un libellé
+                        // ne montrerait que ses non-lus — piège constaté.
+                        // Le clic bascule donc sur « Tous ».
+                        setFilter('tous');
+                      }}
                       className={
                         'w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-colors text-left ' +
                         (active
