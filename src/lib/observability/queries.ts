@@ -11,6 +11,7 @@ export const ALL_AGENT_NAMES = [
   "triage_mail",
   "analyse_pj",
   "rapport",
+  "analyse_photo",
   // utilitaires
   "draft_reply",
   "sms_compose",
@@ -26,6 +27,7 @@ export const AGENT_KIND_BY_NAME: Record<AgentNameKnown, AgentKind> = {
   triage_mail: "canonical",
   analyse_pj: "canonical",
   rapport: "canonical",
+  analyse_photo: "canonical",
   draft_reply: "utility",
   sms_compose: "utility",
   notes_frais_extract: "utility",

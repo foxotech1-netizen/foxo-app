@@ -16,6 +16,7 @@ import {
   fmtDateShort,
 } from '@/lib/rapport/report-data-mapping';
 import { techniquesFromKeys } from '@/lib/rapport/techniques';
+import { fetchRapportPhotos } from '@/lib/rapport/photos';
 import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
@@ -42,6 +43,15 @@ export type BuildResult =
   | { ok: false; error: string };
 
 // Charge les données pour une intervention, génère le PDF du rapport.
+//
+// POINT DE CONSTRUCTION UNIQUE du PDF : assemble ReportData + photos
+// (fetchRapportPhotos) et délègue le rendu (logo inclus) à generateRapportPdf.
+// TOUS les chemins PDF passent par ici — aperçu admin
+// (/api/admin/rapports/[id]/preview-pdf), envoi syndic (dispatchRapportToSyndic),
+// archivage Drive (drive.ts), export /api/rapport/[id]. C'est ce qui garantit
+// que l'aperçu admin est strictement identique au PDF réellement transmis :
+// aucun chemin ne doit appeler generateRapportPdf directement.
+//
 // Pas de vérification de droits ici : à appeler uniquement après un contrôle
 // d'autorisation côté caller (server action / route handler).
 export async function buildRapportPdf(interventionId: string): Promise<BuildResult> {
@@ -136,8 +146,13 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     fait_a_date: fmtDateShort(today),
   };
 
+  // Photos (DÉGÂTS + INSPECTION) téléchargées EN AMONT et passées au moteur
+  // PDF en props — RapportPdf reste pur. Source partagée avec le docx
+  // (fetchRapportPhotos) pour un rendu jumeau. Best-effort : jamais bloquant.
+  const photos = await fetchRapportPhotos(interventionId);
+
   // PDF jumeau du template, généré depuis le MÊME ReportData que le docx.
-  const pdfBuffer = await generateRapportPdf(reportData);
+  const pdfBuffer = await generateRapportPdf(reportData, photos);
 
   return {
     ok: true,

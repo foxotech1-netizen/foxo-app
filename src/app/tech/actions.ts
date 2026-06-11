@@ -91,9 +91,19 @@ export type RapportInput = {
   recommandations: string;
 };
 
+// Techniques (clés canoniques, techniques.ts) produites par l'agent rapport v2.
+// Paramètre séparé de RapportInput (qui sert aussi de clés de sections ailleurs).
+// Si absent, on ne touche pas aux colonnes (publishRapport garde son snapshot
+// fallback depuis observations_terrain).
+export type RapportTechniquesInput = {
+  techniques?: string[];
+  techniques_a_confirmer?: string[];
+};
+
 export async function saveRapport(
   interventionId: string,
   input: RapportInput,
+  tech?: RapportTechniquesInput,
 ): Promise<ActionResult> {
   const own = await assertOwnership(interventionId);
   if (!own.ok) return own;
@@ -107,6 +117,8 @@ export async function saveRapport(
       inspection: input.inspection,
       conclusion: input.conclusion,
       recommandations: input.recommandations,
+      ...(tech?.techniques ? { techniques: tech.techniques } : {}),
+      ...(tech?.techniques_a_confirmer ? { techniques_a_confirmer: tech.techniques_a_confirmer } : {}),
       updated_at: new Date().toISOString(),
     });
 
@@ -117,11 +129,12 @@ export async function saveRapport(
 export async function publishRapport(
   interventionId: string,
   input: RapportInput,
+  tech?: RapportTechniquesInput,
 ): Promise<ActionResult> {
   const own = await assertOwnership(interventionId);
   if (!own.ok) return own;
 
-  const required: (keyof RapportInput)[] = ['degats', 'inspection', 'conclusion', 'recommandations'];
+  const required = ['degats', 'inspection', 'conclusion', 'recommandations'] as const;
   for (const k of required) {
     if (!input[k]?.trim()) return { ok: false, error: `Section "${k}" vide.` };
   }
@@ -132,6 +145,8 @@ export async function publishRapport(
     .upsert({
       intervention_id: interventionId,
       ...input,
+      ...(tech?.techniques ? { techniques: tech.techniques } : {}),
+      ...(tech?.techniques_a_confirmer ? { techniques_a_confirmer: tech.techniques_a_confirmer } : {}),
       statut: 'brouillon',
       updated_at: new Date().toISOString(),
     });
