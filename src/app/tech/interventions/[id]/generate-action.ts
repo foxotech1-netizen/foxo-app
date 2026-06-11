@@ -20,6 +20,9 @@ export type GenerateResult =
       // Clés canoniques (cf. techniques.ts), persistées par saveRapport/publishRapport.
       techniques_utilisees: string[];
       techniques_a_confirmer: string[];
+      // Photos dont l'analyse vision (passe 1) a échoué — le rapport est
+      // généré sans elles (best-effort). Sert à l'avertissement UI (F3/I4).
+      photosNonAnalysees?: number;
     }
   | { ok: false; error: string };
 
@@ -226,8 +229,10 @@ export async function generateRapportSections(
   const photos = (photosData ?? []) as PhotoRow[];
 
   // Analyse en parallèle UNIQUEMENT les photos dont analyse_ia est null
-  // (jamais de ré-analyse). Best-effort : les échecs sont ignorés.
+  // (jamais de ré-analyse). Best-effort : un échec n'interrompt pas la
+  // génération, mais il est compté et remonté au tech (audit F3/I4).
   const toAnalyse = photos.filter((p) => !p.analyse_ia && p.drive_file_id);
+  let photosNonAnalysees = 0;
   if (toAnalyse.length > 0) {
     const results = await Promise.allSettled(
       toAnalyse.map((p) => analysePhoto({
@@ -243,9 +248,20 @@ export async function generateRapportSections(
         },
       })),
     );
+    const rejets: Array<{ photo_id: string; reason: unknown }> = [];
     results.forEach((r, idx) => {
       if (r.status === 'fulfilled' && r.value) toAnalyse[idx].analyse_ia = r.value;
+      else if (r.status === 'rejected') rejets.push({ photo_id: toAnalyse[idx].id, reason: r.reason });
     });
+    // analysePhoto retourne null sur ses échecs internes (download, JSON…) :
+    // une photo non analysée = rejet OU fulfilled-null.
+    photosNonAnalysees = toAnalyse.filter((p) => !p.analyse_ia).length;
+    if (photosNonAnalysees > 0) {
+      console.warn(
+        `[rapport-v2] ${photosNonAnalysees}/${toAnalyse.length} photos non analysées`,
+        rejets.length > 0 ? rejets : '(échecs internes analysePhoto — détail dans les logs [analyse_photo])',
+      );
+    }
   }
 
   // Tableau des photos sérialisé pour la passe 2.
@@ -332,6 +348,8 @@ export async function generateRapportSections(
             sections_count: (Object.values(lengths) as number[]).filter((n) => n > 0).length,
             techniques_count: Array.isArray(pp.techniques_utilisees) ? pp.techniques_utilisees.length : 0,
             photos_classified: Array.isArray(pp.photos) ? pp.photos.length : 0,
+            photos_analysis_failed: photosNonAnalysees,
+            photos_analysis_failed_ratio: `${photosNonAnalysees}/${toAnalyse.length}`,
           },
         };
       },
@@ -398,5 +416,6 @@ export async function generateRapportSections(
     },
     techniques_utilisees: techKeysUtil,
     techniques_a_confirmer: techKeysConfirm,
+    ...(photosNonAnalysees > 0 ? { photosNonAnalysees } : {}),
   };
 }
