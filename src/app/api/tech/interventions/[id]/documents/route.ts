@@ -21,8 +21,10 @@ export async function GET(
   if (!tech.ok) return techError(tech);
 
   const { id } = await params;
+  // technicien_id est REQUIS dans le select : verifyTechOwnsIntervention
+  // compare iv.technicien_id au tech courant (même pattern qu'upload-photo).
   const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, id, {
-    select: 'id, ref, drive_folder_id',
+    select: 'id, ref, technicien_id, drive_folder_id',
     splitNotFound: true,
   });
   if (!owns.ok) return techError(owns);
