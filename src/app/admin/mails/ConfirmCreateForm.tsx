@@ -31,7 +31,9 @@ import type {
 import { emptyConfirmCreateOccupant } from './MailAnalyseTypes';
 import { ALLOWED_TYPES_INTERVENTION } from '@/lib/mails/intervention-types';
 
-const OCCUPANT_TYPE_LABELS: { value: OccupantExtraitType; label: string }[] = [
+// Libellés FR des types d'occupant — exporté pour réutilisation (fiche
+// dossier U2, tableau occupants).
+export const OCCUPANT_TYPE_LABELS: { value: OccupantExtraitType; label: string }[] = [
   { value: 'occupant', label: 'Occupant' },
   { value: 'proprietaire', label: 'Propriétaire' },
   { value: 'locataire', label: 'Locataire' },

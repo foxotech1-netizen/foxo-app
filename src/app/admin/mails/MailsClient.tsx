@@ -12,6 +12,7 @@ import type { MailAnalyse } from './MailAnalyseTypes';
 import { MailAnalyseBadges } from './MailAnalyseBadges';
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { MailAnalyseActions } from './MailAnalyseActions';
+import { FicheDossierCard } from './FicheDossierCard';
 import {
   MAIL_CLASSIFICATIONS,
   CLASSIFICATION_LABEL_FR,
@@ -92,6 +93,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [detailLoading, setDetailLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const refreshRef = useRef<HTMLButtonElement>(null);
+  // Ancre de la zone MailAnalyseActions (ConfirmCreateForm) — cible du
+  // bouton « Créer l'intervention » de la FicheDossierCard.
+  const analyseActionsRef = useRef<HTMLDivElement>(null);
 
   // Sélection multiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1048,13 +1052,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 l'unique entrée d'analyse — bouton « Analyser avec IA »
                 (POST analyse-deep) si pas encore analysé, sinon actions
                 1-clic (brouillon syndic / confirmer occupant / event
-                Calendar) + accordion détail. */}
+                Calendar). Le détail vit dans FicheDossierCard (P3 U2). */}
             {detail && (
-              <MailAnalyseActions
-                threadId={detail.thread_id}
-                analyse={analyses.get(detail.thread_id) ?? null}
-                onAnalyseRefresh={refreshAnalyse}
-              />
+              <div ref={analyseActionsRef}>
+                <MailAnalyseActions
+                  threadId={detail.thread_id}
+                  analyse={analyses.get(detail.thread_id) ?? null}
+                  onAnalyseRefresh={refreshAnalyse}
+                />
+              </div>
             )}
 
             {/* Panel "Répondre" */}
@@ -1090,6 +1096,18 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   </button>
                 </div>
               </div>
+            )}
+
+            {/* Fiche dossier structurée (Phase 3 U2) — uniquement si le
+                thread est analysé ; sinon rien ici (l'entrée d'analyse
+                reste le bouton « Analyser avec IA » plus haut). */}
+            {detail && analyses.get(detail.thread_id) && (
+              <FicheDossierCard
+                analyse={analyses.get(detail.thread_id)!}
+                onScrollToActions={() =>
+                  analyseActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onReply={() => setReplyOpen(true)}
+              />
             )}
 
             {/* Section Libellés du mail */}

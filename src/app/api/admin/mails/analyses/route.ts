@@ -43,6 +43,9 @@ interface AnalyseRow {
   brouillon_gmail_id: string | null;
   event_calendar_id: string | null;
   errors: string[] | null;
+  // Sélectionné uniquement pour en extraire type_intervention (pas de colonne
+  // dédiée en base) — jamais renvoyé tel quel au client.
+  analyse_raw: { type_intervention?: unknown } | null;
 }
 
 export async function GET(request: Request) {
@@ -61,7 +64,7 @@ export async function GET(request: Request) {
 
   const { data: analyses, error } = await admin
     .from('mails_analyses')
-    .select('thread_id, type, classification, urgence, langue, adresse_extraite, numero_dossier_mentionne, resume, occupant_telephone, occupant_email, acp_nom, syndic_nom, occupants_extraits, dossier_match_id, creneau_propose_id, fenetre_etendue, pj_drive_ids, brouillon_gmail_id, event_calendar_id, errors')
+    .select('thread_id, type, classification, urgence, langue, adresse_extraite, numero_dossier_mentionne, resume, occupant_telephone, occupant_email, acp_nom, syndic_nom, occupants_extraits, dossier_match_id, creneau_propose_id, fenetre_etendue, pj_drive_ids, brouillon_gmail_id, event_calendar_id, errors, analyse_raw')
     .in('thread_id', ids);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
@@ -119,7 +122,13 @@ export async function GET(request: Request) {
           technicien_nom: creneauRow.technicien_id ? techMap.get(creneauRow.technicien_id) ?? '?' : '?',
         }
       : null;
-    result[r.thread_id] = { ...r, dossier, creneau };
+    // type_intervention vit dans analyse_raw (pas de colonne dédiée) — on
+    // l'extrait ici, sans renvoyer le blob analyse_raw au client.
+    const { analyse_raw, ...rest } = r;
+    const typeIntervention = typeof analyse_raw?.type_intervention === 'string' && analyse_raw.type_intervention.trim()
+      ? analyse_raw.type_intervention
+      : null;
+    result[r.thread_id] = { ...rest, type_intervention: typeIntervention, dossier, creneau };
   }
 
   return NextResponse.json({ success: true, analyses: result });

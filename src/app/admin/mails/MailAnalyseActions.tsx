@@ -1,11 +1,12 @@
 'use client';
 
-// Composant qui rend, sous le panel détail d'un mail :
+// Composant qui rend, sous la barre d'actions du volet :
 //   - Si pas analysé : bouton "Analyser avec IA" (POST analyse-deep — unique entrée d'analyse depuis Mails V2 P1)
 //   - Si analysé :
 //       * 3 actions 1-clic (Brouillon syndic / Confirmer occupant ▼ / Event Calendar)
 //       * Modal SMS
-//       * Accordion "Détail analyse"
+// Le détail de l'analyse (ex-accordion) vit désormais dans la carte
+// FicheDossierCard (Phase 3 U2), rendue plus bas dans le volet.
 //
 // Reçoit `analyse` depuis MailsClient (ou null). À la fin d'une action,
 // rafraîchit l'analyse via callback `onAnalyseRefresh(thread_id)` pour
@@ -14,7 +15,7 @@
 import { useState } from 'react';
 import {
   Sparkles, FileEdit, Phone, Mail as MailIcon, Calendar,
-  ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
+  ChevronDown, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { SmsModal } from './SmsModal';
@@ -37,7 +38,6 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
   const [smsModal, setSmsModal] = useState<{ phone: string; body: string } | null>(null);
   const [confirmEventOpen, setConfirmEventOpen] = useState(false);
   const [occupantDropdownOpen, setOccupantDropdownOpen] = useState(false);
-  const [accordionOpen, setAccordionOpen] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
 
   function showToast(t: Toast) {
@@ -280,74 +280,6 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
 
       {toast && <ToastInline toast={toast} />}
 
-      {/* Accordion détail analyse */}
-      <div
-        className="rounded-md overflow-hidden"
-        style={{ background: 'var(--color-cream)', border: '1px solid var(--color-sand-border)' }}
-      >
-        <button
-          type="button"
-          onClick={() => setAccordionOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-3 py-2 text-[12px] font-semibold cursor-pointer"
-          style={{ color: 'var(--color-ink)' }}
-        >
-          <span className="inline-flex items-center gap-2">
-            Détail analyse
-            {analyse.fenetre_etendue && (
-              <span
-                className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
-                style={{ background: 'var(--color-amber-light)', color: 'var(--color-amber-foxo)' }}
-              >
-                Fenêtre étendue
-              </span>
-            )}
-            {analyse.errors && analyse.errors.length > 0 && (
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
-                style={{ background: 'var(--color-amber-light)', color: 'var(--color-amber-foxo)' }}
-              >
-                <AlertTriangle size={10} aria-hidden />
-                {analyse.errors.length} avertissement(s)
-              </span>
-            )}
-          </span>
-          {accordionOpen ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
-        </button>
-        {accordionOpen && (
-          <div className="px-3 pb-3 pt-1 space-y-2 text-[12px]" style={{ color: 'var(--color-ink)' }}>
-            {analyse.adresse_extraite && (
-              <DetailRow label="Adresse extraite" value={analyse.adresse_extraite} />
-            )}
-            {analyse.occupant_telephone && (
-              <DetailRow label="Téléphone occupant" value={analyse.occupant_telephone} mono />
-            )}
-            {analyse.occupant_email && (
-              <DetailRow label="Email occupant" value={analyse.occupant_email} mono />
-            )}
-            {analyse.creneau && dateFmt && (
-              <DetailRow
-                label="Créneau proposé"
-                value={`${dateFmt} ${analyse.creneau.heure_debut} → ${analyse.creneau.heure_fin} — ${analyse.creneau.technicien_nom}`}
-              />
-            )}
-            {analyse.resume && (
-              <DetailRow label="Résumé IA" value={analyse.resume} />
-            )}
-            {analyse.errors && analyse.errors.length > 0 && (
-              <div
-                className="mt-2 p-2 rounded text-[11px]"
-                style={{ background: 'var(--color-amber-light)', color: 'var(--color-amber-foxo)' }}
-              >
-                <div className="font-bold mb-1">Avertissements :</div>
-                <ul className="list-disc pl-4 space-y-0.5 m-0">
-                  {analyse.errors.map((err, i) => <li key={i}>{err}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Confirm dialog Event */}
       {confirmEventOpen && (
         <div
@@ -413,17 +345,6 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
   );
 }
 
-function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return (
-    <div className="flex items-baseline gap-2">
-      <span className="text-[10px] font-medium uppercase tracking-wider flex-shrink-0" style={{ color: 'var(--color-ink-muted)', minWidth: 110 }}>
-        {label}
-      </span>
-      <span className={mono ? 'font-mono text-[12px]' : 'text-[12px]'}>{value}</span>
-    </div>
-  );
-}
-
 function ToastInline({ toast }: { toast: NonNullable<Toast> }) {
   const isOk = toast.kind === 'ok';
   return (
@@ -452,7 +373,8 @@ function ToastInline({ toast }: { toast: NonNullable<Toast> }) {
   );
 }
 
-function formatDateFr(iso: string): string {
+// Exporté : réutilisé par FicheDossierCard pour le créneau proposé.
+export function formatDateFr(iso: string): string {
   const d = new Date(`${iso}T12:00:00Z`);
   return d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' });
 }
