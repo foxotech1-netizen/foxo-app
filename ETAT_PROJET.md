@@ -1,3 +1,39 @@
+# État du projet FoxO — snapshot 2026-06-12 soir (Mails V2 — Phase 3 CLOSE, PR #94 — fiche structurée IA)
+
+- **Date du recap** : 2026-06-12 (soir)
+- **HEAD git** : `c6d9f52` (merge PR #94)
+- **Branche** : `main`, aligné `origin/main`. Production via Vercel.
+- **Spec** : `SPEC_Chantier_Mails_V2_v1-2.md` (project knowledge). ⚠️ CRONS MAILS TOUJOURS VOLONTAIREMENT FERMÉS — rallumage = toute dernière étape du chantier, précédée du marquage en lu des mails déjà traités.
+
+## Mails V2 — Phase 3 (fiche structurée IA + classification native) : CLOSE (PR #94, 7 commits, 4 unités)
+
+### U1 — Classification canonique native + extraction ACP/syndic (`7f89707` + `5c2145b`)
+- analyse-deep émet NATIVEMENT la `classification` canonique (mêmes 8 valeurs et critères que le prompt du cron) — validée serveur contre `MAIL_CLASSIFICATIONS`, **fallback `toCanonicalClassification(type)` conservé** (réponses sans le champ = comportement d'avant). Le `type` hérité est TOUJOURS émis : les branches UI (`type === 'demande_intervention'`) et confirm-and-create en dépendent.
+- Nouveaux extraits `acp_nom` / `syndic_nom` (règle : domaine expéditeur ∈ syndics connus → nom EXACT de la liste ; interdiction d'inventer). Migration `2026-06-12_mails_analyses_phase3_fields.sql` appliquée en prod AVANT le code + committée. maxDuration analyse-deep 30 → 60.
+
+### U2 — FicheDossierCard dans le volet (`afecc47`)
+- Carte synthèse structurée entre composer et corps du mail (uniquement si fil analysé) : badges réutilisés, grille type d'intervention / adresse / ACP / syndic / n° mentionné / créneau, résumé IA, **occupants extraits en tableau**, avertissements, actions (Créer l'intervention → scroll ConfirmCreateForm ; Répondre).
+- `type_intervention` n'a PAS de colonne : extrait d'`analyse_raw` côté route analyses (rétroactif, blob jamais renvoyé au client). **Accordion « Détail analyse » supprimé** de MailAnalyseActions (absorbé) ; 3 actions 1-clic + ConfirmCreateForm inchangés.
+
+### U3 — Lier/délier manuel fil ↔ dossier (`616b376` + `f82df69`)
+- Route `POST /api/admin/mails/link-to-intervention` ({ thread_id, intervention_id|null }) : écrit **UNIQUEMENT `mails_analyses.dossier_match_id`** — `intervention_mails` reste au seul cron.
+- UI dans la rangée Dossier de la fiche : autocomplete inline (même route `/api/admin/interventions/search`) pour lier, « Délier » avec confirm. Badge d'en-tête + rangée se mettent à jour ensemble (refreshAnalyse).
+
+### U4 — Réponse IA inline dans le composer (`0cf441e` + `8088404`)
+- draft-reply gagne `mode: 'inline'` : renvoie le texte dans le composer — analyse OPTIONNELLE (bonus contexte), fil complet fourni au modèle, langue auto (analyse ou détection), signature sobre « Fox Group srl », **AUCUN brouillon Gmail, AUCUN envoi autonome**. Mode `gmail_draft` par défaut strictement inchangé (signature Christophe Mertens, brouillon + brouillon_gmail_id). Toujours via runAgent (mode dans l'inputSummary).
+- Bouton « ✨ Rédiger avec l'IA » dans le panel Répondre : remplit le textarea (confirm avant d'écraser un texte saisi), l'admin relit/édite et envoie LUI-MÊME (sendReply intact).
+
+## Note réutilisation (dette assumée)
+- 3e implémentation locale de l'autocomplete dossier (ConfirmCreateForm, AttachToDossierButton, FicheDossierCard — même route, même debounce 300 ms). **Factoriser en `DossierSearchPicker` au 4e usage.**
+
+## Invariants / suite
+1. **CRONS MAILS TOUJOURS FERMÉS** — rallumage = toute dernière étape du chantier. ⚠️ Au rallumage : définir qui de cron/analyse-deep GAGNE sur `classification` (les deux prompts l'émettent désormais, mais analyse-deep est aujourd'hui le seul writer de la colonne).
+2. **Chantier signature-pdf EN PAUSE** — branche `feat/signature-pdf` intacte (4 commits). Décisions associé en attente : couverture claire/marine/aucune + ville du « Fait à ».
+3. Prochaines options : **Phase 4** (confirmations occupants), **Phase 8** (messagerie portail), ou **reprise signature-pdf**.
+
+## Hygiène repo
+- Branche `feat/mails-v2-phase3` mergée → supprimer côté GitHub si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-12 (Mails V2 — Phase 2 CLOSE, PR #93 — U4 documents tech)
 
 - **Date du recap** : 2026-06-12
