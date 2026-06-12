@@ -144,6 +144,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     conclusion: toParaFmt(rapport.conclusion ?? ''),
     recommandation: toParaFmt(rapport.recommandations ?? ''),
     fait_a_date: fmtDateShort(today),
+    ...(techNom ? { technicien_nom: techNom } : {}),
   };
 
   // Photos (DÉGÂTS + INSPECTION) téléchargées EN AMONT et passées au moteur

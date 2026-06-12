@@ -6,7 +6,6 @@ import {
 import type { ReportData } from '@/lib/rapport/build-docx';
 import type { RapportPhotoData, RapportPhotosBySection } from '@/lib/rapport/photos';
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
-import { RAPPORT_LOGO } from '@/lib/rapport/logo';
 
 // Typographie FoxO (alignée sur le design system web, cf. CLAUDE.md) :
 // Syne pour le display/titres, Inter pour le corps. @react-pdf exige des TTF
@@ -56,22 +55,11 @@ const C = {
   muted: '#6B6B6B',      // secondaire / légendes / footer
 };
 
-// Largeurs du tableau d'identification (mêmes proportions que le docx :
-// C1=1900, C2=3333, C3=1900, C4=3333 — total 10466).
-const W = {
-  c1: '18.16%',
-  c2: '31.84%',
-  c3: '18.16%',
-  c4: '31.84%',
-  c1c2: '50%',
-  c3c4: '50%',
-  c2c3c4: '81.84%',
-};
-
-// Logo blanc de la couverture (PNG alpha 1024×1024, public/). Lu une fois au
-// chargement du module, best-effort : sans le fichier, la couverture affiche
-// le wordmark « FoxO » en Syne. Inclus dans le bundle serveur via next.config
-// (outputFileTracingIncludes).
+// Logos (PNG alpha, public/) : blanc pour la couverture, couleur pour le
+// header des pages de contenu. Lus une fois au chargement du module,
+// best-effort : sans fichier, repli sur le logo JPG historique (prop) puis
+// sur le wordmark « FoxO » en Syne. Inclus dans le bundle serveur via
+// next.config (outputFileTracingIncludes).
 function readAsset(rel: string): Buffer | null {
   try {
     return fs.readFileSync(path.join(process.cwd(), ...rel.split('/')));
@@ -81,6 +69,13 @@ function readAsset(rel: string): Buffer | null {
   }
 }
 const COVER_LOGO = readAsset('public/foxo-logo-blanc-transparent.png');
+// Logo carré couleur (1024×1024) pour le header — préféré à
+// foxo-logo-documents.png et au JPG historique, qui embarquent tous deux un
+// bloc de coordonnées illisible à cette taille (doublon avec le bloc de
+// droite du header).
+const HEADER_LOGO = readAsset('public/foxo-logo-transparent.png');
+const HEADER_LOGO_W = 52;
+const HEADER_LOGO_H = 52;
 
 // Coordonnées société — uniques sources des textes du footer et de la
 // couverture (mêmes valeurs que l'historique).
@@ -149,84 +144,83 @@ const cover = StyleSheet.create({
 
 const styles = StyleSheet.create({
   page: {
-    // paddingTop réserve la zone du header logo (fixed, répété chaque page) ;
-    // paddingBottom réserve la zone du footer (fixed).
-    paddingTop: 126,
-    paddingBottom: 58,
-    paddingHorizontal: 30,
+    // paddingTop réserve la zone du header (fixed, répété chaque page) ;
+    // paddingBottom réserve la zone du footer + numéro de page (fixed).
+    paddingTop: 96,
+    paddingBottom: 64,
+    paddingHorizontal: 36,
     fontFamily: 'Inter',
     fontSize: 10,
     color: C.ink,
     backgroundColor: '#FFFFFF',
   },
-  // Encadré pleine page (4 côtés), répété sur chaque page.
-  pageBorder: {
+  // ── Header (fixed) : logo couleur à gauche, coordonnées à droite,
+  // filet ambre fin en assise. ──
+  header: {
     position: 'absolute',
-    top: 18, left: 18, right: 18, bottom: 18,
-    borderWidth: 1.2,
-    borderColor: C.navy,
+    top: 26, left: 36, right: 36,
   },
-  // Header logo (aligné gauche comme dans word/header1.xml du template),
-  // répété sur chaque page (fixed). Séparateur dark sous le logo.
-  logoHeader: {
-    position: 'absolute',
-    top: 28, left: 30, right: 30,
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 8,
   },
-  logoSep: {
-    marginTop: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: C.navy,
-  },
-  logoFallback: { fontFamily: 'Syne', fontWeight: 'bold', fontSize: 24, color: C.navy },
-  title: {
-    textAlign: 'center',
-    fontFamily: 'Syne', fontWeight: 'bold',
-    fontSize: 22,
-    color: C.navy,
-    letterSpacing: 1,
-    marginBottom: 14,
-  },
-  // ── Tableau d'identification ──
-  table: { width: '100%', borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: C.sandBorder },
-  row: { flexDirection: 'row' },
-  cellLabel: {
+  headerFallback: { fontFamily: 'Syne', fontWeight: 'bold', fontSize: 20, color: C.navy },
+  headerCoords: { textAlign: 'right' },
+  headerSociete: { fontFamily: 'Inter', fontWeight: 600, fontSize: 8, color: C.navy, marginBottom: 1.5 },
+  headerContact: { fontSize: 7, color: C.muted, lineHeight: 1.4 },
+  headerRule: { height: 1, backgroundColor: C.amber },
+  // ── Cartes d'identification (remplacent le tableau Word) ──
+  identRow: { flexDirection: 'row', marginBottom: 8 },
+  identCard: {
     backgroundColor: C.sand,
-    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.sandBorder,
-    paddingVertical: 4, paddingHorizontal: 5,
-    fontFamily: 'Inter', fontWeight: 600, color: C.navy, fontSize: 8.5,
+    borderRadius: 4,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
   },
-  cellValue: {
-    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.sandBorder,
-    paddingVertical: 4, paddingHorizontal: 5,
-    fontSize: 9.5, color: C.ink,
+  identCol: { flex: 1 },
+  identGap: { width: 8 },
+  label: {
+    fontFamily: 'Inter', fontWeight: 600,
+    fontSize: 7.5,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: C.amber,
+    marginBottom: 2,
   },
-  facLine: { fontSize: 9.5, color: C.ink, marginBottom: 1 },
-  occLine: { fontSize: 8.5, color: C.muted, marginTop: 1 },
-  // ── Techniques (cases dessinées) ──
+  value: { fontSize: 10, color: C.ink, lineHeight: 1.35 },
+  valueStrong: { fontFamily: 'Inter', fontWeight: 600, fontSize: 10, color: C.navy, lineHeight: 1.35 },
+  occLine: { fontSize: 8.5, color: C.muted, marginTop: 1.5, lineHeight: 1.3 },
+  // ── Techniques (carte sable, 2 colonnes) ──
   techCols: { flexDirection: 'row', width: '100%' },
   techCol: { width: '50%' },
-  checkRow: { flexDirection: 'row', alignItems: 'flex-start', marginVertical: 1.5 },
-  checkbox: {
-    width: 9, height: 9, borderWidth: 0.8,
+  checkRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 2 },
+  checkOn: {
+    width: 11, height: 11, borderRadius: 3,
+    backgroundColor: C.navy,
     alignItems: 'center', justifyContent: 'center',
-    marginRight: 4, marginTop: 0.5,
+    marginRight: 5,
   },
-  checkboxInner: { width: 4.5, height: 4.5 },
-  checkLabel: { fontSize: 8.5, color: C.ink },
+  checkOnMark: { fontSize: 7, color: '#FFFFFF', fontFamily: 'Inter', fontWeight: 'bold' },
+  checkOff: {
+    width: 9, height: 9, borderWidth: 0.8, borderColor: C.muted, borderRadius: 2,
+    marginRight: 6, marginLeft: 1,
+  },
+  checkLabel: { fontSize: 8.5, color: C.muted },
   checkLabelOn: { fontFamily: 'Inter', fontWeight: 600, color: C.navy },
-  // ── Sections ──
+  // ── Sections ── filet ambre court AU-DESSUS du titre Syne.
+  sectionRule: { width: 24, height: 2, backgroundColor: C.amber, marginTop: 18, marginBottom: 6 },
   sectionTitle: {
     fontFamily: 'Syne', fontWeight: 600,
-    fontSize: 12,
+    fontSize: 13,
     color: C.navy,
-    letterSpacing: 0.5,
-    marginTop: 14, marginBottom: 4,
-    paddingBottom: 3,
-    borderBottomWidth: 1, borderBottomColor: C.amber,
+    letterSpacing: 1,
+    marginBottom: 8,
   },
-  paragraph: { fontSize: 10, lineHeight: 1.5, color: C.ink, marginBottom: 4 },
+  paragraph: { fontSize: 10, lineHeight: 1.5, color: C.ink, marginBottom: 6 },
   empty: { fontSize: 9.5, color: C.muted },
-  // ── Photos (grille 2 colonnes, jumelle du moteur docx) ──
+  // ── Photos (grille 2 colonnes, max 2 par ligne — règle métier) ──
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, marginBottom: 2 },
   photoCell: { width: '50%', paddingHorizontal: 4, marginBottom: 8, alignItems: 'center' },
   photoCaption: {
@@ -234,16 +228,25 @@ const styles = StyleSheet.create({
     fontSize: 8, color: C.muted, textAlign: 'center', marginTop: 3,
   },
   // ── Clôture ──
-  faitA: { textAlign: 'right', marginTop: 26, fontSize: 11, color: C.muted },
+  closing: { marginTop: 28, alignItems: 'flex-end' },
+  faitA: { fontSize: 10.5, color: C.muted },
   faitADate: { fontFamily: 'Inter', fontWeight: 600, color: C.navy },
-  // ── Footer 3 lignes ──
+  closingSociete: { fontFamily: 'Syne', fontWeight: 600, fontSize: 10, color: C.navy, marginTop: 4 },
+  closingTech: { fontSize: 9, color: C.muted, marginTop: 3 },
+  // ── Footer (fixed) : 3 lignes + numéro de page ──
   footer: {
     position: 'absolute',
-    left: 30, right: 30, bottom: 24,
+    left: 36, right: 36, bottom: 22,
     textAlign: 'center',
-    fontSize: 7, color: C.muted, lineHeight: 1.45,
-    borderTopWidth: 0.5, borderTopColor: C.sandBorder,
-    paddingTop: 5,
+    fontSize: 6.5, color: C.muted, lineHeight: 1.5,
+    borderTopWidth: 0.75, borderTopColor: C.sandBorder,
+    paddingTop: 6,
+  },
+  footerDot: { color: C.amber },
+  pageNumber: {
+    position: 'absolute',
+    right: 36, bottom: 22,
+    fontSize: 7, color: C.muted,
   },
 });
 
@@ -258,9 +261,9 @@ function paragraphs(text: string): string[] {
 function CheckItem({ label, checked }: { label: string; checked: boolean }) {
   return (
     <View style={styles.checkRow} wrap={false}>
-      <View style={[styles.checkbox, { borderColor: checked ? C.navy : C.muted }]}>
-        {checked && <View style={[styles.checkboxInner, { backgroundColor: C.navy }]} />}
-      </View>
+      {checked
+        ? <View style={styles.checkOn}><Text style={styles.checkOnMark}>✓</Text></View>
+        : <View style={styles.checkOff} />}
       <Text style={[styles.checkLabel, checked ? styles.checkLabelOn : {}]}>{label}</Text>
     </View>
   );
@@ -270,11 +273,32 @@ function Section({ title, text }: { title: string; text: string }) {
   const paras = paragraphs(text);
   return (
     <View>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      {/* Filet + titre insécables avec la 1re ligne du corps (minPresenceAhead) :
+          jamais de titre orphelin en bas de page. */}
+      <View minPresenceAhead={40}>
+        <View style={styles.sectionRule} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
       {paras.length > 0
         ? paras.map((p, i) => <Text key={i} style={styles.paragraph}>{p}</Text>)
         : <Text style={styles.empty}>—</Text>}
     </View>
+  );
+}
+
+// Ligne de footer : les « · » de séparation passent en ambre (micro-signature
+// FoxO), le reste reste muted.
+function FooterLine({ text }: { text: string }) {
+  const parts = text.split('·');
+  return (
+    <Text>
+      {parts.map((part, i) => (
+        <Text key={i}>
+          {i > 0 && <Text style={styles.footerDot}>·</Text>}
+          {part}
+        </Text>
+      ))}
+    </Text>
   );
 }
 
@@ -384,67 +408,71 @@ export function RapportPdf({ data, logo, photos }: {
       </Page>
 
       <Page size="A4" style={styles.page}>
-        {/* Encadré pleine page, répété sur chaque page */}
-        <View style={styles.pageBorder} fixed />
-
-        {/* Header logo (gauche, répété chaque page), comme dans le template */}
-        <View style={styles.logoHeader} fixed>
-          {logo
-            ? <Image src={{ data: logo, format: 'jpg' }} style={{ width: RAPPORT_LOGO.widthPt, height: RAPPORT_LOGO.heightPt }} />
-            : <Text style={styles.logoFallback}>FoxO</Text>}
-          <View style={styles.logoSep} />
+        {/* ── Header (répété chaque page) ── */}
+        <View style={styles.header} fixed>
+          <View style={styles.headerRow}>
+            {HEADER_LOGO
+              ? <Image src={{ data: HEADER_LOGO, format: 'png' }} style={{ width: HEADER_LOGO_W, height: HEADER_LOGO_H }} />
+              : logo
+                ? <Image src={{ data: logo, format: 'jpg' }} style={{ width: HEADER_LOGO_W, height: Math.round(HEADER_LOGO_W / 1.9) }} />
+                : <Text style={styles.headerFallback}>FoxO</Text>}
+            <View style={styles.headerCoords}>
+              <Text style={styles.headerSociete}>Fox Group srl</Text>
+              <Text style={styles.headerContact}>Stationstraat 55, 3070 Kortenberg</Text>
+              <Text style={styles.headerContact}>info@foxo.be  ·  +32 488 700 007</Text>
+            </View>
+          </View>
+          <View style={styles.headerRule} />
         </View>
 
-        <Text style={styles.title}>RAPPORT D&apos;INTERVENTION</Text>
+        {/* ── Identification en cartes ── */}
+        <View style={styles.identRow}>
+          <View style={[styles.identCard, { width: '34%' }]}>
+            <View style={{ marginBottom: 7 }}>
+              <Text style={styles.label}>N° intervention</Text>
+              <Text style={styles.valueStrong}>{data.numero || '—'}</Text>
+            </View>
+            <View>
+              <Text style={styles.label}>{data.ref_label.replace(/\s*:\s*$/, '')}</Text>
+              <Text style={styles.valueStrong}>{data.ref_value || '—'}</Text>
+            </View>
+          </View>
+          <View style={styles.identGap} />
+          <View style={[styles.identCard, { flex: 1 }]}>
+            <Text style={styles.label}>Objet de l{'’'}intervention</Text>
+            <Text style={styles.value}>{data.objet || '—'}</Text>
+          </View>
+        </View>
 
-        {/* ── Tableau d'identification ── */}
-        <View style={styles.table}>
-          {/* L1 : N° Intervention : | numero | ref_label | ref_value */}
-          <View style={styles.row}>
-            <Text style={[styles.cellLabel, { width: W.c1 }]}>N° Intervention :</Text>
-            <Text style={[styles.cellValue, { width: W.c2 }]}>{data.numero || '—'}</Text>
-            <Text style={[styles.cellLabel, { width: W.c3 }]}>{data.ref_label}</Text>
-            <Text style={[styles.cellValue, { width: W.c4 }]}>{data.ref_value || '—'}</Text>
+        <View style={styles.identRow}>
+          <View style={[styles.identCard, styles.identCol]}>
+            <Text style={styles.label}>Adresse d{'’'}intervention</Text>
+            <Text style={styles.value}>{data.adresse_ligne1 || '—'}</Text>
+            {occupantLines.map((l, i) => <Text key={i} style={styles.occLine}>{l}</Text>)}
+            {data.adresse_ligne3 ? <Text style={styles.occLine}>{data.adresse_ligne3}</Text> : null}
           </View>
-          {/* L2 : Objet intervention : | Adresse Facturation : */}
-          <View style={styles.row}>
-            <Text style={[styles.cellLabel, { width: W.c1c2 }]}>Objet intervention :</Text>
-            <Text style={[styles.cellLabel, { width: W.c3c4 }]}>Adresse Facturation :</Text>
+          <View style={styles.identGap} />
+          <View style={[styles.identCard, styles.identCol]}>
+            <Text style={styles.label}>Adresse de facturation</Text>
+            {facturationLines.length > 0
+              ? facturationLines.map((l, i) => <Text key={i} style={styles.value}>{l}</Text>)
+              : <Text style={styles.value}>—</Text>}
           </View>
-          {/* L3 : objet | facturation (multi-lignes) */}
-          <View style={styles.row}>
-            <Text style={[styles.cellValue, { width: W.c1c2 }]}>{data.objet || '—'}</Text>
-            <View style={[styles.cellValue, { width: W.c3c4 }]}>
-              {facturationLines.length > 0
-                ? facturationLines.map((l, i) => <Text key={i} style={styles.facLine}>{l}</Text>)
-                : <Text style={styles.facLine}>—</Text>}
+        </View>
+
+        {/* ── Techniques d'inspection ── */}
+        <View style={styles.identCard}>
+          <Text style={[styles.label, { marginBottom: 5 }]}>Techniques d{'’'}inspection</Text>
+          <View style={styles.techCols}>
+            <View style={styles.techCol}>
+              {techLeft.map((tk) => (
+                <CheckItem key={tk.key} label={tk.label} checked={Boolean(data.techniques[tk.key])} />
+              ))}
             </View>
-          </View>
-          {/* L4 : Adresse d'intervention : | adresse + occupants (1 ligne/occupant) */}
-          <View style={styles.row}>
-            <Text style={[styles.cellLabel, { width: W.c1 }]}>Adresse d&apos;intervention :</Text>
-            <View style={[styles.cellValue, { width: W.c2c3c4 }]}>
-              <Text style={styles.facLine}>{data.adresse_ligne1 || '—'}</Text>
-              {occupantLines.map((l, i) => <Text key={i} style={styles.occLine}>{l}</Text>)}
-              {data.adresse_ligne3 ? <Text style={styles.occLine}>{data.adresse_ligne3}</Text> : null}
-            </View>
-          </View>
-          {/* L5 : Techniques d'inspection : | 4 gauche | 4 droite */}
-          <View style={styles.row}>
-            <Text style={[styles.cellLabel, { width: W.c1 }]}>Techniques d&apos;inspection :</Text>
-            <View style={[styles.cellValue, { width: W.c2c3c4 }]}>
-              <View style={styles.techCols}>
-                <View style={styles.techCol}>
-                  {techLeft.map((tk) => (
-                    <CheckItem key={tk.key} label={tk.label} checked={Boolean(data.techniques[tk.key])} />
-                  ))}
-                </View>
-                <View style={styles.techCol}>
-                  {techRight.map((tk) => (
-                    <CheckItem key={tk.key} label={tk.label} checked={Boolean(data.techniques[tk.key])} />
-                  ))}
-                </View>
-              </View>
+            <View style={styles.techCol}>
+              {techRight.map((tk) => (
+                <CheckItem key={tk.key} label={tk.label} checked={Boolean(data.techniques[tk.key])} />
+              ))}
             </View>
           </View>
         </View>
@@ -458,16 +486,27 @@ export function RapportPdf({ data, logo, photos }: {
         <Section title="RECOMMANDATION" text={data.recommandation} />
 
         {/* ── Clôture ── */}
-        <Text style={styles.faitA}>
-          Fait à Bruxelles le,  <Text style={styles.faitADate}>{data.fait_a_date}</Text>
-        </Text>
+        <View style={styles.closing} wrap={false}>
+          <Text style={styles.faitA}>
+            Fait à Bruxelles, le <Text style={styles.faitADate}>{data.fait_a_date}</Text>
+          </Text>
+          <Text style={styles.closingSociete}>Fox Group srl</Text>
+          {data.technicien_nom
+            ? <Text style={styles.closingTech}>Technicien : {data.technicien_nom}</Text>
+            : null}
+        </View>
 
-        {/* ── Footer 3 lignes, répété sur chaque page ── */}
+        {/* ── Footer 3 lignes + numéro de page (répétés chaque page) ── */}
         <View style={styles.footer} fixed>
-          <Text>{SOCIETE.ligne1}</Text>
-          <Text>{SOCIETE.ligne2}</Text>
+          <FooterLine text={SOCIETE.ligne1} />
+          <FooterLine text={SOCIETE.ligne2} />
           <Text>{SOCIETE.ligne3}</Text>
         </View>
+        <Text
+          style={styles.pageNumber}
+          render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+          fixed
+        />
       </Page>
     </Document>
   );

@@ -103,6 +103,9 @@ export interface ReportData {
   conclusion: string;
   recommandation: string;
   fait_a_date: string;
+  // Optionnel — consommé par le moteur PDF uniquement (clôture) ; le builder
+  // docx l'ignore.
+  technicien_nom?: string;
 }
 
 // ─── Helpers atomiques (port FOXO_BASE) ───────────────────────────────

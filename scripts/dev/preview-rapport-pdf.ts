@@ -42,6 +42,7 @@ const data: ReportData = {
   recommandation:
     'Faire intervenir un plombier sur la colonne d\'évacuation de l\'E54.||PARA||Prévoir un nouveau relevé au capteur d\'humidité après réparation et séchage.',
   fait_a_date: '10/06/2026',
+  technicien_nom: 'Karim El Amrani',
 };
 
 // Rectangle de couleur unie → RapportPhotoData (octets JPEG + dims intrinsèques).
