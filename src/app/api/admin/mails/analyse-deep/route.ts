@@ -27,10 +27,12 @@ import { getEmailThread } from '@/lib/gmail';
 import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau';
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
 import { runAgent } from '@/lib/observability';
-import { toCanonicalClassification } from '@/lib/mail/categories';
+import { MAIL_CLASSIFICATIONS, toCanonicalClassification, type MailClassification } from '@/lib/mail/categories';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+// Prompt enrichi Phase 3 (classification native + acp/syndic) : marge
+// confortable, aligné sur confirm-and-create.
+export const maxDuration = 60;
 
 const MODEL = 'claude-sonnet-4-6';
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
@@ -101,6 +103,10 @@ function normalizeOccupants(raw: unknown): AnalyseDeepOccupant[] {
 
 interface ClaudeAnalyse {
   type: AnalyseType;
+  // Phase 3 — émis nativement par le modèle (8 valeurs canoniques de
+  // categories.ts). Optionnel : les réponses antérieures / dégradées sans ce
+  // champ retombent sur la dérivation toCanonicalClassification(type).
+  classification?: string | null;
   type_intervention: TypeIntervention | null;
   urgence: boolean;
   langue: 'fr' | 'nl' | 'en' | 'other';
@@ -110,12 +116,35 @@ interface ClaudeAnalyse {
   occupant_telephone: string | null;
   occupant_email: string | null;
   occupants?: AnalyseDeepOccupant[];
+  // Phase 3 — enrichissement fiche dossier (null si absent du mail).
+  acp_nom?: string | null;
+  syndic_nom?: string | null;
 }
 
 interface DossierInfo {
   id: string;
   ref: string | null;
   adresse: string | null;
+}
+
+// Phase 3 — classification émise nativement par le modèle. Validée contre la
+// liste canonique (categories.ts) ; toute valeur absente/invalide retombe sur
+// la dérivation historique toCanonicalClassification(type), donc les réponses
+// sans le champ (anciens retries, drift de format) ne cassent rien.
+function resolveClassification(analyse: ClaudeAnalyse): MailClassification {
+  const emitted = typeof analyse.classification === 'string' ? analyse.classification.trim() : '';
+  if ((MAIL_CLASSIFICATIONS as readonly string[]).includes(emitted)) {
+    return emitted as MailClassification;
+  }
+  return toCanonicalClassification(analyse.type);
+}
+
+// Trim → null si vide. Pour les champs d'extraction optionnels (acp_nom,
+// syndic_nom) : tolère absent / non-string / chaîne vide.
+function cleanOptionalText(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  return s ? s.slice(0, 200) : null;
 }
 
 // ─── Helper extraction JSON (Claude entoure parfois le JSON de fences
@@ -302,6 +331,7 @@ export async function POST(request: Request) {
       `Schéma de sortie strict :`,
       `{`,
       `  "type": "demande_intervention" | "relance_rapport" | "suivi_dossier" | "question_generale" | "accuse_reception" | "spam_commercial",`,
+      `  "classification": "nouvelle_demande" | "relance_syndic" | "reponse_occupant" | "demande_rapport" | "question_facturation" | "urgence" | "demarchage" | "autre",`,
       `  "type_intervention": "Fuite canalisation" | "Fuite chauffage" | "Fuite infiltration" | "Surconsommation eau" | "Autre",`,
       `  "urgence": boolean,`,
       `  "langue": "fr" | "nl" | "en" | "other",`,
@@ -310,10 +340,29 @@ export async function POST(request: Request) {
       `  "resume": string,`,
       `  "occupant_telephone": string | null,`,
       `  "occupant_email": string | null,`,
+      `  "acp_nom": string | null,`,
+      `  "syndic_nom": string | null,`,
       `  "occupants": Array<{ prenom, nom, email, telephone, appartement, etage, type, remarques }>`,
       `}`,
       ``,
       `Règles :`,
+      `- classification (taxonomie canonique FoxO — pilote le label Gmail). Choisis EXACTEMENT une valeur :`,
+      `   "nouvelle_demande" : nouvelle demande d'intervention`,
+      `   "relance_syndic" : suivi / relance sur un dossier existant`,
+      `   "reponse_occupant" : occupant ou syndic qui répond (confirmation, annulation, contre-proposition)`,
+      `   "demande_rapport" : on réclame un rapport`,
+      `   "question_facturation" : question ou relance sur une facture`,
+      `   "urgence" : sinistre urgent en cours`,
+      `   "demarchage" : publicité, prospection commerciale, spam`,
+      `   "autre" : tout le reste`,
+      `  Émets AUSSI le champ "type" (taxonomie historique ci-dessus) : les deux coexistent.`,
+      ``,
+      `- acp_nom : nom de l'ACP / copropriété tel que mentionné dans le mail ou clairement déductible`,
+      `  (ex. "ACP MANNEKEN", "Résidence Les Tilleuls"). null si absent. INTERDICTION d'inventer.`,
+      `- syndic_nom : nom du cabinet syndic expéditeur ou mentionné. Si le domaine email de`,
+      `  l'expéditeur correspond à un syndic de la liste "Syndics connus" ci-dessous, utilise SON`,
+      `  nom EXACT tel qu'il figure dans la liste. Sinon, le nom tel que mentionné dans le mail`,
+      `  (signature, corps). null si aucun syndic identifiable. INTERDICTION d'inventer.`,
       `- type_intervention : déduire du contenu. "Infiltration plafond" / "tâches d'humidité" → "Fuite infiltration". "fuite chaudière" / "radiateur" / "chauffage" → "Fuite chauffage". "compteur eau" / "consommation anormale" → "Surconsommation eau". "tuyau" / "canalisation" / "sanitaire" → "Fuite canalisation". Si doute → "Autre".`,
       `- urgence=true si "fuite active", "dégât en cours", "urgent", "rapidement", "asap"`,
       ``,
@@ -591,12 +640,16 @@ export async function POST(request: Request) {
         expediteur: messages[0]?.from ?? null,
         recu_le: messages[0]?.date ?? null,
         type: analyse.type,
-        // U4 : classification canonique dérivée du type hérité émis par
-        // Claude (toCanonicalClassification mappe le vocabulaire deep vers
-        // les 8 valeurs canoniques de categories.ts). analyse-deep est le
-        // SEUL writer de cette colonne. type est conservé tel quel pour
-        // traçabilité / fallback des anciennes lignes.
-        classification: toCanonicalClassification(analyse.type),
+        // Phase 3 : classification canonique émise NATIVEMENT par le modèle
+        // (mêmes critères que le prompt du cron), validée contre
+        // MAIL_CLASSIFICATIONS ; fallback historique
+        // toCanonicalClassification(type) si absente/invalide. analyse-deep
+        // reste le SEUL writer de cette colonne. type est conservé tel quel
+        // (branches UI et confirm-and-create en dépendent).
+        classification: resolveClassification(analyse),
+        // Phase 3 : enrichissement fiche dossier.
+        acp_nom: cleanOptionalText(analyse.acp_nom),
+        syndic_nom: cleanOptionalText(analyse.syndic_nom),
         urgence: analyse.urgence,
         langue: analyse.langue,
         adresse_extraite: analyse.adresse_extraite,

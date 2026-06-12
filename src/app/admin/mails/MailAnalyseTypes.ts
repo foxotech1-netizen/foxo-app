@@ -93,6 +93,11 @@ export interface MailAnalyse {
   resume: string | null;
   occupant_telephone: string | null;
   occupant_email: string | null;
+  // Phase 3 — extraits par analyse-deep (null sur les lignes antérieures).
+  acp_nom: string | null;
+  syndic_nom: string | null;
+  // Extrait d'analyse_raw côté route analyses (pas de colonne dédiée).
+  type_intervention: string | null;
   occupants_extraits: OccupantExtrait[] | null;
   dossier_match_id: string | null;
   creneau_propose_id: string | null;
