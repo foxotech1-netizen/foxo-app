@@ -7,35 +7,52 @@ import type { RapportPhotoData, RapportPhotosBySection } from '@/lib/rapport/pho
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
 import { RAPPORT_LOGO } from '@/lib/rapport/logo';
 
-// Police Carlito — jumelle métrique de Calibri (licence SIL OFL, embarquable).
-// Les .ttf sont commités dans src/lib/pdf/fonts/ (+ OFL.txt) et inclus dans le
-// bundle serveur via next.config (outputFileTracingIncludes). Enregistrée une
-// seule fois au chargement du module.
+// Typographie FoxO (alignée sur le design system web, cf. CLAUDE.md) :
+// Syne pour le display/titres, Inter pour le corps. @react-pdf exige des TTF
+// STATIQUES : Inter est extrait du TTC officiel (release rsms/inter v4.1),
+// Syne instancié depuis la variable google/fonts (fonttools varLib.instancer,
+// wght 600/700). Licences SIL OFL (OFL-Inter.txt / OFL-Syne.txt). Les .ttf
+// sont commités dans src/lib/pdf/fonts/ et inclus dans le bundle serveur via
+// next.config (outputFileTracingIncludes). Enregistrés une seule fois au
+// chargement du module.
 const FONTS_DIR = path.join(process.cwd(), 'src', 'lib', 'pdf', 'fonts');
 Font.register({
-  family: 'Carlito',
+  family: 'Inter',
   fonts: [
-    { src: path.join(FONTS_DIR, 'Carlito-Regular.ttf') },
-    { src: path.join(FONTS_DIR, 'Carlito-Bold.ttf'), fontWeight: 'bold' },
-    { src: path.join(FONTS_DIR, 'Carlito-Italic.ttf'), fontStyle: 'italic' },
-    { src: path.join(FONTS_DIR, 'Carlito-BoldItalic.ttf'), fontWeight: 'bold', fontStyle: 'italic' },
+    { src: path.join(FONTS_DIR, 'Inter-Regular.ttf') },
+    { src: path.join(FONTS_DIR, 'Inter-Medium.ttf'), fontWeight: 500 },
+    { src: path.join(FONTS_DIR, 'Inter-SemiBold.ttf'), fontWeight: 600 },
+    { src: path.join(FONTS_DIR, 'Inter-Bold.ttf'), fontWeight: 'bold' },
+    { src: path.join(FONTS_DIR, 'Inter-Italic.ttf'), fontStyle: 'italic' },
   ],
 });
+Font.register({
+  family: 'Syne',
+  fonts: [
+    { src: path.join(FONTS_DIR, 'Syne-SemiBold.ttf'), fontWeight: 600 },
+    { src: path.join(FONTS_DIR, 'Syne-Bold.ttf'), fontWeight: 'bold' },
+  ],
+});
+// Pas de césure automatique : l'algorithme par défaut coupe les mots
+// français n'importe où (« interven-tion ») — on préfère le retour à la
+// ligne au mot entier.
+Font.registerHyphenationCallback((w) => [w]);
 
-// Moteur PDF du rapport — JUMEAU STRUCTUREL du template Word
-// (templates/"FOXO TEMPLATE VIERGE.docx") et du moteur docx (build-docx.ts).
-// Consomme le MÊME objet ReportData. Police : Carlito (jumelle Calibri),
-// embarquée depuis src/lib/pdf/fonts/.
+// Moteur PDF du rapport syndic — RÉFÉRENCE VISUELLE CLIENT (identité FoxO).
+// Consomme le MÊME ReportData que le moteur docx (build-docx.ts), qui reste
+// le document de travail interne au gabarit Word historique.
 //
-// Palette alignée sur build-docx.ts.
+// Palette — source : tokens @theme de src/app/globals.css (le PDF ne lit pas
+// le CSS : valeurs recopiées, à maintenir en phase avec globals.css).
 const C = {
-  dark: '#1B3A5C',     // titres, encadré, labels
-  mid: '#2E75B6',      // cases non cochées
-  accent: '#4A9FD4',   // ligne sous les titres de section
-  light: '#EAF4FB',    // fond cellules labels
-  body: '#1A1A1A',     // texte courant
-  muted: '#6B6B6B',    // secondaire / occupants / footer
-  divider: '#C0D4E8',  // bordures tableau
+  navy: '#1B3A6B',       // --color-navy : titres, éléments forts
+  navyDark: '#152D54',   // --color-navy-dark : fonds profonds (couverture)
+  amber: '#B8830A',      // --color-amber-foxo : accent unique (filets, labels)
+  sand: '#F5F2EC',       // --color-sand : fonds de cartes
+  sandBorder: '#DDD8CC', // --color-sand-border : bordures discrètes
+  cream: '#FDFBF7',      // --color-cream : carte sur fond marine
+  ink: '#1A1A1A',        // texte courant
+  muted: '#6B6B6B',      // secondaire / légendes / footer
 };
 
 // Largeurs du tableau d'identification (mêmes proportions que le docx :
@@ -57,9 +74,9 @@ const styles = StyleSheet.create({
     paddingTop: 126,
     paddingBottom: 58,
     paddingHorizontal: 30,
-    fontFamily: 'Carlito',
+    fontFamily: 'Inter',
     fontSize: 10,
-    color: C.body,
+    color: C.ink,
     backgroundColor: '#FFFFFF',
   },
   // Encadré pleine page (4 côtés), répété sur chaque page.
@@ -67,7 +84,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 18, left: 18, right: 18, bottom: 18,
     borderWidth: 1.2,
-    borderColor: C.dark,
+    borderColor: C.navy,
   },
   // Header logo (aligné gauche comme dans word/header1.xml du template),
   // répété sur chaque page (fixed). Séparateur dark sous le logo.
@@ -78,32 +95,32 @@ const styles = StyleSheet.create({
   logoSep: {
     marginTop: 6,
     borderBottomWidth: 1,
-    borderBottomColor: C.dark,
+    borderBottomColor: C.navy,
   },
-  logoFallback: { fontFamily: 'Carlito', fontWeight: 'bold', fontSize: 24, color: C.dark },
+  logoFallback: { fontFamily: 'Syne', fontWeight: 'bold', fontSize: 24, color: C.navy },
   title: {
     textAlign: 'center',
-    fontFamily: 'Carlito', fontWeight: 'bold',
+    fontFamily: 'Syne', fontWeight: 'bold',
     fontSize: 22,
-    color: C.dark,
+    color: C.navy,
     letterSpacing: 1,
     marginBottom: 14,
   },
   // ── Tableau d'identification ──
-  table: { width: '100%', borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: C.divider },
+  table: { width: '100%', borderTopWidth: 0.6, borderLeftWidth: 0.6, borderColor: C.sandBorder },
   row: { flexDirection: 'row' },
   cellLabel: {
-    backgroundColor: C.light,
-    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.divider,
+    backgroundColor: C.sand,
+    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.sandBorder,
     paddingVertical: 4, paddingHorizontal: 5,
-    fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark, fontSize: 8.5,
+    fontFamily: 'Inter', fontWeight: 600, color: C.navy, fontSize: 8.5,
   },
   cellValue: {
-    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.divider,
+    borderRightWidth: 0.6, borderBottomWidth: 0.6, borderColor: C.sandBorder,
     paddingVertical: 4, paddingHorizontal: 5,
-    fontSize: 9.5, color: C.body,
+    fontSize: 9.5, color: C.ink,
   },
-  facLine: { fontSize: 9.5, color: C.body, marginBottom: 1 },
+  facLine: { fontSize: 9.5, color: C.ink, marginBottom: 1 },
   occLine: { fontSize: 8.5, color: C.muted, marginTop: 1 },
   // ── Techniques (cases dessinées) ──
   techCols: { flexDirection: 'row', width: '100%' },
@@ -115,37 +132,37 @@ const styles = StyleSheet.create({
     marginRight: 4, marginTop: 0.5,
   },
   checkboxInner: { width: 4.5, height: 4.5 },
-  checkLabel: { fontSize: 8.5, color: C.body },
-  checkLabelOn: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
+  checkLabel: { fontSize: 8.5, color: C.ink },
+  checkLabelOn: { fontFamily: 'Inter', fontWeight: 600, color: C.navy },
   // ── Sections ──
   sectionTitle: {
-    fontFamily: 'Carlito', fontWeight: 'bold',
+    fontFamily: 'Syne', fontWeight: 600,
     fontSize: 12,
-    color: C.dark,
+    color: C.navy,
     letterSpacing: 0.5,
     marginTop: 14, marginBottom: 4,
     paddingBottom: 3,
-    borderBottomWidth: 1, borderBottomColor: C.accent,
+    borderBottomWidth: 1, borderBottomColor: C.amber,
   },
-  paragraph: { fontSize: 10, lineHeight: 1.5, color: C.body, marginBottom: 4 },
+  paragraph: { fontSize: 10, lineHeight: 1.5, color: C.ink, marginBottom: 4 },
   empty: { fontSize: 9.5, color: C.muted },
   // ── Photos (grille 2 colonnes, jumelle du moteur docx) ──
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, marginBottom: 2 },
   photoCell: { width: '50%', paddingHorizontal: 4, marginBottom: 8, alignItems: 'center' },
   photoCaption: {
-    fontFamily: 'Carlito', fontStyle: 'italic',
+    fontFamily: 'Inter', fontStyle: 'italic',
     fontSize: 8, color: C.muted, textAlign: 'center', marginTop: 3,
   },
   // ── Clôture ──
   faitA: { textAlign: 'right', marginTop: 26, fontSize: 11, color: C.muted },
-  faitADate: { fontFamily: 'Carlito', fontWeight: 'bold', color: C.dark },
+  faitADate: { fontFamily: 'Inter', fontWeight: 600, color: C.navy },
   // ── Footer 3 lignes ──
   footer: {
     position: 'absolute',
     left: 30, right: 30, bottom: 24,
     textAlign: 'center',
     fontSize: 7, color: C.muted, lineHeight: 1.45,
-    borderTopWidth: 0.5, borderTopColor: C.divider,
+    borderTopWidth: 0.5, borderTopColor: C.sandBorder,
     paddingTop: 5,
   },
 });
@@ -161,8 +178,8 @@ function paragraphs(text: string): string[] {
 function CheckItem({ label, checked }: { label: string; checked: boolean }) {
   return (
     <View style={styles.checkRow} wrap={false}>
-      <View style={[styles.checkbox, { borderColor: checked ? C.dark : C.mid }]}>
-        {checked && <View style={[styles.checkboxInner, { backgroundColor: C.dark }]} />}
+      <View style={[styles.checkbox, { borderColor: checked ? C.navy : C.muted }]}>
+        {checked && <View style={[styles.checkboxInner, { backgroundColor: C.navy }]} />}
       </View>
       <Text style={[styles.checkLabel, checked ? styles.checkLabelOn : {}]}>{label}</Text>
     </View>
