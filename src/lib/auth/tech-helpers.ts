@@ -89,9 +89,18 @@ export async function verifyTechOwnsIntervention(
   interventionId: string,
   opts?: { select?: string; splitNotFound?: boolean },
 ): Promise<VerifyInterventionResult> {
+  // La vérification d'assignation ci-dessous lit iv.technicien_id : un select
+  // custom qui omettrait la colonne rendrait le refus systématique
+  // (undefined !== techId). On la force donc dans le select effectif
+  // ('*' inclut déjà toutes les colonnes).
+  const select = opts?.select
+    ? (opts.select.includes('technicien_id') || opts.select.includes('*')
+        ? opts.select
+        : `${opts.select}, technicien_id`)
+    : 'id, technicien_id';
   const { data: iv } = await client
     .from('interventions')
-    .select(opts?.select ?? 'id, technicien_id')
+    .select(select)
     .eq('id', interventionId)
     .maybeSingle();
 

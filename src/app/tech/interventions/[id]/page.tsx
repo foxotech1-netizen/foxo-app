@@ -6,6 +6,7 @@ import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
 import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
+import { DocumentsPanel } from './DocumentsPanel';
 import { ObservationsPanel } from './ObservationsPanel';
 import { RapportPanel } from './RapportPanel';
 import { NotesPanel } from './NotesPanel';
@@ -200,6 +201,11 @@ export default async function TechInterventionPage({
         interventionId={iv.id}
         initialPhotos={photos}
       />
+
+      {/* Documents du dossier Drive — liste chargée côté client (latence Drive) */}
+      <Block title="Documents du dossier">
+        <DocumentsPanel interventionId={iv.id} />
+      </Block>
 
       {/* Observations terrain */}
       <ObservationsPanel
