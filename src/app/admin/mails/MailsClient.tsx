@@ -1153,6 +1153,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 onScrollToActions={() =>
                   analyseActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 onReply={() => setReplyOpen(true)}
+                onAnalyseRefresh={refreshAnalyse}
               />
             )}
 

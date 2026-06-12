@@ -10,8 +10,9 @@
 // valeurs absentes (anciennes lignes : acp_nom/syndic_nom/classification
 // null) s'affichent « — », pattern maison.
 
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ClipboardList } from 'lucide-react';
+import { AlertTriangle, ClipboardList, Link2, Loader2, Search, X } from 'lucide-react';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { MailAnalyseBadges } from './MailAnalyseBadges';
 import { formatDateFr } from './MailAnalyseActions';
@@ -23,7 +24,14 @@ interface Props {
   onScrollToActions: () => void;
   // Ouvre le composer inline existant (setReplyOpen de MailsClient).
   onReply: () => void;
+  // Refresh ciblé de l'analyse (même mécanique que MailAnalyseActions) —
+  // met à jour fiche ET badges après lier/délier.
+  onAnalyseRefresh: (threadId: string) => Promise<void>;
 }
+
+// Résultats de /api/admin/interventions/search (même route que les pickers
+// du ConfirmCreateForm et d'AttachToDossierButton).
+type SearchResult = { id: string; ref: string | null; adresse: string | null };
 
 const DASH = '—';
 
@@ -42,7 +50,73 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function FicheDossierCard({ analyse, onScrollToActions, onReply }: Props) {
+export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalyseRefresh }: Props) {
+  // ── Lier / délier un dossier (Phase 3 U3) ──
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkQuery, setLinkQuery] = useState('');
+  const [linkResults, setLinkResults] = useState<SearchResult[]>([]);
+  const [linkPosting, setLinkPosting] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const linkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce 300 ms, même pattern que le picker du ConfirmCreateForm : pas de
+  // clear synchrone dans l'effect, visibilité dérivée de la longueur de query.
+  useEffect(() => {
+    if (linkTimer.current) clearTimeout(linkTimer.current);
+    if (!linkOpen || linkQuery.trim().length < 2) {
+      return () => {
+        if (linkTimer.current) clearTimeout(linkTimer.current);
+      };
+    }
+    linkTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `/api/admin/interventions/search?q=${encodeURIComponent(linkQuery.trim())}`,
+          { cache: 'no-store' },
+        );
+        const data = await r.json();
+        if (data.success) setLinkResults((data.results ?? []) as SearchResult[]);
+      } catch { /* noop */ }
+    }, 300);
+    return () => {
+      if (linkTimer.current) clearTimeout(linkTimer.current);
+    };
+  }, [linkQuery, linkOpen]);
+
+  const visibleResults = linkOpen && linkQuery.trim().length >= 2 ? linkResults : [];
+
+  async function postLink(interventionId: string | null) {
+    setLinkPosting(true);
+    setLinkError(null);
+    try {
+      const r = await fetch('/api/admin/mails/link-to-intervention', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: analyse.thread_id, intervention_id: interventionId }),
+      });
+      const data = await r.json();
+      if (!data.success) {
+        setLinkError(data.error ?? 'Échec de la liaison.');
+        return;
+      }
+      // Succès silencieux : le refresh met à jour fiche + badges ensemble.
+      setLinkOpen(false);
+      setLinkQuery('');
+      setLinkResults([]);
+      await onAnalyseRefresh(analyse.thread_id);
+    } catch (e) {
+      setLinkError(e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setLinkPosting(false);
+    }
+  }
+
+  function unlink() {
+    const ref = analyse.dossier?.ref ?? '?';
+    if (!window.confirm(`Délier ce fil du dossier ${ref} ?`)) return;
+    void postLink(null);
+  }
+
   const occupants = analyse.occupants_extraits ?? [];
   const creneauTxt = analyse.creneau
     ? `${formatDateFr(analyse.creneau.date)} ${analyse.creneau.heure_debut} → ${analyse.creneau.heure_fin} — ${analyse.creneau.technicien_nom}${analyse.fenetre_etendue ? ' (fenêtre étendue)' : ''}`
@@ -118,25 +192,101 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply }: Props)
         )}
       </div>
 
-      {/* Dossier lié */}
-      <div className="mt-2.5 flex items-center gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted">
-          Dossier
-        </span>
-        {analyse.dossier ? (
-          <Link
-            href={`/admin/interventions/${analyse.dossier.id}`}
-            className="font-sora inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold hover:underline"
-            style={{
-              background: 'var(--color-navy-pale)',
-              color: 'var(--color-navy)',
-              border: '1px solid var(--color-navy-light)',
-            }}
-          >
-            Dossier {analyse.dossier.ref ?? '?'}
-          </Link>
-        ) : (
-          <span className="text-[11px] text-ink-muted italic">Aucun dossier lié.</span>
+      {/* Dossier lié — lier/délier manuellement (Phase 3 U3) */}
+      <div className="mt-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted">
+            Dossier
+          </span>
+          {analyse.dossier ? (
+            <>
+              <Link
+                href={`/admin/interventions/${analyse.dossier.id}`}
+                className="font-sora inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold hover:underline"
+                style={{
+                  background: 'var(--color-navy-pale)',
+                  color: 'var(--color-navy)',
+                  border: '1px solid var(--color-navy-light)',
+                }}
+              >
+                Dossier {analyse.dossier.ref ?? '?'}
+              </Link>
+              <button
+                type="button"
+                onClick={unlink}
+                disabled={linkPosting}
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted hover:text-terra hover:underline disabled:opacity-50"
+                title="Retirer le lien entre ce fil et le dossier"
+              >
+                {linkPosting ? <Loader2 size={11} className="animate-spin" aria-hidden /> : <X size={11} aria-hidden />}
+                Délier
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-[11px] text-ink-muted italic">Aucun dossier lié.</span>
+              <button
+                type="button"
+                onClick={() => { setLinkOpen((v) => !v); setLinkError(null); }}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-navy hover:underline"
+                aria-expanded={linkOpen}
+              >
+                <Link2 size={11} aria-hidden />
+                {linkOpen ? 'Annuler' : 'Lier à un dossier'}
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Autocomplete inline — même route de recherche que le
+            ConfirmCreateForm (/api/admin/interventions/search) */}
+        {linkOpen && !analyse.dossier && (
+          <div className="mt-1.5 max-w-[420px]">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" aria-hidden />
+              <input
+                type="text"
+                value={linkQuery}
+                onChange={(e) => setLinkQuery(e.target.value)}
+                placeholder="Réf ou adresse du dossier (min. 2 caractères)…"
+                className="w-full pl-8 pr-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid"
+                disabled={linkPosting}
+                autoFocus
+              />
+            </div>
+            {visibleResults.length > 0 && (
+              <ul
+                className="mt-1 rounded-lg overflow-hidden max-h-[180px] overflow-y-auto"
+                style={{ background: 'var(--color-cream)', border: '1px solid var(--color-sand-border)', boxShadow: 'var(--shadow-raised)' }}
+              >
+                {visibleResults.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => postLink(r.id)}
+                      disabled={linkPosting}
+                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-[var(--color-sand-hover)] disabled:opacity-50"
+                    >
+                      <span className="font-semibold text-navy">{r.ref ?? '?'}</span>
+                      {r.adresse ? <span className="text-ink-mid"> — {r.adresse}</span> : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {linkPosting && (
+              <div className="mt-1 text-[11px] text-ink-muted inline-flex items-center gap-1.5">
+                <Loader2 size={11} className="animate-spin" aria-hidden />
+                Liaison en cours…
+              </div>
+            )}
+          </div>
+        )}
+
+        {linkError && (
+          <div className="mt-1.5 text-[11px]" style={{ color: 'var(--color-terra)' }}>
+            {linkError}
+          </div>
         )}
       </div>
 
