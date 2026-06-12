@@ -512,6 +512,64 @@ export async function listFolderFiles(folderId: string, maxFiles = 200): Promise
   return { ok: true, files: collected };
 }
 
+// ─── Lecture seule : métadonnées d'un fichier ─────────────────────────────
+//
+// Lit les métadonnées d'un fichier Drive (dont `parents`, qui permet de
+// vérifier l'appartenance à un dossier avant de servir le contenu). N'écrit
+// rien. Même contrat d'erreur que listFolderFiles.
+
+export interface DriveFileMeta {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number | null;
+  parents: string[];
+  webViewLink: string | null;
+}
+
+export type DriveFileMetaResult =
+  | { ok: true; meta: DriveFileMeta }
+  | { ok: false; error: string };
+
+export async function getDriveFileMeta(fileId: string): Promise<DriveFileMetaResult> {
+  if (!fileId) return { ok: false, error: 'ID fichier vide.' };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+
+  const url = new URL(`${DRIVE_API}/files/${encodeURIComponent(fileId)}`);
+  url.searchParams.set('fields', 'id,name,mimeType,size,parents,webViewLink');
+  url.searchParams.set('supportsAllDrives', 'true');
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${auth.access_token}` } });
+  } catch (e) {
+    return { ok: false, error: `Échec réseau Drive : ${e instanceof Error ? e.message : 'inconnu'}` };
+  }
+  if (res.status === 404) return { ok: false, error: `Fichier Drive introuvable (${fileId}).` };
+  if (res.status === 403) return { ok: false, error: `Accès refusé au fichier ${fileId}.` };
+  if (!res.ok) {
+    const txt = await res.text();
+    return { ok: false, error: `Drive HTTP ${res.status} : ${txt.slice(0, 200)}` };
+  }
+
+  const j = (await res.json()) as {
+    id: string; name: string; mimeType: string;
+    size?: string; parents?: string[]; webViewLink?: string;
+  };
+  return {
+    ok: true,
+    meta: {
+      id: j.id,
+      name: j.name,
+      mimeType: j.mimeType,
+      size: j.size != null ? Number(j.size) : null,
+      parents: j.parents ?? [],
+      webViewLink: j.webViewLink ?? null,
+    },
+  };
+}
+
 // Résout (LECTURE SEULE, sans création) l'ID du dossier Drive d'une
 // intervention par sa RÉFÉRENCE, qui préfixe toujours le nom du dossier
 // ("2026-127 Rue Willems 14"). On ignore l'adresse stockée en base, qui ne
