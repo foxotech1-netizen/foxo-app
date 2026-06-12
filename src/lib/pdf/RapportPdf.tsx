@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import {
   Document, Page, Text, View, Image, Font, StyleSheet,
 } from '@react-pdf/renderer';
@@ -66,6 +67,85 @@ const W = {
   c3c4: '50%',
   c2c3c4: '81.84%',
 };
+
+// Logo blanc de la couverture (PNG alpha 1024×1024, public/). Lu une fois au
+// chargement du module, best-effort : sans le fichier, la couverture affiche
+// le wordmark « FoxO » en Syne. Inclus dans le bundle serveur via next.config
+// (outputFileTracingIncludes).
+function readAsset(rel: string): Buffer | null {
+  try {
+    return fs.readFileSync(path.join(process.cwd(), ...rel.split('/')));
+  } catch (e) {
+    console.warn(`[rapport/pdf] asset introuvable (${rel}):`, e);
+    return null;
+  }
+}
+const COVER_LOGO = readAsset('public/foxo-logo-blanc-transparent.png');
+
+// Coordonnées société — uniques sources des textes du footer et de la
+// couverture (mêmes valeurs que l'historique).
+const SOCIETE = {
+  ligne1: 'Fox Group srl  ·  Stationstraat 55, 3070 Kortenberg  ·  info@foxo.be  ·  +32 488 700 007',
+  ligne2: 'TVA : BE1030.109.019  ·  BEOBANK : BE62 9502 6652 9861',
+  ligne3: '© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite',
+};
+
+// ── Couverture ── pleine page marine, logo blanc, carte d'identification.
+const cover = StyleSheet.create({
+  page: {
+    fontFamily: 'Inter',
+    color: C.cream,
+    backgroundColor: C.navy,
+    paddingHorizontal: 56,
+    paddingTop: 96,
+    paddingBottom: 40,
+  },
+  logoZone: { alignItems: 'center', marginBottom: 64 },
+  logo: { width: 140, height: 140 },
+  logoFallback: { fontFamily: 'Syne', fontWeight: 'bold', fontSize: 44, color: C.cream },
+  title: {
+    fontFamily: 'Syne', fontWeight: 'bold',
+    fontSize: 28,
+    letterSpacing: 4,
+    textAlign: 'center',
+    color: '#FFFFFF',
+  },
+  titleRule: {
+    width: 60, height: 2,
+    backgroundColor: C.amber,
+    alignSelf: 'center',
+    marginTop: 18,
+  },
+  // Carte d'identification (tiers bas).
+  card: {
+    marginTop: 'auto',
+    backgroundColor: C.cream,
+    borderRadius: 6,
+    paddingVertical: 22,
+    paddingHorizontal: 26,
+  },
+  cardRow: { marginBottom: 11 },
+  cardRowLast: { marginBottom: 0 },
+  cardCols: { flexDirection: 'row' },
+  cardCol: { flex: 1 },
+  label: {
+    fontFamily: 'Inter', fontWeight: 600,
+    fontSize: 8,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: C.amber,
+    marginBottom: 2.5,
+  },
+  value: { fontFamily: 'Inter', fontWeight: 500, fontSize: 11.5, color: C.navy, lineHeight: 1.35 },
+  footer: {
+    marginTop: 28,
+    textAlign: 'center',
+    fontSize: 7,
+    lineHeight: 1.5,
+    color: '#FFFFFF',
+    opacity: 0.6,
+  },
+});
 
 const styles = StyleSheet.create({
   page: {
@@ -259,6 +339,50 @@ export function RapportPdf({ data, logo, photos }: {
       author="Fox Group srl"
       subject="Rapport d'intervention — détection de fuites"
     >
+      {/* ── Couverture ── aucun élément fixed de la page de contenu ici :
+          les fixed sont scopés à leur <Page>. */}
+      <Page size="A4" style={cover.page}>
+        <View style={cover.logoZone}>
+          {COVER_LOGO
+            ? <Image src={{ data: COVER_LOGO, format: 'png' }} style={cover.logo} />
+            : <Text style={cover.logoFallback}>FoxO</Text>}
+        </View>
+
+        <Text style={cover.title}>RAPPORT</Text>
+        <Text style={cover.title}>D{'’'}INTERVENTION</Text>
+        <View style={cover.titleRule} />
+
+        <View style={cover.card}>
+          <View style={[cover.cardCols, cover.cardRow]}>
+            <View style={cover.cardCol}>
+              <Text style={cover.label}>N° intervention</Text>
+              <Text style={cover.value}>{data.numero || '—'}</Text>
+            </View>
+            <View style={cover.cardCol}>
+              <Text style={cover.label}>{data.ref_label.replace(/\s*:\s*$/, '')}</Text>
+              <Text style={cover.value}>{data.ref_value || '—'}</Text>
+            </View>
+          </View>
+          <View style={cover.cardRow}>
+            <Text style={cover.label}>Objet</Text>
+            <Text style={cover.value}>{data.objet || '—'}</Text>
+          </View>
+          <View style={cover.cardRow}>
+            <Text style={cover.label}>Adresse d&apos;intervention</Text>
+            <Text style={cover.value}>{data.adresse_ligne1 || '—'}</Text>
+          </View>
+          <View style={cover.cardRowLast}>
+            <Text style={cover.label}>Client</Text>
+            <Text style={cover.value}>{facturationLines[0] ?? '—'}</Text>
+          </View>
+        </View>
+
+        <View style={cover.footer}>
+          <Text>{SOCIETE.ligne1}</Text>
+          <Text>{SOCIETE.ligne2}</Text>
+        </View>
+      </Page>
+
       <Page size="A4" style={styles.page}>
         {/* Encadré pleine page, répété sur chaque page */}
         <View style={styles.pageBorder} fixed />
@@ -340,9 +464,9 @@ export function RapportPdf({ data, logo, photos }: {
 
         {/* ── Footer 3 lignes, répété sur chaque page ── */}
         <View style={styles.footer} fixed>
-          <Text>Fox Group srl  ·  Stationstraat 55, 3070 Kortenberg  ·  info@foxo.be  ·  +32 488 700 007</Text>
-          <Text>TVA : BE1030.109.019  ·  BEOBANK : BE62 9502 6652 9861</Text>
-          <Text>© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite</Text>
+          <Text>{SOCIETE.ligne1}</Text>
+          <Text>{SOCIETE.ligne2}</Text>
+          <Text>{SOCIETE.ligne3}</Text>
         </View>
       </Page>
     </Document>

@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
       './src/lib/prompts/**/*.md',
       './src/lib/rapport/assets/**',
       './src/lib/pdf/fonts/**',
+      // Logos lus via fs par le moteur PDF (couverture + header) — les
+      // fichiers public/ ne sont PAS embarqués dans les fonctions par défaut.
+      './public/foxo-logo-blanc-transparent.png',
+      './public/foxo-logo-documents.png',
     ],
   },
   // En-têtes de sécurité HTTP (constat #12 audit sécurité 2026-06-10),
