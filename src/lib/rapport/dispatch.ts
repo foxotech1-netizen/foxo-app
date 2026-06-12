@@ -152,7 +152,8 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   // (fetchRapportPhotos) pour un rendu jumeau. Best-effort : jamais bloquant.
   const photos = await fetchRapportPhotos(interventionId);
 
-  // PDF jumeau du template, généré depuis le MÊME ReportData que le docx.
+  // PDF (référence visuelle client), généré depuis le MÊME ReportData que
+  // le docx interne.
   const pdfBuffer = await generateRapportPdf(reportData, photos);
 
   return {

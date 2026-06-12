@@ -1,16 +1,21 @@
 /**
  * QA jetable — génère un PDF de rapport d'exemple (fixtures complètes) pour
- * vérifier que le moteur RapportPdf (jumeau du template) ne crashe pas et
- * produit un PDF non vide.
+ * vérifier que le moteur RapportPdf ne crashe pas et produit un PDF non vide.
  *
  * Exécution :  npx tsx scripts/dev/preview-rapport-pdf.ts
- * Sortie    :  /tmp/rapport-preview.pdf
+ *              PREVIEW_CASE=extreme npx tsx scripts/dev/preview-rapport-pdf.ts
+ * Sortie    :  /tmp/rapport-preview.pdf  (/tmp/rapport-preview-extreme.pdf)
  *
- * Fixtures : toutes les zones remplies, 3 techniques cochées, 2 occupants,
- * et 3 photos de test générées localement par sharp (rectangles de couleur
- * unie) — un paysage standard + un très large (DÉGÂTS), un très haut
- * (INSPECTION) — pour vérifier la grille 2 colonnes, le ratio préservé et
- * l'absence de chevauchement avec le footer.
+ * Fixtures standard : toutes les zones remplies, 3 techniques cochées,
+ * 2 occupants, et 3 photos de test générées localement par sharp (rectangles
+ * de couleur unie) — un paysage standard + un très large (DÉGÂTS), un très
+ * haut (INSPECTION) — pour vérifier la grille 2 colonnes, le ratio préservé
+ * et l'absence de chevauchement avec le footer.
+ *
+ * Fixtures extrêmes (PREVIEW_CASE=extreme) : sections très longues (3000+
+ * caractères), AUCUNE photo, 8 techniques cochées, 6 occupants, objet très
+ * long — pour vérifier les sauts de page, l'absence de titres orphelins et
+ * la répétition header/footer sur toutes les pages.
  */
 import { writeFileSync } from 'node:fs';
 import sharp from 'sharp';
@@ -72,10 +77,41 @@ async function buildTestPhotos(): Promise<RapportPhotosBySection> {
   };
 }
 
+// Cas extrêmes : pagination longue, zéro photo, tout coché, occupants
+// nombreux. Un paragraphe « brique » répété pour dépasser 3000 caractères.
+const LONG_PARA =
+  "Les mesures hygrométriques relevées dans l'ensemble des pièces concernées montrent des écarts significatifs "
+  + "par rapport aux valeurs de référence attendues pour un bâtiment de cette typologie et de cette époque de "
+  + 'construction. Les relevés ont été effectués en plusieurs points de chaque paroi, à hauteurs variables, afin '
+  + "d'écarter les biais liés à la condensation superficielle et aux ponts thermiques. ";
+
+function longText(paras: number): string {
+  return Array.from({ length: paras }, (_, i) =>
+    `Constat ${i + 1} — ${LONG_PARA}${LONG_PARA}`).join('||PARA||');
+}
+
+const extremeData: ReportData = {
+  ...data,
+  objet:
+    "Recherche d'origine de fuite généralisée – Investigation complète des colonnes d'évacuation et d'alimentation "
+    + 'des appartements E11, E12, E21, E22, E44 et E54, communs des 1er et 2e étages, local compteurs et toiture-terrasse '
+    + 'accessible côté cour intérieure, suite aux infiltrations récurrentes signalées depuis trois mois',
+  adresse_ligne2: Array.from({ length: 6 }, (_, i) =>
+    `Appartement E${i + 1}1 : Occupant·e Test ${i + 1} (${i % 2 === 0 ? 'locataire' : 'propriétaire'})`).join('\n'),
+  techniques: techniquesFromKeys(['capteur', 'thermique', 'camera', 'traceur', 'acoustique', 'pression', 'gaz', 'visuelle']),
+  degats: longText(4),
+  inspection: longText(5),
+  conclusion: longText(3),
+  recommandation: longText(3),
+};
+
 async function main() {
-  const photos = await buildTestPhotos();
-  const buf = await generateRapportPdf(data, photos);
-  const out = '/tmp/rapport-preview.pdf';
+  const extreme = process.env.PREVIEW_CASE === 'extreme';
+  const photos = extreme
+    ? { degats: [], inspection: [] }
+    : await buildTestPhotos();
+  const buf = await generateRapportPdf(extreme ? extremeData : data, photos);
+  const out = extreme ? '/tmp/rapport-preview-extreme.pdf' : '/tmp/rapport-preview.pdf';
   writeFileSync(out, buf);
   // eslint-disable-next-line no-console
   console.log(`OK — PDF généré (${buf.byteLength} octets) → ${out}`);

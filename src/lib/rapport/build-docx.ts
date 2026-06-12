@@ -1,6 +1,12 @@
 // Génération du rapport au format Microsoft Word (.docx) — port fidèle de
 // FOXO_BASE.js (template propriétaire FoxO).
 //
+// NOTE : depuis le chantier « Signature visuelle » (2026-06), le PDF
+// (RapportPdf.tsx) est la RÉFÉRENCE VISUELLE CLIENT à l'identité FoxO ; ce
+// docx reste le document de travail INTERNE au gabarit Word historique. Les
+// deux moteurs consomment le même ReportData mais ne sont plus jumeaux
+// visuellement.
+//
 // Photos : récupérées depuis photos_interventions (lien section + ordre,
 // cf. migration 2026-05-28_photos_section.sql) ; bytes téléchargés via
 // l'API Drive avec drive_file_id et le token OAuth FoxO. Les légendes

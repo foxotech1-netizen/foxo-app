@@ -223,9 +223,18 @@ const styles = StyleSheet.create({
   // ── Photos (grille 2 colonnes, max 2 par ligne — règle métier) ──
   photosGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, marginBottom: 2 },
   photoCell: { width: '50%', paddingHorizontal: 4, marginBottom: 8, alignItems: 'center' },
+  photoFrame: {
+    borderWidth: 1, borderColor: C.sandBorder, borderRadius: 4,
+    backgroundColor: C.cream,
+    padding: 4,
+  },
   photoCaption: {
     fontFamily: 'Inter', fontStyle: 'italic',
-    fontSize: 8, color: C.muted, textAlign: 'center', marginTop: 3,
+    fontSize: 8, color: C.muted, textAlign: 'center', marginTop: 4,
+  },
+  photoCaptionNum: {
+    fontFamily: 'Inter', fontWeight: 600, fontStyle: 'normal',
+    fontSize: 7.5, color: C.amber,
   },
   // ── Clôture ──
   closing: { marginTop: 28, alignItems: 'flex-end' },
@@ -302,10 +311,11 @@ function FooterLine({ text }: { text: string }) {
   );
 }
 
-// Largeur utile A4 (595.28pt) − paddingHorizontal (2×30) = 535.28pt ; chaque
-// cellule occupe 50% (− padding interne). Hauteur dérivée du ratio intrinsèque
-// (préservé) ; plafonnée pour qu'un cliché portrait ne dévore pas la page.
-const PHOTO_COL_W = 255; // pt (≈ moitié de la largeur utile, marge comprise)
+// Largeur utile A4 (595.28pt) − paddingHorizontal (2×36) = 523.28pt ; chaque
+// cellule occupe 50% (− padding 8 − cadre 10). Hauteur dérivée du ratio
+// intrinsèque (préservé) ; plafonnée pour qu'un cliché portrait ne dévore
+// pas la page.
+const PHOTO_COL_W = 243; // pt (moitié de la largeur utile, cadre déduit)
 const PHOTO_MAX_H = 330; // pt
 
 function photoDisplaySize(p: RapportPhotoData): { width: number; height: number } {
@@ -320,18 +330,29 @@ function photoDisplaySize(p: RapportPhotoData): { width: number; height: number 
 }
 
 // Grille 2 colonnes (max 2 par ligne, règle métier Foxo) rendue en fin de
-// section. Chaque paire image+légende est insécable (wrap={false}) → une
+// section. Chaque paire cadre+légende est insécable (wrap={false}) → une
 // légende ne se retrouve jamais seule en haut de page, détachée de son cliché.
-function PhotosGrid({ photos }: { photos: RapportPhotoData[] | undefined }) {
+// `startNumber` : numérotation continue dans le document (DÉGÂTS puis
+// INSPECTION), affichée « Photo N » en tête de légende.
+function PhotosGrid({ photos, startNumber }: {
+  photos: RapportPhotoData[] | undefined;
+  startNumber: number;
+}) {
   if (!photos || photos.length === 0) return null;
   return (
     <View style={styles.photosGrid}>
       {photos.map((p, i) => {
         const { width, height } = photoDisplaySize(p);
+        const num = startNumber + i;
         return (
           <View key={i} style={styles.photoCell} wrap={false}>
-            <Image src={{ data: p.bytes, format: 'jpg' }} style={{ width, height }} />
-            {p.label ? <Text style={styles.photoCaption}>{p.label}</Text> : null}
+            <View style={styles.photoFrame}>
+              <Image src={{ data: p.bytes, format: 'jpg' }} style={{ width, height }} />
+            </View>
+            <Text style={styles.photoCaption}>
+              <Text style={styles.photoCaptionNum}>Photo {num}{p.label ? ' — ' : ''}</Text>
+              {p.label ?? ''}
+            </Text>
           </View>
         );
       })}
@@ -477,11 +498,12 @@ export function RapportPdf({ data, logo, photos }: {
           </View>
         </View>
 
-        {/* ── 4 sections ── Photos en fin de DÉGÂTS et d'INSPECTION uniquement. */}
+        {/* ── 4 sections ── Photos en fin de DÉGÂTS et d'INSPECTION uniquement,
+            numérotées en continu sur l'ensemble du document. */}
         <Section title="DÉGÂTS" text={data.degats} />
-        <PhotosGrid photos={photos.degats} />
+        <PhotosGrid photos={photos.degats} startNumber={1} />
         <Section title="INSPECTION" text={data.inspection} />
-        <PhotosGrid photos={photos.inspection} />
+        <PhotosGrid photos={photos.inspection} startNumber={(photos.degats?.length ?? 0) + 1} />
         <Section title="CONCLUSION" text={data.conclusion} />
         <Section title="RECOMMANDATION" text={data.recommandation} />
 
