@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
-  Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput,
+  Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput, Sparkles,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -126,6 +126,8 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyBody, setReplyBody] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
+  // Rédaction IA du composer (Phase 3 U4) — draft-reply mode inline.
+  const [aiDraftLoading, setAiDraftLoading] = useState(false);
 
   // Présélection via ?id=… (liens profonds : File de validation, drawer
   // intervention « mails liés »). Lu une fois au mount — window.location
@@ -431,6 +433,36 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       const data = await r.json();
       if (data.ok) setLabels(data.labels ?? []);
     } catch { /* noop */ }
+  }
+
+  // « Rédiger avec l'IA » (Phase 3 U4) : remplit le textarea du composer via
+  // draft-reply en mode inline — AUCUN brouillon Gmail, AUCUN envoi. L'admin
+  // relit/édite puis clique Envoyer lui-même (sendReply inchangé).
+  async function draftReplyWithAi() {
+    if (!detail) return;
+    if (replyBody.trim()
+      && !window.confirm('Remplacer le texte déjà saisi par la proposition de l’IA ?')) {
+      return;
+    }
+    setAiDraftLoading(true);
+    setFeedback(null);
+    try {
+      const r = await fetch('/api/admin/mails/draft-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: detail.thread_id, mode: 'inline' }),
+      });
+      const data = await r.json();
+      if (!data.success || typeof data.draft_text !== 'string') {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Échec de la rédaction IA.' });
+        return;
+      }
+      setReplyBody(data.draft_text);
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setAiDraftLoading(false);
+    }
   }
 
   async function sendReply() {
@@ -1074,26 +1106,40 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   onChange={(e) => setReplyBody(e.target.value)}
                   rows={6}
                   placeholder="Écris ta réponse ici. Le sujet et le threading sont gérés automatiquement."
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y disabled:opacity-60"
+                  disabled={aiDraftLoading}
                   autoFocus
                 />
-                <div className="flex justify-end gap-2 mt-2">
+                <div className="flex items-center justify-between gap-2 mt-2 flex-wrap">
+                  {/* L'IA remplit le textarea ; l'admin relit, édite et envoie
+                      lui-même — jamais d'envoi autonome. */}
                   <button
                     type="button"
-                    onClick={() => { setReplyOpen(false); setReplyBody(''); }}
-                    disabled={replyLoading}
-                    className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
+                    onClick={draftReplyWithAi}
+                    disabled={aiDraftLoading || replyLoading}
+                    className="px-3 py-2 rounded-lg text-[12px] font-bold border border-navy bg-white text-navy disabled:opacity-50 inline-flex items-center gap-1.5"
                   >
-                    Annuler
+                    <Sparkles size={14} />
+                    {aiDraftLoading ? 'Rédaction en cours… (5-15 s)' : 'Rédiger avec l’IA'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={sendReply}
-                    disabled={replyLoading || !replyBody.trim()}
-                    className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50 inline-flex items-center gap-1.5"
-                  >
-                    {replyLoading ? 'Envoi…' : (<><Mail size={14} />Envoyer</>)}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setReplyOpen(false); setReplyBody(''); }}
+                      disabled={replyLoading}
+                      className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      onClick={sendReply}
+                      disabled={replyLoading || !replyBody.trim()}
+                      className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50 inline-flex items-center gap-1.5"
+                    >
+                      {replyLoading ? 'Envoi…' : (<><Mail size={14} />Envoyer</>)}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
