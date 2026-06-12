@@ -1,3 +1,28 @@
+# État du projet FoxO — snapshot 2026-06-12 (Mails V2 — Phase 2 CLOSE, PR #93 — U4 documents tech)
+
+- **Date du recap** : 2026-06-12
+- **HEAD git** : `35164eb` (merge PR #93)
+- **Branche** : `main`, aligné `origin/main`. Production via Vercel.
+- **Spec** : `SPEC_Chantier_Mails_V2_v1-2.md` (project knowledge). ⚠️ CRONS MAILS TOUJOURS VOLONTAIREMENT FERMÉS — rallumage = toute dernière étape du chantier, précédée du marquage en lu des mails déjà traités.
+
+## Mails V2 — Phase 2 (pièces jointes) : CLOSE (3/3)
+
+### Session 3/3 — U4 (PR #93, mergée) : panneau « Documents du dossier » côté technicien
+- Helper lecture seule `getDriveFileMeta` dans `google-drive.ts` (fields dont `parents`, `supportsAllDrives`).
+- Route `GET /api/tech/interventions/[id]/documents` : garde tech partagée (`getCurrentTech` + `verifyTechOwnsIntervention`), résolution `drive_folder_id` → fallback par ref (`resolveInterventionFolderByName`), sous-dossiers exclus (photos/ a son panneau dédié), dossier absent = état vide pas erreur.
+- Route proxy `GET .../documents/[fileId]` : **VERROU CENTRAL** `meta.parents.includes(folderId)` → 403 (la RLS ne protège pas Drive) ; double borne 4 MB (méta + post-téléchargement) ; protections héritées de la route PJ #91 (sanitizeFilename, whitelist MIME, SVG jamais inline, nosniff, CSP sandbox, cache privé) ; fichiers Google natifs et >4 MB → webViewLink Drive.
+- `DocumentsPanel.tsx` : chargement client post-rendu (latence Drive isolée du rendu de page), 4 états FR tutoyés, lignes tactiles 48px, intégré entre Photos et Observations.
+
+## Leçon de session (piège fermé)
+- `verifyTechOwnsIntervention` compare `iv.technicien_id` — un `opts.select` custom qui omettait la colonne donnait un **403 systématique** (`undefined !== techId`), constaté sur la préversion (panneau Documents « Intervention non assignée » alors que la page s'affichait). Corrigé (`d9fee36` : ajout de la colonne dans le select des deux routes documents) puis **DURCI dans le helper** (`0364a1e`) : `technicien_id` est désormais forcé dans tout select custom (`'*'` reconnu). Piège définitivement fermé.
+
+## À faire (suite du chantier)
+1. Prochaine étape = **choix** entre : Phase 3 (fiche structurée IA), Phase 8 (messagerie portail), lot Signature visuelle.
+2. Invariant inchangé : **CRONS MAILS TOUJOURS FERMÉS** — rallumage = toute dernière étape du chantier.
+
+## Hygiène repo
+- Branche `feat/mails-v2-docs-tech` mergée → supprimer côté GitHub si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-11 (Mails V2 — Phase 2 sessions 1/3 + 2/3 livrées, PRs #91 + #92)
 
 - **Date du recap** : 2026-06-11
