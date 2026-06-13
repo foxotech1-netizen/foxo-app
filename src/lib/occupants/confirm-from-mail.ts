@@ -15,8 +15,11 @@
 //   - Journalise dans intervention_timeline (traçabilité « quel mail a confirmé
 //     quel occupant » via payload). L'insert occupant_responses_log mire celui
 //     de o/actions.ts, en best-effort interne.
-//   - Peut LEVER en cas d'erreur DB sur la mutation critique (update occupant /
-//     timeline) : l'APPELANT est responsable du try/catch best-effort.
+//   - SEULE écriture dure : l'update de la table occupants. Elle peut LEVER en
+//     cas d'erreur DB. La journalisation (intervention_timeline) et le miroir
+//     occupant_responses_log sont best-effort : ils ne défont ni ne font jamais
+//     échouer une confirmation déjà appliquée (sinon : confirmation à moitié
+//     écrite + 500 au clic admin).
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ReponseOccupantIntention } from '@/app/admin/mails/MailAnalyseTypes';
@@ -77,8 +80,10 @@ export async function confirmOccupantFromMail(
     .eq('id', occupantId);
   if (updateErr) throw new Error(`update occupant: ${updateErr.message}`);
 
-  // 4. Journalisation timeline (trace mail↔occupant dans payload). Erreur DB →
-  //    levée, avalée par le try/catch best-effort de l'appelant.
+  // 4. Journalisation timeline (trace mail↔occupant dans payload). BEST-EFFORT :
+  //    la confirmation est déjà écrite (étape 3) — un échec du journal ne doit
+  //    JAMAIS la défaire ni renvoyer une 500 au clic admin. On logge et on
+  //    continue ; la fonction retourne {applied:true}.
   const { error: timelineErr } = await admin
     .from('intervention_timeline')
     .insert({
@@ -88,7 +93,9 @@ export async function confirmOccupantFromMail(
       payload: { occupant_id: occupantId, thread_id: threadId, intention, raison, source },
       created_by: actorId,
     });
-  if (timelineErr) throw new Error(`timeline insert: ${timelineErr.message}`);
+  if (timelineErr) {
+    console.error('[confirm-from-mail] journalisation timeline échouée (non bloquant):', timelineErr);
+  }
 
   // 5. Miroir de l'insert occupant_responses_log de o/actions.ts (best-effort
   //    interne : ne fait jamais échouer une confirmation déjà appliquée).
