@@ -28,6 +28,8 @@ import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
 import { runAgent } from '@/lib/observability';
 import { MAIL_CLASSIFICATIONS, toCanonicalClassification, type MailClassification } from '@/lib/mail/categories';
+import { matchOccupantResponse, type OccupantForMatch } from '@/lib/occupants/match-mail-response';
+import { confirmOccupantFromMail } from '@/lib/occupants/confirm-from-mail';
 
 export const dynamic = 'force-dynamic';
 // Prompt enrichi Phase 3 (classification native + acp/syndic) : marge
@@ -740,6 +742,41 @@ export async function POST(request: Request) {
       }
     } catch (e) {
       errors.push(`upsert mails_analyses: ${e instanceof Error ? e.message : 'inconnu'}`);
+    }
+
+    // 10-bis. Phase 4 U3b — auto-confirmation occupant « sûre » (best-effort).
+    //   Effet de bord PUR : ne modifie NI la réponse JSON NI son type. Toute
+    //   erreur est avalée — l'analyse se renvoie normalement. Ne déclenche QUE
+    //   pour niveau 'sur' (email expéditeur == email occupant unique) ; les
+    //   autres niveaux (probable/ambigu/refus_contre) seront traités en U4
+    //   (validation manuelle dans l'UI).
+    try {
+      const ro = analyse.reponse_occupant;
+      if (resolveClassification(analyse) === 'reponse_occupant' && dossierMatchId && ro) {
+        const { data: occRows } = await admin
+          .from('occupants')
+          .select('id, nom, prenom, email, appartement, etage, conf')
+          .eq('intervention_id', dossierMatchId);
+        const occupants = (occRows ?? []) as OccupantForMatch[];
+        const m = matchOccupantResponse({
+          intention: ro.intention,
+          occupantCible: ro.occupant_cible,
+          expediteur: messages[0]?.from ?? null,
+          occupants,
+        });
+        if (m.niveau === 'sur' && m.occupantSur) {
+          await confirmOccupantFromMail(admin, {
+            occupantId: m.occupantSur.id,
+            threadId,
+            intention: m.intention,
+            raison: m.raison,
+            source: 'mail_auto',
+            actorId: user?.id ?? null,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[phase4][auto-confirm] best-effort échec, analyse renvoyée quand même:', e);
     }
 
     // 11. Réponse enrichie. dossier_created/dossier_existed permettent à
