@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, ClipboardList, Link2, Loader2, Search, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardList, Link2, Loader2, Search, X } from 'lucide-react';
 import type { MailAnalyse } from './MailAnalyseTypes';
 import { MailAnalyseBadges } from './MailAnalyseBadges';
 import { formatDateFr } from './MailAnalyseActions';
@@ -192,6 +192,18 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
         )}
       </div>
 
+      {/* Réponse occupant (Phase 4 U4) — carte de validation manuelle. Rendue
+          uniquement quand le fil est classé reponse_occupant (objet présent).
+          Le panneau s'auto-masque si le serveur renvoie found:false. */}
+      {analyse.reponse_occupant && (
+        <OccupantResponsePanel
+          key={analyse.thread_id}
+          threadId={analyse.thread_id}
+          creneauPropose={analyse.reponse_occupant.creneau_propose}
+          onAnalyseRefresh={onAnalyseRefresh}
+        />
+      )}
+
       {/* Dossier lié — lier/délier manuellement (Phase 3 U3) */}
       <div className="mt-2.5">
         <div className="flex items-center gap-2 flex-wrap">
@@ -327,6 +339,214 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
         >
           ↩ Répondre
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Phase 4 U4 — Panneau de validation manuelle de la réponse occupant ──────
+// Consomme UNIQUEMENT le niveau/candidats renvoyés par le serveur
+// (/api/admin/mails/occupant-response). Aucune logique de matching côté client.
+// Best-effort : found:false ou erreur → ne rend rien (ne bloque jamais la
+// fiche). Aucune confirmation appliquée sans le clic admin.
+
+type UiOccupant = {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  email: string | null;
+  appartement: string | null;
+  etage: string | null;
+  conf: string | null;
+};
+
+type MatchNiveau = 'sur' | 'probable' | 'ambigu' | 'refus_contre';
+
+type ResponseMatch = {
+  found: boolean;
+  niveau?: MatchNiveau;
+  intention?: string;
+  raison?: string;
+  occupantSur?: UiOccupant | null;
+  candidats?: UiOccupant[];
+};
+
+function occupantLabel(o: UiOccupant): string {
+  const nom = `${o.prenom ?? ''} ${o.nom ?? ''}`.trim();
+  return nom || o.email || 'Occupant';
+}
+
+function OccupantResponsePanel({
+  threadId,
+  creneauPropose,
+  onAnalyseRefresh,
+}: {
+  threadId: string;
+  creneauPropose: string | null;
+  onAnalyseRefresh: (threadId: string) => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [match, setMatch] = useState<ResponseMatch | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+
+  // Fetch pur (ne touche pas au state) — réutilisé au montage et après une
+  // confirmation. Le parent remonte le panneau via key={thread_id}, donc
+  // l'état repart « loading » à chaque changement de fil.
+  async function fetchMatch(): Promise<ResponseMatch> {
+    try {
+      const r = await fetch(
+        `/api/admin/mails/occupant-response?thread_id=${encodeURIComponent(threadId)}`,
+        { cache: 'no-store' },
+      );
+      const data = await r.json();
+      return data.success ? (data as ResponseMatch) : { found: false };
+    } catch {
+      return { found: false };
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+    fetchMatch().then((m) => {
+      if (!active) return;
+      setMatch(m);
+      setLoading(false);
+    });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId]);
+
+  async function confirmCandidate(occupantId: string) {
+    setConfirmingId(occupantId);
+    try {
+      const r = await fetch('/api/admin/mails/occupant-response/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: threadId, occupant_id: occupantId }),
+      });
+      const data = await r.json();
+      if (data.success) {
+        await onAnalyseRefresh(threadId);
+        const m = await fetchMatch();
+        setMatch(m);
+      }
+    } catch { /* silencieux — état rechargé au prochain rendu */ }
+    finally {
+      setConfirmingId(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="mt-3 pt-2.5 border-t border-sand-border">
+        <div className="inline-flex items-center gap-1.5 text-[11px] text-ink-muted">
+          <Loader2 size={11} className="animate-spin" aria-hidden />
+          Analyse de la réponse…
+        </div>
+      </div>
+    );
+  }
+
+  if (!match || !match.found) return null;
+
+  // ── Niveau 'sur' : confirmation automatique déjà appliquée (U3b) ──
+  if (match.niveau === 'sur') {
+    const nom = match.occupantSur ? occupantLabel(match.occupantSur) : null;
+    return (
+      <div className="mt-3 pt-2.5 border-t border-sand-border">
+        <div
+          className="rounded-lg px-3 py-2 text-[12px] font-semibold inline-flex items-center gap-2"
+          style={{ background: 'var(--color-ok-light)', border: '1px solid var(--color-ok-mid)', color: 'var(--color-ok)' }}
+        >
+          <CheckCircle2 size={14} aria-hidden />
+          Occupant confirmé automatiquement (email vérifié){nom ? ` — ${nom}` : ''}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Niveau 'refus_contre' : alerte, aucune confirmation possible ──
+  if (match.niveau === 'refus_contre') {
+    return (
+      <div className="mt-3 pt-2.5 border-t border-sand-border">
+        <div
+          className="rounded-lg px-3 py-2 text-[12px]"
+          style={{ background: 'var(--color-amber-light)', border: '1px solid var(--color-amber-foxo)', color: 'var(--color-amber-foxo)' }}
+        >
+          <div className="font-semibold inline-flex items-center gap-2">
+            <AlertTriangle size={14} aria-hidden />
+            Refus ou contre-proposition détecté — décision de planning manuelle requise.
+          </div>
+          {creneauPropose && (
+            <div className="mt-1 text-[11px] font-medium">
+              Créneau proposé : {creneauPropose}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Niveaux 'probable' / 'ambigu' : carte de proposition à valider ──
+  const candidats = match.candidats ?? [];
+  return (
+    <div className="mt-3 pt-2.5 border-t border-sand-border">
+      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1.5">
+        Réponse occupant — à valider
+      </div>
+      <div className="bg-cream border border-sand-border rounded-lg p-2.5">
+        <div className="text-[12px] font-semibold text-ink mb-0.5">
+          Cette réponse semble confirmer une présence — à valider
+        </div>
+        <div className="text-[11px] text-ink-muted mb-2">
+          Aucune confirmation n&apos;est appliquée sans ton clic.
+        </div>
+        {candidats.length === 0 ? (
+          <div className="text-[11px] text-ink-muted italic">
+            Aucun occupant candidat identifié.
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {candidats.map((o) => {
+              const dejaConfirme = o.conf === 'confirme';
+              const zone = [o.etage, o.appartement].filter(Boolean).join(' / ');
+              return (
+                <li
+                  key={o.id}
+                  className="flex items-center justify-between gap-2 flex-wrap rounded-md px-2 py-1.5"
+                  style={{ background: 'var(--color-sand)' }}
+                >
+                  <div className="min-w-0 text-[11px]">
+                    <span className="font-semibold text-ink">{occupantLabel(o)}</span>
+                    {zone && <span className="text-ink-muted"> · {zone}</span>}
+                    {o.email && <span className="text-ink-muted font-mono break-all"> · {o.email}</span>}
+                  </div>
+                  {dejaConfirme ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold"
+                      style={{ color: 'var(--color-ok)' }}
+                    >
+                      <CheckCircle2 size={12} aria-hidden /> Confirmé
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => confirmCandidate(o.id)}
+                      disabled={confirmingId !== null}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-bold min-h-[36px] disabled:opacity-50"
+                      style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
+                    >
+                      {confirmingId === o.id
+                        ? <Loader2 size={12} className="animate-spin" aria-hidden />
+                        : <CheckCircle2 size={12} aria-hidden />}
+                      Confirmer la présence
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
