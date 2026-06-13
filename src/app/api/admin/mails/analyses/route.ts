@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import type { OccupantExtrait } from '@/app/admin/mails/MailAnalyseTypes';
+import type { OccupantExtrait, ReponseOccupantIntent } from '@/app/admin/mails/MailAnalyseTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,9 +43,33 @@ interface AnalyseRow {
   brouillon_gmail_id: string | null;
   event_calendar_id: string | null;
   errors: string[] | null;
-  // Sélectionné uniquement pour en extraire type_intervention (pas de colonne
-  // dédiée en base) — jamais renvoyé tel quel au client.
-  analyse_raw: { type_intervention?: unknown } | null;
+  // Sélectionné uniquement pour en extraire type_intervention et
+  // reponse_occupant (pas de colonne dédiée en base) — jamais renvoyé tel
+  // quel au client.
+  analyse_raw: { type_intervention?: unknown; reponse_occupant?: unknown } | null;
+}
+
+// Phase 4 U1 — re-validation à la lecture (le blob peut contenir d'anciennes
+// lignes sans le champ, ou un objet partiel). Miroir lecture de la
+// normalisation faite à l'écriture par analyse-deep.
+const REPONSE_OCCUPANT_INTENTIONS = ['confirme', 'refuse', 'contre_proposition', 'ambigu'] as const;
+
+function extractReponseOccupant(raw: unknown): ReponseOccupantIntent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const intentionRaw = typeof obj.intention === 'string' ? obj.intention.trim() : '';
+  if (!(REPONSE_OCCUPANT_INTENTIONS as readonly string[]).includes(intentionRaw)) return null;
+  const cible = typeof obj.occupant_cible === 'string' && obj.occupant_cible.trim()
+    ? obj.occupant_cible.trim()
+    : null;
+  const creneau = typeof obj.creneau_propose === 'string' && obj.creneau_propose.trim()
+    ? obj.creneau_propose.trim()
+    : null;
+  return {
+    intention: intentionRaw as ReponseOccupantIntent['intention'],
+    occupant_cible: cible,
+    creneau_propose: creneau,
+  };
 }
 
 export async function GET(request: Request) {
@@ -128,7 +152,10 @@ export async function GET(request: Request) {
     const typeIntervention = typeof analyse_raw?.type_intervention === 'string' && analyse_raw.type_intervention.trim()
       ? analyse_raw.type_intervention
       : null;
-    result[r.thread_id] = { ...rest, type_intervention: typeIntervention, dossier, creneau };
+    // Phase 4 U1 — intention de réponse occupant, extraite du blob comme
+    // type_intervention (sans renvoyer analyse_raw au client).
+    const reponseOccupant = extractReponseOccupant(analyse_raw?.reponse_occupant);
+    result[r.thread_id] = { ...rest, type_intervention: typeIntervention, reponse_occupant: reponseOccupant, dossier, creneau };
   }
 
   return NextResponse.json({ success: true, analyses: result });

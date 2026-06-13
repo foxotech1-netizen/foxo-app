@@ -28,6 +28,8 @@ import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
 import { runAgent } from '@/lib/observability';
 import { MAIL_CLASSIFICATIONS, toCanonicalClassification, type MailClassification } from '@/lib/mail/categories';
+import { matchOccupantResponse, type OccupantForMatch } from '@/lib/occupants/match-mail-response';
+import { confirmOccupantFromMail } from '@/lib/occupants/confirm-from-mail';
 
 export const dynamic = 'force-dynamic';
 // Prompt enrichi Phase 3 (classification native + acp/syndic) : marge
@@ -101,6 +103,17 @@ function normalizeOccupants(raw: unknown): AnalyseDeepOccupant[] {
     .filter((x): x is AnalyseDeepOccupant => x !== null);
 }
 
+// Phase 4 U1 — intention extraite d'un mail classé "reponse_occupant".
+// Vit dans analyse_raw (pas de colonne dédiée), à l'image de type_intervention.
+const REPONSE_OCCUPANT_INTENTIONS = ['confirme', 'refuse', 'contre_proposition', 'ambigu'] as const;
+type ReponseOccupantIntention = (typeof REPONSE_OCCUPANT_INTENTIONS)[number];
+
+interface ReponseOccupantIntent {
+  intention: ReponseOccupantIntention;
+  occupant_cible: string | null;
+  creneau_propose: string | null;
+}
+
 interface ClaudeAnalyse {
   type: AnalyseType;
   // Phase 3 — émis nativement par le modèle (8 valeurs canoniques de
@@ -119,6 +132,9 @@ interface ClaudeAnalyse {
   // Phase 3 — enrichissement fiche dossier (null si absent du mail).
   acp_nom?: string | null;
   syndic_nom?: string | null;
+  // Phase 4 U1 — intention de réponse occupant (présent seulement quand
+  // classification === "reponse_occupant"). null sinon.
+  reponse_occupant?: ReponseOccupantIntent | null;
 }
 
 interface DossierInfo {
@@ -137,6 +153,32 @@ function resolveClassification(analyse: ClaudeAnalyse): MailClassification {
     return emitted as MailClassification;
   }
   return toCanonicalClassification(analyse.type);
+}
+
+// Phase 4 U1 — garantit un objet reponse_occupant cohérent dans le blob
+// persisté quand le mail est classé "reponse_occupant". Best-effort : ne
+// bloque jamais l'analyse. Si l'objet est absent ou si intention est hors
+// des 4 valeurs autorisées, force intention="ambigu" (jamais "confirme" par
+// défaut) ; occupant_cible / creneau_propose → null si absents/non-string.
+// Pour toute autre classification, retourne null (l'objet n'a pas de sens).
+function normalizeReponseOccupant(
+  classification: MailClassification,
+  raw: unknown,
+): ReponseOccupantIntent | null {
+  if (classification !== 'reponse_occupant') return null;
+  const obj = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
+  const intentionRaw = typeof obj.intention === 'string' ? obj.intention.trim() : '';
+  const intention: ReponseOccupantIntention =
+    (REPONSE_OCCUPANT_INTENTIONS as readonly string[]).includes(intentionRaw)
+      ? (intentionRaw as ReponseOccupantIntention)
+      : 'ambigu';
+  const cibleRaw = typeof obj.occupant_cible === 'string' ? obj.occupant_cible.trim() : '';
+  const creneauRaw = typeof obj.creneau_propose === 'string' ? obj.creneau_propose.trim() : '';
+  return {
+    intention,
+    occupant_cible: cibleRaw ? cibleRaw.slice(0, 200) : null,
+    creneau_propose: intention === 'contre_proposition' && creneauRaw ? creneauRaw.slice(0, 200) : null,
+  };
 }
 
 // Trim → null si vide. Pour les champs d'extraction optionnels (acp_nom,
@@ -342,7 +384,8 @@ export async function POST(request: Request) {
       `  "occupant_email": string | null,`,
       `  "acp_nom": string | null,`,
       `  "syndic_nom": string | null,`,
-      `  "occupants": Array<{ prenom, nom, email, telephone, appartement, etage, type, remarques }>`,
+      `  "occupants": Array<{ prenom, nom, email, telephone, appartement, etage, type, remarques }>,`,
+      `  "reponse_occupant": { "intention": "confirme" | "refuse" | "contre_proposition" | "ambigu", "occupant_cible": string | null, "creneau_propose": string | null } | null`,
       `}`,
       ``,
       `Règles :`,
@@ -423,6 +466,21 @@ export async function POST(request: Request) {
       `  cet occupant DOIT aussi figurer dans occupants[] avec ses coordonnées complètes.`,
       `  Si aucun occupant identifiable, retourne occupants: [].`,
       ``,
+      `- reponse_occupant : objet émis UNIQUEMENT quand classification vaut "reponse_occupant".`,
+      `  Pour TOUTE autre classification, mets reponse_occupant: null.`,
+      `  Détermine l'intention de la personne qui répond :`,
+      `   "confirme"           = présence acceptée sans réserve pour le créneau proposé`,
+      `   "refuse"             = absence annoncée / accès refusé / annulation`,
+      `   "contre_proposition" = un autre créneau est demandé ou proposé`,
+      `   "ambigu"             = réponse au nom d'un tiers, formulation vague`,
+      `                          ("nous serons présents", "à voir", "je vous tiens au courant"),`,
+      `                          ou intention non tranchée`,
+      `  En cas de doute, choisis "ambigu" — ne choisis JAMAIS "confirme" par défaut.`,
+      `  occupant_cible : nom, étage ou email de l'occupant concerné tel que mentionné`,
+      `   dans le mail (aide au rapprochement humain). null si non identifiable. N'invente JAMAIS.`,
+      `  creneau_propose : UNIQUEMENT si intention vaut "contre_proposition", le créneau`,
+      `   suggéré tel qu'écrit dans le mail (texte brut). null sinon.`,
+      ``,
       `Syndics connus (pour info matching) :`,
       syndicsList || '(aucun)',
       ``,
@@ -493,6 +551,17 @@ export async function POST(request: Request) {
             });
             throw new Error(`JSON parse: ${errMsg} (preview: ${preview})`);
           }
+
+          // (ii-bis) Phase 4 U1 — normalise l'intention de réponse occupant
+          //          dans le blob persisté (analyse_raw). best-effort : ne
+          //          bloque jamais l'analyse. Clé sur la classification
+          //          canonique (même valeur que la colonne classification),
+          //          de sorte que l'objet existe exactement pour les lignes
+          //          que l'UI traite comme "reponse_occupant".
+          classification.reponse_occupant = normalizeReponseOccupant(
+            resolveClassification(classification),
+            classification.reponse_occupant,
+          );
 
           // (iii) Matching dossier existant (lecture seule — analyse-deep ne
           //       crée plus de nouveau dossier ; dossier_created reste donc
@@ -673,6 +742,41 @@ export async function POST(request: Request) {
       }
     } catch (e) {
       errors.push(`upsert mails_analyses: ${e instanceof Error ? e.message : 'inconnu'}`);
+    }
+
+    // 10-bis. Phase 4 U3b — auto-confirmation occupant « sûre » (best-effort).
+    //   Effet de bord PUR : ne modifie NI la réponse JSON NI son type. Toute
+    //   erreur est avalée — l'analyse se renvoie normalement. Ne déclenche QUE
+    //   pour niveau 'sur' (email expéditeur == email occupant unique) ; les
+    //   autres niveaux (probable/ambigu/refus_contre) seront traités en U4
+    //   (validation manuelle dans l'UI).
+    try {
+      const ro = analyse.reponse_occupant;
+      if (resolveClassification(analyse) === 'reponse_occupant' && dossierMatchId && ro) {
+        const { data: occRows } = await admin
+          .from('occupants')
+          .select('id, nom, prenom, email, appartement, etage, conf')
+          .eq('intervention_id', dossierMatchId);
+        const occupants = (occRows ?? []) as OccupantForMatch[];
+        const m = matchOccupantResponse({
+          intention: ro.intention,
+          occupantCible: ro.occupant_cible,
+          expediteur: messages[0]?.from ?? null,
+          occupants,
+        });
+        if (m.niveau === 'sur' && m.occupantSur) {
+          await confirmOccupantFromMail(admin, {
+            occupantId: m.occupantSur.id,
+            threadId,
+            intention: m.intention,
+            raison: m.raison,
+            source: 'mail_auto',
+            actorId: user?.id ?? null,
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[phase4][auto-confirm] best-effort échec, analyse renvoyée quand même:', e);
     }
 
     // 11. Réponse enrichie. dossier_created/dossier_existed permettent à
