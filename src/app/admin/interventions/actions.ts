@@ -19,6 +19,7 @@ import { isAdminUser } from '@/lib/auth/server';
 import { nextRefForYear } from '@/lib/intervention-ref';
 import { safeInsertOccupants, type OccupantInsertRow } from '@/lib/cron/check-mails';
 import type {
+  Acp,
   ParticulierContact,
   PrioriteIntervention,
   StatutIntervention,
@@ -208,4 +209,57 @@ export async function createInterventionCold(
 
   // 7. Retour. AUCUNE notification, AUCUN Calendar, AUCUN Drive.
   return { ok: true, data: { intervention_id: interventionId, ref: finalRef } };
+}
+
+// Création d'une ACP (immeuble) côté ADMIN — il n'en existait qu'une côté
+// portail (src/app/portal/actions.ts, garde syndic). Réutilisée par le
+// formulaire de création à froid (création d'ACP à la volée en mode syndic).
+// Pas de géocodage (lat/lng restent null).
+export async function createAcp(input: {
+  nom: string;
+  adresse?: string;
+  code_postal?: string;
+  ville?: string;
+  syndic_id?: string | null;
+}): Promise<ActionResult<Acp>> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || !(await isAdminUser())) {
+    return { ok: false, error: 'Accès refusé.' };
+  }
+
+  const nom = input.nom?.trim();
+  if (!nom) return { ok: false, error: 'Nom de l\'ACP requis.' };
+
+  const admin = createAdminClient();
+
+  // Le lien ACP→syndic vit dans `syndic_id_ref` (type/migration confirmés) ;
+  // le portail pose aussi `syndic_id`. On pose les DEUX par cohérence ; si
+  // `syndic_id` n'existe pas en base (42703), on retente sans cette clé.
+  const base: Record<string, unknown> = {
+    nom,
+    adresse: input.adresse?.trim() || null,
+    code_postal: input.code_postal?.trim() || null,
+    ville: input.ville?.trim() || null,
+  };
+  if (input.syndic_id) {
+    base.syndic_id_ref = input.syndic_id;
+    base.syndic_id = input.syndic_id;
+  }
+
+  let { data, error } = await admin.from('acps').insert(base).select('*').single();
+
+  if (error && (error as { code?: string }).code === '42703' && base.syndic_id !== undefined) {
+    // Colonne `syndic_id` absente — retente en ne gardant que syndic_id_ref.
+    const { syndic_id: _omit, ...safe } = base;
+    void _omit;
+    const retry = await admin.from('acps').insert(safe).select('*').single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? 'Création ACP échouée.' };
+  }
+  return { ok: true, data: data as Acp };
 }

@@ -18,7 +18,7 @@ import { useEffect, useState, useTransition } from 'react';
 import { Building2, User, X } from 'lucide-react';
 import { ModalShell, ModalFooter } from '../planning/CreateInterventionModal';
 import { searchAcps, searchOrganisations } from '../planning/actions';
-import { createInterventionCold } from './actions';
+import { createInterventionCold, createAcp } from './actions';
 import { ALLOWED_TYPES_INTERVENTION } from '@/lib/mails/intervention-types';
 import type {
   Acp,
@@ -87,6 +87,14 @@ export function ColdInterventionModal({
   // Adresse d'intervention (optionnel — mode syndic uniquement ; en
   // particulier l'adresse est dérivée du lieu côté action).
   const [adresse, setAdresse] = useState('');
+  // Création d'ACP à la volée (mode syndic, quand l'immeuble n'est pas listé).
+  const [newAcpOpen, setNewAcpOpen] = useState(false);
+  const [newAcpNom, setNewAcpNom] = useState('');
+  const [newAcpAdresse, setNewAcpAdresse] = useState('');
+  const [newAcpCp, setNewAcpCp] = useState('');
+  const [newAcpVille, setNewAcpVille] = useState('');
+  const [newAcpError, setNewAcpError] = useState<string | null>(null);
+  const [creatingAcp, setCreatingAcp] = useState(false);
 
   // Particulier — mandant
   const [pPrenom, setPPrenom] = useState('');
@@ -144,6 +152,40 @@ export function ColdInterventionModal({
           pRue.trim() && pCp.trim() && pVille.trim() &&
           (pLieuMeme || (pLieuRue.trim() && pLieuCp.trim() && pLieuVille.trim())),
         );
+
+  function closeNewAcp() {
+    setNewAcpOpen(false);
+    setNewAcpNom('');
+    setNewAcpAdresse('');
+    setNewAcpCp('');
+    setNewAcpVille('');
+    setNewAcpError(null);
+  }
+
+  async function submitNewAcp() {
+    const nom = newAcpNom.trim();
+    if (!nom) return;
+    setCreatingAcp(true);
+    setNewAcpError(null);
+    try {
+      const res = await createAcp({
+        nom,
+        adresse: newAcpAdresse.trim() || undefined,
+        code_postal: newAcpCp.trim() || undefined,
+        ville: newAcpVille.trim() || undefined,
+        syndic_id: selectedOrg?.id ?? null,
+      });
+      if (!res.ok) { setNewAcpError(res.error); return; }
+      // Pose selectedAcp EXACTEMENT comme un choix dans l'autocomplete.
+      setSelectedAcp(res.data ?? null);
+      setAcpResults([]);
+      closeNewAcp();
+    } catch (e) {
+      setNewAcpError(e instanceof Error ? e.message : 'Erreur réseau.');
+    } finally {
+      setCreatingAcp(false);
+    }
+  }
 
   function submit() {
     if (!canSubmit) return;
@@ -315,6 +357,48 @@ export function ColdInterventionModal({
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {/* Création d'ACP à la volée */}
+                    {!newAcpOpen ? (
+                      <button
+                        type="button"
+                        onClick={() => { setNewAcpOpen(true); setNewAcpError(null); }}
+                        className="mt-1.5 text-[11px] font-semibold text-navy hover:underline"
+                      >
+                        + L&apos;immeuble n&apos;existe pas ? Créer une nouvelle ACP
+                      </button>
+                    ) : (
+                      <div className="mt-2 rounded-lg border border-sand-border bg-cream p-2.5 space-y-2">
+                        <div>
+                          <Lbl>Nom de l&apos;immeuble / ACP *</Lbl>
+                          <input className={INPUT_CLASS} value={newAcpNom} onChange={(e) => setNewAcpNom(e.target.value)} autoFocus />
+                        </div>
+                        <div>
+                          <Lbl>Adresse</Lbl>
+                          <input className={INPUT_CLASS} value={newAcpAdresse} onChange={(e) => setNewAcpAdresse(e.target.value)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div><Lbl>Code postal</Lbl><input className={INPUT_CLASS} value={newAcpCp} onChange={(e) => setNewAcpCp(e.target.value)} /></div>
+                          <div><Lbl>Ville</Lbl><input className={INPUT_CLASS} value={newAcpVille} onChange={(e) => setNewAcpVille(e.target.value)} /></div>
+                        </div>
+                        <p className="text-[10px] text-ink-muted italic">Sera rattachée au syndic sélectionné.</p>
+                        {newAcpError && (
+                          <div className="text-[11px] font-semibold" style={{ color: 'var(--color-terra)' }}>{newAcpError}</div>
+                        )}
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={submitNewAcp}
+                            disabled={!newAcpNom.trim() || creatingAcp}
+                            className="px-3 py-1.5 rounded-md text-[12px] font-bold bg-navy text-white disabled:opacity-50"
+                          >
+                            {creatingAcp ? 'Création…' : 'Créer l\'ACP'}
+                          </button>
+                          <button type="button" onClick={closeNewAcp} className="text-[11px] text-ink-muted hover:underline">
+                            Annuler
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </>
                 )}
