@@ -84,6 +84,9 @@ export function ColdInterventionModal({
   const [orgQuery, setOrgQuery] = useState('');
   const [orgResults, setOrgResults] = useState<Organisation[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
+  // Adresse d'intervention (optionnel — mode syndic uniquement ; en
+  // particulier l'adresse est dérivée du lieu côté action).
+  const [adresse, setAdresse] = useState('');
 
   // Particulier — mandant
   const [pPrenom, setPPrenom] = useState('');
@@ -154,6 +157,7 @@ export function ColdInterventionModal({
         priorite,
         creneau_debut: datePrevue ? new Date(datePrevue).toISOString() : null,
         technicien_id: technicienId || null,
+        adresse: adresse.trim() || undefined,
         demandeur:
           demandeurType === 'syndic'
             ? {
@@ -340,6 +344,16 @@ export function ColdInterventionModal({
                     )}
                   </>
                 )}
+              </div>
+              {/* Adresse d'intervention — optionnel, mode syndic uniquement */}
+              <div>
+                <Lbl>Adresse de l&apos;intervention (optionnel)</Lbl>
+                <input
+                  className={INPUT_CLASS}
+                  value={adresse}
+                  onChange={(e) => setAdresse(e.target.value)}
+                  placeholder="Rue + numéro, code postal ville"
+                />
               </div>
             </div>
           </Section>
