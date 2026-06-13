@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Acp, Delegue, Intervention, Occupant, Organisation, Utilisateur, InterventionRow } from '@/lib/types/database';
 import { InterventionsClient } from '../InterventionsClient';
+import { CreateInterventionButton } from './CreateInterventionButton';
 import type { DashboardData, FreeSlot, RecentOccupantResponse } from '../page';
 
 export const dynamic = 'force-dynamic';
@@ -178,14 +179,20 @@ export default async function AdminInterventionsListPage() {
   const serverNowIso = new Date().toISOString();
 
   return (
-    <InterventionsClient
-      initialRows={rows}
-      techs={techs}
-      loadError={interventionsRes.error?.message ?? null}
-      dashboard={dashboard}
-      serverNowIso={serverNowIso}
-      adminEmail={adminEmail}
-      listOnly
-    />
+    <>
+      <div className="px-6 pt-6 pb-1 flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
+        <h1 className="fxs-page-title">Interventions</h1>
+        <CreateInterventionButton techs={techs} />
+      </div>
+      <InterventionsClient
+        initialRows={rows}
+        techs={techs}
+        loadError={interventionsRes.error?.message ?? null}
+        dashboard={dashboard}
+        serverNowIso={serverNowIso}
+        adminEmail={adminEmail}
+        listOnly
+      />
+    </>
   );
 }
