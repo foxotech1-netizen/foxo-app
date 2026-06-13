@@ -1,3 +1,27 @@
+## SNAPSHOT 2026-06-13 (soir) — Chantier « Page Interventions admin + création à froid » CLOSE (PR #96)
+
+ÉTAT GIT : main = 9af392c (merge PR #96, merge commit, 8 commits préservés, branche feat/admin-interventions-page auto-supprimée). 8 commits : 0800eb0 (page liste listOnly + sidebar) → 039a7f3 (createInterventionCold) → 9fb864d (formulaire + bouton) → d23fad8 (champ adresse syndic, remplacé ensuite) → 1bf324c (extraction OccupantsEditor) → 1a8c59a (createAcp à la volée) → e3fd6b1 (occupants partagés + adresse syndic structurée) → 7f875a0 (fix type obligatoire NOT NULL).
+
+OBJECTIF : page admin listant TOUTES les interventions + création « à froid » (sans planning, sans Agenda, sans notification), pour le ré-encodage de l'historique.
+
+LIVRÉ (tout en prod via PR #96) :
+- Page /admin/interventions (src/app/admin/interventions/page.tsx) : réutilise InterventionsClient via un NOUVEAU prop listOnly (masque titre + widgets dashboard ; conserve liste + filtres). listOnly défaut false → /admin (dashboard) STRICTEMENT inchangé. Entrée sidebar « Interventions » (ClipboardList) dans NAV_MAIN. Garde admin héritée du layout.
+- Action createInterventionCold (src/app/admin/interventions/actions.ts) : garde admin, statut au choix VALIDÉ (défaut nouvelle), TYPE OBLIGATOIRE (garde-fou serveur : interventions.type est NOT NULL en base, le type TS string|null est faux), source 'admin', creneau_debut/technicien_id optionnels, drive_folder_id null, pas de géocodage. Réf = input.ref || nextRefForYear() + retry 23505 (réf auto → régénère ; réf fournie → erreur). Occupants via safeInsertOccupants (best-effort, conf 'en_attente', type_occupant 'occupant'). Payloads syndic/particulier = miroir de createInterventionFromSlot MAIS statut libre + pas de créneau. AUCUN notifyStatusChange, Calendar, Drive, token (SILENCIEUSE).
+- Action ADMIN createAcp (même fichier) : COMBLE UN MANQUE (aucune création ACP admin avant ; seul portal/actions.ts en avait une). Garde admin, nom requis, pose syndic_id_ref ET syndic_id (les deux colonnes existent ; portail=syndic_id, migration emails_syndic=syndic_id_ref) + garde-fou 42703. Pas de géocodage. ⚠️ Effet de bord : trigger 2026-05-30_sync_acps_clients crée un client miroir type='acp'.
+- OccupantsEditor (src/app/admin/interventions/OccupantsEditor.tsx) : EXTRAIT du bloc occupants de CreateInterventionModal (refactor PUR — Planning inchangé fonctionnellement, soumission byte-identique). Props { value: SlotOccupant[]; onChange; title?; hint? }. Réutilisé par Planning ET formulaire à froid. Min 1 ligne, mêmes champs/radios (conf, contact_preference).
+- ColdInterventionModal + CreateInterventionButton : réf (auto si vide), statut, type (ALLOWED_TYPES_INTERVENTION, obligatoire), description, priorité, date+technicien optionnels, demandeur syndic (autocomplete ACP/syndic + création ACP inline) ou particulier (mandant+lieu+contact sur place), adresse syndic STRUCTURÉE (rue+n°/CP/ville → composée "rue, cp ville" dans interventions.adresse), occupants (deux modes). Réutilise ModalShell/ModalFooter du Planning (non modifié).
+
+DÉCISIONS / PIÈGES :
+- listOnly (pas fullPage) : fullPage masque la liste (mode tiroir détail) ; listOnly masque seulement les widgets dashboard.
+- interventions.adresse = un seul texte (pas de colonnes structurées) ; particulier_contact (jsonb) garde la structure côté particulier.
+- acps : PAS de soft-delete (deleted_at absent → suppression test = hard delete). Lien ACP→syndic = syndic_id_ref (canonique) + syndic_id (legacy portail). FK clients.acp_id ON DELETE SET NULL.
+- Occupant « type » (locataire/propriétaire) NON capturé (Planning et éditeur partagé n'ont que conf + contact_preference ; seul le flux mail a type_occupant). À ajouter en touche dédiée si besoin (toucherait l'éditeur partagé + les deux inserts).
+- Validé E2E préversion : création particulier + syndic, ACP à la volée (+ client miroir), occupants enregistrés, type obligatoire (bouton désactivé sans type). Données de test nettoyées par SQL.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/Gmail de PROD.
+
+BACKLOG (non bloquant) : occupant « type » dans le formulaire si demandé ; autocomplete « syndic » liste toutes les organisations (mire le Planning) ; pas de géocodage des ACP créées à la main (lat/lng null → pas de pin carte).
+
 ## SNAPSHOT 2026-06-13 — Mails V2 Phase 4 CLOSE (PR #95) + réparation infra intervention_timeline
 
 ÉTAT GIT : main = 33584c2 (merge PR #95, merge commit, 7 commits préservés, branche feat/mails-v2-phase4 auto-supprimée à la fusion).
