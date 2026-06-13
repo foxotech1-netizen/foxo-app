@@ -22,6 +22,8 @@ INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/G
 
 BACKLOG (non bloquant) : occupant « type » dans le formulaire si demandé ; autocomplete « syndic » liste toutes les organisations (mire le Planning) ; pas de géocodage des ACP créées à la main (lat/lng null → pas de pin carte).
 
+BACKLOG UI (signalé 2026-06-14, prochain chantier) : pastilles sidebar fausses sur admin.foxo.be — le badge « Mails » affiche 201 non lus alors que ce n'est pas le cas, et le badge « À valider » affiche 1 alors que le dashboard affiche 0 rapport à valider. À diagnostiquer : source exacte des compteurs sidebar (countUnreadMails côté Mails ; file de validation 5 sources côté « À valider », possible item résiduel du chantier file-validation en pause) vs réalité Gmail / file de validation.
+
 ## SNAPSHOT 2026-06-13 — Mails V2 Phase 4 CLOSE (PR #95) + réparation infra intervention_timeline
 
 ÉTAT GIT : main = 33584c2 (merge PR #95, merge commit, 7 commits préservés, branche feat/mails-v2-phase4 auto-supprimée à la fusion).
