@@ -1,3 +1,28 @@
+## SNAPSHOT 2026-06-13 — Mails V2 Phase 4 CLOSE (PR #95) + réparation infra intervention_timeline
+
+ÉTAT GIT : main = 33584c2 (merge PR #95, merge commit, 7 commits préservés, branche feat/mails-v2-phase4 auto-supprimée à la fusion).
+
+PHASE 4 — CONFIRMATIONS OCCUPANTS PAR MAIL (fusionnée) :
+- U1 (35d1336) : analyse-deep extrait reponse_occupant {intention ∈ confirme|refuse|contre_proposition|ambigu, occupant_cible, creneau_propose} dans analyse_raw (pas de colonne ; miroir technique type_intervention). normalizeReponseOccupant : défaut 'ambigu', jamais 'confirme' en cas de doute. Remonté à l'UI via la route analyses.
+- U2 (a75af5d) : src/lib/occupants/match-mail-response.ts — parseSenderEmail + matchOccupantResponse (pur). Niveaux : 'sur' (email expéditeur == email occupant, exactement 1), 'probable' (1 match nom/appartement), 'ambigu', 'refus_contre' (jamais auto). matchByName conservateur (nom >=3 ou appartement >=2 en sous-chaîne de occupant_cible).
+- U3a (3f10ca1) : src/lib/occupants/confirm-from-mail.ts — confirmOccupantFromMail idempotent (rien si conf hors {null,en_attente}), miroir colonnes de o/actions.ts, journalise intervention_timeline + miroir occupant_responses_log.
+- U3b (72cca8e) : auto-confirm du cas 'sur' best-effort (try/catch) dans analyse-deep avant le return ; uniquement si classification reponse_occupant + dossier_match_id + niveau 'sur'. N'altère jamais la réponse JSON.
+- U4a (f3acc45) : loader partagé occupant-response-context.ts + GET /api/admin/mails/occupant-response + POST .../confirm. Gardes admin, défense occupant ∈ dossier, recharge serveur de l'intention.
+- U4b (4058592) : OccupantResponsePanel dans FicheDossierCard (bandeau 'sur' / carte 1-clic 'probable-ambigu' / alerte 'refus_contre' + créneau). key=thread_id, aucune logique de matching client.
+- fix (8283317) : journalisation timeline best-effort dans le helper (update occupant = seule écriture dure). Corrige confirmation à moitié écrite + 500 si journal échoue.
+
+RÉPARATION INFRA (prod, 2026-06-13, SQL Editor) : intervention_timeline (définie par db/migrations/2026-05-07_mail_cron.sql) n'avait JAMAIS été appliquée en prod — toutes les écritures d'historique (rapport rouvert, courtier lié, SMS, réanalyse, suppression, cron) échouaient en silence depuis le 7 mai. Table créée (CREATE TABLE IF NOT EXISTS + index + RLS admin). Ancienne table public.timeline (icone/texte/auteur_id) orpheline, plus utilisée par aucun code — à supprimer un jour.
+
+INVARIANTS : crons mails toujours fermés volontairement. Préversion = base/Drive/Gmail de PROD.
+
+SUITES PHASE 4 (non bloquantes) :
+- 'sur' utilise messages[0]?.from (= mails_analyses.expediteur). OK si l'occupant écrit en premier ; si fil initié par FoxO, expéditeur = info@foxo.be → 'sur' ne déclenche pas, bascule carte manuelle (échec sûr). Finition : prendre le dernier message entrant.
+- OccupantResponsePanel ne recharge pas le match au changement de lien dossier (seulement au changement de thread) → rouvrir le mail après avoir lié. Finition : refetch sur changement dossier_match_id.
+- Bandeau 'sur' optimiste dans le cas rare occupant 'decline' qui renvoie un mail de confirmation (helper ne réécrase pas le decline).
+- Doublons de réf 2026-000 + table orpheline public.timeline → nettoyage sandbox/DB.
+
+PROCHAIN CHANTIER (demande Foxo 13/06) : page « Interventions » admin (liste de toutes les interventions + bouton de création) depuis le sidebar. Indépendant, branche propre depuis main. Audit-first : réutiliser la création de confirm-and-create (réf 2026-000, syndic_id, statut initial, safeInsertOccupants), NE PAS dupliquer ; vérifier /api/admin/interventions/search + pattern d'ajout sidebar.
+
 # État du projet FoxO — snapshot 2026-06-12 soir (Mails V2 — Phase 3 CLOSE, PR #94 — fiche structurée IA)
 
 - **Date du recap** : 2026-06-12 (soir)
