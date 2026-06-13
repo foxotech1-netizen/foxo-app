@@ -6,15 +6,8 @@ import {
   Building2,
   User,
   Zap,
-  CheckCircle2,
-  XCircle,
-  Mail,
-  Smartphone,
-  MessageCircle,
   Check,
   X,
-  Hourglass,
-  type LucideIcon,
 } from 'lucide-react';
 import { TypeBadge } from '@/components/TypeBadge';
 import {
@@ -29,6 +22,7 @@ import type {
   TypeIntervention,
   Utilisateur,
 } from '@/lib/types/database';
+import { OccupantsEditor } from '../interventions/OccupantsEditor';
 
 const TYPES: TypeIntervention[] = [
   'Fuite canalisation',
@@ -206,16 +200,6 @@ export function CreateInterventionModal({
     }, 280);
     return () => clearTimeout(t);
   }, [orgQuery, selectedOrg, demandeurType]);
-
-  function addOccupant() {
-    setOccupants((arr) => [...arr, { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '', contact_preference: 'email' }]);
-  }
-  function removeOccupant(i: number) {
-    setOccupants((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
-  }
-  function updateOccupant(i: number, patch: Partial<SlotOccupant>) {
-    setOccupants((arr) => arr.map((o, idx) => (idx === i ? { ...o, ...patch } : o)));
-  }
 
   function validate(): string | null {
     if (!type) return 'Sélectionne un type d\'intervention.';
@@ -676,158 +660,12 @@ export function CreateInterventionModal({
         )}
 
         {/* Appartements / unités à inspecter — commun syndic + particulier */}
-        <Section title={demandeurType === 'syndic' ? 'Appartements / unités concernés' : 'Autres unités à inspecter (optionnel)'}>
-          <div className="space-y-2">
-            {occupants.map((o, i) => (
-              <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
-                    Unité {i + 1}
-                  </span>
-                  {occupants.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeOccupant(i)}
-                      className="text-[10px] text-terra hover:underline"
-                    >
-                      Retirer
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <input
-                    value={o.appartement}
-                    onChange={(e) => updateOccupant(i, { appartement: e.target.value })}
-                    placeholder="Numéro / nom (Apt 3B, Cave 2, Communs…)"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
-                  />
-                  <input
-                    value={o.etage ?? ''}
-                    onChange={(e) => updateOccupant(i, { etage: e.target.value })}
-                    placeholder="Étage (optionnel)"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <input
-                    value={o.prenom}
-                    onChange={(e) => updateOccupant(i, { prenom: e.target.value })}
-                    placeholder="Prénom occupant"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
-                  />
-                  <input
-                    value={o.nom}
-                    onChange={(e) => updateOccupant(i, { nom: e.target.value })}
-                    placeholder="Nom occupant"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
-                  />
-                  <input
-                    value={o.telephone}
-                    onChange={(e) => updateOccupant(i, { telephone: e.target.value })}
-                    type="tel"
-                    placeholder="+32 488 12 34 56"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono"
-                  />
-                  <input
-                    value={o.email}
-                    onChange={(e) => updateOccupant(i, { email: e.target.value })}
-                    type="email"
-                    placeholder="Email (lien occupant /o/…)"
-                    className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
-                  />
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
-                    Statut accès
-                  </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {(
-                      [
-                        { v: 'confirme', icon: CheckCircle2 as LucideIcon, label: 'Confirmé' },
-                        { v: 'en_attente', icon: Hourglass as LucideIcon, label: 'À confirmer' },
-                        { v: 'decline', icon: XCircle as LucideIcon, label: 'Pas d\'accès' },
-                      ] as const
-                    ).map((opt) => (
-                      <label
-                        key={opt.v}
-                        className={
-                          'px-2 py-1.5 border rounded text-[11px] font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
-                          (o.conf === opt.v
-                            ? 'border-navy bg-navy-pale text-navy dark:text-white'
-                            : 'border-sand-border bg-white text-ink-mid')
-                        }
-                      >
-                        <input
-                          type="radio"
-                          checked={o.conf === opt.v}
-                          onChange={() => updateOccupant(i, { conf: opt.v })}
-                          className="sr-only"
-                        />
-                        <opt.icon size={12} />
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
-                    Préférence contact
-                  </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {(
-                      [
-                        { v: 'email', icons: [Mail] as LucideIcon[], label: 'Email' },
-                        { v: 'sms', icons: [Smartphone] as LucideIcon[], label: 'SMS' },
-                        { v: 'whatsapp', icons: [MessageCircle] as LucideIcon[], label: 'WhatsApp' },
-                        { v: 'both', icons: [Mail, Smartphone] as LucideIcon[], label: 'Les deux' },
-                      ] as const
-                    ).map((opt) => (
-                      <label
-                        key={opt.v}
-                        className={
-                          'px-1.5 py-1 border rounded text-[10px] font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
-                          (o.contact_preference === opt.v
-                            ? 'border-navy bg-navy-pale text-navy dark:text-white'
-                            : 'border-sand-border bg-white text-ink-mid')
-                        }
-                      >
-                        <input
-                          type="radio"
-                          checked={o.contact_preference === opt.v}
-                          onChange={() => updateOccupant(i, { contact_preference: opt.v })}
-                          className="sr-only"
-                        />
-                        <span className="inline-flex items-center gap-0.5">
-                          {opt.icons.map((Ic, idx) => <Ic key={idx} size={10} />)}
-                        </span>
-                        {opt.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <textarea
-                  value={o.instructions ?? ''}
-                  onChange={(e) => updateOccupant(i, { instructions: e.target.value })}
-                  placeholder="Instructions spécifiques (digicode, gardien, créneau d'accès…)"
-                  rows={2}
-                  className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none resize-y"
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addOccupant}
-              className="w-full bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-semibold dark:bg-[rgba(255,255,255,.06)]"
-            >
-              + Ajouter un appartement
-            </button>
-            {demandeurType === 'particulier' && (
-              <p className="text-[10px] text-ink-muted italic mt-1">
-                Le particulier ci-dessus reste le contact principal. Cette section sert pour les unités annexes (cave, communs, voisin impacté, etc.).
-              </p>
-            )}
-          </div>
-        </Section>
+        <OccupantsEditor
+          value={occupants}
+          onChange={setOccupants}
+          title={demandeurType === 'syndic' ? 'Appartements / unités concernés' : 'Autres unités à inspecter (optionnel)'}
+          hint={demandeurType === 'particulier' ? 'Le particulier ci-dessus reste le contact principal. Cette section sert pour les unités annexes (cave, communs, voisin impacté, etc.).' : undefined}
+        />
 
         {error && (
           <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 font-semibold">
