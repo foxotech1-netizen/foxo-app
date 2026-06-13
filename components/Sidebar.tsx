@@ -14,7 +14,7 @@ import {
   BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
-  Activity, ClipboardCheck,
+  Activity, ClipboardCheck, ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -25,6 +25,7 @@ const NAV_MAIN: NavItem[] = [
   // au profit du Tableau de bord adaptive qui intègre désormais le
   // briefing IA + les missions du jour en tête de page.
   { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
+  { href: '/admin/interventions', Icon: ClipboardList, label: 'Interventions' },
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
   { href: '/admin/validation',  Icon: ClipboardCheck, label: 'À valider', badge: true },
   { href: '/admin/observabilite', Icon: Activity,  label: 'Observabilité' },

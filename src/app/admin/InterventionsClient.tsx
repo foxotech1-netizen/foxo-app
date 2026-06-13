@@ -172,6 +172,7 @@ export function InterventionsClient({
   fullPage = false,
   initialSelectedId = null,
   adminPins = [],
+  listOnly = false,
 }: {
   initialRows: InterventionRow[];
   techs: Utilisateur[];
@@ -190,6 +191,11 @@ export function InterventionsClient({
   // "← Retour" qui renvoie à /admin.
   fullPage?: boolean;
   initialSelectedId?: string | null;
+  // Mode « liste seule » (route /admin/interventions) — masque le titre
+  // « Tableau de bord » et le widget Dashboard (Briefing IA, Missions, KPIs,
+  // chat), en conservant la liste ET la barre de filtres intactes. Le
+  // dashboard (/admin) ne passe PAS ce prop → comportement inchangé.
+  listOnly?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1292,6 +1298,7 @@ export function InterventionsClient({
       {/* Topbar + liste — masqués en mode page complète */}
       {!fullPage && (
       <>
+      {!listOnly && (
       <div className="px-6 pt-6 flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)] flex-shrink-0">
         <div>
           <h1 className="fxs-page-title mb-1">
@@ -1333,6 +1340,7 @@ export function InterventionsClient({
           )}
         </div>
       </div>
+      )}
 
       {loadError && (
         <div className="mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold flex-shrink-0">
@@ -1345,6 +1353,7 @@ export function InterventionsClient({
           le détail bascule dans un accordéon ; la carte admin
           server-rendered est masquée et re-rendue dans cet accordéon
           via adminPins. */}
+      {!listOnly && (
       <div className="px-6 pt-4 flex-shrink-0">
         <Dashboard
           rows={rows}
@@ -1355,6 +1364,7 @@ export function InterventionsClient({
           adminPins={adminPins}
         />
       </div>
+      )}
 
       {/* Section 4 : Liste des interventions */}
       <div className="px-6 pt-5 flex-shrink-0">
