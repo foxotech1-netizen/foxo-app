@@ -151,13 +151,14 @@ export function ColdInterventionModal({
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pEmail.trim());
   const canSubmit =
-    demandeurType === 'syndic'
+    Boolean(type) &&
+    (demandeurType === 'syndic'
       ? Boolean(selectedAcp && selectedOrg)
       : Boolean(
           emailValid && pPrenom.trim() && pNom.trim() &&
           pRue.trim() && pCp.trim() && pVille.trim() &&
           (pLieuMeme || (pLieuRue.trim() && pLieuCp.trim() && pLieuVille.trim())),
-        );
+        ));
 
   function closeNewAcp() {
     setNewAcpOpen(false);

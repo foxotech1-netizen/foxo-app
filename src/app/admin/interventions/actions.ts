@@ -66,8 +66,10 @@ export async function createInterventionCold(
     return { ok: false, error: `Statut invalide : ${String(input.statut)}.` };
   }
 
+  const type = input.type?.trim();
+  if (!type) return { ok: false, error: "Type d'intervention requis." };
+
   const priorite: PrioriteIntervention = input.priorite ?? 'normale';
-  const type = input.type?.trim() || null;
   const description = input.description?.trim() || null;
   const creneauDebut = input.creneau_debut ?? null;
   const technicienId = input.technicien_id ?? null;
