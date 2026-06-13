@@ -19,6 +19,7 @@ import { Building2, User, X } from 'lucide-react';
 import { ModalShell, ModalFooter } from '../planning/CreateInterventionModal';
 import { searchAcps, searchOrganisations } from '../planning/actions';
 import { createInterventionCold, createAcp } from './actions';
+import { OccupantsEditor } from './OccupantsEditor';
 import { ALLOWED_TYPES_INTERVENTION } from '@/lib/mails/intervention-types';
 import type {
   Acp,
@@ -28,6 +29,7 @@ import type {
   StatutIntervention,
   PrioriteIntervention,
 } from '@/lib/types/database';
+import type { SlotOccupant } from '../planning/actions';
 
 const STATUTS: { value: StatutIntervention; label: string }[] = [
   { value: 'nouvelle', label: 'Nouvelle' },
@@ -84,9 +86,13 @@ export function ColdInterventionModal({
   const [orgQuery, setOrgQuery] = useState('');
   const [orgResults, setOrgResults] = useState<Organisation[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
-  // Adresse d'intervention (optionnel — mode syndic uniquement ; en
-  // particulier l'adresse est dérivée du lieu côté action).
-  const [adresse, setAdresse] = useState('');
+  // Adresse d'intervention structurée (mode syndic uniquement ; en particulier
+  // l'adresse est dérivée du lieu côté action).
+  const [adrRue, setAdrRue] = useState('');
+  const [adrCp, setAdrCp] = useState('');
+  const [adrVille, setAdrVille] = useState('');
+  // Occupants partagés (communs aux deux modes, optionnels).
+  const [occupants, setOccupants] = useState<SlotOccupant[]>([]);
   // Création d'ACP à la volée (mode syndic, quand l'immeuble n'est pas listé).
   const [newAcpOpen, setNewAcpOpen] = useState(false);
   const [newAcpNom, setNewAcpNom] = useState('');
@@ -190,6 +196,8 @@ export function ColdInterventionModal({
   function submit() {
     if (!canSubmit) return;
     setError(null);
+    // Adresse syndic structurée → texte unique pour interventions.adresse.
+    const adresseComposed = [adrRue.trim(), [adrCp.trim(), adrVille.trim()].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     startTransition(async () => {
       const res = await createInterventionCold({
         ref: ref.trim() || undefined,
@@ -199,7 +207,9 @@ export function ColdInterventionModal({
         priorite,
         creneau_debut: datePrevue ? new Date(datePrevue).toISOString() : null,
         technicien_id: technicienId || null,
-        adresse: adresse.trim() || undefined,
+        // En particulier, l'adresse est dérivée du lieu côté action.
+        adresse: demandeurType === 'syndic' ? (adresseComposed || undefined) : undefined,
+        occupants,
         demandeur:
           demandeurType === 'syndic'
             ? {
@@ -429,15 +439,20 @@ export function ColdInterventionModal({
                   </>
                 )}
               </div>
-              {/* Adresse d'intervention — optionnel, mode syndic uniquement */}
+              {/* Adresse d'intervention structurée — optionnel, mode syndic */}
               <div>
-                <Lbl>Adresse de l&apos;intervention (optionnel)</Lbl>
-                <input
-                  className={INPUT_CLASS}
-                  value={adresse}
-                  onChange={(e) => setAdresse(e.target.value)}
-                  placeholder="Rue + numéro, code postal ville"
-                />
+                <Lbl>Rue et n° (optionnel)</Lbl>
+                <input className={INPUT_CLASS} value={adrRue} onChange={(e) => setAdrRue(e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Lbl>Code postal</Lbl>
+                  <input className={INPUT_CLASS} value={adrCp} onChange={(e) => setAdrCp(e.target.value)} />
+                </div>
+                <div>
+                  <Lbl>Ville / Commune</Lbl>
+                  <input className={INPUT_CLASS} value={adrVille} onChange={(e) => setAdrVille(e.target.value)} />
+                </div>
               </div>
             </div>
           </Section>
@@ -490,6 +505,13 @@ export function ColdInterventionModal({
             </Section>
           </>
         )}
+
+        {/* Occupants — communs aux deux modes (optionnels) */}
+        <OccupantsEditor
+          value={occupants}
+          onChange={setOccupants}
+          title="Appartements / unités concernés (optionnel)"
+        />
 
         {error && (
           <div className="px-3 py-2.5 rounded-lg text-[12px] font-semibold bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] text-[var(--color-terra)]">
