@@ -285,14 +285,26 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
 export async function countUnreadMails(): Promise<number> {
   const auth = await getValidAccessToken();
   if (!auth) return 0;
-  const url = `${API}/messages?q=${encodeURIComponent(`in:inbox is:unread ${EXCLUDE_PLATFORM_MAILS_Q}`)}&maxResults=1`;
+  const q = encodeURIComponent(`in:inbox is:unread ${EXCLUDE_PLATFORM_MAILS_Q}`);
+  let total = 0;
+  let pageToken: string | undefined;
+  // Comptage EXACT par pagination. resultSizeEstimate de Gmail est une
+  // estimation non fiable (observe 201 pour ~7 non-lus reels). On additionne
+  // les messages effectivement renvoyes. Garde-fou : 5 pages x 100 = 500 max
+  // (au-dela le badge plafonne — non bloquant pour une boite societe).
   try {
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
-    if (!r.ok) return 0;
-    const j = (await r.json()) as { resultSizeEstimate?: number };
-    return j.resultSizeEstimate ?? 0;
+    for (let i = 0; i < 5; i++) {
+      const url = `${API}/messages?q=${q}&maxResults=100${pageToken ? `&pageToken=${pageToken}` : ''}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
+      if (!r.ok) return total;
+      const j = (await r.json()) as { messages?: { id: string }[]; nextPageToken?: string };
+      total += j.messages?.length ?? 0;
+      if (!j.nextPageToken) break;
+      pageToken = j.nextPageToken;
+    }
+    return total;
   } catch {
-    return 0;
+    return total;
   }
 }
 
