@@ -1,3 +1,22 @@
+## SNAPSHOT 2026-06-14 (suite 2) — Chantier « Fix Alertes : exclure la corbeille » CLOSE (PR #101)
+
+ÉTAT GIT : main = cee3ef0 (merge PR #101, merge commit). 1 commit : ff03824 (fix(alertes) : exclure les interventions soft-deletees, deleted_at null). Branche fix/alertes-exclure-corbeille supprimée.
+
+OBJECTIF : la page /admin/alertes affichait des interventions mises à la corbeille (soft-deletées), devenues introuvables et insupprimables depuis le Tableau de bord — des fantômes impossibles à nettoyer côté UI.
+
+DIAGNOSTIC (audit lecture seule + SQL) : asymétrie de requêtes. src/app/admin/page.tsx (dashboard) filtre .is('deleted_at', null) ; src/app/admin/alertes/page.tsx était la SEULE page de listing admin sans ce filtre. 5 dossiers de test (TEST-COLD, TEST-COLD-OCC, TEST-COLD-SYNDIC, 2 x 2026-133) avaient deleted_at rempli (confirmé par SQL) → invisibles au dashboard (donc plus de drawer ni de bouton supprimer atteignable) mais persistants dans Alertes. Même nature que le bug corrigé en PR #98 (badge « À valider » / validation-queue).
+
+LIVRÉ (prod via PR #101, 1 fichier, +1 ligne, 0 SQL) :
+- src/app/admin/alertes/page.tsx : ajout de .is('deleted_at', null) entre .select(...) et .or(...) de la requête interventions, aligné sur le pattern du dashboard.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. tsc --noEmit vert + hook pre-push OK. Aucune migration.
+
+VALIDÉ E2E prod : les 5 fantômes ont disparu d'Alertes après déploiement ; compteur « Nouvelles non assignées » revenu au réel (confirmé visuellement par Foxo).
+
+BACKLOG (non bloquant) :
+- Même oubli de filtre deleted_at sur src/app/api/admin/interventions/search/route.ts → une recherche peut faire remonter des dossiers supprimés. À traiter avec le chantier « page Interventions dédiée » déjà au backlog.
+- Les 5 dossiers de test restent soft-deletés en base (récupérables, invisibles partout). Purge propre via la route hard-delete possible si besoin d'une base nette — non urgent.
+
 ## SNAPSHOT 2026-06-14 (suite 2) — Finitions Phase 4 mails CLOSE (PR #100) + Ops Netlify débranché + finition « autocomplete syndic » classée
 
 ÉTAT GIT : main = cee3ef0 (merge PR #101 fix/alertes-exclure-corbeille — exclusion des interventions soft-deletées de la page Alertes, commit ff03824 — mergée juste APRÈS PR #100). PR #100 (cette finition Phase 4) = merge commit 2c8f23f, 2 commits préservés, branche fix/phase4-mails-finitions supprimée. 2 commits : 0fc2819 (matching réponse occupant sur le dernier message entrant) → 5881dc1 (refetch panneau réponse occupant au changement de dossier lié).
