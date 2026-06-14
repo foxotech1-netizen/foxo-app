@@ -42,12 +42,14 @@ export async function getRapportsAValiderCount(supabase: SupabaseServer): Promis
     .map((r: { intervention_id: string | null }) => r.intervention_id)
     .filter((id: string | null): id is string => Boolean(id));
   if (ids.length === 0) return 0;
-  const { count } = await supabase
+  const uniqueIds = [...new Set(ids)];
+  const { data: vivantes } = await supabase
     .from('interventions')
-    .select('id', { count: 'exact', head: true })
-    .in('id', ids)
+    .select('id')
+    .in('id', uniqueIds)
     .is('deleted_at', null);
-  return count ?? 0;
+  const vivantesSet = new Set((vivantes ?? []).map((i: { id: string }) => i.id));
+  return ids.filter((id: string) => vivantesSet.has(id)).length;
 }
 
 // 3. Factures / devis en brouillon.
