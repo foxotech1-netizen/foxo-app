@@ -1,3 +1,31 @@
+## SNAPSHOT 2026-06-14 — Chantier « Pastilles sidebar incorrectes » CLOSE (PR #98)
+
+ÉTAT GIT : main = 0ee286c (merge PR #98, merge commit, 3 commits préservés, branche claude/validation-badge-orphan-reports-wmf1oq supprimée). 3 commits : 95bfa8a (badge À valider exclut les rapports d'interventions supprimées) → 5dd2c59 (compter les rapports vivants, pas les interventions) → 227648d (badge Mails = comptage exact au lieu de resultSizeEstimate).
+
+OBJECTIF : corriger deux pastilles du sidebar admin affichant des nombres faux — « Mails » = 201 (réel ~14) et « À valider » = 1 (réel 0).
+
+DIAGNOSTIC (audit lecture seule + SQL de décomposition) :
+- Badge « Mails » (countUnreadMails, src/lib/gmail.ts) : renvoyait resultSizeEstimate de l'API Gmail (requête in:inbox is:unread + exclusion send.foxo.be) — une ESTIMATION non fiable (201 affiché pour ~14 messages réels). Bug de code.
+- Badge « À valider » (getValidationTotal, src/lib/admin/validation-queue.ts ; alimente le badge sidebar ET la pastille hub) : SQL des 5 sources → le « 1 » venait UNIQUEMENT des rapports. Rapport identifié = intervention 2026-000, soft-deletée le 11/06, rapport resté 'brouillon'. Le compteur comptait les rapports brouillon/validé SANS filtrer l'intervention parente supprimée, alors que la page /admin/validation les excluait déjà → divergence badge vs page. (Le dashboard compte, lui, les interventions de statut 'rapport' = 0 : mesure encore différente, non touchée.)
+
+LIVRÉ (tout en prod via PR #98, 2 fichiers seulement) :
+- src/lib/gmail.ts : countUnreadMails remplacée par un comptage EXACT via pagination de messages.list (maxResults 100, addition des messages renvoyés, garde-fou 5 pages x 100 = 500 max ; au-delà le badge plafonne). Signature et constantes inchangées (getValidAccessToken, API, EXCLUDE_PLATFORM_MAILS_Q).
+- src/lib/admin/validation-queue.ts : applyRapportsAValider SUPPRIMÉ (utilisé seulement par getValidationTotal) → getRapportsAValiderCount(supabase), réplique exacte de la logique de listing de /admin/validation : Set des intervention_id vivantes (deleted_at null) puis filtrage du tableau d'ids (1 entrée par rapport) → compte les LIGNES de rapports vivants (gère une intervention à plusieurs rapports). getValidationTotal recâblé dessus.
+
+DÉCISIONS / PIÈGES :
+- Le badge « Mails » compte les MESSAGES non lus (pas les conversations Gmail) → cohérent avec la page Mails de FoxO (les deux à 14). L'écart avec un décompte « conversations » côté Gmail web (~7) est normal : un fil à plusieurs messages non lus compte pour plusieurs.
+- Table rapports : clé sur intervention_id, PAS de colonne id (un SELECT r.id échoue en 42703), PAS de colonne deleted_at → on filtre le soft-delete via l'intervention parente. Pas de FK fiable rapports→interventions pour un embed PostgREST → approche 2 requêtes (identique à la page).
+- AUCUNE migration SQL, AUCUNE suppression de données : le rapport orphelin de 2026-000 reste en base, il ne compte plus.
+- Branche découverte non poussée : une session Claude Code reprise (« Session reprise ») avait déjà écrit ce fix validation en local (95bfa8a + correction 5dd2c59) sans jamais le pousser → invisible sur GitHub et dans le récap. L'audit-first (Claude Code a signalé le doublon) a évité de réintroduire le sous-comptage corrigé par 5dd2c59. Leçon : pousser tôt ; « conteneur éphémère » n'est pas absolu, une session peut reprendre avec son état local.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/Gmail de PROD. tsc --noEmit vert + hook pre-push OK.
+
+VALIDÉ E2E préversion : sidebar Mails 201 → 14 (= « 14 non lus » de la page Mails) ; badge « À valider » → 0 (plus de pastille).
+
+BACKLOG (non bloquant) :
+- Si souhaité : badge « Mails » restreint aux seules demandes d'intervention (exclure les mails fournisseurs type Coolblue) — chantier produit séparé, pas un bug.
+- Reliquats antérieurs : occupant « type » dans le formulaire de création ; autocomplete « syndic » sur toutes les organisations ; géocodage des ACP créées à la main (lat/lng).
+
 ## SNAPSHOT 2026-06-13 (soir) — Chantier « Page Interventions admin + création à froid » CLOSE (PR #96)
 
 ÉTAT GIT : main = 9af392c (merge PR #96, merge commit, 8 commits préservés, branche feat/admin-interventions-page auto-supprimée). 8 commits : 0800eb0 (page liste listOnly + sidebar) → 039a7f3 (createInterventionCold) → 9fb864d (formulaire + bouton) → d23fad8 (champ adresse syndic, remplacé ensuite) → 1bf324c (extraction OccupantsEditor) → 1a8c59a (createAcp à la volée) → e3fd6b1 (occupants partagés + adresse syndic structurée) → 7f875a0 (fix type obligatoire NOT NULL).
