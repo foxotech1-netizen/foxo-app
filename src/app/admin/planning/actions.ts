@@ -20,6 +20,7 @@ import type {
   ParticulierContactSurPlace,
   PrioriteIntervention,
   TypeIntervention,
+  TypeOccupant,
   TypeOrganisation,
 } from '@/lib/types/database';
 
@@ -233,6 +234,7 @@ export interface SlotOccupant {
   conf?: SlotOccupantConf;
   instructions?: string;
   contact_preference?: SlotContactPreference;
+  type_occupant?: TypeOccupant;
 }
 
 export interface CreateFromSlotSyndic {
@@ -419,6 +421,7 @@ export async function createInterventionFromSlot(
         token: generateOccupantToken(),
         conf: o.conf ?? null,
         contact_preference: o.contact_preference ?? 'email',
+        type_occupant: o.type_occupant ?? 'occupant',
       }));
     if (rows.length > 0) {
       await admin.from('occupants').insert(rows);

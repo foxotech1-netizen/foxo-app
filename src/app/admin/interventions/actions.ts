@@ -196,7 +196,7 @@ export async function createInterventionCold(
       conf: 'en_attente',
       contact_preference: o.contact_preference ?? 'email',
       instructions: o.instructions ?? '',
-      type_occupant: 'occupant',
+      type_occupant: o.type_occupant ?? 'occupant',
     }));
   if (occRows.length > 0) {
     try {
