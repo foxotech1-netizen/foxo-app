@@ -23,6 +23,7 @@ export default async function AlertesPage() {
   const { data: ivData } = await supabase
     .from('interventions')
     .select('id, ref, statut, priorite, type, creneau_debut, updated_at, acp_id, syndic_id, technicien_id')
+    .is('deleted_at', null)
     .or('statut.eq.en_suspens,statut.eq.nouvelle,statut.eq.rapport')
     .order('updated_at', { ascending: false });
 
