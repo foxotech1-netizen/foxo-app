@@ -1,3 +1,36 @@
+## SNAPSHOT 2026-06-14 (suite 2) — Finitions Phase 4 mails CLOSE (PR #100) + Ops Netlify débranché + finition « autocomplete syndic » classée
+
+ÉTAT GIT : main = cee3ef0 (merge PR #101 fix/alertes-exclure-corbeille — exclusion des interventions soft-deletées de la page Alertes, commit ff03824 — mergée juste APRÈS PR #100). PR #100 (cette finition Phase 4) = merge commit 2c8f23f, 2 commits préservés, branche fix/phase4-mails-finitions supprimée. 2 commits : 0fc2819 (matching réponse occupant sur le dernier message entrant) → 5881dc1 (refetch panneau réponse occupant au changement de dossier lié).
+
+OBJECTIF : deux finitions « Phase 4 mails » non bloquantes, regroupées en 1 PR.
+
+DIAGNOSTIC (audit lecture seule : clone du repo + relecture diff) :
+- Correctif A — auto-confirmation réponse occupant (src/app/api/admin/mails/analyse-deep/route.ts) : l'appel matchOccupantResponse recevait expediteur: messages[0]?.from. Les messages d'un thread Gmail (getEmailThread, threads.get?format=full) sont en ordre chronologique CROISSANT → messages[0] = le plus ancien = NOTRE demande de confirmation sortante (info@foxo.be), jamais la réponse de l'occupant. Le niveau 'sur' s'obtient quand email expéditeur == email d'un occupant unique → comparé à notre propre adresse, il ne pouvait JAMAIS se déclencher : l'auto-confirmation par email était de facto MORTE.
+- Correctif B — panneau OccupantResponsePanel (src/app/admin/mails/FicheDossierCard.tsx) : monté avec key={analyse.thread_id}, donc refetch uniquement au changement de MAIL. Re-relier un mail à une AUTRE intervention (sans changer de mail) ne changeait pas thread_id → key identique → match périmé (occupants de l'ancien dossier).
+
+LIVRÉ (tout en prod via PR #100, 2 fichiers, +23/-3, 0 SQL) :
+- analyse-deep/route.ts : import parseSenderEmail ajouté ; nouvelle fonction module lastIncomingFrom(msgs) → renvoie le `from` du DERNIER message entrant (parcours depuis la fin, saute les expéditeurs @foxo.be / .foxo.be, fallback prudent sur le dernier message) ; expediteur du matcher passé de messages[0]?.from à lastIncomingFrom(messages). La ligne IDENTIQUE messages[0]?.from des métadonnées d'affichage (sujet/expediteur/recu_le, ~l.709) LAISSÉE INTACTE volontairement.
+- FicheDossierCard.tsx : key du <OccupantResponsePanel> passée de analyse.thread_id à `${analyse.thread_id}:${analyse.dossier_match_id ?? 'none'}`.
+
+CHANGEMENT DE COMPORTEMENT ASSUMÉ (correctif A) : l'auto-confirmation par email (badge « confirmé automatiquement — email vérifié », confirmOccupantFromMail source 'mail_auto') peut désormais réellement se déclencher quand un occupant répond depuis son email exact et unique sur le dossier. Le matcher reste prudent : tout autre niveau (probable/ambigu/refus_contre) part en validation manuelle. Aucune confirmation silencieuse hors niveau 'sur'.
+
+PIÈGE TRAITÉ : la ligne expediteur: messages[0]?.from apparaît DEUX FOIS dans analyse-deep (l.709 métadonnées = à garder ; l.764 input matcher = à corriger), texte identique à l'indentation près → remplacement ancré sur le bloc multi-lignes (occupantCible/occupants) pour ne toucher que le bon.
+
+INVARIANTS INCHANGÉS : crons mails toujours FERMÉS (NE PAS rallumer). Préversion = base/Drive/Gmail de PROD. tsc --noEmit vert + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+VALIDATION : diff relu indépendamment (clone + git diff origin/main...branche), conforme. tsc vert à chaque commit. Pas de test E2E préversion — décision assumée : éviter une mutation prod pour 2 correctifs ciblés déjà vérifiés par diff + tsc.
+
+── OPS & FINITIONS NON-CODE de cette session ──
+- Chantier #5 « Débrancher les checks Netlify parasites » FAIT (aucun code, aucune PR). Audit via connecteur Netlify : 2 sites sur le compte (foxo-track, foxo-rdv) = mini-pages déployées À LA MAIN (track.html / r.html / index.html), AUCUN lien Git, sans rapport avec foxo-app. Les 4 checks rouges (Deploy Preview + Header/Redirect/Pages rules) étaient posés via l'AUTORISATION OAuth Netlify sur le compte GitHub foxotech1-netizen (Netlify ABSENT de « Installed GitHub Apps » → connexion OAuth historique, pas GitHub App). CORRECTION : OAuth Netlify révoqué (GitHub → Settings → Applications → Authorized OAuth Apps → Netlify → Revoke). Effet : plus aucun check Netlify sur les futures PR. Réversible. Sites foxo-track/foxo-rdv et prod Vercel non affectés (Vercel reste dans Installed GitHub Apps).
+- Finition « autocomplete syndic sur toutes les organisations » CLASSÉE (déjà satisfaite, aucun code). Les DEUX modals de création (Planning CreateInterventionModal + création à froid ColdInterventionModal) appellent déjà searchOrganisations(q) SANS filtre → cherchent déjà dans TOUTES les organisations. Seul appel filtré (InterventionsClient l.4146, { types: ['courtier','expert'] }) = mandater courtier/expert = VOULU. Seule restriction type=syndic restante = « Syndic gestionnaire » d'une ACP (ClientForm, /api/admin/organisations?type=syndic) = correct métier. Création d'ACP à la volée (ColdInterventionModal) fixe syndic_id = syndic demandeur (défaut sain). Foxo confirme aucun blocage concret → rien à corriger.
+
+BACKLOG (non bloquant) :
+- Géocodage des ACP créées à la main (lat/lng) — PROCHAINE finition prévue.
+- Ménage doublons réf 2026-000 + ancienne table orpheline public.timeline (DESTRUCTIF → export JSON manuel d'abord, Supabase Free sans backup auto).
+- Cohérences : double notif confirmee, occupant_responses_log jamais relu, drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA (runAgent + agent_logs).
+- Produit séparé (pas un bug) : badge « Mails » restreint aux seules demandes d'intervention.
+- Ops : rallumer les crons mails = TOUTE DERNIÈRE étape, précédée du marquage « lu » des mails déjà traités.
+
 ## SNAPSHOT 2026-06-14 (suite) — Chantier « Type d'occupant au formulaire de création » CLOSE (PR #99)
 
 ÉTAT GIT : main = 6d945a6 (merge PR #99, merge commit, 2 commits préservés, branche feat/occupant-type-creation supprimée). 2 commits : 4ead22e (feat : type d'occupant au formulaire) → 61909cd (docs : commentaire createInterventionCold à jour).
