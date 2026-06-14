@@ -28,7 +28,7 @@ import { proposeCreneau, type CreneauPropose } from '@/lib/mails/propose-creneau
 import type { TypeIntervention } from '@/lib/mails/intervention-types';
 import { runAgent } from '@/lib/observability';
 import { MAIL_CLASSIFICATIONS, toCanonicalClassification, type MailClassification } from '@/lib/mail/categories';
-import { matchOccupantResponse, type OccupantForMatch } from '@/lib/occupants/match-mail-response';
+import { matchOccupantResponse, parseSenderEmail, type OccupantForMatch } from '@/lib/occupants/match-mail-response';
 import { confirmOccupantFromMail } from '@/lib/occupants/confirm-from-mail';
 
 export const dynamic = 'force-dynamic';
@@ -289,6 +289,26 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 
 interface AnalyseDeepBody {
   thread_id?: unknown;
+}
+
+// Phase 4 — Expéditeur du DERNIER message ENTRANT d'un fil (expéditeur ≠ FoxO).
+// Les messages d'un thread Gmail sont en ordre chronologique CROISSANT
+// (messages[0] = le plus ancien). Pour une réponse occupant, la réponse est
+// donc le dernier message entrant — surtout PAS messages[0], qui est notre
+// propre demande de confirmation sortante. On saute tout message émis par FoxO
+// (domaine foxo.be : info@foxo.be et *@send.foxo.be) et on renvoie le `from`
+// brut du dernier message entrant, pour le matcher d'occupant.
+function lastIncomingFrom(
+  msgs: ReadonlyArray<{ from?: string | null }>,
+): string | null {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const from = msgs[i]?.from ?? null;
+    const email = parseSenderEmail(from);
+    if (email && !(email.endsWith('@foxo.be') || email.endsWith('.foxo.be'))) {
+      return from;
+    }
+  }
+  return msgs.length > 0 ? (msgs[msgs.length - 1]?.from ?? null) : null;
 }
 
 export async function POST(request: Request) {
@@ -761,7 +781,7 @@ export async function POST(request: Request) {
         const m = matchOccupantResponse({
           intention: ro.intention,
           occupantCible: ro.occupant_cible,
-          expediteur: messages[0]?.from ?? null,
+          expediteur: lastIncomingFrom(messages),
           occupants,
         });
         if (m.niveau === 'sur' && m.occupantSur) {

@@ -197,7 +197,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
           Le panneau s'auto-masque si le serveur renvoie found:false. */}
       {analyse.reponse_occupant && (
         <OccupantResponsePanel
-          key={analyse.thread_id}
+          key={`${analyse.thread_id}:${analyse.dossier_match_id ?? 'none'}`}
           threadId={analyse.thread_id}
           creneauPropose={analyse.reponse_occupant.creneau_propose}
           onAnalyseRefresh={onAnalyseRefresh}
