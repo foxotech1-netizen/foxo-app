@@ -1,3 +1,29 @@
+## SNAPSHOT 2026-06-14 (suite) — Chantier « Type d'occupant au formulaire de création » CLOSE (PR #99)
+
+ÉTAT GIT : main = 6d945a6 (merge PR #99, merge commit, 2 commits préservés, branche feat/occupant-type-creation supprimée). 2 commits : 4ead22e (feat : type d'occupant au formulaire) → 61909cd (docs : commentaire createInterventionCold à jour).
+
+OBJECTIF : permettre de renseigner le TYPE d'occupant (locataire/propriétaire/concierge/…) au formulaire de création d'intervention (création à froid + modal Planning), via le composant partagé OccupantsEditor.
+
+DIAGNOSTIC (audit lecture seule) : le vocabulaire TypeOccupant (8 valeurs : occupant, proprietaire, locataire, concierge, voisin, gestionnaire, parties_communes, autre), les labels FR (TYPE_OCCUPANT_LABEL, src/lib/types/database.ts) et un <select> réutilisable (drawer d'édition d'InterventionsClient) EXISTAIENT DÉJÀ. La contrainte SQL occupants_type_occupant_check accepte déjà les 8 valeurs (étendue le 2026-05-29) → AUCUNE migration. Avant ce chantier : la création à froid forçait type_occupant='occupant' ; le Planning ne posait PAS type_occupant (NULL). CronOccupantType (type de OccupantInsertRow.type_occupant) est identique à TypeOccupant → affectation type-safe.
+
+LIVRÉ (tout en prod via PR #99, 3 fichiers, +20/-2, 0 SQL) :
+- src/app/admin/interventions/OccupantsEditor.tsx (composant PARTAGÉ Planning + création à froid) : import TYPE_OCCUPANT_LABEL/TypeOccupant ; emptyOccupant() initialise type_occupant:'occupant' ; nouveau <select> « Type d'occupant » (Object.entries(TYPE_OCCUPANT_LABEL)) inséré entre la grille Appartement/Étage et la grille Prénom. Apparaît AUTOMATIQUEMENT dans les deux modals.
+- src/app/admin/planning/actions.ts : TypeOccupant ajouté à l'import database ; SlotOccupant gagne type_occupant?:TypeOccupant ; createInterventionFromSlot persiste type_occupant: o.type_occupant ?? 'occupant'.
+- src/app/admin/interventions/actions.ts : createInterventionCold passe de type_occupant:'occupant' figé à o.type_occupant ?? 'occupant' (+ commentaire §6 mis à jour, 61909cd).
+
+DÉCISIONS / PIÈGES :
+- Effet de bord ASSUMÉ : les occupants créés via le Planning ont désormais un type (défaut 'occupant' au lieu de NULL). Amélioration — le rapport PDF (dispatch.ts / report-data-mapping.ts) affiche déjà ce type.
+- Pas besoin de toucher les modals parents (CreateInterventionModal, ColdInterventionModal) : les fallbacks ?? 'occupant' (éditeur + inserts) couvrent un type_occupant absent de l'état initial parent.
+- emptyOccupant() est interne (non exporté), utilisé seulement par addOccupant.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/Gmail de PROD. tsc --noEmit vert + hook pre-push OK.
+
+VALIDÉ E2E préversion : sélecteur « Type d'occupant » présent à la création, valeur non-défaut (ex. Locataire) enregistrée et ré-affichée sur le dossier.
+
+BACKLOG (non bloquant) :
+- Finitions antérieures encore ouvertes : autocomplete « syndic » sur toutes les organisations ; géocodage des ACP créées à la main (lat/lng).
+- Produit séparé (pas un bug) : badge « Mails » restreint aux seules demandes d'intervention.
+
 ## SNAPSHOT 2026-06-14 — Chantier « Pastilles sidebar incorrectes » CLOSE (PR #98)
 
 ÉTAT GIT : main = 0ee286c (merge PR #98, merge commit, 3 commits préservés, branche claude/validation-badge-orphan-reports-wmf1oq supprimée). 3 commits : 95bfa8a (badge À valider exclut les rapports d'interventions supprimées) → 5dd2c59 (compter les rapports vivants, pas les interventions) → 227648d (badge Mails = comptage exact au lieu de resultSizeEstimate).
