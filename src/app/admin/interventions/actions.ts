@@ -179,9 +179,9 @@ export async function createInterventionCold(
   const interventionId = insertResult.data.id as string;
   const finalRef = (insertResult.data.ref as string | null) ?? ref;
 
-  // 6. Occupants via safeInsertOccupants (best-effort). SlotOccupant n'a pas
-  //    de champ `type` → type_occupant défaut 'occupant' ; conf forcé
-  //    'en_attente' (type OccupantInsertRow). Pas de token, pas d'insert direct.
+  // 6. Occupants via safeInsertOccupants (best-effort). type_occupant repris
+  //    du formulaire (SlotOccupant.type_occupant), défaut 'occupant' ; conf
+  //    forcé 'en_attente' (type OccupantInsertRow). Pas de token, pas d'insert direct.
   const occInput = input.occupants ?? [];
   const occRows: OccupantInsertRow[] = occInput
     .filter((o) => o.appartement || o.nom || o.prenom || o.email || o.telephone)
@@ -196,7 +196,7 @@ export async function createInterventionCold(
       conf: 'en_attente',
       contact_preference: o.contact_preference ?? 'email',
       instructions: o.instructions ?? '',
-      type_occupant: 'occupant',
+      type_occupant: o.type_occupant ?? 'occupant',
     }));
   if (occRows.length > 0) {
     try {

@@ -17,11 +17,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { SlotOccupant } from '../planning/actions';
+import { TYPE_OCCUPANT_LABEL, type TypeOccupant } from '@/lib/types/database';
 
 // Gabarit d'une ligne occupant vierge — identique à l'état initial / addOccupant
 // du modal Planning.
 function emptyOccupant(): SlotOccupant {
-  return { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '', contact_preference: 'email' };
+  return { appartement: '', etage: '', prenom: '', nom: '', email: '', telephone: '', conf: 'en_attente', instructions: '', contact_preference: 'email', type_occupant: 'occupant' };
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -88,6 +89,20 @@ export function OccupantsEditor({
                 placeholder="Étage (optionnel)"
                 className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
               />
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+                Type d'occupant
+              </div>
+              <select
+                value={o.type_occupant ?? 'occupant'}
+                onChange={(e) => updateOccupant(i, { type_occupant: e.target.value as TypeOccupant })}
+                className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+              >
+                {(Object.entries(TYPE_OCCUPANT_LABEL) as [TypeOccupant, string][]).map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-1.5">
               <input
