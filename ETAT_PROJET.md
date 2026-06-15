@@ -1,3 +1,19 @@
+## SNAPSHOT 2026-06-15 (suite) — Sidebar : retrait du code mort « badge Alertes » mobile (PR #105)
+
+ÉTAT GIT : main = 6bd516c (merge PR #105, merge commit, branche chore/sidebar-remove-inert-alertes-badge supprimée). 1 commit : d5d0407.
+
+CONTEXTE : item cosmétique non bloquant noté au snapshot suite 5. Depuis la PR #103, /admin/alertes n'est plus dans BOTTOM_NAV (barre du bas mobile) → la pastille « Alertes » du rendu mobile de components/Sidebar.tsx ne pouvait plus jamais s'afficher (aucun item mobile n'a ce href).
+
+LIVRÉ (1 fichier, -16, 0 SQL) : suppression du bloc conditionnel inerte « item.href === '/admin/alertes' && alertCount > 0 » DANS LE RENDU MOBILE uniquement (bloc à style inline position:absolute, à l'intérieur de <nav style={S.bottomNav}>). Effet : aucun changement visible (la pastille ne s'affichait déjà jamais) — pur ménage. La pastille « À valider » adjacente suit désormais directement le label.
+
+NON TOUCHÉ (vérifié sur main) : la prop alertCount (toujours utilisée par la pastille DESKTOP, l.293-294), l'import Bell (toujours dans NAV_MAIN), la pastille validation. tsc --noEmit vert (confirme alertCount non orphelin). Merge sur la foi du diff (pure suppression de code inatteignable → pas de test E2E).
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée. components/Sidebar.tsx est à la RACINE du repo (alias @components/* → ./components/*), PAS dans src/.
+
+BACKLOG COSMÉTIQUE ÉLIMINÉ : « code inerte pastille Alertes dans le rendu mobile de Sidebar.tsx » = FAIT.
+
+PROCHAINS CHANTIERS POSSIBLES (inchangés) : dette/cohérence restante (double notif confirmee ; occupant_responses_log jamais relu ; drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs qui EXISTENT — vérifier l'état du wrapper avant de (re)faire) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
 ## SNAPSHOT 2026-06-15 — Correctif autocomplete : exclure les interventions à la corbeille (PR #104)
 
 ÉTAT GIT : main = d4f9b4e (merge PR #104, merge commit, branche fix/search-exclure-corbeille supprimée). 1 commit : 218499b.
