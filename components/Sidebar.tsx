@@ -254,17 +254,16 @@ export default function Sidebar({
     return pathname.startsWith(href)
   }
 
-  // ── Mobile bottom nav — 4 items fixes ──────────────────────────────────
+  // ── Mobile bottom nav — 5 items fixes ──────────────────────────────────
   // Item "Menu" (qui pointait vers /admin/home, retiré Sprint 1) supprimé.
   // L'accès aux pages secondaires (clients, comptabilité, …) se fait via
   // /admin/hub depuis le sélecteur de portail.
   const BOTTOM_NAV: NavItem[] = [
-    { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
-    { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
-    { href: '/admin/validation', Icon: ClipboardCheck, label: 'À valider' },
-    { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
-    { href: '/admin/techniciens', Icon: Wrench,  label: 'Techniciens' },
-    { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
+    { href: '/admin',               Icon: BarChart3,      label: 'Tableau'       },
+    { href: '/admin/interventions', Icon: ClipboardList,  label: 'Interventions' },
+    { href: '/admin/validation',    Icon: ClipboardCheck, label: 'À valider'     },
+    { href: '/admin/planning',      Icon: Calendar,       label: 'Planning'      },
+    { href: '/admin/assistant',     Icon: Sparkles,       label: 'Assistant'     },
   ]
 
   return (
