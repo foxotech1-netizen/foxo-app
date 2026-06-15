@@ -1,3 +1,22 @@
+## SNAPSHOT 2026-06-14 (suite 4) — Ménage base : doublon 2026-000 purgé + table orpheline public.timeline supprimée (SQL direct, pas de PR)
+
+ÉTAT GIT : aucun changement code (main = 7686658 + snapshots doc). Opération SQL directe en Supabase. Sauvegarde JSON manuelle prise AVANT (intervention purgée + ses enfants + public.timeline complète, conservée côté Foxo).
+
+CONTEXTE : 2 lignes partageaient ref='2026-000' — Ligne 1 (330adf15…, confirmee, déjà à la corbeille depuis le 11/06) et Ligne 2 (d03d27f0…, cloturee, vivante = bac à sable E2E). public.timeline = vestige (FK intervention_id CASCADE) remplacé par intervention_timeline, référencé nulle part dans le code.
+
+EXÉCUTÉ (transaction begin/commit, SQL Supabase) :
+1. drop table if exists public.timeline.
+2. Créneau de la Ligne 1 libéré (FK NO ACTION → sinon blocage) ; sms_logs Ligne 1 supprimés (défensif).
+3. delete interventions Ligne 1 → CASCADE a effacé ses 5 photos + 1 rapport + timeline.
+4. Ligne 2 CONSERVÉE.
+VÉRIFIÉ : ligne1=0, ligne2=1, total ref 2026-000=1, public.timeline=null. Conforme.
+
+PIÈGE : la route DELETE /api/admin/interventions/[id] refuse les statuts confirmee/cloturee → ménage fait en SQL direct (même cascade manuelle reproduite : libérer créneau + sms_logs avant delete). FK vers interventions : majorité CASCADE ; NO ACTION sur creneaux_disponibles / factures / sms_logs.
+
+LOT « FINITIONS RAPIDES » = TERMINÉ : autocomplete syndic (classé, déjà satisfait), Phase 4 mails (PR #100), géocodage ACP (PR #102), ménage 2026-000 + public.timeline (ce snapshot).
+
+BACKLOG : src/app/api/admin/interventions/search/route.ts filtre deleted_at manquant (à traiter avec « page Interventions dédiée ») ; cohérences (double notif confirmee, occupant_responses_log jamais relu, drive_folder_id non persisté) ; audit qualité #3 ; Observabilité IA (runAgent + agent_logs) ; Ops rallumage crons mails = TOUTE DERNIÈRE étape.
+
 ## SNAPSHOT 2026-06-14 (suite 3) — Géocodage des ACP créées à la main CLOSE (PR #102)
 
 ÉTAT GIT : main = 7686658 (merge PR #102, merge commit, 2 commits préservés, branche fix/acp-geocodage supprimée). 2 commits : e749638 (géocodage createAcp / création à froid) → 8608de0 (géocodage route POST /api/admin/acps / création rapide depuis le drawer syndic).
