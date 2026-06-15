@@ -404,22 +404,6 @@ export default function Sidebar({
           <Link key={item.href} href={item.href} style={S.bottomNavItem(active)}>
             <span style={S.bottomNavIcon(active)}><item.Icon size={18} aria-hidden /></span>
             <span>{item.label}</span>
-            {item.href === '/admin/alertes' && alertCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: 6,
-                right: '50%',
-                transform: 'translateX(8px)',
-                background: 'var(--color-amber-foxo)',
-                color: 'var(--color-cream)',
-                borderRadius: 20,
-                fontSize: 9,
-                fontWeight: 600,
-                padding: '0 5px',
-                minWidth: 16,
-                textAlign: 'center',
-              }}>{alertCount}</span>
-            )}
             {item.href === '/admin/validation' && validationCount > 0 && (
               <span style={{
                 position: 'absolute',
