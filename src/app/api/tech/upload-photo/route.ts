@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentTech, verifyTechOwnsIntervention, techError } from '@/lib/auth/tech-helpers';
-import { uploadPhoto } from '@/lib/google-drive';
+import { uploadPhoto, resolveInterventionFolderByName } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   // Vérifie que ce tech est assigné à l'intervention. select avec join acps
   // pour conserver une seule requête (les champs servent au chemin Drive).
   const owns = await verifyTechOwnsIntervention(supabase, tech.tech.id, interventionId, {
-    select: 'id, ref, technicien_id, adresse, creneau_debut, acp:acps(adresse, code_postal, ville)',
+    select: 'id, ref, technicien_id, adresse, creneau_debut, drive_folder_id, acp:acps(adresse, code_postal, ville)',
   });
   if (!owns.ok) return techError(owns);
 
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     id: string; ref: string | null;
     adresse: string | null;
     creneau_debut: string | null;
+    drive_folder_id: string | null;
     acp: { adresse: string | null; code_postal: string | null; ville: string | null } | null;
   };
   const ivT = owns.intervention as unknown as IvJoined;
@@ -93,6 +94,25 @@ export async function POST(request: Request) {
     mimeType: file.type || 'image/jpeg',
   });
   if (!up.ok) return NextResponse.json({ ok: false, error: up.error }, { status: 502 });
+
+  // Backfill best-effort de drive_folder_id si l'intervention n'en a pas encore
+  // (dossiers créés sans persistance du folder — ex. création admin silencieuse).
+  // uploadPhoto vient d'assurer le dossier Drive → on le résout par nom et on
+  // l'enregistre. Idempotent (filtre .is null), non bloquant.
+  if (!ivT.drive_folder_id) {
+    try {
+      const folderId = await resolveInterventionFolderByName(ivT.ref ?? '', year);
+      if (folderId) {
+        await createAdminClient()
+          .from('interventions')
+          .update({ drive_folder_id: folderId, updated_at: new Date().toISOString() })
+          .eq('id', interventionId)
+          .is('drive_folder_id', null);
+      }
+    } catch (e) {
+      console.warn('[upload-photo] backfill drive_folder_id skipped:', e);
+    }
+  }
 
   // Insère dans photos_interventions (service-role pour bypass RLS si la
   // policy tech_insert n'arrive pas à matcher l'auth.jwt() depuis cette
