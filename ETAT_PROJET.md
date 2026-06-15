@@ -1,3 +1,19 @@
+## SNAPSHOT 2026-06-15 (suite 3) — Upload photo : backfill de drive_folder_id (PR #107)
+
+ÉTAT GIT : main = 69b25cb (merge PR #107, merge commit, branche fix/upload-photo-persist-drive-folder-id supprimée). 1 commit : 6ce226c.
+
+CONTEXTE : suite directe de PR #106 — fermeture du « second trou » du chantier drive_folder_id (les chemins d'upload n'écrivaient pas drive_folder_id ; uploadPhoto/uploadRapport assurent le dossier en interne via ivF.id mais ne le renvoient pas).
+
+LIVRÉ (1 fichier, 4 éditions, +22/-2, 0 SQL) : src/app/api/tech/upload-photo/route.ts. Après un upload photo réussi (uploadPhoto a déjà assuré le dossier Drive de l'intervention), si interventions.drive_folder_id est NULL : résolution par nom via resolveInterventionFolderByName(ref, year) puis UPDATE. Les 4 éditions = (1) import resolveInterventionFolderByName ; (2) ajout drive_folder_id au select de verifyTechOwnsIntervention ; (3) ajout drive_folder_id au type IvJoined ; (4) bloc backfill après la garde !up.ok. Best-effort (échec → console.warn, non bloquant) + DOUBLEMENT idempotent (garde if (!ivT.drive_folder_id) qui évite l'appel Drive quand déjà set + filtre .is('drive_folder_id', null) côté UPDATE en garde-fou anti-race). Additif : consommateurs géraient déjà le cas NULL. tsc vert. Merge sur la foi du diff (upload réel = vrai fichier/dossier Drive → pas d'E2E).
+
+BACKLOG : « drive_folder_id non persisté » = QUASI CLOS. Couverts : flux mail (déjà avant), planification (PR #106), upload photo (PR #107). NON couvert (suivi facultatif, BASSE priorité) : chemins d'upload RAPPORT — rapport-docx/route.ts:159, dispatch.ts:200+220, lib/drive.ts:79. dispatch.ts = chemin de transmission syndic, zone SENSIBLE → ne pas y toucher à la légère ; de toute façon le rapport arrive après les photos dans le workflow, donc drive_folder_id sera en général déjà backfillé par PR #107 au moment du rapport.
+
+CHANTIER DÉDIÉ À VENIR — « double notif confirmee » (diagnostiqué, prêt) : voir snapshot suite 2 (PR #106) pour le diagnostic complet. Résumé : notifyConfirmee renvoie la demande de confirmation à TOUS les occupants sans regarder token_sent_at, alors que notifyOccupantsForIntervention est idempotent dessus → double. Décision à trancher avant de coder : re-notifier ou non lors d'une reprogrammation. NE PAS retirer la boucle occupant de notifyConfirmee (seul notifieur occupant du flux planification).
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES : double notif confirmee (dédié, cf. suite 2) ; drive_folder_id depuis upload rapport (BASSE priorité) ; occupant_responses_log jamais relu ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs (existent — vérifier le wrapper) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
 ## SNAPSHOT 2026-06-15 (suite 2) — Planification : persistance de drive_folder_id (PR #106)
 
 ÉTAT GIT : main = 17430c1 (merge PR #106, merge commit, branche fix/planning-persist-drive-folder-id supprimée). 1 commit : a0bd373.
