@@ -1,3 +1,19 @@
+## SNAPSHOT 2026-06-15 — Correctif autocomplete : exclure les interventions à la corbeille (PR #104)
+
+ÉTAT GIT : main = d4f9b4e (merge PR #104, merge commit, branche fix/search-exclure-corbeille supprimée). 1 commit : 218499b.
+
+CONTEXTE : item de backlog identifié au snapshot suite 5 (et lors de la PR #101). La route src/app/api/admin/interventions/search/route.ts (autocomplete « Lier à un dossier existant », cas 2 de MailAnalyseActions) avait LE MÊME oubli de filtre que la page Alertes : elle excluait .neq('statut','cloturee') mais PAS les interventions soft-deletées. Une recherche pouvait donc faire remonter un dossier mis à la corbeille.
+
+LIVRÉ (1 fichier, +1, 0 SQL) : ajout de .is('deleted_at', null) dans la requête interventions, entre .select('id, ref, adresse') et .or(...). Même famille que PR #101 (Alertes) et PR #98 (badge validation). Effet : les dossiers à la corbeille ne remontent plus dans l'autocomplete. Audit-first : clone repo + lecture du fichier + vérif qu'UNE seule route est concernée (les routes [id]/… opèrent sur un dossier précis déjà connu → pas de surgissement). tsc --noEmit vert ; merge sur la foi du diff (filtre de lecture seul, aucune écriture ni envoi → pas de test E2E préversion).
+
+BACKLOG ÉLIMINÉ : « search/route.ts filtre deleted_at » = FAIT.
+
+DÉFENSE EN PROFONDEUR RESTANTE (secondaire, non fait) : la route [id]/lier/route.ts (rattachement effectif) pourrait vérifier que le dossier ciblé n'est pas soft-deleté. Non prioritaire car la recherche ne propose plus de dossier en corbeille.
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES (inchangés) : dette/cohérence restante (double notif confirmee ; occupant_responses_log jamais relu ; drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs qui EXISTENT déjà — vérifier l'état du wrapper avant de (re)faire) ; cosmétique non bloquant (code inerte pastille « Alertes » dans le rendu mobile de Sidebar.tsx) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé qui débloque Analytics/Facturation = faire tourner la plateforme EN VRAI au quotidien (triage, RDV, rapports, transmission syndic, relances).
+
 ## SNAPSHOT 2026-06-14 (suite 5) — Page Interventions admin = déjà livrée (PR #96) + barre du bas mobile ajustée (PR #103)
 
 ÉTAT GIT : main = 1bd1f78 (merge PR #103, merge commit, 1 commit, branche feat/mobile-bottomnav-interventions supprimée). 1 commit : f9d3b5b.
