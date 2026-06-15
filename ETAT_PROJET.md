@@ -1,3 +1,21 @@
+## SNAPSHOT 2026-06-15 (suite 4) — Double notif confirmée occupant : CORRIGÉ (PR #108)
+
+ÉTAT GIT : main = a6b63a6 (merge PR #108, merge commit, branche fix/double-notif-confirmee-occupants supprimée). 1 commit : f080c2d.
+
+CONTEXTE : chantier « double notif confirmee » (diagnostiqué snapshot suite 2 / PR #106) — DÉSORMAIS FAIT. Cause : notifyConfirmee (src/lib/email/notifications.ts, déclenché par notifyStatusChange au passage en 'confirmee') renvoyait l'email « Confirmation de présence » à TOUS les occupants à chaque appel, sans regarder token_sent_at, alors que notifyOccupantsForIntervention (helper : création depuis mail + relance) est idempotent sur cette clé → un occupant déjà prévenu était re-sollicité au passage en confirmée.
+
+DÉCISION MÉTIER (Foxo, 2026-06-15) : PAS de relance automatique pour un occupant déjà prévenu, Y COMPRIS en cas de REPROGRAMMATION. La relance MANUELLE reste un override (bouton / route notify-occupants → notifyOccupantsForIntervention envoie aux occupantIds explicites SANS filtrer token_sent_at — vérifié).
+
+LIVRÉ (1 fichier, 4 éditions, +17/-2, 0 SQL) : notifications.ts. (1) token_sent_at ajouté au type Context.occupants ; (2) ajouté au select des occupants dans loadContext ; (3) en tête de la boucle occupants de notifyConfirmee : déclaration occMarkClient = createAdminClient() + « if (occ.token_sent_at) continue; » (saute les déjà-prévenus) ; (4) après sendOne : UPDATE occupants.token_sent_at = now() (best-effort, try/catch + console.warn). Le mail PARTENAIRE « Intervention confirmée » (ACP/syndic) est INCHANGÉ (pas la source de la double). Garde-fou sûr : on saute un occupant UNIQUEMENT si token_sent_at est déjà rempli, et on ne le remplit QU'APRÈS un envoi → impossible de rater un occupant jamais prévenu. tsc vert. Merge sur la foi du diff (préversion = emails prod → pas d'E2E).
+
+À VALIDER EN USAGE RÉEL : confirmer un dossier dont les occupants ont déjà reçu la demande → ils ne doivent PAS en recevoir une seconde. Re-notif volontaire après reprogrammation = bouton « relancer ».
+
+NB ARCHITECTURE (mémoire) : notifyConfirmee déclenché par admin/actions.ts:64 (maj statut générique) et planning/actions.ts:451 (planification — seul notifieur occupant de ce flux ; occupants créés avec token mais token_sent_at NULL → envoyés une fois puis marqués). Helper idempotent déclenché par confirm-and-create:501 (filtre token_sent_at null), assistant execute:64, route notify-occupants:38 (occupantIds explicites, pas de filtre = override). confirm-mail / accept-counter-proposal / calendar / calendar-import écrivent confirmee SANS notifier.
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES : drive_folder_id depuis upload rapport (BASSE priorité, touche dispatch.ts sensible) ; occupant_responses_log jamais relu ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs (existent — vérifier le wrapper) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
 ## SNAPSHOT 2026-06-15 (suite 3) — Upload photo : backfill de drive_folder_id (PR #107)
 
 ÉTAT GIT : main = 69b25cb (merge PR #107, merge commit, branche fix/upload-photo-persist-drive-folder-id supprimée). 1 commit : 6ce226c.
