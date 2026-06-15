@@ -73,7 +73,7 @@ type Context = {
   } | null;
   syndicNom: string | null;
   syndicEmail: string | null;
-  occupants: { id: string; nom: string | null; email: string | null; appartement: string | null; confirmation_token: string | null }[];
+  occupants: { id: string; nom: string | null; email: string | null; appartement: string | null; confirmation_token: string | null; token_sent_at: string | null }[];
 };
 
 async function loadContext(interventionId: string): Promise<Context | null> {
@@ -96,7 +96,7 @@ async function loadContext(interventionId: string): Promise<Context | null> {
     iv.syndic_id
       ? admin.from('organisations').select('nom, email, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
-    admin.from('occupants').select('id, nom, email, appartement, confirmation_token').eq('intervention_id', iv.id),
+    admin.from('occupants').select('id, nom, email, appartement, confirmation_token, token_sent_at').eq('intervention_id', iv.id),
   ]);
 
   type AcpEmails = {
@@ -184,7 +184,12 @@ async function notifyConfirmee(ctx: Context): Promise<void> {
   }
 
   // Emails occupants avec leur lien personnel
+  const occMarkClient = createAdminClient();
   for (const occ of ctx.occupants) {
+    // Décision métier 2026-06-15 : un occupant déjà sollicité ne reçoit PAS de
+    // relance automatique (y compris reprogrammation). La relance MANUELLE
+    // (bouton dédié, route notify-occupants) reste un override. Évite la double notif.
+    if (occ.token_sent_at) continue;
     if (!occ.email) continue;
     if (!occ.confirmation_token) {
       console.warn('[notifications] occupant sans confirmation_token, lien non envoyé:', occ.id);
@@ -203,6 +208,16 @@ async function notifyConfirmee(ctx: Context): Promise<void> {
       subject: `Intervention FoxO le ${fmtCreneau(ctx.iv.creneau_debut)} — confirmation`,
       html,
     });
+    // Marque l'occupant comme sollicité (même clé que notifyOccupantsForIntervention)
+    // → plus de relance automatique au prochain passage en « confirmée ». Best-effort.
+    try {
+      await occMarkClient
+        .from('occupants')
+        .update({ token_sent_at: new Date().toISOString() })
+        .eq('id', occ.id);
+    } catch (e) {
+      console.warn('[notifications] mark token_sent_at échoué pour occupant', occ.id, e);
+    }
   }
 }
 
