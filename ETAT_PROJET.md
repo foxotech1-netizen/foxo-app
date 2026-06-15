@@ -1,3 +1,34 @@
+## SNAPSHOT 2026-06-14 (suite 3) — Géocodage des ACP créées à la main CLOSE (PR #102)
+
+ÉTAT GIT : main = 7686658 (merge PR #102, merge commit, 2 commits préservés, branche fix/acp-geocodage supprimée). 2 commits : e749638 (géocodage createAcp / création à froid) → 8608de0 (géocodage route POST /api/admin/acps / création rapide depuis le drawer syndic).
+
+OBJECTIF : une ACP créée à la main n'apparaissait pas sur la carte admin (src/app/admin/page.tsx — pas de pin si acps.lat/lng absents) quand l'adresse n'était pas choisie via l'autocomplete → coordonnées NULL.
+
+DIAGNOSTIC (audit lecture seule, clone aligné sur prod) :
+- Helper geocodeAddress(adresse) (src/lib/geo/geocode.ts) EXISTE DÉJÀ : Nominatim/OpenStreetMap, bornage Belgique (countrycodes=be + viewbox + bounded), User-Agent FoxO, best-effort (try/catch → null, jamais d'exception). Aucune dépendance npm.
+- Il n'était importé QUE dans planning/actions.ts (proposeSlotForIntervention, scoring de créneau — PAS pour persister des coordonnées d'ACP).
+- Deux chemins de création d'ACP (table acps, celle que lit la carte) sans géocodage : createAcp (src/app/admin/interventions/actions.ts, « + nouvelle ACP » du modal à froid) ne posait AUCUNE coordonnée ; route POST /api/admin/acps (création rapide drawer syndic) gardait les coordonnées reçues mais ne géocodait pas en secours.
+
+LIVRÉ (tout en prod via PR #102, 2 fichiers, +33/-0, 0 SQL) :
+- src/app/admin/interventions/actions.ts : import geocodeAddress ; dans createAcp, AVANT l'insert, géocodage best-effort à partir de [input.adresse, input.code_postal, input.ville] → pose base.lat/lng si Nominatim répond. Le retry 42703 (colonne syndic_id absente) conserve lat/lng (présents dans ...safe).
+- src/app/api/admin/acps/route.ts : import geocodeAddress ; AVANT l'insert, si payload.lat == null || payload.lng == null, géocodage à partir de [payload.adresse, payload.code_postal, payload.ville] → pose payload.lat/lng si réponse. Les coordonnées de l'autocomplete (cas nominal) restent prioritaires (géocodage seulement si absentes).
+
+DÉCISIONS / PIÈGES :
+- Comportement best-effort STRICTEMENT additif : échec de géocodage ou adresse vide → lat/lng restent absents/null, exactement comme avant (pas de pin, pas d'erreur). Aucune régression.
+- Latence : un appel Nominatim (~300-800 ms) ajouté aux créations manuelles d'ACP (rares) — acceptable. Politique Nominatim 1 req/s respectée.
+- Table clients (facturation, type='acp') DISTINCTE de acps : NON géocodée, hors scope — la carte lit acps. Consolidation acps/clients = sujet séparé connu.
+
+INVARIANTS INCHANGÉS : crons mails toujours FERMÉS (NE PAS rallumer). tsc --noEmit vert + hook pre-push OK. Merge commit (jamais squash), branche supprimée. Aucune migration.
+
+VALIDATION : diff relu indépendamment (clone + git diff origin/main...branche), conforme. tsc vert à chaque commit. Pas de test E2E artificiel — vérification en usage réel (créer une ACP à la main → pin sur la carte).
+
+BACKLOG (non bloquant) :
+- [RECOLLÉ — perdu lors du rebuild doc 000632f, identifié au snapshot PR #101] src/app/api/admin/interventions/search/route.ts a le MÊME oubli de filtre .is('deleted_at', null) que la page Alertes (corrigée en PR #101) → une recherche peut faire remonter des dossiers soft-deletés. À traiter avec le chantier « page Interventions dédiée ».
+- Ménage doublons réf 2026-000 + ancienne table orpheline public.timeline (DESTRUCTIF → export JSON manuel AVANT, Supabase Free sans backup auto). PROCHAINE finition prévue.
+- Cohérences : double notif confirmee, occupant_responses_log jamais relu, drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA (runAgent + agent_logs).
+- Produit séparé (pas un bug) : badge « Mails » restreint aux seules demandes d'intervention.
+- Ops : rallumer les crons mails = TOUTE DERNIÈRE étape, précédée du marquage « lu » des mails déjà traités.
+
 ## SNAPSHOT 2026-06-14 (PR #101) — Alertes : exclure les interventions soft-deletées (mergée HORS session)
 
 ÉTAT GIT : main = cee3ef0 (merge PR #101, merge commit, branche fix/alertes-exclure-corbeille). 1 commit : ff03824.
