@@ -1,3 +1,20 @@
+## SNAPSHOT 2026-06-14 (suite 5) — Page Interventions admin = déjà livrée (PR #96) + barre du bas mobile ajustée (PR #103)
+
+ÉTAT GIT : main = 1bd1f78 (merge PR #103, merge commit, 1 commit, branche feat/mobile-bottomnav-interventions supprimée). 1 commit : f9d3b5b.
+
+CHANTIER « page Interventions admin dédiée » (demande Foxo 13/06) = ÉTAIT DÉJÀ FAIT (livré PR #96). Audit-first : src/app/admin/interventions/page.tsx liste TOUTES les interventions (deleted_at null, tri created_at desc) via <InterventionsClient listOnly> (liste + filtres, sans widgets dashboard) ; bouton « Créer une intervention » (CreateInterventionButton → ColdInterventionModal, router.refresh) déjà en tête de page ; entrée sidebar « Interventions » (ClipboardList) déjà présente dans NAV_MAIN (components/Sidebar.tsx, sous « Tableau de bord »). RIEN à reconstruire.
+
+SEUL AJUSTEMENT LIVRÉ (PR #103, 1 fichier components/Sidebar.tsx, +6/-7, 0 SQL) : BOTTOM_NAV (barre de navigation MOBILE) passe de 6 à 5 items → ajout Interventions (ClipboardList), retrait Techniciens (Wrench) et Alertes (Bell), à la demande de Foxo. Ordre : Tableau · Interventions · À valider · Planning · Assistant. Bell/Wrench restent importés (toujours utilisés dans NAV_MAIN desktop) → pas d'import inutilisé.
+
+PIÈGES / NOTES :
+- Sur mobile, l'<aside> desktop (NAV_MAIN complet) est masqué ; seule la barre du bas (BOTTOM_NAV) est rendue → les pages hors barre (Clients, Mails, Comptabilité, Utilisateurs, Paramètres, Observabilité, Syndics/Courtiers/Experts/Métiers) ne sont pas atteignables au pouce (design existant, pas un bug). Pas de menu hamburger mobile.
+- Code INERTE laissé : le rendu mobile garde une condition de pastille « Alertes » (item.href === '/admin/alertes') désormais sans effet (Alertes retiré de BOTTOM_NAV). Nettoyage cosmétique possible, non bloquant.
+- components/Sidebar.tsx est à la RACINE du repo (alias @components/* → ./components/*), PAS dans src/.
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+LOT FINITIONS + PAGE INTERVENTIONS = TERMINÉS. Prochains chantiers possibles : dette/cohérence (search/route.ts filtre deleted_at ; double notif confirmee ; occupant_responses_log jamais relu ; drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA runAgent+agent_logs) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation) — à n'entamer qu'une fois la plateforme tournant au quotidien.
+
 ## SNAPSHOT 2026-06-14 (suite 4) — Ménage base : doublon 2026-000 purgé + table orpheline public.timeline supprimée (SQL direct, pas de PR)
 
 ÉTAT GIT : aucun changement code (main = 7686658 + snapshots doc). Opération SQL directe en Supabase. Sauvegarde JSON manuelle prise AVANT (intervention purgée + ses enfants + public.timeline complète, conservée côté Foxo).
