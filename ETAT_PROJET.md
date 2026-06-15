@@ -1,3 +1,24 @@
+## SNAPSHOT 2026-06-15 (suite 2) — Planification : persistance de drive_folder_id (PR #106)
+
+ÉTAT GIT : main = 17430c1 (merge PR #106, merge commit, branche fix/planning-persist-drive-folder-id supprimée). 1 commit : a0bd373.
+
+CONTEXTE : item de dette « drive_folder_id non persisté ». Diagnostic (audit lecture seule) : le flux MAIL (confirm-and-create) persistait DÉJÀ drive_folder_id (create dossier Drive → folder_id → UPDATE, route.ts l.290-299). Le flux PLANIFICATION (createInterventionFromSlot, planning/actions.ts) créait bien le dossier Drive (structure RAPPORT/{annee}/{ref + adresse}/photos/) mais JETAIT l'ID retourné par createInterventionFolder → interventions.drive_folder_id restait NULL pour ces dossiers.
+
+LIVRÉ (1 fichier, +8/-1, 0 SQL) : planning/actions.ts — la ligne d'appel createInterventionFolder devient capture du DriveFolderResult + UPDATE de drive_folder_id (.eq id interventionId), calqué exactement sur confirm-and-create. Reste DANS le try/catch Drive existant → best-effort (échec UPDATE → console.warn, non bloquant). Additif : les consommateurs (docs tech, assistant foxo-read, lien Drive du calendrier, analyse-pj/drive.ts) géraient déjà le cas NULL via fallback resolveInterventionFolderByName. Bénéfice : lien Drive direct dans le calendrier + plus de recherche par nom pour ces dossiers. tsc vert (narrowing DriveFolderResult OK, admin/interventionId en scope). Merge sur la foi du diff (pas de test E2E : créer une vraie intervention = vrai dossier Drive + vrais emails).
+
+BACKLOG : « drive_folder_id non persisté » = PARTIELLEMENT FAIT (flux planification fermé).
+SECOND TROU RESTANT (correctif suivant, hors scope) : chemins d'UPLOAD (uploadPhoto/uploadRapport via getPhotosFolder dans google-drive.ts) — getPhotosFolder ne renvoie que l'ID du sous-dossier photos, pas l'ID du dossier parent → drive_folder_id pas écrit depuis l'upload. Touche des helpers Drive partagés → chantier dédié. Workaround toujours en place : resolveInterventionFolderByName(ref, year).
+
+CHANTIER DÉDIÉ À VENIR — « double notif confirmee » (DIAGNOSTIQUÉ cette session, prêt à attaquer) :
+- Cause : deux systèmes envoient la demande de confirmation aux occupants sans se coordonner. (1) notifyConfirmee (src/lib/email/notifications.ts, déclenché par notifyStatusChange au passage en statut confirmee) renvoie à TOUS les occupants à chaque appel, SANS regarder token_sent_at (loadContext, select l.99, ne charge même pas ce champ). (2) notifyOccupantsForIntervention (src/lib/occupants/notify-occupants.ts) est idempotent (cible token_sent_at IS NULL, écrit token_sent_at après envoi l.241-246). → un occupant déjà prévenu par (2) est re-sollicité par (1) au passage en confirmee.
+- Déclencheurs de notifyConfirmee : admin/actions.ts:64 (maj statut générique) et planning/actions.ts:451 (planification). Déclencheurs du helper idempotent : confirm-and-create:501, assistant execute:64, route notify-occupants:38. NB : confirm-mail, accept-counter-proposal, calendar/events, calendar-import écrivent confirmee SANS notifier.
+- PIÈGE : NE PAS retirer la boucle occupant de notifyConfirmee telle quelle — c'est le SEUL notifieur occupant du flux planification (createInterventionFromSlot insère les occupants avec token mais token_sent_at NULL, puis compte sur notifyConfirmee).
+- DÉCISION À TRANCHER AVANT DE CODER : lors d'une REPROGRAMMATION, faut-il re-notifier l'occupant (nouvelle date) ? Un simple garde-fou token_sent_at corrigerait la double mais supprimerait cette re-notif légitime. Piste propre : centraliser la notif occupant dans le helper idempotent + déclenchement explicite à la reprogrammation. Multi-fichiers, zone sensible (emails réels, préversion = prod → merge sur diff, pas d'E2E).
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES : double notif confirmee (dédié, cf. ci-dessus) ; drive_folder_id depuis l'upload (cf. ci-dessus) ; occupant_responses_log jamais relu ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs (existent — vérifier le wrapper) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
 ## SNAPSHOT 2026-06-15 (suite) — Sidebar : retrait du code mort « badge Alertes » mobile (PR #105)
 
 ÉTAT GIT : main = 6bd516c (merge PR #105, merge commit, branche chore/sidebar-remove-inert-alertes-badge supprimée). 1 commit : d5d0407.
