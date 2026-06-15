@@ -18,6 +18,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from '@/lib/auth/server';
 import { nextRefForYear } from '@/lib/intervention-ref';
 import { safeInsertOccupants, type OccupantInsertRow } from '@/lib/cron/check-mails';
+import { geocodeAddress } from '@/lib/geo/geocode';
 import type {
   Acp,
   ParticulierContact,
@@ -247,6 +248,21 @@ export async function createAcp(input: {
   if (input.syndic_id) {
     base.syndic_id_ref = input.syndic_id;
     base.syndic_id = input.syndic_id;
+  }
+
+  // Géocodage best-effort (Nominatim, Belgique) : l'ACP doit apparaître sur la
+  // carte admin (src/app/admin/page.tsx lit acps.lat/lng). Échec / adresse vide
+  // → lat/lng restent absents (pas de pin), comportement inchangé.
+  const geoQuery = [input.adresse, input.code_postal, input.ville]
+    .map((s) => s?.trim())
+    .filter((s): s is string => Boolean(s))
+    .join(', ');
+  if (geoQuery) {
+    const geo = await geocodeAddress(geoQuery);
+    if (geo) {
+      base.lat = geo.lat;
+      base.lng = geo.lng;
+    }
   }
 
   let { data, error } = await admin.from('acps').insert(base).select('*').single();
