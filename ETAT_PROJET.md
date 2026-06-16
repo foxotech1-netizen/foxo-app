@@ -1,3 +1,36 @@
+# État du projet FoxO — snapshot 2026-06-16 (suite 3) — Audit cohérence migrations repo<->prod (CLOS)
+
+ÉTAT GIT : main avance de 3 commits doc/archive par-dessus le Journal (PR #110) — 70ebf02 (archive realignement mails_analyses + doc notes_frais), 376842c (archive migration messages appliquee prod), + ce snapshot. HEAD = ce snapshot (voir git log). Aucune branche/PR (commits directs sur main, doc/archive : les .sql ne sont re-executes par aucun runtime).
+
+CHANTIER : audit de coherence migrations versionnees <-> schema prod (issu de la decouverte Observabilite : un SQL manuel non versionne avait deja ete applique en prod). 100% lecture seule cote audit (clone repo public + 2 dumps prod read-only via SQL Editor : enums+CHECK+tables, puis RLS).
+
+VERDICT DE FOND : la crainte initiale — une autre derive silencieuse de CHECK/enum type agent_logs sur une table vivante — ne s'est PAS materialisee. TOUS les jeux de valeurs CHECK/enum VERSIONNES correspondent a la prod (factures.statut 8 valeurs, occupants.type_occupant 8, messages.auteur_type colonne, notifications.type, sms_logs.channel, rapports.statut, mails_analyses.classification...). RLS active sur les 34 tables (aucune table ouverte) ; acces anon borne aux seuls creneaux 'libre'.
+
+DIVERGENCES TROUVEES (le contournement du versioning ne se limitait pas a agent_logs) ET ACTIONS :
+1. mails_analyses.type + mails_analyses.langue : CHECK presents en prod mais dans AUCUNE migration (table pourtant versionnee). Risque silencieux (runAgent avale les erreurs d'insert). -> ARCHIVES tels qu'en prod (70ebf02), zero mutation. type={demande_intervention,relance_rapport,suivi_dossier,question_generale,accuse_reception,spam_commercial} ; langue={fr,nl,en,other}.
+2. Zone notes de frais : la prod utilise des ENUMS categorie_note_frais={carburant,materiel,outillage,transport,restauration,fournitures,sous_traitance,autre} et statut_note_frais={brouillon,soumise,approuvee,rejetee,remboursee}, alors que 2026-05-06 (ADD VALUE comptables) et 2026-05-30 (TEXT+CHECK) decrivent autre chose. Impact faible (valeurs du code actuel = prod). -> DOCUMENTE (70ebf02), aucune DDL (enums prod corrects).
+3. messages (securite) : DERIVE PROD reelle. La policy syndic_insert_messages de prod etait restee TO public + {syndic,courtier,delegue} (sans expert) alors que la 2026-06-04 declarait TO authenticated + expert ; le CHECK de colonne avait recu 'expert' (application PARTIELLE = preuve d'un 2e ecrasement manuel non versionne). Decision produit Foxo : syndics+courtiers+experts+delegues peuvent poster. -> CORRIGE EN PROD (SQL Editor, verifie) : policy TO authenticated + {syndic,courtier,expert,delegue} ; CHECK colonne = {admin,syndic,courtier,expert,delegue}. ARCHIVE 376842c. Pas un trou anon (CHECK exige auth.email()).
+
+AUCUNE divergence en gravite HAUTE.
+
+BACKLOG ISSU DE L'AUDIT (non traite, a decider) :
+- Durcissement 2 policies TO public restantes (dossiers_sinistres::acces_dossiers, documents::acces_documents) -> TO authenticated. Manquees par la passe 2026-05-11d (qui ne couvrait que 5 policies de 2026-05-11c). Neutralisees par leur USING ; saveur BASSE.
+- utilisateurs::auth_read_utilisateurs = SELECT TO authenticated USING(true) : tout authentifie lit toute la table utilisateurs. Connu BASSE, toujours present. Chantier securite a part.
+- Pan entier du schema NON VERSIONNE (cree hors db/migrations/) : tables coeur interventions/utilisateurs/organisations/occupants/rapports/acps + documents + rdv_attempts ; enums de base. Une derive sur ces objets n'est pas detectable par comparaison au repo. Optionnel : versionner un baseline.
+- A CONFIRMER (Foxo) : documents (+ enum document_type) et rdv_attempts (RLS active SANS aucune policy -> accessible au seul service-role = verrouillee/safe) — usage non documente dans nos notes.
+
+REFERENCE ENUMS DE BASE relevee en prod (doc 04 PERIME sur plusieurs) :
+- intervention_statut = nouvelle, attente, confirmee, realisee, rapport, cloturee, en_suspens (7)
+- intervention_type = Fuite canalisation, Fuite chauffage, Fuite infiltration, Surconsommation eau, Autre
+- intervention_priorite = normale, urgente
+- occupant_statut = attente, confirme, refuse
+- document_type = rapport, facture, photo, autre
+- user_role = 12 valeurs (admin, syndic, courtier, technicien, assurance, expert, entrepreneur, plombier, electricien, toiturier, chauffagiste, autre_metier)
+- factures.statut = brouillon, envoyee, payee, en_retard, annulee, accepte, refuse, expire (8)
+-> doc 04 a mettre a jour (hygiene doc).
+
+INVARIANTS INCHANGES : crons mails fermes. tsc + hook pre-push OK. Merge commit (jamais squash). Preversion Vercel = base/Drive/Gmail/emails de PROD. SQL via SQL Editor uniquement puis fichier archive. Les .sql de db/migrations/ ne sont re-executes par aucun runtime (commit doc/archive direct sur main acceptable).
+
 # État du projet FoxO — snapshot 2026-06-16 (suite 2) — Journal d'intervention LIVRÉ (PR #110)
 
 ÉTAT GIT : main = 4f65c57 (merge PR #110, branche feat/journal-intervention supprimée au merge). 3 commits applicatifs : 002f6ef, 14a40ed, 22599db. Ce snapshot = commit doc-only direct sur main par-dessus.
