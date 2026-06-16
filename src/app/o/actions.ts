@@ -167,6 +167,40 @@ export async function respondAsOccupant(
     console.warn('[respondAsOccupant] log insert failed:', logError.message);
   }
 
+  // ── 5bis. Journal d'événements (intervention_timeline, best-effort) ──
+  //    Rend la réponse de l'occupant visible dans l'onglet « Journal » du
+  //    drawer admin. Miroir de la confirmation par mail. created_by = null
+  //    (clic public via lien tokenisé, pas un utilisateur authentifié).
+  {
+    const journalType =
+      reponse === 'confirme' ? 'occupant_confirme'
+      : reponse === 'decline' ? 'occupant_indisponible'
+      : 'occupant_contre_proposition';
+    const journalMessage =
+      reponse === 'confirme' ? 'Occupant a confirmé sa présence (via le lien)'
+      : reponse === 'decline' ? 'Occupant a signalé son absence (via le lien)'
+      : 'Occupant a proposé un autre créneau (via le lien)';
+    const { error: journalError } = await admin
+      .from('intervention_timeline')
+      .insert({
+        intervention_id: occ.intervention_id,
+        type: journalType,
+        message: journalMessage,
+        payload: {
+          occupant_id: occ.id,
+          reponse,
+          proposed_creneau_debut: proposedDebut,
+          proposed_creneau_fin: proposedFin,
+          note,
+          source: 'portail',
+        },
+        created_by: null,
+      });
+    if (journalError) {
+      console.warn('[respondAsOccupant] timeline insert failed:', journalError.message);
+    }
+  }
+
   // ── 6. Notif syndic (best-effort, ne fait jamais échouer l'action) ──
   try {
     await notifySyndicOccupantResponse({
