@@ -1,3 +1,23 @@
+# État du projet FoxO — snapshot 2026-06-16 (suite) — drive_folder_id backfillé à la transmission rapport (PR #109)
+
+ÉTAT GIT : main = 4c3aaa0 (merge PR #109, merge commit, branche fix/drive-folder-id-rapport-dispatch). 1 commit applicatif : aa3f829. Ce snapshot = commit doc-only direct sur main par-dessus.
+
+CHANTIER : dette/coherence — item « drive_folder_id depuis l'upload rapport ». Dernier des 3 chemins de remplissage (apres flux mail confirm-and-create, planification #106, 1er upload photo #107).
+
+CONSTAT (audit lecture seule) : dispatch.ts (dispatchRapportToSyndic) upload PDF+docx via uploadRapport et persiste les IDs dans la table rapports, mais jamais interventions.drive_folder_id. Or drive_folder_id EST lu (documents portail tech, assistant foxo-read, analyse PJ, lien Drive des events Agenda) selon le schema « drive_folder_id en priorite, sinon resolveInterventionFolderByName en secours ». Le remplir = chemin rapide/fiable ; null = fallback par nom (rien de casse, juste moins robuste).
+
+LIVRE (PR #109, 1 fichier, +28/-1, 0 SQL) : src/lib/rapport/dispatch.ts — import resolveInterventionFolderByName + bloc backfill best-effort APRES l'envoi email et le marquage 'transmis', AVANT la cloture auto. Lit drive_folder_id ; si null -> resolveInterventionFolderByName(built.ref, year) + UPDATE avec garde .is('drive_folder_id', null). Idempotent, non bloquant (try/catch -> console.warn). Cas normal (photos avant rapport -> deja rempli par #107) = aucun appel Drive. Calque exact de #107.
+
+PLACEMENT verifie (relecture diff independante par clone) : le bloc est strictement apres la transmission reussie (return anticipe si l'email echoue) -> zero impact sur la transmission syndic. tsc vert (hook pre-push). Merge sur la foi du diff + tsc (zone sensible, pas de test E2E pour eviter un envoi reel a un syndic en prod).
+
+DECOUVERTE (cadrage prochain chantier) : intervention_timeline est richement alimentee (~10 chemins d'ecriture) mais AFFICHEE NULLE PART (seule lecture = purge au hard-delete). L'onglet 'historique' du drawer detail (InterventionsClient.tsx, HistoriquePanel) affiche la RECIDIVE (autres interventions par appartement/ACP sur 12 mois), PAS le journal d'evenements. Le clic occupant depuis le portail (o/actions.ts) et accept-counter-proposal ecrivent dans occupant_responses_log (jamais relu) mais PAS dans intervention_timeline -> invisibles.
+
+PROCHAIN CHANTIER (validE Foxo : OUI voir les reponses occupant dans l'historique) = « Journal d'intervention » : (A) route GET timeline + affichage (nouvel onglet « Journal » du drawer) ; (B) completer les ecritures timeline (o/actions.ts 3 reponses confirme/decline/counter + accept-counter-proposal, miroir de confirm-from-mail). occupant_responses_log reste comme trace structuree.
+
+BACKLOG « dette/coherence » restant : audit qualite #3 (placeholder non defini, dernier).
+
+INVARIANTS INCHANGES : crons mails fermes. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimee.
+
 # État du projet FoxO — snapshot 2026-06-16 (Observabilité IA — audit runAgent + alignement CHECK agent_logs)
 
 ÉTAT GIT : main avance de 2 commits doc/archive (aucun code applicatif modifié) — (1) archive de db/migrations/2026-06-16_align_agent_logs_agent_name.sql, (2) ce snapshot. HEAD = ce commit doc (voir git log). Ni branche ni PR (commits directs sur main, catégorie doc/archive : le .sql archivé n'est ré-exécuté par aucun runtime).
