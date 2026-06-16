@@ -1,3 +1,15 @@
+# État du projet FoxO — snapshot 2026-06-16 (suite 4) — Audit migrations : durcissement TO public + tables identifiees
+
+ÉTAT GIT : main = (voir git log) apres 2 commits doc/archive par-dessus suite 3 (598bf5a) — l'archive du durcissement RLS (2026-06-16d) + ce snapshot.
+
+COMPLEMENT a l'audit coherence migrations (suite 3) :
+- POINT 3 FAIT (durcissement TO public) : les 2 policies SELECT restees TO public passees en TO authenticated en prod (verifie) puis archivees (migration 2026-06-16d, ALTER POLICY, conserve le USING) : dossiers_sinistres::acces_dossiers et documents::acces_documents. PLUS AUCUNE policy TO public en prod.
+- TABLES « a confirmer » IDENTIFIEES (lecture du code) :
+  * rdv_attempts = limiteur anti-abus de la prise de RDV (src/lib/rate-limit.ts) : insert {ip} + comptage des tentatives recentes, ecrit uniquement par le service-role -> RLS active sans policy = verrouillee/safe, INTENTIONNEL. Vivant.
+  * documents (table Postgres) + enum document_type = VESTIGE non utilise par le code (le code utilise un BUCKET storage Supabase homonyme, systeme different). Metadonnees docs reelles = rapports/photos_interventions/attachments/Drive. Inoffensif (vide, RLS). Nettoyage possible (DROP table+enum) en temps calme, non prioritaire, avec precaution.
+
+BACKLOG AUDIT RESTANT : utilisateurs::auth_read_utilisateurs USING(true) (chantier securite a part) ; base non versionnee (baseline optionnel) ; doc 04 perime sur enums (hygiene). Crons mails fermes (inchange).
+
 # État du projet FoxO — snapshot 2026-06-16 (suite 3) — Audit cohérence migrations repo<->prod (CLOS)
 
 ÉTAT GIT : main avance de 3 commits doc/archive par-dessus le Journal (PR #110) — 70ebf02 (archive realignement mails_analyses + doc notes_frais), 376842c (archive migration messages appliquee prod), + ce snapshot. HEAD = ce snapshot (voir git log). Aucune branche/PR (commits directs sur main, doc/archive : les .sql ne sont re-executes par aucun runtime).
