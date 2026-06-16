@@ -1,3 +1,33 @@
+# État du projet FoxO — snapshot 2026-06-16 (Observabilité IA — audit runAgent + alignement CHECK agent_logs)
+
+ÉTAT GIT : main avance de 2 commits doc/archive (aucun code applicatif modifié) — (1) archive de db/migrations/2026-06-16_align_agent_logs_agent_name.sql, (2) ce snapshot. HEAD = ce commit doc (voir git log). Ni branche ni PR (commits directs sur main, catégorie doc/archive : le .sql archivé n'est ré-exécuté par aucun runtime).
+
+CHANTIER : Observabilité IA (doc 02 §10). Choix Foxo de la session. Démarré par un audit 100% lecture seule (clone du repo public + lecture code/migrations + 2 requêtes SQL lecture seule en prod). Verdict : le CODE était déjà conforme, mais la PROD avait un trou silencieux.
+
+CONSTAT CÔTÉ CODE (conforme) :
+- Wrapper runAgent COMPLET (src/lib/observability/agent-logger.ts) : mesure tokens/cout/duree, insert agent_logs, distingue canonical/utility, gere success/partial/error, impose resumes sans PII (doc 02 §8).
+- 11 appels Anthropic dans tout src/ -> 11 passent par runAgent. ZERO appel hors wrapper, zero appel HTTP brut. (Les 3 fichiers src/lib/assistant/tools/* n'importent qu'un type Anthropic, aucun appel.) Le typage AnthropicUsageEnvelope + le tsc du hook pre-push garantissent que chaque run() remonte son usage -> pas de tokens a zero par oubli.
+- agentKind correct : les 5 utilitaires (draft_reply, sms_compose, notes_frais_extract, assistant_chat admin+tech) declarent 'utility' ; canoniques en 'canonical'.
+
+TROU CÔTÉ PROD (corrigé ce jour) :
+- Le CHECK agent_logs.agent_name de PROD etait DESALIGNE du code. Il autorisait une convention perimee (calendar_suggest, sms_draft, email_draft -- emise par AUCUN code) et REFUSAIT 4 agents reellement emis : analyse_photo, draft_reply, sms_compose, notes_frais_extract.
+- runAgent avalant insertError (console.error, pas de throw) -> ces 4 agents perdaient SILENCIEUSEMENT leurs logs -> exigence doc 02 §10 (logging obligatoire dans agent_logs) NON satisfaite pour eux.
+- Preuve empirique (SELECT prod) : sur 18 logs, seuls 4 noms presents (triage_mail, analyse_pj, rapport, assistant_chat) = exactement l'intersection des conventions. ZERO log analyse_photo malgre le test Rapport v2 du 11/06 (3 logs rapport ce jour-la) -> ses logs vision etaient rejetes.
+
+CORRECTIF APPLIQUÉ EN PROD (Supabase SQL Editor, AVANT archivage) :
+- migration 2026-06-16_align_agent_logs_agent_name.sql : DROP de toute contrainte CHECK sur agent_name (boucle PL/pgSQL, nom prod inconnu) + ADD CHECK canonique = les 9 valeurs de AgentName. Idempotente, aucune donnee touchee.
+- Verifie post-application : le nouveau CHECK liste bien les 9 valeurs (triage_mail, analyse_pj, rapport, analyse_photo, draft_reply, sms_compose, notes_frais_extract, assistant_chat, briefing).
+- Colonne agent_kind : presente en prod, CHECK canonical/utility valide implicitement (9 logs assistant_chat 'utility' deja passes). Non touchee.
+
+DÉCOUVERTE DE FOND (backlog) :
+- Les migrations VERSIONNEES du repo (2026-05-25_add_agent_kind..., 2026-06-04_extend...briefing) posaient draft_reply/sms_compose/notes_frais_extract -- donc NE refletaient PAS la prod ET oubliaient analyse_photo. Preuve qu'un SQL manuel NON versionne a ete applique en prod par le passe, contournant la discipline "SQL Editor d'abord PUIS commit". A traiter : audit de coherence migrations repo <-> schema prod (large, hors scope immediat). Le repo est desormais realigne pour agent_logs.agent_name.
+
+RESTE À VALIDER EN USAGE RÉEL (empirique, non bloquant) : declencher chacun des 4 agents debloques et verifier qu'une ligne agent_logs apparait -- en particulier generer un rapport AVEC photos (-> log analyse_photo), un brouillon de mail (draft_reply), un SMS (sms_compose), une extraction de note de frais (notes_frais_extract).
+
+INVARIANTS INCHANGÉS : crons mails TOUJOURS fermes volontairement (reencodage manuel en cours ; rallumage = toute derniere etape, precede du marquage en lu). Preversion Vercel = base/Drive/Gmail/emails de PROD. tsc --noEmit + hook pre-push : sans objet ici (aucun .ts modifie ; les .sql ne sont pas compiles).
+
+PROCHAINS CHANTIERS POSSIBLES (inchanges) : dette/coherence restante (occupant_responses_log jamais relu ; drive_folder_id depuis upload RAPPORT ; audit qualite #3 ; audit coherence migrations<->prod ci-dessus) ; gros chantiers sequences (audit produit+design, Analytics, Facturation = dernier). Jalon cle = faire tourner la plateforme EN VRAI au quotidien.
+
 ## SNAPSHOT 2026-06-15 (suite 4) — Double notif confirmée occupant : CORRIGÉ (PR #108)
 
 ÉTAT GIT : main = a6b63a6 (merge PR #108, merge commit, branche fix/double-notif-confirmee-occupants supprimée). 1 commit : f080c2d.
