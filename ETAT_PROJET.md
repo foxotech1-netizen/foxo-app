@@ -1,3 +1,9 @@
+# État du projet FoxO — snapshot 2026-06-16 (suite 5) — Vestige documents supprime
+
+ÉTAT GIT : main = (voir git log) apres 2 commits doc/archive par-dessus suite 4 — archive du DROP (2026-06-16e) + ce snapshot.
+
+NETTOYAGE (suite a l'audit) : table vestige public.documents + enum document_type SUPPRIMES en prod (verifie). Pre-controle : 0 ligne, aucune FK entrante, enum utilise par documents.type seulement, aucune vue ; 0 usage code (le bucket storage 'documents' homonyme est intact, sans rapport). Archive : migration 2026-06-16e. Backlog audit restant inchange : utilisateurs::auth_read_utilisateurs USING(true) (chantier securite a part) ; base non versionnee (baseline optionnel) ; doc 04 perime sur enums. Crons mails fermes.
+
 # État du projet FoxO — snapshot 2026-06-16 (suite 4) — Audit migrations : durcissement TO public + tables identifiees
 
 ÉTAT GIT : main = (voir git log) apres 2 commits doc/archive par-dessus suite 3 (598bf5a) — l'archive du durcissement RLS (2026-06-16d) + ce snapshot.
