@@ -1,3 +1,22 @@
+# État du projet FoxO — snapshot 2026-06-16 (suite 2) — Journal d'intervention LIVRÉ (PR #110)
+
+ÉTAT GIT : main = 4f65c57 (merge PR #110, branche feat/journal-intervention supprimée au merge). 3 commits applicatifs : 002f6ef, 14a40ed, 22599db. Ce snapshot = commit doc-only direct sur main par-dessus.
+
+CHANTIER : « Journal d'intervention » (item dette occupant_responses_log requalifié, validé Foxo). Constat d'entrée : intervention_timeline richement alimentée (~10 chemins d'écriture) mais AFFICHÉE NULLE PART — l'onglet « historique » du drawer = la récidive (HistoriquePanel : autres interventions par appartement/ACP sur 12 mois), PAS le journal d'événements. Le clic occupant depuis le portail (o/actions.ts) et accept-counter-proposal n'écrivaient que dans occupant_responses_log (jamais relu).
+
+LIVRÉ (PR #110, 3 commits, 0 SQL) :
+- 002f6ef : route GET /api/admin/interventions/[id]/timeline (lecture seule, garde admin createClient + getUser + isAdminUser -> 403 ; signature params: Promise<{id}> + await params). La route [id]/route.ts n'a pas de GET ; une route [id]/historique existe déjà (récidive) -> la nouvelle s'appelle /timeline.
+- 14a40ed : nouvel onglet « Journal » (6e) + JournalPanel dans InterventionsClient.tsx, calqué sur HistoriquePanel, tri récent->ancien, dates Europe/Brussels (helper local fmtJournalDate, icône lucide CalendarClock). Onglets drawer = dossier | suivi | documents | ia | historique | journal.
+- 22599db : écritures intervention_timeline côté réponses occupant (portail o/actions.ts — confirme/decline/counter — + accept-counter-proposal), best-effort, miroir de confirm-from-mail. occupant_responses_log conservé comme trace structurée.
+
+INVARIANTS : intervention_timeline = colonnes id, type, message, payload (jsonb), created_at, created_by (text nullable) ; désormais LUE via /timeline + onglet Journal ; le hard-delete d'une intervention purge sa timeline. occupant_responses_log = trace structurée non affichée, conservée pour analytics.
+
+À VALIDER EN USAGE RÉEL (empirique, non bloquant) : ouvrir une intervention admin -> onglet « Journal » -> vérifier rendu réel (tri, lisibilité des messages, dates Bruxelles).
+
+INVARIANTS INCHANGÉS : crons mails TOUJOURS fermés. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail/emails de PROD.
+
+PROCHAINS CHANTIERS (à décider) : audit cohérence migrations repo<->schéma prod (nouveau, valeur « sécurité », issu de la découverte Observabilité) ; audit qualité #3 (placeholder non défini, dernier de la dette) ; gros chantiers séquencés (audit produit+design, Analytics — pas avant données réelles, Facturation = dernier). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
 # État du projet FoxO — snapshot 2026-06-16 (suite) — drive_folder_id backfillé à la transmission rapport (PR #109)
 
 ÉTAT GIT : main = 4c3aaa0 (merge PR #109, merge commit, branche fix/drive-folder-id-rapport-dispatch). 1 commit applicatif : aa3f829. Ce snapshot = commit doc-only direct sur main par-dessus.
