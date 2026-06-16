@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
-import { uploadRapport } from '@/lib/google-drive';
+import { uploadRapport, resolveInterventionFolderByName } from '@/lib/google-drive';
 import { getEmailThread, sendMailReply } from '@/lib/gmail';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { ReportData } from '@/lib/rapport/build-docx';
@@ -245,6 +245,33 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       .eq('intervention_id', interventionId);
   } catch (e) {
     console.error('[dispatch] failed to mark rapport as transmis', e);
+  }
+
+  // ── Best-effort : backfill interventions.drive_folder_id si absent ──
+  //    Calque du backfill upload-photo (#107). Le dossier Drive vient d'être
+  //    utilisé/créé par uploadRapport ci-dessus -> resolveInterventionFolderByName
+  //    le retrouve. Garde .is('drive_folder_id', null) = idempotent, ne touche
+  //    rien si déjà rempli (cas normal : photos uploadées avant le rapport).
+  //    Non bloquant : un échec ne doit jamais affecter la transmission déjà faite.
+  try {
+    const dbFolder = createAdminClient();
+    const { data: ivFolderRow } = await dbFolder
+      .from('interventions')
+      .select('drive_folder_id')
+      .eq('id', interventionId)
+      .maybeSingle();
+    if (ivFolderRow && !(ivFolderRow as { drive_folder_id: string | null }).drive_folder_id) {
+      const folderId = await resolveInterventionFolderByName(built.ref, year);
+      if (folderId) {
+        await dbFolder
+          .from('interventions')
+          .update({ drive_folder_id: folderId, updated_at: new Date().toISOString() })
+          .eq('id', interventionId)
+          .is('drive_folder_id', null);
+      }
+    }
+  } catch (e) {
+    console.warn('[dispatch] backfill drive_folder_id skipped:', e);
   }
 
   // ── Clôture automatique du dossier après transmission RÉUSSIE ──
