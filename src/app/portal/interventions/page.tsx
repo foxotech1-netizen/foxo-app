@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { InterventionsPortalClient } from './InterventionsPortalClient';
@@ -89,12 +90,15 @@ export default async function InterventionsPage({
   const techIds = Array.from(new Set(interventions.map((i) => i.technicien_id).filter(Boolean) as string[]));
   const ivIds = interventions.map((i) => i.id);
 
+  // Noms des techniciens cross-tenant pour un partenaire : lus via service-role
+  // car auth_read_utilisateurs est restreinte (soi-même + admin + même org).
+  const adminDb = createAdminClient();
   const [acpsRes, techRes, dossiersRes] = await Promise.all([
     acpIds.length > 0
       ? supabase.from('acps').select('id, nom, adresse, bce').in('id', acpIds)
       : Promise.resolve({ data: [] as Pick<Acp, 'id' | 'nom' | 'adresse' | 'bce'>[] }),
     techIds.length > 0
-      ? supabase.from('utilisateurs').select('id, prenom, nom').in('id', techIds)
+      ? adminDb.from('utilisateurs').select('id, prenom, nom').in('id', techIds)
       : Promise.resolve({ data: [] as { id: string; prenom: string | null; nom: string | null }[] }),
     isCourtier && ivIds.length > 0
       ? supabase.from('dossiers_sinistres').select('intervention_id, assure, ref_courtier').in('intervention_id', ivIds)

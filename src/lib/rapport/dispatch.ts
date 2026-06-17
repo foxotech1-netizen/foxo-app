@@ -65,6 +65,9 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   if (ivErr) return { ok: false, error: ivErr.message };
   if (!ivData) return { ok: false, error: 'Intervention introuvable.' };
   const iv = ivData as Intervention;
+  // Nom du technicien lu via service-role (le PDF est consultable par le
+  // partenaire via /api/rapport/[id]) : auth_read_utilisateurs est restreinte.
+  const adminDb = createAdminClient();
 
   // Colonnes étendues pour le mapping ReportData modèle 2026-101 :
   //   - syndic.bce + syndic.contact : ligne 1/2 facturation
@@ -77,7 +80,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
       ? supabase.from('organisations').select('id, nom, adresse, email, type, contact, bce, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.technicien_id
-      ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
+      ? adminDb.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('rapports').select('*').eq('intervention_id', iv.id).maybeSingle(),
     supabase.from('occupants').select('appartement, prenom, nom, type_occupant').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
