@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { DossierPortalClient } from './DossierPortalClient';
@@ -46,13 +47,17 @@ export default async function InterventionDetail({
   const intervention = iv as Intervention;
 
   // Fetchs annexes en parallèle.
+  // Le nom du technicien est cross-tenant pour un partenaire : lu via le client
+  // service-role car la policy RLS auth_read_utilisateurs est restreinte
+  // (soi-même + admin + même organisation).
+  const adminDb = createAdminClient();
   const [acpRes, occRes, techRes] = await Promise.all([
     intervention.acp_id
       ? supabase.from('acps').select('*').eq('id', intervention.acp_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('occupants').select('*').eq('intervention_id', intervention.id),
     intervention.technicien_id
-      ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', intervention.technicien_id).maybeSingle()
+      ? adminDb.from('utilisateurs').select('id, prenom, nom').eq('id', intervention.technicien_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
