@@ -1,3 +1,40 @@
+# État du projet FoxO — snapshot 2026-06-17 (suite 2) — Assistant : actions Google (agenda + brouillon Gmail) + correction backlog (inventaire vérifié)
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus la PR #112 (merge f5198f6, branche feat/assistant-actions-google supprimée). Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Assistant IA admin : 2 outils d'ACTION Google (PR #112, merge f5198f6, commit 59691a9 ; 2 fichiers +170/−1 ; 0 SQL). TESTÉ OK EN PROD (agenda + brouillon).
+- Motif sûr existant proposer→confirmer→exécuter (le modèle ne mute JAMAIS ; exécution au clic « Exécuter » via /api/admin/assistant/actions/execute, garde isAdminUser).
+- Outil 1 propose_creer_evenement_agenda → action creer_evenement_agenda → createCalendarEvent (google-calendar.ts). Inputs : titre, date (AAAA-MM-JJ), heure_debut (HH:MM Bruxelles), duree_min (défaut 60), description?, lieu?. Heure de fin calculée en UTC pur (anti-dérive fuseau) ; createCalendarEvent ré-attache Europe/Brussels.
+- Outil 2 propose_brouillon_reponse_mail → action brouillon_reponse_mail → createGmailDraft (gmail.ts). C'est une RÉPONSE à un fil existant (pas un mail neuf) : le modèle identifie d'abord l'e-mail via search_emails/get_email_thread pour obtenir le mailId, puis propose. Le brouillon va dans Brouillons Gmail, RIEN n'est envoyé (l'admin relit/envoie depuis Gmail).
+- Aucune modif front ni prompt système : ActionConfirmCard est générique (rend summary + bouton postant {action, params}), la route de chat inclut déjà FOXO_ACTION_TOOLS et collecte les pendingActions.
+- Invariants : helpers Google récupèrent le token en interne (getValidAccessToken) ; GOOGLE_SCOPES inclut auth/calendar (write) + Gmail write ; createCalendarEvent/createGmailDraft déjà éprouvés en prod via les actions de la fiche mail (/api/admin/calendar/events, /api/admin/mails/draft-reply).
+- SUITE OPTIONNELLE (non faite) : mini-retouche du prompt système pour que l'assistant PROPOSE de lui-même l'événement/le brouillon (aujourd'hui le prompt lui dit de sortir le mail prêt à copier → il faut souvent demander explicitement « crée un brouillon »).
+
+INVENTAIRE VÉRIFIÉ (code, 2026-06-17) — CORRECTION DU BACKLOG. Items « backlog » en réalité déjà faits :
+- occupant_responses_log : table créée (migrations 2026-05-23 + 2026-06-07) + journalisée à 3 endroits (accept-counter-proposal, o/actions.ts, confirm-from-mail.ts) avec miroir explicite → RIEN À FAIRE.
+- drive_folder_id côté rapport : DÉJÀ persisté par dispatch.ts (l.271). Écrit par : confirmation mail, planning, upload photo, ET dispatch rapport → couvert.
+- Notif retard tech SMS/WhatsApp : livrée (PR #59) ; seule la doc manquait.
+- Observabilité runAgent/agent_logs : vérifiée complète (snapshot précédent).
+
+BRANCHES DISTANTES — triage merge-base vs main : sur 19 branches, 17 DÉJÀ DANS MAIN (terminées, jamais supprimées → ménage GitHub sans risque). SEULES 2 non mergées :
+- feat/signature-pdf (4 commits, 12/06) : refonte visuelle du PDF de rapport (couverture marine, polices Syne/Inter, mise en page, grille photos). ~537 lignes. Reprise = relire diff → vérifier rendu PDF → corriger → PR.
+- feat/mails-v2-phase2c (3 commits, 11/06) : panneau « Documents du dossier » sur la fiche intervention tech (le tech voit les fichiers Drive du dossier), routes Drive portail tech gardées par rôle, helpers lecture Drive. Reprise = relire → tester → PR.
+(La branche feat/file-validation d'anciens récaps n'existe PLUS sur le distant.)
+
+GROS CHANTIERS SÉQUENCÉS — état réel :
+- Facturation N'EST PAS un terrain vierge : module déjà existant (pages admin/facturation : FacturationTabs, FactureEditor, FactureActions, liste ; routes admin/facturation, admin/facture, tech/facture, facture ; migrations 2026-04-29, 2026-05-16, 2026-05-25b). Vrai reste-à-faire = conformité Peppol/UBL B2B 2026 + coexistence Odoo (spec 06 v0.3), PAR-DESSUS l'existant. Reste le DERNIER.
+- Analytics : ZÉRO ligne de code (pas commencé ; plan = PLAN_CHANTIER doc). Pas avant données réelles.
+- Audit produit + design : chantiers design d2→d7 déjà mergés dans main ; reste l'audit produit transversal en usage réel.
+
+DETTE / BLOQUÉ (TODO/FIXME = 9, modeste) :
+- Ponto (synchro bancaire) : stubbé (ponto.ts, connectPonto/syncTransactions), BLOQUÉ tant que pas de credentials. Lié facturation.
+- agent_logs.intervention_id reste null au triage des mails (l'intervention n'existe pas encore) — TODO connu, cosmétique.
+- 2-3 TODO design cosmétiques sur les pages RDV publiques — optionnel.
+
+JALON CLÉ inchangé : faire tourner la plateforme EN VRAI au quotidien (crons mails toujours coupés, re-encodage manuel en cours) → débloque Analytics puis finalisation Facturation.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge après ce commit (même URL raw).
+
 # État du projet FoxO — snapshot 2026-06-17 (suite) — Observabilité runAgent/agent_logs : VÉRIFIÉ COMPLET (anti-doublon de chantier)
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus la clôture du chantier RLS utilisateurs (fd942f3). Vérifier le git log live en début de session.
