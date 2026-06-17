@@ -1,3 +1,17 @@
+# État du projet FoxO — snapshot 2026-06-17 (suite 3) — Prompt assistant proactif + état corrigé des branches en pause
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus la PR #113 (merge 65246e3). Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Assistant : prompt système proactif (PR #113, merge 65246e3, commit 4a33db8 ; 1 fichier +6/−1 ; 0 SQL ; testé OK en prod). Les deux variantes du prompt (systemForMode global + intervention) mentionnent désormais les OUTILS D'ACTION (propose_*) et incitent l'assistant à PROPOSER de lui-même un brouillon de réponse / un événement agenda (avant, il sortait juste le texte à copier). Aucune logique touchée, que des chaînes de prompt ; ActionConfirmCard générique + route execute inchangés.
+
+ÉTAT CORRIGÉ DES 2 BRANCHES EN PAUSE (audit lecture seule approfondi du code réel sur main, 2026-06-17) :
+- feat/mails-v2-phase2c → SUPERSEDED. La feature « Documents du dossier » côté tech est DÉJÀ EN PROD sur main (livrée par une autre PR, U4 / PR #93) : la fiche intervention tech rend DocumentsPanel (page.tsx l.207) ; routes liste + proxy présentes avec le même modèle de sécurité (garde tech-assigné via verifyTechOwnsIntervention, contrôle de parenté meta.parents anti-énumération, whitelist MIME, SVG jamais inline, plafond 4 MB). La branche = implémentation parallèle plus ancienne (66 lignes refactorées vs 171 inline sur main). NE PAS MERGER (régression + conflit). À SUPPRIMER. Seul reliquat distinct = un refactor DRY (extraire la logique de service de fichier, dupliquée entre route PJ Gmail et route proxy tech, dans safe-file-response.ts) — optionnel, faible priorité, à faire en NEUF sur main si souhaité.
+- feat/signature-pdf → RÉEL, NON MERGÉ, MERGEABLE PROPREMENT. Refonte visuelle du PDF de rapport (polices Carlito → Inter + Syne, couverture marine, refonte pages de contenu, grille photos). Main a ENCORE Carlito (ancien design) → refonte PAS en prod. Base 19a1c88 (après PR #93). Merge dans main actuel : dispatch.ts auto-mergé avec les changements de session (PR #111), ZÉRO conflit ; 18 fichiers +537/−192 (RapportPdf.tsx, build-docx.ts, dispatch.ts +4, next.config.ts, script preview, polices). Reprise = relecture code + tsc sur le résultat du merge + PR, PUIS validation VISUELLE par Foxo (route preview api/admin/rapports/[id]/preview-pdf). NON démarré.
+
+LEÇON (3e évitement de doublon de la session) : les « branches en pause » et le backlog doc sont fortement désynchronisés du live. TOUJOURS auditer le code réel sur main (fichiers existants, fonctions, feature rendue) avant de « reprendre » une branche — le « merge propre » ne teste que les conflits textuels, pas si la feature est déjà livrée.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-17 (suite 2) — Assistant : actions Google (agenda + brouillon Gmail) + correction backlog (inventaire vérifié)
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus la PR #112 (merge f5198f6, branche feat/assistant-actions-google supprimée). Vérifier le git log live en début de session.
