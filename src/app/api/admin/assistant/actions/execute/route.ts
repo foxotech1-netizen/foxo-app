@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from '@/lib/auth/server';
 import { assignTechnician, validateRapport, resendRapportToSyndic } from '@/app/admin/actions';
 import { notifyOccupantsForIntervention } from '@/lib/occupants/notify-occupants';
+import { createCalendarEvent } from '@/lib/google-calendar';
+import { createGmailDraft } from '@/lib/gmail';
 
 export const maxDuration = 60;
 
@@ -133,6 +135,56 @@ export async function POST(request: Request) {
         }
         const ref = str(params.interventionRef);
         const message = `Rapport du dossier ${ref || interventionId} transmis au syndic.`;
+        return NextResponse.json({ ok: true, message });
+      }
+      case 'creer_evenement_agenda': {
+        const titre = str(params.titre);
+        const date = str(params.date);
+        const heure = str(params.heure);
+        const dureeRaw = typeof params.duree === 'number' ? params.duree : Number(params.duree);
+        const duree = Number.isFinite(dureeRaw) && dureeRaw > 0 ? Math.round(dureeRaw) : 60;
+        const description = str(params.description);
+        const lieu = str(params.lieu);
+        if (!titre || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) {
+          return NextResponse.json({ ok: false, error: "Paramètres manquants ou invalides pour l'événement agenda." }, { status: 400 });
+        }
+        const startIso = `${date}T${heure}:00`;
+        const startUtc = new Date(`${date}T${heure}:00Z`);
+        const endUtc = new Date(startUtc.getTime() + duree * 60000);
+        const p2 = (n: number) => String(n).padStart(2, '0');
+        const endIso = `${endUtc.getUTCFullYear()}-${p2(endUtc.getUTCMonth() + 1)}-${p2(endUtc.getUTCDate())}T${p2(endUtc.getUTCHours())}:${p2(endUtc.getUTCMinutes())}:00`;
+        const res = await createCalendarEvent({
+          startIso,
+          endIso,
+          summary: titre,
+          description: description || undefined,
+          location: lieu || undefined,
+        });
+        if (!res.ok) {
+          return NextResponse.json({ ok: false, error: res.error }, { status: 400 });
+        }
+        const [yy, mm, dd] = date.split('-');
+        const message = `Événement « ${titre} » créé dans l'agenda le ${dd}/${mm}/${yy} à ${heure}.`;
+        return NextResponse.json({ ok: true, message });
+      }
+      case 'brouillon_reponse_mail': {
+        const mailId = str(params.mailId);
+        const body2 = str(params.body);
+        const to = str(params.to);
+        const subject = str(params.subject);
+        if (!mailId || !body2) {
+          return NextResponse.json({ ok: false, error: 'Paramètres manquants pour le brouillon de réponse.' }, { status: 400 });
+        }
+        const res = await createGmailDraft({
+          mailId,
+          body: body2,
+          to: to || undefined,
+          subject: subject || undefined,
+        });
+        if (!res.ok) {
+          return NextResponse.json({ ok: false, error: res.error }, { status: 400 });
+        }
+        const message = `Brouillon de réponse créé dans Gmail. Relis-le et envoie-le depuis tes Brouillons : ${res.gmail_url}`;
         return NextResponse.json({ ok: true, message });
       }
       default:
