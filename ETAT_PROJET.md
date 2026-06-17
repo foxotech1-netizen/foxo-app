@@ -1,3 +1,32 @@
+# État du projet FoxO — snapshot 2026-06-17 — Restriction RLS auth_read_utilisateurs (lecture table utilisateurs) CLOSE
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus le commit d'archive .sql, par-dessus la PR #111 (merge 03391fc, branche fix/restrict-utilisateurs-read supprimee au merge). Vérifier le git log live en début de session.
+
+CHANTIER : backlog « le plus net » (sécurité). auth_read_utilisateurs était en USING(true) -> tout compte authentifié lisait TOUTE la table utilisateurs (emails/téléphones/rôles, tous tenants). Resserrée à : soi-même + admin + même organisation.
+
+AUDIT D'OUVERTURE (lecture seule, clone repo) :
+- Les 3 helpers RLS qui lisent utilisateurs (is_admin, mon_role, mon_organisation_id) sont SECURITY DEFINER -> contournent la RLS -> restreindre la lecture ne crée AUCUNE récursion (risque n°1 d'un changement RLS = écarté).
+- Rayon de souffle (~45 accès a utilisateurs) : quasi tout sûr (contexte admin couvert par admin_all_utilisateurs ; client service-role qui bypasse ; lectures de soi via .eq('email', son email)). SEULES 3 lectures cross-tenant légitimes : un partenaire lit le nom du technicien assigné (id, prenom, nom) — portal/interventions/[id]/page.tsx, portal/interventions/page.tsx, buildRapportPdf (rapport/dispatch.ts ; PDF aussi servi au partenaire via /api/rapport/[id]).
+
+LIVRÉ — Étape A code (PR #111, merge 03391fc, commit 3335750 ; 3 fichiers +15/−3 ; 0 SQL) :
+- Les 3 lectures du nom du technicien basculées du client cookie vers le client service-role (createAdminClient), même select minimal id, prenom, nom. Exposition volontaire et minimale, désormais contrôlée par le code. tsc vert + hook pre-push.
+
+LIVRÉ — Étape B SQL (appliqué prod 2026-06-17 via SQL Editor, APRÈS déploiement Vercel du code, AVANT ce snapshot) :
+- auth_read_utilisateurs : USING(true) -> USING((id = auth.uid()) OR is_admin() OR ((organisation_id IS NOT NULL) AND (organisation_id = mon_organisation_id()))). Transaction (atomique, anti-verrouillage). Vérifié via pg_policies (2 policies, qual conforme). admin_all_utilisateurs (FOR ALL, is_admin()) INCHANGÉE.
+- Archive : db/migrations/2026-06-17_restrict_auth_read_utilisateurs.sql.
+
+ORDRE RESPECTÉ (invariant : prod = base partagée avec la préversion) : code -> merge -> déploiement Vercel -> SQL. Appliquer le SQL avant le déploiement aurait cassé l'affichage du nom du tech (portail + PDF) pendant le build.
+
+À VALIDER EN USAGE RÉEL (empirique, non bloquant) :
+- Portail partenaire : le nom du technicien s'affiche toujours (liste + détail) — via service-role.
+- Un compte non-admin (tech/partenaire) ne lit plus que sa propre ligne utilisateurs + celles de sa même organisation (organisation_id non nul).
+
+INVARIANTS : NULL-org -> ne voit que soi-même (garde IS NOT NULL + sémantique NULL SQL). utilisateurs.id == auth.uid(). Helpers RLS = SECURITY DEFINER. Crons mails TOUJOURS fermés. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail/emails de PROD.
+
+INTENDANCE EN ATTENTE (action Foxo) : ré-uploader dans la knowledge (a) ce ETAT_PROJET.md (raw.githubusercontent.com/foxotech1-netizen/foxo-app/main/ETAT_PROJET.md), (b) le 04_Schema_Donnees.md corrigé fourni le 2026-06-16. En attente depuis la session précédente.
+
+BACKLOG (inchangé) : Doc 04 réécriture complète optionnelle ; baseline des autres tables (optionnel) ; gros chantiers séquencés (audit produit+design, Analytics — pas avant données réelles, Facturation = dernier). Items antérieurs : tech « notify delay » deep link SMS/WhatsApp ; messagerie portail Phase 8 ; Twilio prod. Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
 # État du projet FoxO — snapshot 2026-06-16 (suite 5) — Vestige documents supprime
 
 ÉTAT GIT : main = (voir git log) apres 2 commits doc/archive par-dessus suite 4 — archive du DROP (2026-06-16e) + ce snapshot.
