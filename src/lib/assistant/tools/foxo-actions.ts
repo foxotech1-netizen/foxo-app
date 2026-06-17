@@ -19,7 +19,9 @@ export type ActionName =
   | 'relance_occupants'
   | 'planifier_rdv'
   | 'valider_rapport'
-  | 'transmettre_rapport';
+  | 'transmettre_rapport'
+  | 'creer_evenement_agenda'
+  | 'brouillon_reponse_mail';
 
 export interface PendingAction {
   id: string;
@@ -113,6 +115,45 @@ export const FOXO_ACTION_TOOLS: Anthropic.Tool[] = [
       required: ['ref'],
     },
   },
+  {
+    name: 'propose_creer_evenement_agenda',
+    description:
+      "PRÉPARE (sans le créer) un nouvel événement dans l'agenda Google de la société. " +
+      "Cet outil NE CRÉE RIEN : il valide les paramètres et renvoie une proposition. " +
+      "L'événement n'est créé QUE si l'administrateur clique ensuite sur « Exécuter ». " +
+      "Utilise-le quand l'admin veut poser un rendez-vous, une visite ou un créneau dans l'agenda (différent de planifier_rdv, qui ne touche QUE le statut d'un dossier sans rien mettre à l'agenda). " +
+      "Après l'appel, annonce la proposition (titre, date, horaire) et précise qu'il faut confirmer via le bouton ; ne prétends JAMAIS que l'événement est créé.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        titre: { type: 'string', description: "Titre de l'événement (ex : « Visite dossier 2026-014 — fuite salle de bain »)." },
+        date: { type: 'string', description: "Date au format AAAA-MM-JJ (ex : 2026-06-20)." },
+        heure_debut: { type: 'string', description: "Heure de début au format HH:MM sur 24h, heure de Bruxelles (ex : 14:00)." },
+        duree_min: { type: 'number', description: "Durée en minutes (défaut 60 si non précisé)." },
+        description: { type: 'string', description: "Détails optionnels de l'événement." },
+        lieu: { type: 'string', description: "Lieu optionnel (ex : adresse du dossier)." },
+      },
+      required: ['titre', 'date', 'heure_debut'],
+    },
+  },
+  {
+    name: 'propose_brouillon_reponse_mail',
+    description:
+      "PRÉPARE (sans l'envoyer) un BROUILLON de réponse à un e-mail existant, enregistré dans les Brouillons Gmail de la société (rien n'est envoyé). " +
+      "Cet outil NE MODIFIE RIEN et N'ENVOIE RIEN : il renvoie une proposition. Le brouillon n'est créé QUE si l'administrateur clique sur « Exécuter », et il devra ensuite le relire et l'envoyer lui-même depuis Gmail. " +
+      "IMPORTANT : identifie d'abord l'e-mail via un outil de lecture (search_emails ou get_email_thread) pour obtenir son identifiant de message, PUIS appelle cet outil avec cet identifiant. La réponse sera rattachée au bon fil. " +
+      "Après l'appel, annonce la proposition (à qui, sujet) et précise qu'il faut confirmer via le bouton ; ne prétends JAMAIS que le mail est envoyé.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        mailId: { type: 'string', description: "Identifiant du message Gmail le plus récent du fil auquel répondre (obtenu via search_emails / get_email_thread)." },
+        corps: { type: 'string', description: "Corps du message de réponse, en français, prêt à être relu par l'admin." },
+        destinataire: { type: 'string', description: "Adresse e-mail du destinataire (optionnel ; par défaut l'expéditeur du mail d'origine)." },
+        objet: { type: 'string', description: "Objet du mail (optionnel ; par défaut « Re: <objet d'origine> »)." },
+      },
+      required: ['mailId', 'corps'],
+    },
+  },
 ];
 
 export async function executeFoxoActionTool(
@@ -133,6 +174,10 @@ export async function executeFoxoActionTool(
         return await proposeValiderRapport(args, supabase);
       case 'propose_transmettre_rapport':
         return await proposeTransmettreRapport(args, supabase);
+      case 'propose_creer_evenement_agenda':
+        return await proposeCreerEvenementAgenda(args);
+      case 'propose_brouillon_reponse_mail':
+        return await proposeBrouillonReponseMail(args);
       default:
         return { resultForModel: `Outil d'action inconnu : ${name}.`, pendingAction: null };
     }
@@ -429,5 +474,77 @@ async function proposeTransmettreRapport(
   const resultForModel =
     `Proposition prête : ${summary} ` +
     `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer l'envoi réel. Ne dis pas que c'est fait.`;
+  return { resultForModel, pendingAction };
+}
+
+async function proposeCreerEvenementAgenda(
+  args: Record<string, unknown>,
+): Promise<ActionToolResult> {
+  const titre = typeof args.titre === 'string' ? args.titre.trim() : '';
+  const date = typeof args.date === 'string' ? args.date.trim() : '';
+  const heure = typeof args.heure_debut === 'string' ? args.heure_debut.trim() : '';
+  const dureeRaw = typeof args.duree_min === 'number' ? args.duree_min : Number(args.duree_min);
+  const duree = Number.isFinite(dureeRaw) && dureeRaw > 0 ? Math.round(dureeRaw) : 60;
+  const description = typeof args.description === 'string' ? args.description.trim() : '';
+  const lieu = typeof args.lieu === 'string' ? args.lieu.trim() : '';
+
+  if (!titre) return { resultForModel: "Paramètre 'titre' manquant.", pendingAction: null };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { resultForModel: "Paramètre 'date' invalide : attendu AAAA-MM-JJ (ex : 2026-06-20).", pendingAction: null };
+  }
+  if (!/^\d{2}:\d{2}$/.test(heure)) {
+    return { resultForModel: "Paramètre 'heure_debut' invalide : attendu HH:MM sur 24h (ex : 14:00).", pendingAction: null };
+  }
+
+  // Heure de fin = début + durée (calcul en UTC pur pour éviter toute dérive de
+  // fuseau ; createCalendarEvent ré-attache le fuseau Europe/Brussels).
+  const startUtc = new Date(`${date}T${heure}:00Z`);
+  const endUtc = new Date(startUtc.getTime() + duree * 60000);
+  const p2 = (n: number) => String(n).padStart(2, '0');
+  const heureFin = `${p2(endUtc.getUTCHours())}:${p2(endUtc.getUTCMinutes())}`;
+
+  const [yy, mm, dd] = date.split('-');
+  const dateFr = `${dd}/${mm}/${yy}`;
+  const summary =
+    `Créer l'événement « ${titre} » dans l'agenda de la société le ${dateFr} de ${heure} à ${heureFin} (heure de Bruxelles)` +
+    `${lieu ? `, lieu : ${lieu}` : ''}.`;
+
+  const pendingAction: PendingAction = {
+    id: newProposalId(),
+    action: 'creer_evenement_agenda',
+    params: { titre, date, heure, duree, description, lieu },
+    summary,
+  };
+  const resultForModel =
+    `Proposition prête : ${summary} ` +
+    `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour confirmer. Ne dis pas que c'est fait.`;
+  return { resultForModel, pendingAction };
+}
+
+async function proposeBrouillonReponseMail(
+  args: Record<string, unknown>,
+): Promise<ActionToolResult> {
+  const mailId = typeof args.mailId === 'string' ? args.mailId.trim() : '';
+  const corps = typeof args.corps === 'string' ? args.corps.trim() : '';
+  const destinataire = typeof args.destinataire === 'string' ? args.destinataire.trim() : '';
+  const objet = typeof args.objet === 'string' ? args.objet.trim() : '';
+
+  if (!mailId) return { resultForModel: "Paramètre 'mailId' manquant. Identifie d'abord l'e-mail via search_emails ou get_email_thread.", pendingAction: null };
+  if (!corps) return { resultForModel: "Paramètre 'corps' manquant : il faut le texte de la réponse.", pendingAction: null };
+
+  const apercu = corps.length > 90 ? corps.slice(0, 90).trimEnd() + '…' : corps;
+  const summary =
+    `Créer un brouillon de réponse dans Gmail${destinataire ? ` à ${destinataire}` : ''}${objet ? `, objet « ${objet} »` : ''}. ` +
+    `Aperçu : « ${apercu} ». Rien n'est envoyé : le brouillon devra être relu et envoyé depuis Gmail.`;
+
+  const pendingAction: PendingAction = {
+    id: newProposalId(),
+    action: 'brouillon_reponse_mail',
+    params: { mailId, body: corps, to: destinataire, subject: objet },
+    summary,
+  };
+  const resultForModel =
+    `Proposition prête : ${summary} ` +
+    `Annonce-la à l'admin et précise qu'il doit cliquer sur « Exécuter » pour créer le brouillon. Ne dis pas que le mail est envoyé.`;
   return { resultForModel, pendingAction };
 }
