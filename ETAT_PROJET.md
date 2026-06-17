@@ -1,3 +1,14 @@
+# État du projet FoxO — snapshot 2026-06-17 (suite) — Observabilité runAgent/agent_logs : VÉRIFIÉ COMPLET (anti-doublon de chantier)
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus la clôture du chantier RLS utilisateurs (fd942f3). Vérifier le git log live en début de session.
+
+VÉRIFICATION (lecture seule, clone repo, 2026-06-17) : le chantier « audit Observabilité IA » (doc 02 §10) est DÉJÀ FAIT et CÂBLÉ — rien à construire. La doc était contradictoire sur son statut ; ambiguïté levée. NE PLUS remettre ce chantier sur la liste.
+- Module src/lib/observability/ complet : agent-logger.ts (exporte runAgent), pricing.ts (coût/tokens), queries.ts (requêtes dashboard), automation-logger.ts, index.ts.
+- Table agent_logs : créée par 2026-05-13_create_agent_logs_automation_jobs.sql, enrichie ensuite (agent_kind 2026-05-25, briefing 2026-06-04, alignement agent_name 2026-06-16).
+- runAgent câblé sur TOUS les appels Anthropic, dont les 3 agents canoniques doc 02 §10 : triage mails (cron/check-mails.ts), analyse_pj (agents/analyse-pj/analyze-one.ts), rapport (tech/interventions/[id]/generate-action.ts) ; + analyse_photo (rapport/analyse-photo.ts), analyses mails ([id]/analyze, analyse-deep), draft-reply, sms/compose, notes-frais/extract, assistants admin et tech.
+
+CONSÉQUENCE : prochain chantier de code à choisir ailleurs. Jalon clé inchangé = faire tourner la plateforme en vrai au quotidien (débloque Analytics puis Facturation).
+
 # État du projet FoxO — snapshot 2026-06-17 — Restriction RLS auth_read_utilisateurs (lecture table utilisateurs) CLOSE
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus le commit d'archive .sql, par-dessus la PR #111 (merge 03391fc, branche fix/restrict-utilisateurs-read supprimee au merge). Vérifier le git log live en début de session.
