@@ -172,6 +172,7 @@ export function InterventionsClient({
   fullPage = false,
   initialSelectedId = null,
   adminPins = [],
+  listOnly = false,
 }: {
   initialRows: InterventionRow[];
   techs: Utilisateur[];
@@ -190,6 +191,11 @@ export function InterventionsClient({
   // "← Retour" qui renvoie à /admin.
   fullPage?: boolean;
   initialSelectedId?: string | null;
+  // Mode « liste seule » (route /admin/interventions) — masque le titre
+  // « Tableau de bord » et le widget Dashboard (Briefing IA, Missions, KPIs,
+  // chat), en conservant la liste ET la barre de filtres intactes. Le
+  // dashboard (/admin) ne passe PAS ce prop → comportement inchangé.
+  listOnly?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -220,7 +226,7 @@ export function InterventionsClient({
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<typeof STATUTS_FILTRE[number]>('tous');
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
-  const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia' | 'historique'>('dossier');
+  const [tab, setTab] = useState<'dossier' | 'suivi' | 'documents' | 'ia' | 'historique' | 'journal'>('dossier');
   const [iaSaveMessage, setIaSaveMessage] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [iaSavePending, startIaSaveTransition] = useTransition();
 
@@ -467,7 +473,7 @@ export function InterventionsClient({
     return { inProgress, suspended, reports, closed, urgent };
   }, [rows]);
 
-  function openDrawer(id: string, initialTab: 'dossier' | 'suivi' | 'documents' | 'ia' | 'historique' = 'dossier') {
+  function openDrawer(id: string, initialTab: 'dossier' | 'suivi' | 'documents' | 'ia' | 'historique' | 'journal' = 'dossier') {
     const iv = rows.find((r) => r.id === id);
     setSelectedId(id);
     setTab(initialTab);
@@ -1292,6 +1298,7 @@ export function InterventionsClient({
       {/* Topbar + liste — masqués en mode page complète */}
       {!fullPage && (
       <>
+      {!listOnly && (
       <div className="px-6 pt-6 flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)] flex-shrink-0">
         <div>
           <h1 className="fxs-page-title mb-1">
@@ -1333,6 +1340,7 @@ export function InterventionsClient({
           )}
         </div>
       </div>
+      )}
 
       {loadError && (
         <div className="mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold flex-shrink-0">
@@ -1345,6 +1353,7 @@ export function InterventionsClient({
           le détail bascule dans un accordéon ; la carte admin
           server-rendered est masquée et re-rendue dans cet accordéon
           via adminPins. */}
+      {!listOnly && (
       <div className="px-6 pt-4 flex-shrink-0">
         <Dashboard
           rows={rows}
@@ -1355,6 +1364,7 @@ export function InterventionsClient({
           adminPins={adminPins}
         />
       </div>
+      )}
 
       {/* Section 4 : Liste des interventions */}
       <div className="px-6 pt-5 flex-shrink-0">
@@ -1797,7 +1807,7 @@ export function InterventionsClient({
                 lignes au lieu de déborder en scroll horizontal
                 (« Historique » coupé). En plein écran, une seule ligne. */}
             <nav className="flex flex-wrap bg-[var(--color-cream)] px-5 border-b border-[var(--color-sand-border)]">
-              {(['dossier','suivi','documents','ia','historique'] as const).map((t) => (
+              {(['dossier','suivi','documents','ia','historique','journal'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
@@ -1805,7 +1815,7 @@ export function InterventionsClient({
                     tab === t ? 'text-[var(--color-navy)] border-[var(--color-navy)]' : 'text-[var(--color-ink-muted)] border-transparent hover:text-[var(--color-ink-mid)]'
                   }`}
                 >
-                  {t === 'ia' ? (<><Sparkles size={14} />Assistant IA</>) : t === 'historique' ? (<><ClipboardList size={14} />Historique</>) : t}
+                  {t === 'ia' ? (<><Sparkles size={14} />Assistant IA</>) : t === 'historique' ? (<><ClipboardList size={14} />Historique</>) : t === 'journal' ? (<><CalendarClock size={14} />Journal</>) : t}
                 </button>
               ))}
             </nav>
@@ -2981,6 +2991,10 @@ export function InterventionsClient({
               {tab === 'historique' && (
                 <HistoriquePanel interventionId={selected.id} />
               )}
+
+              {tab === 'journal' && (
+                <JournalPanel interventionId={selected.id} />
+              )}
             </div>
           </div>
         </div>
@@ -3923,6 +3937,88 @@ function AcpPicker({
         </div>
       )}
     </div>
+  );
+}
+
+// Format date/heure du journal en Europe/Brussels (règle timezone FoxO).
+function fmtJournalDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('fr-BE', {
+      timeZone: 'Europe/Brussels',
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// JournalPanel — fetch + affiche le journal d'événements (intervention_timeline)
+// du dossier courant, du plus récent au plus ancien. Lecture seule (route GET
+// /api/admin/interventions/[id]/timeline). Distinct de HistoriquePanel (récidive).
+function JournalPanel({ interventionId }: { interventionId: string }) {
+  type TimelineEvent = {
+    id: string;
+    type: string;
+    message: string | null;
+    payload: unknown;
+    created_at: string;
+    created_by: string | null;
+  };
+
+  const [events, setEvents] = useState<TimelineEvent[] | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    queueMicrotask(() => setLoaded(false));
+    fetch(`/api/admin/interventions/${interventionId}/timeline`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!mounted) return;
+        if (d.ok) setEvents(d.events ?? []);
+        else setError(d.error ?? 'Erreur chargement.');
+        setLoaded(true);
+      })
+      .catch((e) => {
+        if (!mounted) return;
+        setError(e instanceof Error ? e.message : 'Erreur réseau.');
+        setLoaded(true);
+      });
+    return () => { mounted = false; };
+  }, [interventionId]);
+
+  if (!loaded) return <SkeletonText lines={3} />;
+  if (error) {
+    return (
+      <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-md px-3 py-2 font-semibold">
+        {error}
+      </div>
+    );
+  }
+  if (!events) return null;
+
+  return (
+    <Block title={<span className="inline-flex items-center gap-1.5"><CalendarClock size={12} />Journal des événements ({events.length})</span>}>
+      {events.length === 0 ? (
+        <div className="text-[11px] text-ink-muted italic">
+          Aucun événement enregistré pour ce dossier.
+        </div>
+      ) : (
+        <ol className="relative border-l border-sand-mid ml-1 space-y-3">
+          {events.map((ev) => (
+            <li key={ev.id} className="ml-3 relative">
+              <span className="absolute -left-[17px] mt-1 w-2.5 h-2.5 rounded-full bg-[var(--color-navy)]" />
+              <div className="text-[12px] text-ink font-medium">{ev.message ?? ev.type}</div>
+              <div className="text-[10px] text-ink-muted mt-0.5">
+                {fmtJournalDate(ev.created_at)}{ev.created_by ? ` — ${ev.created_by}` : ''}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </Block>
   );
 }
 

@@ -1,3 +1,552 @@
+# État du projet FoxO — snapshot 2026-06-17 (suite 3) — Prompt assistant proactif + état corrigé des branches en pause
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus la PR #113 (merge 65246e3). Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Assistant : prompt système proactif (PR #113, merge 65246e3, commit 4a33db8 ; 1 fichier +6/−1 ; 0 SQL ; testé OK en prod). Les deux variantes du prompt (systemForMode global + intervention) mentionnent désormais les OUTILS D'ACTION (propose_*) et incitent l'assistant à PROPOSER de lui-même un brouillon de réponse / un événement agenda (avant, il sortait juste le texte à copier). Aucune logique touchée, que des chaînes de prompt ; ActionConfirmCard générique + route execute inchangés.
+
+ÉTAT CORRIGÉ DES 2 BRANCHES EN PAUSE (audit lecture seule approfondi du code réel sur main, 2026-06-17) :
+- feat/mails-v2-phase2c → SUPERSEDED. La feature « Documents du dossier » côté tech est DÉJÀ EN PROD sur main (livrée par une autre PR, U4 / PR #93) : la fiche intervention tech rend DocumentsPanel (page.tsx l.207) ; routes liste + proxy présentes avec le même modèle de sécurité (garde tech-assigné via verifyTechOwnsIntervention, contrôle de parenté meta.parents anti-énumération, whitelist MIME, SVG jamais inline, plafond 4 MB). La branche = implémentation parallèle plus ancienne (66 lignes refactorées vs 171 inline sur main). NE PAS MERGER (régression + conflit). À SUPPRIMER. Seul reliquat distinct = un refactor DRY (extraire la logique de service de fichier, dupliquée entre route PJ Gmail et route proxy tech, dans safe-file-response.ts) — optionnel, faible priorité, à faire en NEUF sur main si souhaité.
+- feat/signature-pdf → RÉEL, NON MERGÉ, MERGEABLE PROPREMENT. Refonte visuelle du PDF de rapport (polices Carlito → Inter + Syne, couverture marine, refonte pages de contenu, grille photos). Main a ENCORE Carlito (ancien design) → refonte PAS en prod. Base 19a1c88 (après PR #93). Merge dans main actuel : dispatch.ts auto-mergé avec les changements de session (PR #111), ZÉRO conflit ; 18 fichiers +537/−192 (RapportPdf.tsx, build-docx.ts, dispatch.ts +4, next.config.ts, script preview, polices). Reprise = relecture code + tsc sur le résultat du merge + PR, PUIS validation VISUELLE par Foxo (route preview api/admin/rapports/[id]/preview-pdf). NON démarré.
+
+LEÇON (3e évitement de doublon de la session) : les « branches en pause » et le backlog doc sont fortement désynchronisés du live. TOUJOURS auditer le code réel sur main (fichiers existants, fonctions, feature rendue) avant de « reprendre » une branche — le « merge propre » ne teste que les conflits textuels, pas si la feature est déjà livrée.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge après ce commit.
+
+# État du projet FoxO — snapshot 2026-06-17 (suite 2) — Assistant : actions Google (agenda + brouillon Gmail) + correction backlog (inventaire vérifié)
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus la PR #112 (merge f5198f6, branche feat/assistant-actions-google supprimée). Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Assistant IA admin : 2 outils d'ACTION Google (PR #112, merge f5198f6, commit 59691a9 ; 2 fichiers +170/−1 ; 0 SQL). TESTÉ OK EN PROD (agenda + brouillon).
+- Motif sûr existant proposer→confirmer→exécuter (le modèle ne mute JAMAIS ; exécution au clic « Exécuter » via /api/admin/assistant/actions/execute, garde isAdminUser).
+- Outil 1 propose_creer_evenement_agenda → action creer_evenement_agenda → createCalendarEvent (google-calendar.ts). Inputs : titre, date (AAAA-MM-JJ), heure_debut (HH:MM Bruxelles), duree_min (défaut 60), description?, lieu?. Heure de fin calculée en UTC pur (anti-dérive fuseau) ; createCalendarEvent ré-attache Europe/Brussels.
+- Outil 2 propose_brouillon_reponse_mail → action brouillon_reponse_mail → createGmailDraft (gmail.ts). C'est une RÉPONSE à un fil existant (pas un mail neuf) : le modèle identifie d'abord l'e-mail via search_emails/get_email_thread pour obtenir le mailId, puis propose. Le brouillon va dans Brouillons Gmail, RIEN n'est envoyé (l'admin relit/envoie depuis Gmail).
+- Aucune modif front ni prompt système : ActionConfirmCard est générique (rend summary + bouton postant {action, params}), la route de chat inclut déjà FOXO_ACTION_TOOLS et collecte les pendingActions.
+- Invariants : helpers Google récupèrent le token en interne (getValidAccessToken) ; GOOGLE_SCOPES inclut auth/calendar (write) + Gmail write ; createCalendarEvent/createGmailDraft déjà éprouvés en prod via les actions de la fiche mail (/api/admin/calendar/events, /api/admin/mails/draft-reply).
+- SUITE OPTIONNELLE (non faite) : mini-retouche du prompt système pour que l'assistant PROPOSE de lui-même l'événement/le brouillon (aujourd'hui le prompt lui dit de sortir le mail prêt à copier → il faut souvent demander explicitement « crée un brouillon »).
+
+INVENTAIRE VÉRIFIÉ (code, 2026-06-17) — CORRECTION DU BACKLOG. Items « backlog » en réalité déjà faits :
+- occupant_responses_log : table créée (migrations 2026-05-23 + 2026-06-07) + journalisée à 3 endroits (accept-counter-proposal, o/actions.ts, confirm-from-mail.ts) avec miroir explicite → RIEN À FAIRE.
+- drive_folder_id côté rapport : DÉJÀ persisté par dispatch.ts (l.271). Écrit par : confirmation mail, planning, upload photo, ET dispatch rapport → couvert.
+- Notif retard tech SMS/WhatsApp : livrée (PR #59) ; seule la doc manquait.
+- Observabilité runAgent/agent_logs : vérifiée complète (snapshot précédent).
+
+BRANCHES DISTANTES — triage merge-base vs main : sur 19 branches, 17 DÉJÀ DANS MAIN (terminées, jamais supprimées → ménage GitHub sans risque). SEULES 2 non mergées :
+- feat/signature-pdf (4 commits, 12/06) : refonte visuelle du PDF de rapport (couverture marine, polices Syne/Inter, mise en page, grille photos). ~537 lignes. Reprise = relire diff → vérifier rendu PDF → corriger → PR.
+- feat/mails-v2-phase2c (3 commits, 11/06) : panneau « Documents du dossier » sur la fiche intervention tech (le tech voit les fichiers Drive du dossier), routes Drive portail tech gardées par rôle, helpers lecture Drive. Reprise = relire → tester → PR.
+(La branche feat/file-validation d'anciens récaps n'existe PLUS sur le distant.)
+
+GROS CHANTIERS SÉQUENCÉS — état réel :
+- Facturation N'EST PAS un terrain vierge : module déjà existant (pages admin/facturation : FacturationTabs, FactureEditor, FactureActions, liste ; routes admin/facturation, admin/facture, tech/facture, facture ; migrations 2026-04-29, 2026-05-16, 2026-05-25b). Vrai reste-à-faire = conformité Peppol/UBL B2B 2026 + coexistence Odoo (spec 06 v0.3), PAR-DESSUS l'existant. Reste le DERNIER.
+- Analytics : ZÉRO ligne de code (pas commencé ; plan = PLAN_CHANTIER doc). Pas avant données réelles.
+- Audit produit + design : chantiers design d2→d7 déjà mergés dans main ; reste l'audit produit transversal en usage réel.
+
+DETTE / BLOQUÉ (TODO/FIXME = 9, modeste) :
+- Ponto (synchro bancaire) : stubbé (ponto.ts, connectPonto/syncTransactions), BLOQUÉ tant que pas de credentials. Lié facturation.
+- agent_logs.intervention_id reste null au triage des mails (l'intervention n'existe pas encore) — TODO connu, cosmétique.
+- 2-3 TODO design cosmétiques sur les pages RDV publiques — optionnel.
+
+JALON CLÉ inchangé : faire tourner la plateforme EN VRAI au quotidien (crons mails toujours coupés, re-encodage manuel en cours) → débloque Analytics puis finalisation Facturation.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge après ce commit (même URL raw).
+
+# État du projet FoxO — snapshot 2026-06-17 (suite) — Observabilité runAgent/agent_logs : VÉRIFIÉ COMPLET (anti-doublon de chantier)
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus la clôture du chantier RLS utilisateurs (fd942f3). Vérifier le git log live en début de session.
+
+VÉRIFICATION (lecture seule, clone repo, 2026-06-17) : le chantier « audit Observabilité IA » (doc 02 §10) est DÉJÀ FAIT et CÂBLÉ — rien à construire. La doc était contradictoire sur son statut ; ambiguïté levée. NE PLUS remettre ce chantier sur la liste.
+- Module src/lib/observability/ complet : agent-logger.ts (exporte runAgent), pricing.ts (coût/tokens), queries.ts (requêtes dashboard), automation-logger.ts, index.ts.
+- Table agent_logs : créée par 2026-05-13_create_agent_logs_automation_jobs.sql, enrichie ensuite (agent_kind 2026-05-25, briefing 2026-06-04, alignement agent_name 2026-06-16).
+- runAgent câblé sur TOUS les appels Anthropic, dont les 3 agents canoniques doc 02 §10 : triage mails (cron/check-mails.ts), analyse_pj (agents/analyse-pj/analyze-one.ts), rapport (tech/interventions/[id]/generate-action.ts) ; + analyse_photo (rapport/analyse-photo.ts), analyses mails ([id]/analyze, analyse-deep), draft-reply, sms/compose, notes-frais/extract, assistants admin et tech.
+
+CONSÉQUENCE : prochain chantier de code à choisir ailleurs. Jalon clé inchangé = faire tourner la plateforme en vrai au quotidien (débloque Analytics puis Facturation).
+
+# État du projet FoxO — snapshot 2026-06-17 — Restriction RLS auth_read_utilisateurs (lecture table utilisateurs) CLOSE
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus le commit d'archive .sql, par-dessus la PR #111 (merge 03391fc, branche fix/restrict-utilisateurs-read supprimee au merge). Vérifier le git log live en début de session.
+
+CHANTIER : backlog « le plus net » (sécurité). auth_read_utilisateurs était en USING(true) -> tout compte authentifié lisait TOUTE la table utilisateurs (emails/téléphones/rôles, tous tenants). Resserrée à : soi-même + admin + même organisation.
+
+AUDIT D'OUVERTURE (lecture seule, clone repo) :
+- Les 3 helpers RLS qui lisent utilisateurs (is_admin, mon_role, mon_organisation_id) sont SECURITY DEFINER -> contournent la RLS -> restreindre la lecture ne crée AUCUNE récursion (risque n°1 d'un changement RLS = écarté).
+- Rayon de souffle (~45 accès a utilisateurs) : quasi tout sûr (contexte admin couvert par admin_all_utilisateurs ; client service-role qui bypasse ; lectures de soi via .eq('email', son email)). SEULES 3 lectures cross-tenant légitimes : un partenaire lit le nom du technicien assigné (id, prenom, nom) — portal/interventions/[id]/page.tsx, portal/interventions/page.tsx, buildRapportPdf (rapport/dispatch.ts ; PDF aussi servi au partenaire via /api/rapport/[id]).
+
+LIVRÉ — Étape A code (PR #111, merge 03391fc, commit 3335750 ; 3 fichiers +15/−3 ; 0 SQL) :
+- Les 3 lectures du nom du technicien basculées du client cookie vers le client service-role (createAdminClient), même select minimal id, prenom, nom. Exposition volontaire et minimale, désormais contrôlée par le code. tsc vert + hook pre-push.
+
+LIVRÉ — Étape B SQL (appliqué prod 2026-06-17 via SQL Editor, APRÈS déploiement Vercel du code, AVANT ce snapshot) :
+- auth_read_utilisateurs : USING(true) -> USING((id = auth.uid()) OR is_admin() OR ((organisation_id IS NOT NULL) AND (organisation_id = mon_organisation_id()))). Transaction (atomique, anti-verrouillage). Vérifié via pg_policies (2 policies, qual conforme). admin_all_utilisateurs (FOR ALL, is_admin()) INCHANGÉE.
+- Archive : db/migrations/2026-06-17_restrict_auth_read_utilisateurs.sql.
+
+ORDRE RESPECTÉ (invariant : prod = base partagée avec la préversion) : code -> merge -> déploiement Vercel -> SQL. Appliquer le SQL avant le déploiement aurait cassé l'affichage du nom du tech (portail + PDF) pendant le build.
+
+À VALIDER EN USAGE RÉEL (empirique, non bloquant) :
+- Portail partenaire : le nom du technicien s'affiche toujours (liste + détail) — via service-role.
+- Un compte non-admin (tech/partenaire) ne lit plus que sa propre ligne utilisateurs + celles de sa même organisation (organisation_id non nul).
+
+INVARIANTS : NULL-org -> ne voit que soi-même (garde IS NOT NULL + sémantique NULL SQL). utilisateurs.id == auth.uid(). Helpers RLS = SECURITY DEFINER. Crons mails TOUJOURS fermés. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail/emails de PROD.
+
+INTENDANCE EN ATTENTE (action Foxo) : ré-uploader dans la knowledge (a) ce ETAT_PROJET.md (raw.githubusercontent.com/foxotech1-netizen/foxo-app/main/ETAT_PROJET.md), (b) le 04_Schema_Donnees.md corrigé fourni le 2026-06-16. En attente depuis la session précédente.
+
+BACKLOG (inchangé) : Doc 04 réécriture complète optionnelle ; baseline des autres tables (optionnel) ; gros chantiers séquencés (audit produit+design, Analytics — pas avant données réelles, Facturation = dernier). Items antérieurs : tech « notify delay » deep link SMS/WhatsApp ; messagerie portail Phase 8 ; Twilio prod. Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
+# État du projet FoxO — snapshot 2026-06-16 (suite 5) — Vestige documents supprime
+
+ÉTAT GIT : main = (voir git log) apres 2 commits doc/archive par-dessus suite 4 — archive du DROP (2026-06-16e) + ce snapshot.
+
+NETTOYAGE (suite a l'audit) : table vestige public.documents + enum document_type SUPPRIMES en prod (verifie). Pre-controle : 0 ligne, aucune FK entrante, enum utilise par documents.type seulement, aucune vue ; 0 usage code (le bucket storage 'documents' homonyme est intact, sans rapport). Archive : migration 2026-06-16e. Backlog audit restant inchange : utilisateurs::auth_read_utilisateurs USING(true) (chantier securite a part) ; base non versionnee (baseline optionnel) ; doc 04 perime sur enums. Crons mails fermes.
+
+# État du projet FoxO — snapshot 2026-06-16 (suite 4) — Audit migrations : durcissement TO public + tables identifiees
+
+ÉTAT GIT : main = (voir git log) apres 2 commits doc/archive par-dessus suite 3 (598bf5a) — l'archive du durcissement RLS (2026-06-16d) + ce snapshot.
+
+COMPLEMENT a l'audit coherence migrations (suite 3) :
+- POINT 3 FAIT (durcissement TO public) : les 2 policies SELECT restees TO public passees en TO authenticated en prod (verifie) puis archivees (migration 2026-06-16d, ALTER POLICY, conserve le USING) : dossiers_sinistres::acces_dossiers et documents::acces_documents. PLUS AUCUNE policy TO public en prod.
+- TABLES « a confirmer » IDENTIFIEES (lecture du code) :
+  * rdv_attempts = limiteur anti-abus de la prise de RDV (src/lib/rate-limit.ts) : insert {ip} + comptage des tentatives recentes, ecrit uniquement par le service-role -> RLS active sans policy = verrouillee/safe, INTENTIONNEL. Vivant.
+  * documents (table Postgres) + enum document_type = VESTIGE non utilise par le code (le code utilise un BUCKET storage Supabase homonyme, systeme different). Metadonnees docs reelles = rapports/photos_interventions/attachments/Drive. Inoffensif (vide, RLS). Nettoyage possible (DROP table+enum) en temps calme, non prioritaire, avec precaution.
+
+BACKLOG AUDIT RESTANT : utilisateurs::auth_read_utilisateurs USING(true) (chantier securite a part) ; base non versionnee (baseline optionnel) ; doc 04 perime sur enums (hygiene). Crons mails fermes (inchange).
+
+# État du projet FoxO — snapshot 2026-06-16 (suite 3) — Audit cohérence migrations repo<->prod (CLOS)
+
+ÉTAT GIT : main avance de 3 commits doc/archive par-dessus le Journal (PR #110) — 70ebf02 (archive realignement mails_analyses + doc notes_frais), 376842c (archive migration messages appliquee prod), + ce snapshot. HEAD = ce snapshot (voir git log). Aucune branche/PR (commits directs sur main, doc/archive : les .sql ne sont re-executes par aucun runtime).
+
+CHANTIER : audit de coherence migrations versionnees <-> schema prod (issu de la decouverte Observabilite : un SQL manuel non versionne avait deja ete applique en prod). 100% lecture seule cote audit (clone repo public + 2 dumps prod read-only via SQL Editor : enums+CHECK+tables, puis RLS).
+
+VERDICT DE FOND : la crainte initiale — une autre derive silencieuse de CHECK/enum type agent_logs sur une table vivante — ne s'est PAS materialisee. TOUS les jeux de valeurs CHECK/enum VERSIONNES correspondent a la prod (factures.statut 8 valeurs, occupants.type_occupant 8, messages.auteur_type colonne, notifications.type, sms_logs.channel, rapports.statut, mails_analyses.classification...). RLS active sur les 34 tables (aucune table ouverte) ; acces anon borne aux seuls creneaux 'libre'.
+
+DIVERGENCES TROUVEES (le contournement du versioning ne se limitait pas a agent_logs) ET ACTIONS :
+1. mails_analyses.type + mails_analyses.langue : CHECK presents en prod mais dans AUCUNE migration (table pourtant versionnee). Risque silencieux (runAgent avale les erreurs d'insert). -> ARCHIVES tels qu'en prod (70ebf02), zero mutation. type={demande_intervention,relance_rapport,suivi_dossier,question_generale,accuse_reception,spam_commercial} ; langue={fr,nl,en,other}.
+2. Zone notes de frais : la prod utilise des ENUMS categorie_note_frais={carburant,materiel,outillage,transport,restauration,fournitures,sous_traitance,autre} et statut_note_frais={brouillon,soumise,approuvee,rejetee,remboursee}, alors que 2026-05-06 (ADD VALUE comptables) et 2026-05-30 (TEXT+CHECK) decrivent autre chose. Impact faible (valeurs du code actuel = prod). -> DOCUMENTE (70ebf02), aucune DDL (enums prod corrects).
+3. messages (securite) : DERIVE PROD reelle. La policy syndic_insert_messages de prod etait restee TO public + {syndic,courtier,delegue} (sans expert) alors que la 2026-06-04 declarait TO authenticated + expert ; le CHECK de colonne avait recu 'expert' (application PARTIELLE = preuve d'un 2e ecrasement manuel non versionne). Decision produit Foxo : syndics+courtiers+experts+delegues peuvent poster. -> CORRIGE EN PROD (SQL Editor, verifie) : policy TO authenticated + {syndic,courtier,expert,delegue} ; CHECK colonne = {admin,syndic,courtier,expert,delegue}. ARCHIVE 376842c. Pas un trou anon (CHECK exige auth.email()).
+
+AUCUNE divergence en gravite HAUTE.
+
+BACKLOG ISSU DE L'AUDIT (non traite, a decider) :
+- Durcissement 2 policies TO public restantes (dossiers_sinistres::acces_dossiers, documents::acces_documents) -> TO authenticated. Manquees par la passe 2026-05-11d (qui ne couvrait que 5 policies de 2026-05-11c). Neutralisees par leur USING ; saveur BASSE.
+- utilisateurs::auth_read_utilisateurs = SELECT TO authenticated USING(true) : tout authentifie lit toute la table utilisateurs. Connu BASSE, toujours present. Chantier securite a part.
+- Pan entier du schema NON VERSIONNE (cree hors db/migrations/) : tables coeur interventions/utilisateurs/organisations/occupants/rapports/acps + documents + rdv_attempts ; enums de base. Une derive sur ces objets n'est pas detectable par comparaison au repo. Optionnel : versionner un baseline.
+- A CONFIRMER (Foxo) : documents (+ enum document_type) et rdv_attempts (RLS active SANS aucune policy -> accessible au seul service-role = verrouillee/safe) — usage non documente dans nos notes.
+
+REFERENCE ENUMS DE BASE relevee en prod (doc 04 PERIME sur plusieurs) :
+- intervention_statut = nouvelle, attente, confirmee, realisee, rapport, cloturee, en_suspens (7)
+- intervention_type = Fuite canalisation, Fuite chauffage, Fuite infiltration, Surconsommation eau, Autre
+- intervention_priorite = normale, urgente
+- occupant_statut = attente, confirme, refuse
+- document_type = rapport, facture, photo, autre
+- user_role = 12 valeurs (admin, syndic, courtier, technicien, assurance, expert, entrepreneur, plombier, electricien, toiturier, chauffagiste, autre_metier)
+- factures.statut = brouillon, envoyee, payee, en_retard, annulee, accepte, refuse, expire (8)
+-> doc 04 a mettre a jour (hygiene doc).
+
+INVARIANTS INCHANGES : crons mails fermes. tsc + hook pre-push OK. Merge commit (jamais squash). Preversion Vercel = base/Drive/Gmail/emails de PROD. SQL via SQL Editor uniquement puis fichier archive. Les .sql de db/migrations/ ne sont re-executes par aucun runtime (commit doc/archive direct sur main acceptable).
+
+# État du projet FoxO — snapshot 2026-06-16 (suite 2) — Journal d'intervention LIVRÉ (PR #110)
+
+ÉTAT GIT : main = 4f65c57 (merge PR #110, branche feat/journal-intervention supprimée au merge). 3 commits applicatifs : 002f6ef, 14a40ed, 22599db. Ce snapshot = commit doc-only direct sur main par-dessus.
+
+CHANTIER : « Journal d'intervention » (item dette occupant_responses_log requalifié, validé Foxo). Constat d'entrée : intervention_timeline richement alimentée (~10 chemins d'écriture) mais AFFICHÉE NULLE PART — l'onglet « historique » du drawer = la récidive (HistoriquePanel : autres interventions par appartement/ACP sur 12 mois), PAS le journal d'événements. Le clic occupant depuis le portail (o/actions.ts) et accept-counter-proposal n'écrivaient que dans occupant_responses_log (jamais relu).
+
+LIVRÉ (PR #110, 3 commits, 0 SQL) :
+- 002f6ef : route GET /api/admin/interventions/[id]/timeline (lecture seule, garde admin createClient + getUser + isAdminUser -> 403 ; signature params: Promise<{id}> + await params). La route [id]/route.ts n'a pas de GET ; une route [id]/historique existe déjà (récidive) -> la nouvelle s'appelle /timeline.
+- 14a40ed : nouvel onglet « Journal » (6e) + JournalPanel dans InterventionsClient.tsx, calqué sur HistoriquePanel, tri récent->ancien, dates Europe/Brussels (helper local fmtJournalDate, icône lucide CalendarClock). Onglets drawer = dossier | suivi | documents | ia | historique | journal.
+- 22599db : écritures intervention_timeline côté réponses occupant (portail o/actions.ts — confirme/decline/counter — + accept-counter-proposal), best-effort, miroir de confirm-from-mail. occupant_responses_log conservé comme trace structurée.
+
+INVARIANTS : intervention_timeline = colonnes id, type, message, payload (jsonb), created_at, created_by (text nullable) ; désormais LUE via /timeline + onglet Journal ; le hard-delete d'une intervention purge sa timeline. occupant_responses_log = trace structurée non affichée, conservée pour analytics.
+
+À VALIDER EN USAGE RÉEL (empirique, non bloquant) : ouvrir une intervention admin -> onglet « Journal » -> vérifier rendu réel (tri, lisibilité des messages, dates Bruxelles).
+
+INVARIANTS INCHANGÉS : crons mails TOUJOURS fermés. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail/emails de PROD.
+
+PROCHAINS CHANTIERS (à décider) : audit cohérence migrations repo<->schéma prod (nouveau, valeur « sécurité », issu de la découverte Observabilité) ; audit qualité #3 (placeholder non défini, dernier de la dette) ; gros chantiers séquencés (audit produit+design, Analytics — pas avant données réelles, Facturation = dernier). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
+# État du projet FoxO — snapshot 2026-06-16 (suite) — drive_folder_id backfillé à la transmission rapport (PR #109)
+
+ÉTAT GIT : main = 4c3aaa0 (merge PR #109, merge commit, branche fix/drive-folder-id-rapport-dispatch). 1 commit applicatif : aa3f829. Ce snapshot = commit doc-only direct sur main par-dessus.
+
+CHANTIER : dette/coherence — item « drive_folder_id depuis l'upload rapport ». Dernier des 3 chemins de remplissage (apres flux mail confirm-and-create, planification #106, 1er upload photo #107).
+
+CONSTAT (audit lecture seule) : dispatch.ts (dispatchRapportToSyndic) upload PDF+docx via uploadRapport et persiste les IDs dans la table rapports, mais jamais interventions.drive_folder_id. Or drive_folder_id EST lu (documents portail tech, assistant foxo-read, analyse PJ, lien Drive des events Agenda) selon le schema « drive_folder_id en priorite, sinon resolveInterventionFolderByName en secours ». Le remplir = chemin rapide/fiable ; null = fallback par nom (rien de casse, juste moins robuste).
+
+LIVRE (PR #109, 1 fichier, +28/-1, 0 SQL) : src/lib/rapport/dispatch.ts — import resolveInterventionFolderByName + bloc backfill best-effort APRES l'envoi email et le marquage 'transmis', AVANT la cloture auto. Lit drive_folder_id ; si null -> resolveInterventionFolderByName(built.ref, year) + UPDATE avec garde .is('drive_folder_id', null). Idempotent, non bloquant (try/catch -> console.warn). Cas normal (photos avant rapport -> deja rempli par #107) = aucun appel Drive. Calque exact de #107.
+
+PLACEMENT verifie (relecture diff independante par clone) : le bloc est strictement apres la transmission reussie (return anticipe si l'email echoue) -> zero impact sur la transmission syndic. tsc vert (hook pre-push). Merge sur la foi du diff + tsc (zone sensible, pas de test E2E pour eviter un envoi reel a un syndic en prod).
+
+DECOUVERTE (cadrage prochain chantier) : intervention_timeline est richement alimentee (~10 chemins d'ecriture) mais AFFICHEE NULLE PART (seule lecture = purge au hard-delete). L'onglet 'historique' du drawer detail (InterventionsClient.tsx, HistoriquePanel) affiche la RECIDIVE (autres interventions par appartement/ACP sur 12 mois), PAS le journal d'evenements. Le clic occupant depuis le portail (o/actions.ts) et accept-counter-proposal ecrivent dans occupant_responses_log (jamais relu) mais PAS dans intervention_timeline -> invisibles.
+
+PROCHAIN CHANTIER (validE Foxo : OUI voir les reponses occupant dans l'historique) = « Journal d'intervention » : (A) route GET timeline + affichage (nouvel onglet « Journal » du drawer) ; (B) completer les ecritures timeline (o/actions.ts 3 reponses confirme/decline/counter + accept-counter-proposal, miroir de confirm-from-mail). occupant_responses_log reste comme trace structuree.
+
+BACKLOG « dette/coherence » restant : audit qualite #3 (placeholder non defini, dernier).
+
+INVARIANTS INCHANGES : crons mails fermes. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimee.
+
+# État du projet FoxO — snapshot 2026-06-16 (Observabilité IA — audit runAgent + alignement CHECK agent_logs)
+
+ÉTAT GIT : main avance de 2 commits doc/archive (aucun code applicatif modifié) — (1) archive de db/migrations/2026-06-16_align_agent_logs_agent_name.sql, (2) ce snapshot. HEAD = ce commit doc (voir git log). Ni branche ni PR (commits directs sur main, catégorie doc/archive : le .sql archivé n'est ré-exécuté par aucun runtime).
+
+CHANTIER : Observabilité IA (doc 02 §10). Choix Foxo de la session. Démarré par un audit 100% lecture seule (clone du repo public + lecture code/migrations + 2 requêtes SQL lecture seule en prod). Verdict : le CODE était déjà conforme, mais la PROD avait un trou silencieux.
+
+CONSTAT CÔTÉ CODE (conforme) :
+- Wrapper runAgent COMPLET (src/lib/observability/agent-logger.ts) : mesure tokens/cout/duree, insert agent_logs, distingue canonical/utility, gere success/partial/error, impose resumes sans PII (doc 02 §8).
+- 11 appels Anthropic dans tout src/ -> 11 passent par runAgent. ZERO appel hors wrapper, zero appel HTTP brut. (Les 3 fichiers src/lib/assistant/tools/* n'importent qu'un type Anthropic, aucun appel.) Le typage AnthropicUsageEnvelope + le tsc du hook pre-push garantissent que chaque run() remonte son usage -> pas de tokens a zero par oubli.
+- agentKind correct : les 5 utilitaires (draft_reply, sms_compose, notes_frais_extract, assistant_chat admin+tech) declarent 'utility' ; canoniques en 'canonical'.
+
+TROU CÔTÉ PROD (corrigé ce jour) :
+- Le CHECK agent_logs.agent_name de PROD etait DESALIGNE du code. Il autorisait une convention perimee (calendar_suggest, sms_draft, email_draft -- emise par AUCUN code) et REFUSAIT 4 agents reellement emis : analyse_photo, draft_reply, sms_compose, notes_frais_extract.
+- runAgent avalant insertError (console.error, pas de throw) -> ces 4 agents perdaient SILENCIEUSEMENT leurs logs -> exigence doc 02 §10 (logging obligatoire dans agent_logs) NON satisfaite pour eux.
+- Preuve empirique (SELECT prod) : sur 18 logs, seuls 4 noms presents (triage_mail, analyse_pj, rapport, assistant_chat) = exactement l'intersection des conventions. ZERO log analyse_photo malgre le test Rapport v2 du 11/06 (3 logs rapport ce jour-la) -> ses logs vision etaient rejetes.
+
+CORRECTIF APPLIQUÉ EN PROD (Supabase SQL Editor, AVANT archivage) :
+- migration 2026-06-16_align_agent_logs_agent_name.sql : DROP de toute contrainte CHECK sur agent_name (boucle PL/pgSQL, nom prod inconnu) + ADD CHECK canonique = les 9 valeurs de AgentName. Idempotente, aucune donnee touchee.
+- Verifie post-application : le nouveau CHECK liste bien les 9 valeurs (triage_mail, analyse_pj, rapport, analyse_photo, draft_reply, sms_compose, notes_frais_extract, assistant_chat, briefing).
+- Colonne agent_kind : presente en prod, CHECK canonical/utility valide implicitement (9 logs assistant_chat 'utility' deja passes). Non touchee.
+
+DÉCOUVERTE DE FOND (backlog) :
+- Les migrations VERSIONNEES du repo (2026-05-25_add_agent_kind..., 2026-06-04_extend...briefing) posaient draft_reply/sms_compose/notes_frais_extract -- donc NE refletaient PAS la prod ET oubliaient analyse_photo. Preuve qu'un SQL manuel NON versionne a ete applique en prod par le passe, contournant la discipline "SQL Editor d'abord PUIS commit". A traiter : audit de coherence migrations repo <-> schema prod (large, hors scope immediat). Le repo est desormais realigne pour agent_logs.agent_name.
+
+RESTE À VALIDER EN USAGE RÉEL (empirique, non bloquant) : declencher chacun des 4 agents debloques et verifier qu'une ligne agent_logs apparait -- en particulier generer un rapport AVEC photos (-> log analyse_photo), un brouillon de mail (draft_reply), un SMS (sms_compose), une extraction de note de frais (notes_frais_extract).
+
+INVARIANTS INCHANGÉS : crons mails TOUJOURS fermes volontairement (reencodage manuel en cours ; rallumage = toute derniere etape, precede du marquage en lu). Preversion Vercel = base/Drive/Gmail/emails de PROD. tsc --noEmit + hook pre-push : sans objet ici (aucun .ts modifie ; les .sql ne sont pas compiles).
+
+PROCHAINS CHANTIERS POSSIBLES (inchanges) : dette/coherence restante (occupant_responses_log jamais relu ; drive_folder_id depuis upload RAPPORT ; audit qualite #3 ; audit coherence migrations<->prod ci-dessus) ; gros chantiers sequences (audit produit+design, Analytics, Facturation = dernier). Jalon cle = faire tourner la plateforme EN VRAI au quotidien.
+
+## SNAPSHOT 2026-06-15 (suite 4) — Double notif confirmée occupant : CORRIGÉ (PR #108)
+
+ÉTAT GIT : main = a6b63a6 (merge PR #108, merge commit, branche fix/double-notif-confirmee-occupants supprimée). 1 commit : f080c2d.
+
+CONTEXTE : chantier « double notif confirmee » (diagnostiqué snapshot suite 2 / PR #106) — DÉSORMAIS FAIT. Cause : notifyConfirmee (src/lib/email/notifications.ts, déclenché par notifyStatusChange au passage en 'confirmee') renvoyait l'email « Confirmation de présence » à TOUS les occupants à chaque appel, sans regarder token_sent_at, alors que notifyOccupantsForIntervention (helper : création depuis mail + relance) est idempotent sur cette clé → un occupant déjà prévenu était re-sollicité au passage en confirmée.
+
+DÉCISION MÉTIER (Foxo, 2026-06-15) : PAS de relance automatique pour un occupant déjà prévenu, Y COMPRIS en cas de REPROGRAMMATION. La relance MANUELLE reste un override (bouton / route notify-occupants → notifyOccupantsForIntervention envoie aux occupantIds explicites SANS filtrer token_sent_at — vérifié).
+
+LIVRÉ (1 fichier, 4 éditions, +17/-2, 0 SQL) : notifications.ts. (1) token_sent_at ajouté au type Context.occupants ; (2) ajouté au select des occupants dans loadContext ; (3) en tête de la boucle occupants de notifyConfirmee : déclaration occMarkClient = createAdminClient() + « if (occ.token_sent_at) continue; » (saute les déjà-prévenus) ; (4) après sendOne : UPDATE occupants.token_sent_at = now() (best-effort, try/catch + console.warn). Le mail PARTENAIRE « Intervention confirmée » (ACP/syndic) est INCHANGÉ (pas la source de la double). Garde-fou sûr : on saute un occupant UNIQUEMENT si token_sent_at est déjà rempli, et on ne le remplit QU'APRÈS un envoi → impossible de rater un occupant jamais prévenu. tsc vert. Merge sur la foi du diff (préversion = emails prod → pas d'E2E).
+
+À VALIDER EN USAGE RÉEL : confirmer un dossier dont les occupants ont déjà reçu la demande → ils ne doivent PAS en recevoir une seconde. Re-notif volontaire après reprogrammation = bouton « relancer ».
+
+NB ARCHITECTURE (mémoire) : notifyConfirmee déclenché par admin/actions.ts:64 (maj statut générique) et planning/actions.ts:451 (planification — seul notifieur occupant de ce flux ; occupants créés avec token mais token_sent_at NULL → envoyés une fois puis marqués). Helper idempotent déclenché par confirm-and-create:501 (filtre token_sent_at null), assistant execute:64, route notify-occupants:38 (occupantIds explicites, pas de filtre = override). confirm-mail / accept-counter-proposal / calendar / calendar-import écrivent confirmee SANS notifier.
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES : drive_folder_id depuis upload rapport (BASSE priorité, touche dispatch.ts sensible) ; occupant_responses_log jamais relu ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs (existent — vérifier le wrapper) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
+## SNAPSHOT 2026-06-15 (suite 3) — Upload photo : backfill de drive_folder_id (PR #107)
+
+ÉTAT GIT : main = 69b25cb (merge PR #107, merge commit, branche fix/upload-photo-persist-drive-folder-id supprimée). 1 commit : 6ce226c.
+
+CONTEXTE : suite directe de PR #106 — fermeture du « second trou » du chantier drive_folder_id (les chemins d'upload n'écrivaient pas drive_folder_id ; uploadPhoto/uploadRapport assurent le dossier en interne via ivF.id mais ne le renvoient pas).
+
+LIVRÉ (1 fichier, 4 éditions, +22/-2, 0 SQL) : src/app/api/tech/upload-photo/route.ts. Après un upload photo réussi (uploadPhoto a déjà assuré le dossier Drive de l'intervention), si interventions.drive_folder_id est NULL : résolution par nom via resolveInterventionFolderByName(ref, year) puis UPDATE. Les 4 éditions = (1) import resolveInterventionFolderByName ; (2) ajout drive_folder_id au select de verifyTechOwnsIntervention ; (3) ajout drive_folder_id au type IvJoined ; (4) bloc backfill après la garde !up.ok. Best-effort (échec → console.warn, non bloquant) + DOUBLEMENT idempotent (garde if (!ivT.drive_folder_id) qui évite l'appel Drive quand déjà set + filtre .is('drive_folder_id', null) côté UPDATE en garde-fou anti-race). Additif : consommateurs géraient déjà le cas NULL. tsc vert. Merge sur la foi du diff (upload réel = vrai fichier/dossier Drive → pas d'E2E).
+
+BACKLOG : « drive_folder_id non persisté » = QUASI CLOS. Couverts : flux mail (déjà avant), planification (PR #106), upload photo (PR #107). NON couvert (suivi facultatif, BASSE priorité) : chemins d'upload RAPPORT — rapport-docx/route.ts:159, dispatch.ts:200+220, lib/drive.ts:79. dispatch.ts = chemin de transmission syndic, zone SENSIBLE → ne pas y toucher à la légère ; de toute façon le rapport arrive après les photos dans le workflow, donc drive_folder_id sera en général déjà backfillé par PR #107 au moment du rapport.
+
+CHANTIER DÉDIÉ À VENIR — « double notif confirmee » (diagnostiqué, prêt) : voir snapshot suite 2 (PR #106) pour le diagnostic complet. Résumé : notifyConfirmee renvoie la demande de confirmation à TOUS les occupants sans regarder token_sent_at, alors que notifyOccupantsForIntervention est idempotent dessus → double. Décision à trancher avant de coder : re-notifier ou non lors d'une reprogrammation. NE PAS retirer la boucle occupant de notifyConfirmee (seul notifieur occupant du flux planification).
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES : double notif confirmee (dédié, cf. suite 2) ; drive_folder_id depuis upload rapport (BASSE priorité) ; occupant_responses_log jamais relu ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs (existent — vérifier le wrapper) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
+## SNAPSHOT 2026-06-15 (suite 2) — Planification : persistance de drive_folder_id (PR #106)
+
+ÉTAT GIT : main = 17430c1 (merge PR #106, merge commit, branche fix/planning-persist-drive-folder-id supprimée). 1 commit : a0bd373.
+
+CONTEXTE : item de dette « drive_folder_id non persisté ». Diagnostic (audit lecture seule) : le flux MAIL (confirm-and-create) persistait DÉJÀ drive_folder_id (create dossier Drive → folder_id → UPDATE, route.ts l.290-299). Le flux PLANIFICATION (createInterventionFromSlot, planning/actions.ts) créait bien le dossier Drive (structure RAPPORT/{annee}/{ref + adresse}/photos/) mais JETAIT l'ID retourné par createInterventionFolder → interventions.drive_folder_id restait NULL pour ces dossiers.
+
+LIVRÉ (1 fichier, +8/-1, 0 SQL) : planning/actions.ts — la ligne d'appel createInterventionFolder devient capture du DriveFolderResult + UPDATE de drive_folder_id (.eq id interventionId), calqué exactement sur confirm-and-create. Reste DANS le try/catch Drive existant → best-effort (échec UPDATE → console.warn, non bloquant). Additif : les consommateurs (docs tech, assistant foxo-read, lien Drive du calendrier, analyse-pj/drive.ts) géraient déjà le cas NULL via fallback resolveInterventionFolderByName. Bénéfice : lien Drive direct dans le calendrier + plus de recherche par nom pour ces dossiers. tsc vert (narrowing DriveFolderResult OK, admin/interventionId en scope). Merge sur la foi du diff (pas de test E2E : créer une vraie intervention = vrai dossier Drive + vrais emails).
+
+BACKLOG : « drive_folder_id non persisté » = PARTIELLEMENT FAIT (flux planification fermé).
+SECOND TROU RESTANT (correctif suivant, hors scope) : chemins d'UPLOAD (uploadPhoto/uploadRapport via getPhotosFolder dans google-drive.ts) — getPhotosFolder ne renvoie que l'ID du sous-dossier photos, pas l'ID du dossier parent → drive_folder_id pas écrit depuis l'upload. Touche des helpers Drive partagés → chantier dédié. Workaround toujours en place : resolveInterventionFolderByName(ref, year).
+
+CHANTIER DÉDIÉ À VENIR — « double notif confirmee » (DIAGNOSTIQUÉ cette session, prêt à attaquer) :
+- Cause : deux systèmes envoient la demande de confirmation aux occupants sans se coordonner. (1) notifyConfirmee (src/lib/email/notifications.ts, déclenché par notifyStatusChange au passage en statut confirmee) renvoie à TOUS les occupants à chaque appel, SANS regarder token_sent_at (loadContext, select l.99, ne charge même pas ce champ). (2) notifyOccupantsForIntervention (src/lib/occupants/notify-occupants.ts) est idempotent (cible token_sent_at IS NULL, écrit token_sent_at après envoi l.241-246). → un occupant déjà prévenu par (2) est re-sollicité par (1) au passage en confirmee.
+- Déclencheurs de notifyConfirmee : admin/actions.ts:64 (maj statut générique) et planning/actions.ts:451 (planification). Déclencheurs du helper idempotent : confirm-and-create:501, assistant execute:64, route notify-occupants:38. NB : confirm-mail, accept-counter-proposal, calendar/events, calendar-import écrivent confirmee SANS notifier.
+- PIÈGE : NE PAS retirer la boucle occupant de notifyConfirmee telle quelle — c'est le SEUL notifieur occupant du flux planification (createInterventionFromSlot insère les occupants avec token mais token_sent_at NULL, puis compte sur notifyConfirmee).
+- DÉCISION À TRANCHER AVANT DE CODER : lors d'une REPROGRAMMATION, faut-il re-notifier l'occupant (nouvelle date) ? Un simple garde-fou token_sent_at corrigerait la double mais supprimerait cette re-notif légitime. Piste propre : centraliser la notif occupant dans le helper idempotent + déclenchement explicite à la reprogrammation. Multi-fichiers, zone sensible (emails réels, préversion = prod → merge sur diff, pas d'E2E).
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES : double notif confirmee (dédié, cf. ci-dessus) ; drive_folder_id depuis l'upload (cf. ci-dessus) ; occupant_responses_log jamais relu ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs (existent — vérifier le wrapper) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
+## SNAPSHOT 2026-06-15 (suite) — Sidebar : retrait du code mort « badge Alertes » mobile (PR #105)
+
+ÉTAT GIT : main = 6bd516c (merge PR #105, merge commit, branche chore/sidebar-remove-inert-alertes-badge supprimée). 1 commit : d5d0407.
+
+CONTEXTE : item cosmétique non bloquant noté au snapshot suite 5. Depuis la PR #103, /admin/alertes n'est plus dans BOTTOM_NAV (barre du bas mobile) → la pastille « Alertes » du rendu mobile de components/Sidebar.tsx ne pouvait plus jamais s'afficher (aucun item mobile n'a ce href).
+
+LIVRÉ (1 fichier, -16, 0 SQL) : suppression du bloc conditionnel inerte « item.href === '/admin/alertes' && alertCount > 0 » DANS LE RENDU MOBILE uniquement (bloc à style inline position:absolute, à l'intérieur de <nav style={S.bottomNav}>). Effet : aucun changement visible (la pastille ne s'affichait déjà jamais) — pur ménage. La pastille « À valider » adjacente suit désormais directement le label.
+
+NON TOUCHÉ (vérifié sur main) : la prop alertCount (toujours utilisée par la pastille DESKTOP, l.293-294), l'import Bell (toujours dans NAV_MAIN), la pastille validation. tsc --noEmit vert (confirme alertCount non orphelin). Merge sur la foi du diff (pure suppression de code inatteignable → pas de test E2E).
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée. components/Sidebar.tsx est à la RACINE du repo (alias @components/* → ./components/*), PAS dans src/.
+
+BACKLOG COSMÉTIQUE ÉLIMINÉ : « code inerte pastille Alertes dans le rendu mobile de Sidebar.tsx » = FAIT.
+
+PROCHAINS CHANTIERS POSSIBLES (inchangés) : dette/cohérence restante (double notif confirmee ; occupant_responses_log jamais relu ; drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs qui EXISTENT — vérifier l'état du wrapper avant de (re)faire) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé = faire tourner la plateforme EN VRAI au quotidien.
+
+## SNAPSHOT 2026-06-15 — Correctif autocomplete : exclure les interventions à la corbeille (PR #104)
+
+ÉTAT GIT : main = d4f9b4e (merge PR #104, merge commit, branche fix/search-exclure-corbeille supprimée). 1 commit : 218499b.
+
+CONTEXTE : item de backlog identifié au snapshot suite 5 (et lors de la PR #101). La route src/app/api/admin/interventions/search/route.ts (autocomplete « Lier à un dossier existant », cas 2 de MailAnalyseActions) avait LE MÊME oubli de filtre que la page Alertes : elle excluait .neq('statut','cloturee') mais PAS les interventions soft-deletées. Une recherche pouvait donc faire remonter un dossier mis à la corbeille.
+
+LIVRÉ (1 fichier, +1, 0 SQL) : ajout de .is('deleted_at', null) dans la requête interventions, entre .select('id, ref, adresse') et .or(...). Même famille que PR #101 (Alertes) et PR #98 (badge validation). Effet : les dossiers à la corbeille ne remontent plus dans l'autocomplete. Audit-first : clone repo + lecture du fichier + vérif qu'UNE seule route est concernée (les routes [id]/… opèrent sur un dossier précis déjà connu → pas de surgissement). tsc --noEmit vert ; merge sur la foi du diff (filtre de lecture seul, aucune écriture ni envoi → pas de test E2E préversion).
+
+BACKLOG ÉLIMINÉ : « search/route.ts filtre deleted_at » = FAIT.
+
+DÉFENSE EN PROFONDEUR RESTANTE (secondaire, non fait) : la route [id]/lier/route.ts (rattachement effectif) pourrait vérifier que le dossier ciblé n'est pas soft-deleté. Non prioritaire car la recherche ne propose plus de dossier en corbeille.
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+PROCHAINS CHANTIERS POSSIBLES (inchangés) : dette/cohérence restante (double notif confirmee ; occupant_responses_log jamais relu ; drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA runAgent + tables agent_logs/automation_jobs qui EXISTENT déjà — vérifier l'état du wrapper avant de (re)faire) ; cosmétique non bloquant (code inerte pastille « Alertes » dans le rendu mobile de Sidebar.tsx) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation). Jalon clé qui débloque Analytics/Facturation = faire tourner la plateforme EN VRAI au quotidien (triage, RDV, rapports, transmission syndic, relances).
+
+## SNAPSHOT 2026-06-14 (suite 5) — Page Interventions admin = déjà livrée (PR #96) + barre du bas mobile ajustée (PR #103)
+
+ÉTAT GIT : main = 1bd1f78 (merge PR #103, merge commit, 1 commit, branche feat/mobile-bottomnav-interventions supprimée). 1 commit : f9d3b5b.
+
+CHANTIER « page Interventions admin dédiée » (demande Foxo 13/06) = ÉTAIT DÉJÀ FAIT (livré PR #96). Audit-first : src/app/admin/interventions/page.tsx liste TOUTES les interventions (deleted_at null, tri created_at desc) via <InterventionsClient listOnly> (liste + filtres, sans widgets dashboard) ; bouton « Créer une intervention » (CreateInterventionButton → ColdInterventionModal, router.refresh) déjà en tête de page ; entrée sidebar « Interventions » (ClipboardList) déjà présente dans NAV_MAIN (components/Sidebar.tsx, sous « Tableau de bord »). RIEN à reconstruire.
+
+SEUL AJUSTEMENT LIVRÉ (PR #103, 1 fichier components/Sidebar.tsx, +6/-7, 0 SQL) : BOTTOM_NAV (barre de navigation MOBILE) passe de 6 à 5 items → ajout Interventions (ClipboardList), retrait Techniciens (Wrench) et Alertes (Bell), à la demande de Foxo. Ordre : Tableau · Interventions · À valider · Planning · Assistant. Bell/Wrench restent importés (toujours utilisés dans NAV_MAIN desktop) → pas d'import inutilisé.
+
+PIÈGES / NOTES :
+- Sur mobile, l'<aside> desktop (NAV_MAIN complet) est masqué ; seule la barre du bas (BOTTOM_NAV) est rendue → les pages hors barre (Clients, Mails, Comptabilité, Utilisateurs, Paramètres, Observabilité, Syndics/Courtiers/Experts/Métiers) ne sont pas atteignables au pouce (design existant, pas un bug). Pas de menu hamburger mobile.
+- Code INERTE laissé : le rendu mobile garde une condition de pastille « Alertes » (item.href === '/admin/alertes') désormais sans effet (Alertes retiré de BOTTOM_NAV). Nettoyage cosmétique possible, non bloquant.
+- components/Sidebar.tsx est à la RACINE du repo (alias @components/* → ./components/*), PAS dans src/.
+
+INVARIANTS INCHANGÉS : crons mails FERMÉS. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+LOT FINITIONS + PAGE INTERVENTIONS = TERMINÉS. Prochains chantiers possibles : dette/cohérence (search/route.ts filtre deleted_at ; double notif confirmee ; occupant_responses_log jamais relu ; drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA runAgent+agent_logs) ; gros chantiers séquencés (audit produit+design, Analytics, Facturation) — à n'entamer qu'une fois la plateforme tournant au quotidien.
+
+## SNAPSHOT 2026-06-14 (suite 4) — Ménage base : doublon 2026-000 purgé + table orpheline public.timeline supprimée (SQL direct, pas de PR)
+
+ÉTAT GIT : aucun changement code (main = 7686658 + snapshots doc). Opération SQL directe en Supabase. Sauvegarde JSON manuelle prise AVANT (intervention purgée + ses enfants + public.timeline complète, conservée côté Foxo).
+
+CONTEXTE : 2 lignes partageaient ref='2026-000' — Ligne 1 (330adf15…, confirmee, déjà à la corbeille depuis le 11/06) et Ligne 2 (d03d27f0…, cloturee, vivante = bac à sable E2E). public.timeline = vestige (FK intervention_id CASCADE) remplacé par intervention_timeline, référencé nulle part dans le code.
+
+EXÉCUTÉ (transaction begin/commit, SQL Supabase) :
+1. drop table if exists public.timeline.
+2. Créneau de la Ligne 1 libéré (FK NO ACTION → sinon blocage) ; sms_logs Ligne 1 supprimés (défensif).
+3. delete interventions Ligne 1 → CASCADE a effacé ses 5 photos + 1 rapport + timeline.
+4. Ligne 2 CONSERVÉE.
+VÉRIFIÉ : ligne1=0, ligne2=1, total ref 2026-000=1, public.timeline=null. Conforme.
+
+PIÈGE : la route DELETE /api/admin/interventions/[id] refuse les statuts confirmee/cloturee → ménage fait en SQL direct (même cascade manuelle reproduite : libérer créneau + sms_logs avant delete). FK vers interventions : majorité CASCADE ; NO ACTION sur creneaux_disponibles / factures / sms_logs.
+
+LOT « FINITIONS RAPIDES » = TERMINÉ : autocomplete syndic (classé, déjà satisfait), Phase 4 mails (PR #100), géocodage ACP (PR #102), ménage 2026-000 + public.timeline (ce snapshot).
+
+BACKLOG : src/app/api/admin/interventions/search/route.ts filtre deleted_at manquant (à traiter avec « page Interventions dédiée ») ; cohérences (double notif confirmee, occupant_responses_log jamais relu, drive_folder_id non persisté) ; audit qualité #3 ; Observabilité IA (runAgent + agent_logs) ; Ops rallumage crons mails = TOUTE DERNIÈRE étape.
+
+## SNAPSHOT 2026-06-14 (suite 3) — Géocodage des ACP créées à la main CLOSE (PR #102)
+
+ÉTAT GIT : main = 7686658 (merge PR #102, merge commit, 2 commits préservés, branche fix/acp-geocodage supprimée). 2 commits : e749638 (géocodage createAcp / création à froid) → 8608de0 (géocodage route POST /api/admin/acps / création rapide depuis le drawer syndic).
+
+OBJECTIF : une ACP créée à la main n'apparaissait pas sur la carte admin (src/app/admin/page.tsx — pas de pin si acps.lat/lng absents) quand l'adresse n'était pas choisie via l'autocomplete → coordonnées NULL.
+
+DIAGNOSTIC (audit lecture seule, clone aligné sur prod) :
+- Helper geocodeAddress(adresse) (src/lib/geo/geocode.ts) EXISTE DÉJÀ : Nominatim/OpenStreetMap, bornage Belgique (countrycodes=be + viewbox + bounded), User-Agent FoxO, best-effort (try/catch → null, jamais d'exception). Aucune dépendance npm.
+- Il n'était importé QUE dans planning/actions.ts (proposeSlotForIntervention, scoring de créneau — PAS pour persister des coordonnées d'ACP).
+- Deux chemins de création d'ACP (table acps, celle que lit la carte) sans géocodage : createAcp (src/app/admin/interventions/actions.ts, « + nouvelle ACP » du modal à froid) ne posait AUCUNE coordonnée ; route POST /api/admin/acps (création rapide drawer syndic) gardait les coordonnées reçues mais ne géocodait pas en secours.
+
+LIVRÉ (tout en prod via PR #102, 2 fichiers, +33/-0, 0 SQL) :
+- src/app/admin/interventions/actions.ts : import geocodeAddress ; dans createAcp, AVANT l'insert, géocodage best-effort à partir de [input.adresse, input.code_postal, input.ville] → pose base.lat/lng si Nominatim répond. Le retry 42703 (colonne syndic_id absente) conserve lat/lng (présents dans ...safe).
+- src/app/api/admin/acps/route.ts : import geocodeAddress ; AVANT l'insert, si payload.lat == null || payload.lng == null, géocodage à partir de [payload.adresse, payload.code_postal, payload.ville] → pose payload.lat/lng si réponse. Les coordonnées de l'autocomplete (cas nominal) restent prioritaires (géocodage seulement si absentes).
+
+DÉCISIONS / PIÈGES :
+- Comportement best-effort STRICTEMENT additif : échec de géocodage ou adresse vide → lat/lng restent absents/null, exactement comme avant (pas de pin, pas d'erreur). Aucune régression.
+- Latence : un appel Nominatim (~300-800 ms) ajouté aux créations manuelles d'ACP (rares) — acceptable. Politique Nominatim 1 req/s respectée.
+- Table clients (facturation, type='acp') DISTINCTE de acps : NON géocodée, hors scope — la carte lit acps. Consolidation acps/clients = sujet séparé connu.
+
+INVARIANTS INCHANGÉS : crons mails toujours FERMÉS (NE PAS rallumer). tsc --noEmit vert + hook pre-push OK. Merge commit (jamais squash), branche supprimée. Aucune migration.
+
+VALIDATION : diff relu indépendamment (clone + git diff origin/main...branche), conforme. tsc vert à chaque commit. Pas de test E2E artificiel — vérification en usage réel (créer une ACP à la main → pin sur la carte).
+
+BACKLOG (non bloquant) :
+- [RECOLLÉ — perdu lors du rebuild doc 000632f, identifié au snapshot PR #101] src/app/api/admin/interventions/search/route.ts a le MÊME oubli de filtre .is('deleted_at', null) que la page Alertes (corrigée en PR #101) → une recherche peut faire remonter des dossiers soft-deletés. À traiter avec le chantier « page Interventions dédiée ».
+- Ménage doublons réf 2026-000 + ancienne table orpheline public.timeline (DESTRUCTIF → export JSON manuel AVANT, Supabase Free sans backup auto). PROCHAINE finition prévue.
+- Cohérences : double notif confirmee, occupant_responses_log jamais relu, drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA (runAgent + agent_logs).
+- Produit séparé (pas un bug) : badge « Mails » restreint aux seules demandes d'intervention.
+- Ops : rallumer les crons mails = TOUTE DERNIÈRE étape, précédée du marquage « lu » des mails déjà traités.
+
+## SNAPSHOT 2026-06-14 (PR #101) — Alertes : exclure les interventions soft-deletées (mergée HORS session)
+
+ÉTAT GIT : main = cee3ef0 (merge PR #101, merge commit, branche fix/alertes-exclure-corbeille). 1 commit : ff03824.
+
+NOTE : PR mergée INDÉPENDAMMENT de la conversation en cours (découverte au moment du commit doc des finitions Phase 4) — documentée ici pour garder le log complet, PAS réalisée dans cette session.
+
+LIVRÉ (1 fichier, +1, 0 SQL) : src/app/admin/alertes/page.tsx — ajout de .is('deleted_at', null) à la requête interventions de la page Alertes, AVANT le filtre .or(statut en_suspens/nouvelle/rapport). Effet : les interventions soft-deletées ne remontent plus dans les alertes admin. Même famille que les fix soft-delete récents (badge validation, PR #98).
+
+INVARIANTS : crons mails fermés. tsc + hook pre-push OK (PR mergée).
+
+## SNAPSHOT 2026-06-14 (suite 2) — Finitions Phase 4 mails CLOSE (PR #100) + Ops Netlify débranché + finition « autocomplete syndic » classée
+
+ÉTAT GIT : main = 2c8f23f (merge PR #100, merge commit, 2 commits préservés, branche fix/phase4-mails-finitions supprimée). 2 commits : 0fc2819 (matching réponse occupant sur le dernier message entrant) → 5881dc1 (refetch panneau réponse occupant au changement de dossier lié). [PR #101 alertes mergée ensuite → voir snapshot ci-dessus.]
+
+OBJECTIF : deux finitions « Phase 4 mails » non bloquantes, regroupées en 1 PR.
+
+DIAGNOSTIC (audit lecture seule : clone du repo + relecture diff) :
+- Correctif A — auto-confirmation réponse occupant (src/app/api/admin/mails/analyse-deep/route.ts) : l'appel matchOccupantResponse recevait expediteur: messages[0]?.from. Les messages d'un thread Gmail (getEmailThread, threads.get?format=full) sont en ordre chronologique CROISSANT → messages[0] = le plus ancien = NOTRE demande de confirmation sortante (info@foxo.be), jamais la réponse de l'occupant. Le niveau 'sur' s'obtient quand email expéditeur == email d'un occupant unique → comparé à notre propre adresse, il ne pouvait JAMAIS se déclencher : l'auto-confirmation par email était de facto MORTE.
+- Correctif B — panneau OccupantResponsePanel (src/app/admin/mails/FicheDossierCard.tsx) : monté avec key={analyse.thread_id}, donc refetch uniquement au changement de MAIL. Re-relier un mail à une AUTRE intervention (sans changer de mail) ne changeait pas thread_id → key identique → match périmé (occupants de l'ancien dossier).
+
+LIVRÉ (tout en prod via PR #100, 2 fichiers, +23/-3, 0 SQL) :
+- analyse-deep/route.ts : import parseSenderEmail ajouté ; nouvelle fonction module lastIncomingFrom(msgs) → renvoie le `from` du DERNIER message entrant (parcours depuis la fin, saute les expéditeurs @foxo.be / .foxo.be, fallback prudent sur le dernier message) ; expediteur du matcher passé de messages[0]?.from à lastIncomingFrom(messages). La ligne IDENTIQUE messages[0]?.from des métadonnées d'affichage (sujet/expediteur/recu_le, ~l.709) LAISSÉE INTACTE volontairement.
+- FicheDossierCard.tsx : key du <OccupantResponsePanel> passée de analyse.thread_id à `${analyse.thread_id}:${analyse.dossier_match_id ?? 'none'}`.
+
+CHANGEMENT DE COMPORTEMENT ASSUMÉ (correctif A) : l'auto-confirmation par email (badge « confirmé automatiquement — email vérifié », confirmOccupantFromMail source 'mail_auto') peut désormais réellement se déclencher quand un occupant répond depuis son email exact et unique sur le dossier. Le matcher reste prudent : tout autre niveau (probable/ambigu/refus_contre) part en validation manuelle. Aucune confirmation silencieuse hors niveau 'sur'.
+
+PIÈGE TRAITÉ : la ligne expediteur: messages[0]?.from apparaît DEUX FOIS dans analyse-deep (l.709 métadonnées = à garder ; l.764 input matcher = à corriger), texte identique à l'indentation près → remplacement ancré sur le bloc multi-lignes (occupantCible/occupants) pour ne toucher que le bon.
+
+INVARIANTS INCHANGÉS : crons mails toujours FERMÉS (NE PAS rallumer). Préversion = base/Drive/Gmail de PROD. tsc --noEmit vert + hook pre-push OK. Merge commit (jamais squash), branche supprimée.
+
+VALIDATION : diff relu indépendamment (clone + git diff origin/main...branche), conforme. tsc vert à chaque commit. Pas de test E2E préversion — décision assumée : éviter une mutation prod pour 2 correctifs ciblés déjà vérifiés par diff + tsc.
+
+── OPS & FINITIONS NON-CODE de cette session ──
+- Chantier #5 « Débrancher les checks Netlify parasites » FAIT (aucun code, aucune PR). Audit via connecteur Netlify : 2 sites sur le compte (foxo-track, foxo-rdv) = mini-pages déployées À LA MAIN (track.html / r.html / index.html), AUCUN lien Git, sans rapport avec foxo-app. Les 4 checks rouges (Deploy Preview + Header/Redirect/Pages rules) étaient posés via l'AUTORISATION OAuth Netlify sur le compte GitHub foxotech1-netizen (Netlify ABSENT de « Installed GitHub Apps » → connexion OAuth historique, pas GitHub App). CORRECTION : OAuth Netlify révoqué (GitHub → Settings → Applications → Authorized OAuth Apps → Netlify → Revoke). Effet : plus aucun check Netlify sur les futures PR. Réversible. Sites foxo-track/foxo-rdv et prod Vercel non affectés (Vercel reste dans Installed GitHub Apps).
+- Finition « autocomplete syndic sur toutes les organisations » CLASSÉE (déjà satisfaite, aucun code). Les DEUX modals de création (Planning CreateInterventionModal + création à froid ColdInterventionModal) appellent déjà searchOrganisations(q) SANS filtre → cherchent déjà dans TOUTES les organisations. Seul appel filtré (InterventionsClient l.4146, { types: ['courtier','expert'] }) = mandater courtier/expert = VOULU. Seule restriction type=syndic restante = « Syndic gestionnaire » d'une ACP (ClientForm, /api/admin/organisations?type=syndic) = correct métier. Création d'ACP à la volée (ColdInterventionModal) fixe syndic_id = syndic demandeur (défaut sain). Foxo confirme aucun blocage concret → rien à corriger.
+
+BACKLOG (non bloquant) :
+- Géocodage des ACP créées à la main (lat/lng) — PROCHAINE finition prévue.
+- Ménage doublons réf 2026-000 + ancienne table orpheline public.timeline (DESTRUCTIF → export JSON manuel d'abord, Supabase Free sans backup auto).
+- Cohérences : double notif confirmee, occupant_responses_log jamais relu, drive_folder_id non persisté ; audit qualité #3 ; Observabilité IA (runAgent + agent_logs).
+- Produit séparé (pas un bug) : badge « Mails » restreint aux seules demandes d'intervention.
+- Ops : rallumer les crons mails = TOUTE DERNIÈRE étape, précédée du marquage « lu » des mails déjà traités.
+
+## SNAPSHOT 2026-06-14 (suite) — Chantier « Type d'occupant au formulaire de création » CLOSE (PR #99)
+
+ÉTAT GIT : main = 6d945a6 (merge PR #99, merge commit, 2 commits préservés, branche feat/occupant-type-creation supprimée). 2 commits : 4ead22e (feat : type d'occupant au formulaire) → 61909cd (docs : commentaire createInterventionCold à jour).
+
+OBJECTIF : permettre de renseigner le TYPE d'occupant (locataire/propriétaire/concierge/…) au formulaire de création d'intervention (création à froid + modal Planning), via le composant partagé OccupantsEditor.
+
+DIAGNOSTIC (audit lecture seule) : le vocabulaire TypeOccupant (8 valeurs : occupant, proprietaire, locataire, concierge, voisin, gestionnaire, parties_communes, autre), les labels FR (TYPE_OCCUPANT_LABEL, src/lib/types/database.ts) et un <select> réutilisable (drawer d'édition d'InterventionsClient) EXISTAIENT DÉJÀ. La contrainte SQL occupants_type_occupant_check accepte déjà les 8 valeurs (étendue le 2026-05-29) → AUCUNE migration. Avant ce chantier : la création à froid forçait type_occupant='occupant' ; le Planning ne posait PAS type_occupant (NULL). CronOccupantType (type de OccupantInsertRow.type_occupant) est identique à TypeOccupant → affectation type-safe.
+
+LIVRÉ (tout en prod via PR #99, 3 fichiers, +20/-2, 0 SQL) :
+- src/app/admin/interventions/OccupantsEditor.tsx (composant PARTAGÉ Planning + création à froid) : import TYPE_OCCUPANT_LABEL/TypeOccupant ; emptyOccupant() initialise type_occupant:'occupant' ; nouveau <select> « Type d'occupant » (Object.entries(TYPE_OCCUPANT_LABEL)) inséré entre la grille Appartement/Étage et la grille Prénom. Apparaît AUTOMATIQUEMENT dans les deux modals.
+- src/app/admin/planning/actions.ts : TypeOccupant ajouté à l'import database ; SlotOccupant gagne type_occupant?:TypeOccupant ; createInterventionFromSlot persiste type_occupant: o.type_occupant ?? 'occupant'.
+- src/app/admin/interventions/actions.ts : createInterventionCold passe de type_occupant:'occupant' figé à o.type_occupant ?? 'occupant' (+ commentaire §6 mis à jour, 61909cd).
+
+DÉCISIONS / PIÈGES :
+- Effet de bord ASSUMÉ : les occupants créés via le Planning ont désormais un type (défaut 'occupant' au lieu de NULL). Amélioration — le rapport PDF (dispatch.ts / report-data-mapping.ts) affiche déjà ce type.
+- Pas besoin de toucher les modals parents (CreateInterventionModal, ColdInterventionModal) : les fallbacks ?? 'occupant' (éditeur + inserts) couvrent un type_occupant absent de l'état initial parent.
+- emptyOccupant() est interne (non exporté), utilisé seulement par addOccupant.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/Gmail de PROD. tsc --noEmit vert + hook pre-push OK.
+
+VALIDÉ E2E préversion : sélecteur « Type d'occupant » présent à la création, valeur non-défaut (ex. Locataire) enregistrée et ré-affichée sur le dossier.
+
+BACKLOG (non bloquant) :
+- Finitions antérieures encore ouvertes : autocomplete « syndic » sur toutes les organisations ; géocodage des ACP créées à la main (lat/lng).
+- Produit séparé (pas un bug) : badge « Mails » restreint aux seules demandes d'intervention.
+
+## SNAPSHOT 2026-06-14 — Chantier « Pastilles sidebar incorrectes » CLOSE (PR #98)
+
+ÉTAT GIT : main = 0ee286c (merge PR #98, merge commit, 3 commits préservés, branche claude/validation-badge-orphan-reports-wmf1oq supprimée). 3 commits : 95bfa8a (badge À valider exclut les rapports d'interventions supprimées) → 5dd2c59 (compter les rapports vivants, pas les interventions) → 227648d (badge Mails = comptage exact au lieu de resultSizeEstimate).
+
+OBJECTIF : corriger deux pastilles du sidebar admin affichant des nombres faux — « Mails » = 201 (réel ~14) et « À valider » = 1 (réel 0).
+
+DIAGNOSTIC (audit lecture seule + SQL de décomposition) :
+- Badge « Mails » (countUnreadMails, src/lib/gmail.ts) : renvoyait resultSizeEstimate de l'API Gmail (requête in:inbox is:unread + exclusion send.foxo.be) — une ESTIMATION non fiable (201 affiché pour ~14 messages réels). Bug de code.
+- Badge « À valider » (getValidationTotal, src/lib/admin/validation-queue.ts ; alimente le badge sidebar ET la pastille hub) : SQL des 5 sources → le « 1 » venait UNIQUEMENT des rapports. Rapport identifié = intervention 2026-000, soft-deletée le 11/06, rapport resté 'brouillon'. Le compteur comptait les rapports brouillon/validé SANS filtrer l'intervention parente supprimée, alors que la page /admin/validation les excluait déjà → divergence badge vs page. (Le dashboard compte, lui, les interventions de statut 'rapport' = 0 : mesure encore différente, non touchée.)
+
+LIVRÉ (tout en prod via PR #98, 2 fichiers seulement) :
+- src/lib/gmail.ts : countUnreadMails remplacée par un comptage EXACT via pagination de messages.list (maxResults 100, addition des messages renvoyés, garde-fou 5 pages x 100 = 500 max ; au-delà le badge plafonne). Signature et constantes inchangées (getValidAccessToken, API, EXCLUDE_PLATFORM_MAILS_Q).
+- src/lib/admin/validation-queue.ts : applyRapportsAValider SUPPRIMÉ (utilisé seulement par getValidationTotal) → getRapportsAValiderCount(supabase), réplique exacte de la logique de listing de /admin/validation : Set des intervention_id vivantes (deleted_at null) puis filtrage du tableau d'ids (1 entrée par rapport) → compte les LIGNES de rapports vivants (gère une intervention à plusieurs rapports). getValidationTotal recâblé dessus.
+
+DÉCISIONS / PIÈGES :
+- Le badge « Mails » compte les MESSAGES non lus (pas les conversations Gmail) → cohérent avec la page Mails de FoxO (les deux à 14). L'écart avec un décompte « conversations » côté Gmail web (~7) est normal : un fil à plusieurs messages non lus compte pour plusieurs.
+- Table rapports : clé sur intervention_id, PAS de colonne id (un SELECT r.id échoue en 42703), PAS de colonne deleted_at → on filtre le soft-delete via l'intervention parente. Pas de FK fiable rapports→interventions pour un embed PostgREST → approche 2 requêtes (identique à la page).
+- AUCUNE migration SQL, AUCUNE suppression de données : le rapport orphelin de 2026-000 reste en base, il ne compte plus.
+- Branche découverte non poussée : une session Claude Code reprise (« Session reprise ») avait déjà écrit ce fix validation en local (95bfa8a + correction 5dd2c59) sans jamais le pousser → invisible sur GitHub et dans le récap. L'audit-first (Claude Code a signalé le doublon) a évité de réintroduire le sous-comptage corrigé par 5dd2c59. Leçon : pousser tôt ; « conteneur éphémère » n'est pas absolu, une session peut reprendre avec son état local.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/Gmail de PROD. tsc --noEmit vert + hook pre-push OK.
+
+VALIDÉ E2E préversion : sidebar Mails 201 → 14 (= « 14 non lus » de la page Mails) ; badge « À valider » → 0 (plus de pastille).
+
+BACKLOG (non bloquant) :
+- Si souhaité : badge « Mails » restreint aux seules demandes d'intervention (exclure les mails fournisseurs type Coolblue) — chantier produit séparé, pas un bug.
+- Reliquats antérieurs : occupant « type » dans le formulaire de création ; autocomplete « syndic » sur toutes les organisations ; géocodage des ACP créées à la main (lat/lng).
+
+## SNAPSHOT 2026-06-13 (soir) — Chantier « Page Interventions admin + création à froid » CLOSE (PR #96)
+
+ÉTAT GIT : main = 9af392c (merge PR #96, merge commit, 8 commits préservés, branche feat/admin-interventions-page auto-supprimée). 8 commits : 0800eb0 (page liste listOnly + sidebar) → 039a7f3 (createInterventionCold) → 9fb864d (formulaire + bouton) → d23fad8 (champ adresse syndic, remplacé ensuite) → 1bf324c (extraction OccupantsEditor) → 1a8c59a (createAcp à la volée) → e3fd6b1 (occupants partagés + adresse syndic structurée) → 7f875a0 (fix type obligatoire NOT NULL).
+
+OBJECTIF : page admin listant TOUTES les interventions + création « à froid » (sans planning, sans Agenda, sans notification), pour le ré-encodage de l'historique.
+
+LIVRÉ (tout en prod via PR #96) :
+- Page /admin/interventions (src/app/admin/interventions/page.tsx) : réutilise InterventionsClient via un NOUVEAU prop listOnly (masque titre + widgets dashboard ; conserve liste + filtres). listOnly défaut false → /admin (dashboard) STRICTEMENT inchangé. Entrée sidebar « Interventions » (ClipboardList) dans NAV_MAIN. Garde admin héritée du layout.
+- Action createInterventionCold (src/app/admin/interventions/actions.ts) : garde admin, statut au choix VALIDÉ (défaut nouvelle), TYPE OBLIGATOIRE (garde-fou serveur : interventions.type est NOT NULL en base, le type TS string|null est faux), source 'admin', creneau_debut/technicien_id optionnels, drive_folder_id null, pas de géocodage. Réf = input.ref || nextRefForYear() + retry 23505 (réf auto → régénère ; réf fournie → erreur). Occupants via safeInsertOccupants (best-effort, conf 'en_attente', type_occupant 'occupant'). Payloads syndic/particulier = miroir de createInterventionFromSlot MAIS statut libre + pas de créneau. AUCUN notifyStatusChange, Calendar, Drive, token (SILENCIEUSE).
+- Action ADMIN createAcp (même fichier) : COMBLE UN MANQUE (aucune création ACP admin avant ; seul portal/actions.ts en avait une). Garde admin, nom requis, pose syndic_id_ref ET syndic_id (les deux colonnes existent ; portail=syndic_id, migration emails_syndic=syndic_id_ref) + garde-fou 42703. Pas de géocodage. ⚠️ Effet de bord : trigger 2026-05-30_sync_acps_clients crée un client miroir type='acp'.
+- OccupantsEditor (src/app/admin/interventions/OccupantsEditor.tsx) : EXTRAIT du bloc occupants de CreateInterventionModal (refactor PUR — Planning inchangé fonctionnellement, soumission byte-identique). Props { value: SlotOccupant[]; onChange; title?; hint? }. Réutilisé par Planning ET formulaire à froid. Min 1 ligne, mêmes champs/radios (conf, contact_preference).
+- ColdInterventionModal + CreateInterventionButton : réf (auto si vide), statut, type (ALLOWED_TYPES_INTERVENTION, obligatoire), description, priorité, date+technicien optionnels, demandeur syndic (autocomplete ACP/syndic + création ACP inline) ou particulier (mandant+lieu+contact sur place), adresse syndic STRUCTURÉE (rue+n°/CP/ville → composée "rue, cp ville" dans interventions.adresse), occupants (deux modes). Réutilise ModalShell/ModalFooter du Planning (non modifié).
+
+DÉCISIONS / PIÈGES :
+- listOnly (pas fullPage) : fullPage masque la liste (mode tiroir détail) ; listOnly masque seulement les widgets dashboard.
+- interventions.adresse = un seul texte (pas de colonnes structurées) ; particulier_contact (jsonb) garde la structure côté particulier.
+- acps : PAS de soft-delete (deleted_at absent → suppression test = hard delete). Lien ACP→syndic = syndic_id_ref (canonique) + syndic_id (legacy portail). FK clients.acp_id ON DELETE SET NULL.
+- Occupant « type » (locataire/propriétaire) NON capturé (Planning et éditeur partagé n'ont que conf + contact_preference ; seul le flux mail a type_occupant). À ajouter en touche dédiée si besoin (toucherait l'éditeur partagé + les deux inserts).
+- Validé E2E préversion : création particulier + syndic, ACP à la volée (+ client miroir), occupants enregistrés, type obligatoire (bouton désactivé sans type). Données de test nettoyées par SQL.
+
+INVARIANTS INCHANGÉS : crons mails toujours fermés. Préversion = base/Drive/Gmail de PROD.
+
+BACKLOG (non bloquant) : occupant « type » dans le formulaire si demandé ; autocomplete « syndic » liste toutes les organisations (mire le Planning) ; pas de géocodage des ACP créées à la main (lat/lng null → pas de pin carte).
+
+BACKLOG UI (signalé 2026-06-14, prochain chantier) : pastilles sidebar fausses sur admin.foxo.be — le badge « Mails » affiche 201 non lus alors que ce n'est pas le cas, et le badge « À valider » affiche 1 alors que le dashboard affiche 0 rapport à valider. À diagnostiquer : source exacte des compteurs sidebar (countUnreadMails côté Mails ; file de validation 5 sources côté « À valider », possible item résiduel du chantier file-validation en pause) vs réalité Gmail / file de validation.
+
+## SNAPSHOT 2026-06-13 — Mails V2 Phase 4 CLOSE (PR #95) + réparation infra intervention_timeline
+
+ÉTAT GIT : main = 33584c2 (merge PR #95, merge commit, 7 commits préservés, branche feat/mails-v2-phase4 auto-supprimée à la fusion).
+
+PHASE 4 — CONFIRMATIONS OCCUPANTS PAR MAIL (fusionnée) :
+- U1 (35d1336) : analyse-deep extrait reponse_occupant {intention ∈ confirme|refuse|contre_proposition|ambigu, occupant_cible, creneau_propose} dans analyse_raw (pas de colonne ; miroir technique type_intervention). normalizeReponseOccupant : défaut 'ambigu', jamais 'confirme' en cas de doute. Remonté à l'UI via la route analyses.
+- U2 (a75af5d) : src/lib/occupants/match-mail-response.ts — parseSenderEmail + matchOccupantResponse (pur). Niveaux : 'sur' (email expéditeur == email occupant, exactement 1), 'probable' (1 match nom/appartement), 'ambigu', 'refus_contre' (jamais auto). matchByName conservateur (nom >=3 ou appartement >=2 en sous-chaîne de occupant_cible).
+- U3a (3f10ca1) : src/lib/occupants/confirm-from-mail.ts — confirmOccupantFromMail idempotent (rien si conf hors {null,en_attente}), miroir colonnes de o/actions.ts, journalise intervention_timeline + miroir occupant_responses_log.
+- U3b (72cca8e) : auto-confirm du cas 'sur' best-effort (try/catch) dans analyse-deep avant le return ; uniquement si classification reponse_occupant + dossier_match_id + niveau 'sur'. N'altère jamais la réponse JSON.
+- U4a (f3acc45) : loader partagé occupant-response-context.ts + GET /api/admin/mails/occupant-response + POST .../confirm. Gardes admin, défense occupant ∈ dossier, recharge serveur de l'intention.
+- U4b (4058592) : OccupantResponsePanel dans FicheDossierCard (bandeau 'sur' / carte 1-clic 'probable-ambigu' / alerte 'refus_contre' + créneau). key=thread_id, aucune logique de matching client.
+- fix (8283317) : journalisation timeline best-effort dans le helper (update occupant = seule écriture dure). Corrige confirmation à moitié écrite + 500 si journal échoue.
+
+RÉPARATION INFRA (prod, 2026-06-13, SQL Editor) : intervention_timeline (définie par db/migrations/2026-05-07_mail_cron.sql) n'avait JAMAIS été appliquée en prod — toutes les écritures d'historique (rapport rouvert, courtier lié, SMS, réanalyse, suppression, cron) échouaient en silence depuis le 7 mai. Table créée (CREATE TABLE IF NOT EXISTS + index + RLS admin). Ancienne table public.timeline (icone/texte/auteur_id) orpheline, plus utilisée par aucun code — à supprimer un jour.
+
+INVARIANTS : crons mails toujours fermés volontairement. Préversion = base/Drive/Gmail de PROD.
+
+SUITES PHASE 4 (non bloquantes) :
+- 'sur' utilise messages[0]?.from (= mails_analyses.expediteur). OK si l'occupant écrit en premier ; si fil initié par FoxO, expéditeur = info@foxo.be → 'sur' ne déclenche pas, bascule carte manuelle (échec sûr). Finition : prendre le dernier message entrant.
+- OccupantResponsePanel ne recharge pas le match au changement de lien dossier (seulement au changement de thread) → rouvrir le mail après avoir lié. Finition : refetch sur changement dossier_match_id.
+- Bandeau 'sur' optimiste dans le cas rare occupant 'decline' qui renvoie un mail de confirmation (helper ne réécrase pas le decline).
+- Doublons de réf 2026-000 + table orpheline public.timeline → nettoyage sandbox/DB.
+
+PROCHAIN CHANTIER (demande Foxo 13/06) : page « Interventions » admin (liste de toutes les interventions + bouton de création) depuis le sidebar. Indépendant, branche propre depuis main. Audit-first : réutiliser la création de confirm-and-create (réf 2026-000, syndic_id, statut initial, safeInsertOccupants), NE PAS dupliquer ; vérifier /api/admin/interventions/search + pattern d'ajout sidebar.
+
+# État du projet FoxO — snapshot 2026-06-12 soir (Mails V2 — Phase 3 CLOSE, PR #94 — fiche structurée IA)
+
+- **Date du recap** : 2026-06-12 (soir)
+- **HEAD git** : `c6d9f52` (merge PR #94)
+- **Branche** : `main`, aligné `origin/main`. Production via Vercel.
+- **Spec** : `SPEC_Chantier_Mails_V2_v1-2.md` (project knowledge). ⚠️ CRONS MAILS TOUJOURS VOLONTAIREMENT FERMÉS — rallumage = toute dernière étape du chantier, précédée du marquage en lu des mails déjà traités.
+
+## Mails V2 — Phase 3 (fiche structurée IA + classification native) : CLOSE (PR #94, 7 commits, 4 unités)
+
+### U1 — Classification canonique native + extraction ACP/syndic (`7f89707` + `5c2145b`)
+- analyse-deep émet NATIVEMENT la `classification` canonique (mêmes 8 valeurs et critères que le prompt du cron) — validée serveur contre `MAIL_CLASSIFICATIONS`, **fallback `toCanonicalClassification(type)` conservé** (réponses sans le champ = comportement d'avant). Le `type` hérité est TOUJOURS émis : les branches UI (`type === 'demande_intervention'`) et confirm-and-create en dépendent.
+- Nouveaux extraits `acp_nom` / `syndic_nom` (règle : domaine expéditeur ∈ syndics connus → nom EXACT de la liste ; interdiction d'inventer). Migration `2026-06-12_mails_analyses_phase3_fields.sql` appliquée en prod AVANT le code + committée. maxDuration analyse-deep 30 → 60.
+
+### U2 — FicheDossierCard dans le volet (`afecc47`)
+- Carte synthèse structurée entre composer et corps du mail (uniquement si fil analysé) : badges réutilisés, grille type d'intervention / adresse / ACP / syndic / n° mentionné / créneau, résumé IA, **occupants extraits en tableau**, avertissements, actions (Créer l'intervention → scroll ConfirmCreateForm ; Répondre).
+- `type_intervention` n'a PAS de colonne : extrait d'`analyse_raw` côté route analyses (rétroactif, blob jamais renvoyé au client). **Accordion « Détail analyse » supprimé** de MailAnalyseActions (absorbé) ; 3 actions 1-clic + ConfirmCreateForm inchangés.
+
+### U3 — Lier/délier manuel fil ↔ dossier (`616b376` + `f82df69`)
+- Route `POST /api/admin/mails/link-to-intervention` ({ thread_id, intervention_id|null }) : écrit **UNIQUEMENT `mails_analyses.dossier_match_id`** — `intervention_mails` reste au seul cron.
+- UI dans la rangée Dossier de la fiche : autocomplete inline (même route `/api/admin/interventions/search`) pour lier, « Délier » avec confirm. Badge d'en-tête + rangée se mettent à jour ensemble (refreshAnalyse).
+
+### U4 — Réponse IA inline dans le composer (`0cf441e` + `8088404`)
+- draft-reply gagne `mode: 'inline'` : renvoie le texte dans le composer — analyse OPTIONNELLE (bonus contexte), fil complet fourni au modèle, langue auto (analyse ou détection), signature sobre « Fox Group srl », **AUCUN brouillon Gmail, AUCUN envoi autonome**. Mode `gmail_draft` par défaut strictement inchangé (signature Christophe Mertens, brouillon + brouillon_gmail_id). Toujours via runAgent (mode dans l'inputSummary).
+- Bouton « ✨ Rédiger avec l'IA » dans le panel Répondre : remplit le textarea (confirm avant d'écraser un texte saisi), l'admin relit/édite et envoie LUI-MÊME (sendReply intact).
+
+## Note réutilisation (dette assumée)
+- 3e implémentation locale de l'autocomplete dossier (ConfirmCreateForm, AttachToDossierButton, FicheDossierCard — même route, même debounce 300 ms). **Factoriser en `DossierSearchPicker` au 4e usage.**
+
+## Invariants / suite
+1. **CRONS MAILS TOUJOURS FERMÉS** — rallumage = toute dernière étape du chantier. ⚠️ Au rallumage : définir qui de cron/analyse-deep GAGNE sur `classification` (les deux prompts l'émettent désormais, mais analyse-deep est aujourd'hui le seul writer de la colonne).
+2. **Chantier signature-pdf EN PAUSE** — branche `feat/signature-pdf` intacte (4 commits). Décisions associé en attente : couverture claire/marine/aucune + ville du « Fait à ».
+3. Prochaines options : **Phase 4** (confirmations occupants), **Phase 8** (messagerie portail), ou **reprise signature-pdf**.
+
+## Hygiène repo
+- Branche `feat/mails-v2-phase3` mergée → supprimer côté GitHub si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-12 (Mails V2 — Phase 2 CLOSE, PR #93 — U4 documents tech)
 
 - **Date du recap** : 2026-06-12

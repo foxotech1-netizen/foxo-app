@@ -30,6 +30,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from('interventions')
     .select('id, ref, adresse')
+    .is('deleted_at', null)
     .or(`ref.ilike.${pattern},adresse.ilike.${pattern}`)
     .neq('statut', 'cloturee')
     .order('created_at', { ascending: false })

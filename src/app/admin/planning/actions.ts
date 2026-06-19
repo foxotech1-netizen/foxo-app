@@ -20,6 +20,7 @@ import type {
   ParticulierContactSurPlace,
   PrioriteIntervention,
   TypeIntervention,
+  TypeOccupant,
   TypeOrganisation,
 } from '@/lib/types/database';
 
@@ -233,6 +234,7 @@ export interface SlotOccupant {
   conf?: SlotOccupantConf;
   instructions?: string;
   contact_preference?: SlotContactPreference;
+  type_occupant?: TypeOccupant;
 }
 
 export interface CreateFromSlotSyndic {
@@ -419,6 +421,7 @@ export async function createInterventionFromSlot(
         token: generateOccupantToken(),
         conf: o.conf ?? null,
         contact_preference: o.contact_preference ?? 'email',
+        type_occupant: o.type_occupant ?? 'occupant',
       }));
     if (rows.length > 0) {
       await admin.from('occupants').insert(rows);
@@ -438,7 +441,14 @@ export async function createInterventionFromSlot(
       const ville = d.lieu.meme_que_mandant ? d.mandant.adresse_facturation.ville : d.lieu.ville;
       adresse = `${rue}, ${cp} ${ville}`;
     }
-    await createInterventionFolder({ ref, adresse, year: new Date().getFullYear() });
+    const driveRes = await createInterventionFolder({ ref, adresse, year: new Date().getFullYear() });
+    if (driveRes.ok && driveRes.folder_id) {
+      const { error: driveUpdErr } = await admin
+        .from('interventions')
+        .update({ drive_folder_id: driveRes.folder_id, updated_at: new Date().toISOString() })
+        .eq('id', interventionId);
+      if (driveUpdErr) console.warn('[planning/createIntervention] persist drive_folder_id skipped:', driveUpdErr.message);
+    }
   } catch (e) {
     console.warn('[planning/createIntervention] Drive folder skipped:', e);
   }

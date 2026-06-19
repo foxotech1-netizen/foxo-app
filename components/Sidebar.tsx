@@ -14,7 +14,7 @@ import {
   BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
-  Activity, ClipboardCheck,
+  Activity, ClipboardCheck, ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -25,6 +25,7 @@ const NAV_MAIN: NavItem[] = [
   // au profit du Tableau de bord adaptive qui intègre désormais le
   // briefing IA + les missions du jour en tête de page.
   { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
+  { href: '/admin/interventions', Icon: ClipboardList, label: 'Interventions' },
   { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
   { href: '/admin/validation',  Icon: ClipboardCheck, label: 'À valider', badge: true },
   { href: '/admin/observabilite', Icon: Activity,  label: 'Observabilité' },
@@ -253,17 +254,16 @@ export default function Sidebar({
     return pathname.startsWith(href)
   }
 
-  // ── Mobile bottom nav — 4 items fixes ──────────────────────────────────
+  // ── Mobile bottom nav — 5 items fixes ──────────────────────────────────
   // Item "Menu" (qui pointait vers /admin/home, retiré Sprint 1) supprimé.
   // L'accès aux pages secondaires (clients, comptabilité, …) se fait via
   // /admin/hub depuis le sélecteur de portail.
   const BOTTOM_NAV: NavItem[] = [
-    { href: '/admin',           Icon: BarChart3, label: 'Tableau'   },
-    { href: '/admin/alertes',   Icon: Bell,      label: 'Alertes'   },
-    { href: '/admin/validation', Icon: ClipboardCheck, label: 'À valider' },
-    { href: '/admin/planning',  Icon: Calendar,  label: 'Planning'  },
-    { href: '/admin/techniciens', Icon: Wrench,  label: 'Techniciens' },
-    { href: '/admin/assistant', Icon: Sparkles,  label: 'Assistant' },
+    { href: '/admin',               Icon: BarChart3,      label: 'Tableau'       },
+    { href: '/admin/interventions', Icon: ClipboardList,  label: 'Interventions' },
+    { href: '/admin/validation',    Icon: ClipboardCheck, label: 'À valider'     },
+    { href: '/admin/planning',      Icon: Calendar,       label: 'Planning'      },
+    { href: '/admin/assistant',     Icon: Sparkles,       label: 'Assistant'     },
   ]
 
   return (
@@ -404,22 +404,6 @@ export default function Sidebar({
           <Link key={item.href} href={item.href} style={S.bottomNavItem(active)}>
             <span style={S.bottomNavIcon(active)}><item.Icon size={18} aria-hidden /></span>
             <span>{item.label}</span>
-            {item.href === '/admin/alertes' && alertCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: 6,
-                right: '50%',
-                transform: 'translateX(8px)',
-                background: 'var(--color-amber-foxo)',
-                color: 'var(--color-cream)',
-                borderRadius: 20,
-                fontSize: 9,
-                fontWeight: 600,
-                padding: '0 5px',
-                minWidth: 16,
-                textAlign: 'center',
-              }}>{alertCount}</span>
-            )}
             {item.href === '/admin/validation' && validationCount > 0 && (
               <span style={{
                 position: 'absolute',

@@ -151,6 +151,22 @@ export async function POST(
     if (r.error) console.warn('[accept-counter] log insert failed:', r.error.message);
   });
 
+  // 3bis. Journal d'événements (intervention_timeline, best-effort) —
+  //       rend l'acceptation visible dans l'onglet « Journal » du drawer.
+  await admin.from('intervention_timeline').insert({
+    intervention_id: interventionId,
+    type: 'creneau_reprogramme',
+    message: "Contre-proposition de l'occupant acceptée — nouveau créneau retenu",
+    payload: {
+      occupant_id: occupantId,
+      nouveau_debut: newStartIso,
+      nouveau_fin: newEndIso,
+    },
+    created_by: user.email ?? null,
+  }).then((r) => {
+    if (r.error) console.warn('[accept-counter] timeline insert failed:', r.error.message);
+  });
+
   // 4. Sync Google Calendar (best-effort) — on cherche un creneau lié
   //    à cette intervention qui a un google_event_id, et on le PATCH
   //    avec les nouvelles bornes. On met aussi à jour la ligne

@@ -28,11 +28,28 @@ export function applyMailsAConfirmer<Q>(q: Q): Q {
   return (q as FilterableQuery).eq('type', 'demande_intervention').is('dossier_match_id', null) as Q;
 }
 
-// 2. Rapports à valider : rapports en brouillon ou validé (transmis exclu).
-//    Cible la table `rapports` (pas `interventions`) — la table rapports n'a
-//    pas de colonne deleted_at.
-export function applyRapportsAValider<Q>(q: Q): Q {
-  return (q as FilterableQuery).in('statut', ['brouillon', 'valide']) as Q;
+// 2. Rapports à valider : rapports en brouillon ou validé (transmis exclu),
+//    DONT l'intervention parente n'est PAS soft-deletée. Approche 2 requêtes
+//    (pas de FK fiable rapports->interventions pour un embed PostgREST) —
+//    réplique de la logique de listing de /admin/validation/page.tsx, pour
+//    que le badge sidebar, la pastille hub et la page comptent pareil.
+export async function getRapportsAValiderCount(supabase: SupabaseServer): Promise<number> {
+  const { data: rows } = await supabase
+    .from('rapports')
+    .select('intervention_id')
+    .in('statut', ['brouillon', 'valide']);
+  const ids = (rows ?? [])
+    .map((r: { intervention_id: string | null }) => r.intervention_id)
+    .filter((id: string | null): id is string => Boolean(id));
+  if (ids.length === 0) return 0;
+  const uniqueIds = [...new Set(ids)];
+  const { data: vivantes } = await supabase
+    .from('interventions')
+    .select('id')
+    .in('id', uniqueIds)
+    .is('deleted_at', null);
+  const vivantesSet = new Set((vivantes ?? []).map((i: { id: string }) => i.id));
+  return ids.filter((id: string) => vivantesSet.has(id)).length;
 }
 
 // 3. Factures / devis en brouillon.
@@ -69,13 +86,11 @@ export async function getSuspensCount(supabase: SupabaseServer): Promise<number>
 
 // Total de la file : counts des 4 sources (head:true) + interventions en suspens.
 export async function getValidationTotal(supabase: SupabaseServer): Promise<number> {
-  const [mails, rapports, factures, notes, suspens] = await Promise.all([
+  const [mails, rapportsCount, factures, notes, suspens] = await Promise.all([
     applyMailsAConfirmer(
       supabase.from('mails_analyses').select('*', { count: 'exact', head: true }),
     ),
-    applyRapportsAValider(
-      supabase.from('rapports').select('*', { count: 'exact', head: true }),
-    ),
+    getRapportsAValiderCount(supabase),
     applyFacturesBrouillon(
       supabase.from('factures').select('*', { count: 'exact', head: true }),
     ),
@@ -86,7 +101,7 @@ export async function getValidationTotal(supabase: SupabaseServer): Promise<numb
   ]);
   return (
     (mails.count ?? 0) +
-    (rapports.count ?? 0) +
+    rapportsCount +
     (factures.count ?? 0) +
     (notes.count ?? 0) +
     suspens

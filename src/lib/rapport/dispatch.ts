@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { generateRapportPdf } from '@/lib/pdf/generate';
 import { sendRapportEmail } from '@/lib/email/rapport';
-import { uploadRapport } from '@/lib/google-drive';
+import { uploadRapport, resolveInterventionFolderByName } from '@/lib/google-drive';
 import { getEmailThread, sendMailReply } from '@/lib/gmail';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { ReportData } from '@/lib/rapport/build-docx';
@@ -65,6 +65,9 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   if (ivErr) return { ok: false, error: ivErr.message };
   if (!ivData) return { ok: false, error: 'Intervention introuvable.' };
   const iv = ivData as Intervention;
+  // Nom du technicien lu via service-role (le PDF est consultable par le
+  // partenaire via /api/rapport/[id]) : auth_read_utilisateurs est restreinte.
+  const adminDb = createAdminClient();
 
   // Colonnes étendues pour le mapping ReportData modèle 2026-101 :
   //   - syndic.bce + syndic.contact : ligne 1/2 facturation
@@ -77,7 +80,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
       ? supabase.from('organisations').select('id, nom, adresse, email, type, contact, bce, email_factures, email_rapports, email_communications').eq('id', iv.syndic_id).maybeSingle()
       : Promise.resolve({ data: null }),
     iv.technicien_id
-      ? supabase.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
+      ? adminDb.from('utilisateurs').select('id, prenom, nom').eq('id', iv.technicien_id).maybeSingle()
       : Promise.resolve({ data: null }),
     supabase.from('rapports').select('*').eq('intervention_id', iv.id).maybeSingle(),
     supabase.from('occupants').select('appartement, prenom, nom, type_occupant').eq('intervention_id', iv.id).order('appartement', { ascending: true }),
@@ -247,6 +250,33 @@ export async function dispatchRapportToSyndic(interventionId: string): Promise<D
       .eq('intervention_id', interventionId);
   } catch (e) {
     console.error('[dispatch] failed to mark rapport as transmis', e);
+  }
+
+  // ── Best-effort : backfill interventions.drive_folder_id si absent ──
+  //    Calque du backfill upload-photo (#107). Le dossier Drive vient d'être
+  //    utilisé/créé par uploadRapport ci-dessus -> resolveInterventionFolderByName
+  //    le retrouve. Garde .is('drive_folder_id', null) = idempotent, ne touche
+  //    rien si déjà rempli (cas normal : photos uploadées avant le rapport).
+  //    Non bloquant : un échec ne doit jamais affecter la transmission déjà faite.
+  try {
+    const dbFolder = createAdminClient();
+    const { data: ivFolderRow } = await dbFolder
+      .from('interventions')
+      .select('drive_folder_id')
+      .eq('id', interventionId)
+      .maybeSingle();
+    if (ivFolderRow && !(ivFolderRow as { drive_folder_id: string | null }).drive_folder_id) {
+      const folderId = await resolveInterventionFolderByName(built.ref, year);
+      if (folderId) {
+        await dbFolder
+          .from('interventions')
+          .update({ drive_folder_id: folderId, updated_at: new Date().toISOString() })
+          .eq('id', interventionId)
+          .is('drive_folder_id', null);
+      }
+    }
+  } catch (e) {
+    console.warn('[dispatch] backfill drive_folder_id skipped:', e);
   }
 
   // ── Clôture automatique du dossier après transmission RÉUSSIE ──

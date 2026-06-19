@@ -50,6 +50,17 @@ export interface OccupantExtrait {
 
 export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
 
+// Phase 4 U1 — intention de réponse occupant extraite par analyse-deep,
+// remontée depuis analyse_raw (pas de colonne dédiée en base). Présente
+// seulement quand la classification vaut "reponse_occupant".
+export type ReponseOccupantIntention = 'confirme' | 'refuse' | 'contre_proposition' | 'ambigu';
+
+export interface ReponseOccupantIntent {
+  intention: ReponseOccupantIntention;
+  occupant_cible: string | null;
+  creneau_propose: string | null;
+}
+
 // État UI éditable d'un occupant dans ConfirmCreateForm. Miroir
 // d'OccupantExtrait enrichi des champs serveur attendus par
 // safeInsertOccupants (conf est posé côté route en 1.c, pas ici).
@@ -93,6 +104,15 @@ export interface MailAnalyse {
   resume: string | null;
   occupant_telephone: string | null;
   occupant_email: string | null;
+  // Phase 3 — extraits par analyse-deep (null sur les lignes antérieures).
+  acp_nom: string | null;
+  syndic_nom: string | null;
+  // Extrait d'analyse_raw côté route analyses (pas de colonne dédiée).
+  type_intervention: string | null;
+  // Phase 4 U1 — intention de réponse occupant, extraite d'analyse_raw côté
+  // route analyses. null hors classification "reponse_occupant" / lignes
+  // antérieures.
+  reponse_occupant: ReponseOccupantIntent | null;
   occupants_extraits: OccupantExtrait[] | null;
   dossier_match_id: string | null;
   creneau_propose_id: string | null;

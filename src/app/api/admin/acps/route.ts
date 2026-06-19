@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
+import { geocodeAddress } from '@/lib/geo/geocode';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,22 @@ export async function POST(request: Request) {
     lat:            numOrNull(body.lat),
     lng:            numOrNull(body.lng),
   };
+
+  // Si l'adresse n'a pas été choisie via l'autocomplete (coordonnées absentes),
+  // géocodage côté serveur best-effort (Nominatim, Belgique) pour que l'ACP
+  // apparaisse sur la carte admin. Échec → lat/lng restent null (inchangé).
+  if (payload.lat == null || payload.lng == null) {
+    const geoQuery = [payload.adresse, payload.code_postal, payload.ville]
+      .filter((s): s is string => typeof s === 'string' && s.length > 0)
+      .join(', ');
+    if (geoQuery) {
+      const geo = await geocodeAddress(geoQuery);
+      if (geo) {
+        payload.lat = geo.lat;
+        payload.lng = geo.lng;
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from('acps')

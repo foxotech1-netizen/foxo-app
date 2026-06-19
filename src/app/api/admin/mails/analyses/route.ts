@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import type { OccupantExtrait } from '@/app/admin/mails/MailAnalyseTypes';
+import type { OccupantExtrait, ReponseOccupantIntent } from '@/app/admin/mails/MailAnalyseTypes';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +32,9 @@ interface AnalyseRow {
   resume: string | null;
   occupant_telephone: string | null;
   occupant_email: string | null;
+  // Phase 3 — null sur les lignes analysées avant l'enrichissement.
+  acp_nom: string | null;
+  syndic_nom: string | null;
   occupants_extraits: OccupantExtrait[] | null;
   dossier_match_id: string | null;
   creneau_propose_id: string | null;
@@ -40,6 +43,33 @@ interface AnalyseRow {
   brouillon_gmail_id: string | null;
   event_calendar_id: string | null;
   errors: string[] | null;
+  // Sélectionné uniquement pour en extraire type_intervention et
+  // reponse_occupant (pas de colonne dédiée en base) — jamais renvoyé tel
+  // quel au client.
+  analyse_raw: { type_intervention?: unknown; reponse_occupant?: unknown } | null;
+}
+
+// Phase 4 U1 — re-validation à la lecture (le blob peut contenir d'anciennes
+// lignes sans le champ, ou un objet partiel). Miroir lecture de la
+// normalisation faite à l'écriture par analyse-deep.
+const REPONSE_OCCUPANT_INTENTIONS = ['confirme', 'refuse', 'contre_proposition', 'ambigu'] as const;
+
+function extractReponseOccupant(raw: unknown): ReponseOccupantIntent | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const intentionRaw = typeof obj.intention === 'string' ? obj.intention.trim() : '';
+  if (!(REPONSE_OCCUPANT_INTENTIONS as readonly string[]).includes(intentionRaw)) return null;
+  const cible = typeof obj.occupant_cible === 'string' && obj.occupant_cible.trim()
+    ? obj.occupant_cible.trim()
+    : null;
+  const creneau = typeof obj.creneau_propose === 'string' && obj.creneau_propose.trim()
+    ? obj.creneau_propose.trim()
+    : null;
+  return {
+    intention: intentionRaw as ReponseOccupantIntent['intention'],
+    occupant_cible: cible,
+    creneau_propose: creneau,
+  };
 }
 
 export async function GET(request: Request) {
@@ -58,7 +88,7 @@ export async function GET(request: Request) {
 
   const { data: analyses, error } = await admin
     .from('mails_analyses')
-    .select('thread_id, type, classification, urgence, langue, adresse_extraite, numero_dossier_mentionne, resume, occupant_telephone, occupant_email, occupants_extraits, dossier_match_id, creneau_propose_id, fenetre_etendue, pj_drive_ids, brouillon_gmail_id, event_calendar_id, errors')
+    .select('thread_id, type, classification, urgence, langue, adresse_extraite, numero_dossier_mentionne, resume, occupant_telephone, occupant_email, acp_nom, syndic_nom, occupants_extraits, dossier_match_id, creneau_propose_id, fenetre_etendue, pj_drive_ids, brouillon_gmail_id, event_calendar_id, errors, analyse_raw')
     .in('thread_id', ids);
   if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
@@ -116,7 +146,16 @@ export async function GET(request: Request) {
           technicien_nom: creneauRow.technicien_id ? techMap.get(creneauRow.technicien_id) ?? '?' : '?',
         }
       : null;
-    result[r.thread_id] = { ...r, dossier, creneau };
+    // type_intervention vit dans analyse_raw (pas de colonne dédiée) — on
+    // l'extrait ici, sans renvoyer le blob analyse_raw au client.
+    const { analyse_raw, ...rest } = r;
+    const typeIntervention = typeof analyse_raw?.type_intervention === 'string' && analyse_raw.type_intervention.trim()
+      ? analyse_raw.type_intervention
+      : null;
+    // Phase 4 U1 — intention de réponse occupant, extraite du blob comme
+    // type_intervention (sans renvoyer analyse_raw au client).
+    const reponseOccupant = extractReponseOccupant(analyse_raw?.reponse_occupant);
+    result[r.thread_id] = { ...rest, type_intervention: typeIntervention, reponse_occupant: reponseOccupant, dossier, creneau };
   }
 
   return NextResponse.json({ success: true, analyses: result });
