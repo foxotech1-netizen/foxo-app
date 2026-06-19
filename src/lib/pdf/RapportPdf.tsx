@@ -80,6 +80,7 @@ const HEADER_LOGO_H = 52;
 // Coordonnées société — uniques sources des textes du footer et de la
 // couverture (mêmes valeurs que l'historique).
 const SOCIETE = {
+  ville: 'Kortenberg',
   ligne1: 'Fox Group srl  ·  Stationstraat 55, 3070 Kortenberg  ·  info@foxo.be  ·  +32 488 700 007',
   ligne2: 'TVA : BE1030.109.019  ·  BEOBANK : BE62 9502 6652 9861',
   ligne3: '© 2026 Fox Group srl – Tous droits réservés – Rapport technique – Modèle propriétaire – Reproduction interdite',
@@ -510,7 +511,7 @@ export function RapportPdf({ data, logo, photos }: {
         {/* ── Clôture ── */}
         <View style={styles.closing} wrap={false}>
           <Text style={styles.faitA}>
-            Fait à Bruxelles, le <Text style={styles.faitADate}>{data.fait_a_date}</Text>
+            Fait à {SOCIETE.ville}, le <Text style={styles.faitADate}>{data.fait_a_date}</Text>
           </Text>
           <Text style={styles.closingSociete}>Fox Group srl</Text>
           {data.technicien_nom
