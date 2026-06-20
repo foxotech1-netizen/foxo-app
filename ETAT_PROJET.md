@@ -1,3 +1,42 @@
+# État du projet FoxO — snapshot 2026-06-20 — Rapport PDF : refonte visuelle + synthèse IA « L'essentiel » LIVRÉ
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus le merge de la PR #114 (merge commit 912ed24, feat/signature-pdf). Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Rapport PDF client (feat/signature-pdf, PR #114, merge 912ed24 ; 23 fichiers +740/−207 ; 1 SQL appliquée prod 2026-06-20). Validé visuellement par Foxo sur le dossier sandbox 2026-000 (préversion Vercel). Main avait ENCORE l'ancien design (Carlito) → la refonte est désormais en prod.
+
+A) Refonte visuelle (RapportPdf.tsx, ~535 lignes) :
+- Couverture CLAIRE, palette bleue : accent #2E73B8, navy #0F2C54, cartes #E8F1FA, bordure #CFE0F0, fond couverture #F4F8FD.
+- Couverture = fiche d'identification : N° intervention, réf dossier, objet, adresse, « Mandataire (donneur d'ordre) », techniques d'inspection cochées (liste fermée RAPPORT_TECHNIQUES), + bloc « L'essentiel ».
+- Logo épuré : public/foxo-logo-renard.png (renard + FoxO seuls, sans la tagline « DÉTECTION DE FUITES / LEKDETECTIE » qui était incrustée). Recadrage sharp de public/foxo-logo-transparent.png. Utilisé en couverture (grand) ET en en-tête de page (petit, logo seul centré).
+- Clôture réduite à « Fait à [ville], le [date] » (Fox Group srl + Technicien retirés).
+- CONCLUSION + RECOMMANDATION sur une page dédiée (View break).
+- Polices : Carlito retirées → Inter (corps) + Syne (titres).
+- « Fait à » = ville du bâtiment depuis l'ACP (acps.ville), repli sur le siège (SOCIETE.ville = Kortenberg). RAPPEL : interventions n'a PAS de colonne ville ; la ville d'un dossier vient de acp.ville.
+
+B) Synthèse IA « L'essentiel » (remplace la troncature « … ») :
+- Nouvel agent UTILITAIRE synthese_essentiel (src/lib/rapport/synthese-essentiel.ts, 160 lignes). Via runAgent (agentKind utility, journalisé agent_logs, doc 02 §10). Modèle claude-sonnet-4-6. System → JSON strict {cause, action} ; 1-2 phrases COMPLÈTES, max 280 car ; retry interne 1× si JSON invalide ; parse robuste. Garde-fou clampSentences : borne la longueur en gardant des phrases ENTIÈRES, JAMAIS de « … ».
+- Câblage : généré à la volée dans buildRapportPdf (dispatch.ts), à partir du TEXTE BRUT conclusion/recommandation (pas le format ||PARA||). Best-effort : échec/clé absente → null → repli sur summarize() local. 2 champs optionnels essentiel_cause/essentiel_action ajoutés à ReportData (build-docx.ts) ; RapportPdf consomme data.essentiel_*.trim() sinon summarize(...). PAS DE STOCKAGE (texte éphémère → l'aperçu reste lecture seule).
+- Déclaration de l'agent à 3 endroits TS : union AgentName (agent-logger.ts) + ALL_AGENT_NAMES + AGENT_KIND_BY_NAME (queries.ts, kind utility) — les 3 obligatoires ensemble.
+- SQL appliquée prod 2026-06-20 AVANT déploiement : migration 2026-06-20_extend_agent_name_synthese_essentiel.sql — CHECK agent_logs.agent_name élargi à synthese_essentiel. CRITIQUE : runAgent AVALE les erreurs d'insert agent_logs → sans ce CHECK le log serait silencieusement perdu. Toujours garder le CHECK en phase avec l'union AgentName.
+
+INVARIANTS confirmés cette session :
+- buildRapportPdf (dispatch.ts) = POINT UNIQUE qui assemble ReportData et rend le PDF — aperçu ET envoi passent par là. Un seul point de branchement pour tout enrichissement du rapport.
+- Coût/latence : 1 appel IA Sonnet par génération de PDF (aperçu + final). Latence acceptable au volume. Pas de cache (mutualisable plus tard si besoin).
+- Pied de page PDF COMPLET (coordonnées / TVA-IBAN / © + n° page) — vérifié par rastérisation 150 DPI. Le « pied de page tronqué » signalé venait de l'aperçu intégré Vercel qui rogne visuellement le bas ; le fichier est bon.
+
+MÉNAGE BRANCHES (audit distant 2026-06-20) — ACTION FOXO :
+- feat/signature-pdf : ENCORE présente après le merge → À SUPPRIMER (suppression post-merge non faite). GitHub UI.
+- feat/mails-v2-phase2c : présente, SUPERSEDED (feature déjà en prod via PR #93) → À SUPPRIMER. Ne jamais merger.
+- feat/file-validation : CONFIRMÉ ABSENTE du distant. Les notes la décrivant comme branche à reprendre sont PÉRIMÉES.
+- ~15 autres branches (design/d2-d7, audit/*, feat/* divers) : déjà dans main → ménage GitHub sans risque (cf. snapshot 2026-06-17 suite 2).
+
+BACKLOG — nouvel item issu de ce chantier :
+- « Photos placées par IA dans le texte » : aucun lien texte↔photo aujourd'hui (les photos n'ont que section + ordre + label). DÉFÉRÉ explicitement par Foxo. Chantier à part.
+
+PROCHAIN CHANTIER — à redécider : la majorité du backlog des anciens récaps est DÉJÀ FAIT d'après les snapshots récents de main (Observabilité runAgent câblée ; outils Google agenda+brouillon livrés PR #112 ; audit cohérence migrations clos ; RLS utilisateurs resserrée). file-validation n'existe pas. Démarrer la prochaine session par un AUDIT de main + choix de priorité avec Foxo. Jalon clé inchangé : faire tourner la plateforme EN VRAI au quotidien (crons mails coupés, re-encodage manuel) → débloque Analytics puis Facturation (dernier chantier).
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-17 (suite 3) — Prompt assistant proactif + état corrigé des branches en pause
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus la PR #113 (merge 65246e3). Vérifier le git log live en début de session.
