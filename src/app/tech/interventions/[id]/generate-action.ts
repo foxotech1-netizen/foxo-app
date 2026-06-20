@@ -291,7 +291,7 @@ export async function generateRapportSections(
   type RapportV2 = {
     degats?: string; inspection?: string; conclusion?: string; recommandations?: string;
     techniques_utilisees?: unknown; techniques_a_confirmer?: unknown;
-    photos?: Array<{ id?: unknown; section?: unknown; legende?: unknown; ordre?: unknown }>;
+    photos?: Array<{ id?: unknown; section?: unknown; legende?: unknown; ordre?: unknown; apres_paragraphe?: unknown }>;
   };
   let parsed: RapportV2;
   try {
@@ -371,7 +371,7 @@ export async function generateRapportSections(
   const utilSet = new Set(techKeysUtil);
   const techKeysConfirm = techniquesLabelsToKeys(asLabels(parsed.techniques_a_confirmer)).filter((k) => !utilSet.has(k));
 
-  // ── Persistance des photos (section/ordre/label) — guard statut ──
+  // ── Persistance des photos (section/ordre/ancrage_para/label) — guard statut ──
   const photoIds = new Set(photos.map((p) => p.id));
   const labelById = new Map(photos.map((p) => [p.id, p.label]));
   const validSections = new Set(['degats', 'inspection']);
@@ -384,7 +384,10 @@ export async function generateRapportSections(
           const section = validSections.has(rawSection) ? rawSection : null; // 'exclue'/inconnu → null
           const ordre = typeof ph.ordre === 'number' && Number.isFinite(ph.ordre) ? Math.trunc(ph.ordre) : 0;
           const legende = typeof ph.legende === 'string' ? ph.legende.trim() : '';
-          return { id, section, ordre, legende };
+          // apres_paragraphe (LLM, 1-based) -> colonne ancrage_para. Garde si entier >= 1 ET section placee, sinon null (fin de section).
+          const apNum = typeof ph.apres_paragraphe === 'number' && Number.isFinite(ph.apres_paragraphe) ? Math.trunc(ph.apres_paragraphe) : null;
+          const ancrage_para = section !== null && apNum !== null && apNum >= 1 ? apNum : null;
+          return { id, section, ordre, legende, ancrage_para };
         })
     : [];
 
@@ -396,7 +399,7 @@ export async function generateRapportSections(
       const statut = (rapStatut as { statut?: string } | null)?.statut ?? null;
       if (statut !== 'valide' && statut !== 'transmis') {
         for (const u of photoUpdates) {
-          const patch: Record<string, unknown> = { section: u.section, ordre: u.ordre };
+          const patch: Record<string, unknown> = { section: u.section, ordre: u.ordre, ancrage_para: u.ancrage_para };
           // La légende ne remplit `label` QUE s'il est vide (jamais écraser une légende humaine).
           if (u.legende && !(labelById.get(u.id) ?? '').trim()) patch.label = u.legende;
           await admin.from('photos_interventions').update(patch).eq('id', u.id);
