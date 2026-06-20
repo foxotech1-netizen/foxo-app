@@ -260,19 +260,14 @@ function photoDisplaySize(p: RapportPhotoData): { width: number; height: number 
   return { width, height };
 }
 
-// Grille 2 colonnes rendue en fin de section. Chaque paire cadre+légende est
-// insécable (wrap={false}). `startNumber` : numérotation continue (DÉGÂTS puis
-// INSPECTION), affichée « Photo N » en tête de légende.
-function PhotosGrid({ photos, startNumber }: {
-  photos: RapportPhotoData[] | undefined;
-  startNumber: number;
-}) {
-  if (!photos || photos.length === 0) return null;
+// Grille de photos (2 colonnes, paire cadre+légende insécable). `items` porte
+// le numéro continu « Photo N » déjà calculé par SectionWithPhotos.
+function PhotosGrid({ items }: { items?: Array<{ p: RapportPhotoData; num: number }> }) {
+  if (!items || items.length === 0) return null;
   return (
     <View style={styles.photosGrid}>
-      {photos.map((p, i) => {
+      {items.map(({ p, num }, i) => {
         const { width, height } = photoDisplaySize(p);
-        const num = startNumber + i;
         return (
           <View key={i} style={styles.photoCell} wrap={false}>
             <View style={styles.photoFrame}>
@@ -285,6 +280,62 @@ function PhotosGrid({ photos, startNumber }: {
           </View>
         );
       })}
+    </View>
+  );
+}
+
+// Range les photos numérotées par ancrage : ancrage_para valide (1..N) ->
+// après le paragraphe correspondant ; sinon (null / hors plage) -> fin de section.
+function bucketByAnchor(
+  numbered: Array<{ p: RapportPhotoData; num: number }>,
+  paraCount: number,
+) {
+  const afterPara = new Map<number, Array<{ p: RapportPhotoData; num: number }>>();
+  const atEnd: Array<{ p: RapportPhotoData; num: number }> = [];
+  for (const np of numbered) {
+    const a = np.p.ancrage_para;
+    if (a !== null && a >= 1 && a <= paraCount) {
+      const arr = afterPara.get(a);
+      if (arr) arr.push(np);
+      else afterPara.set(a, [np]);
+    } else {
+      atEnd.push(np);
+    }
+  }
+  return { afterPara, atEnd };
+}
+
+// Section DÉGÂTS / INSPECTION : prose + photos ancrées dans le texte. Chaque
+// photo s'affiche juste après le paragraphe attribué par l'IA (ancrage_para) ;
+// les photos sans ancrage sont regroupées en fin de section. Numérotation
+// « Photo N » continue (startNumber = 1 pour DÉGÂTS, suite pour INSPECTION).
+function SectionWithPhotos({ title, text, photos, startNumber }: {
+  title: string;
+  text: string;
+  photos: RapportPhotoData[] | undefined;
+  startNumber: number;
+}) {
+  const paras = paragraphs(text);
+  const numbered = (photos ?? []).map((p, i) => ({ p, num: startNumber + i }));
+  const { afterPara, atEnd } = bucketByAnchor(numbered, paras.length);
+  return (
+    <View>
+      <View minPresenceAhead={40}>
+        <View style={styles.sectionRule} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {paras.length > 0
+        ? paras.map((p, i) => {
+            const grp = afterPara.get(i + 1);
+            return (
+              <View key={i}>
+                <Text style={styles.paragraph}>{p}</Text>
+                {grp && grp.length > 0 ? <PhotosGrid items={grp} /> : null}
+              </View>
+            );
+          })
+        : <Text style={styles.empty}>—</Text>}
+      {atEnd.length > 0 ? <PhotosGrid items={atEnd} /> : null}
     </View>
   );
 }
@@ -447,12 +498,10 @@ export function RapportPdf({ data, logo, photos }: {
           <View style={styles.headerRule} />
         </View>
 
-        {/* 4 sections — photos en fin de DÉGÂTS et d'INSPECTION uniquement,
-            numérotées en continu sur l'ensemble du document. */}
-        <Section title="DÉGÂTS" text={data.degats} />
-        <PhotosGrid photos={photos.degats} startNumber={1} />
-        <Section title="INSPECTION" text={data.inspection} />
-        <PhotosGrid photos={photos.inspection} startNumber={(photos.degats?.length ?? 0) + 1} />
+        {/* DÉGÂTS et INSPECTION : prose + photos ancrées dans le texte (ancrage_para),
+            numérotées en continu ; photos sans ancrage regroupées en fin de section. */}
+        <SectionWithPhotos title="DÉGÂTS" text={data.degats} photos={photos.degats} startNumber={1} />
+        <SectionWithPhotos title="INSPECTION" text={data.inspection} photos={photos.inspection} startNumber={(photos.degats?.length ?? 0) + 1} />
         {/* CONCLUSION + RECOMMANDATION + clôture : page dédiée (dernière),
             détachée des constats DÉGÂTS/INSPECTION et des photos. */}
         <View break>
