@@ -1,6 +1,12 @@
 // Génération du rapport au format Microsoft Word (.docx) — port fidèle de
 // FOXO_BASE.js (template propriétaire FoxO).
 //
+// NOTE : depuis le chantier « Signature visuelle » (2026-06), le PDF
+// (RapportPdf.tsx) est la RÉFÉRENCE VISUELLE CLIENT à l'identité FoxO ; ce
+// docx reste le document de travail INTERNE au gabarit Word historique. Les
+// deux moteurs consomment le même ReportData mais ne sont plus jumeaux
+// visuellement.
+//
 // Photos : récupérées depuis photos_interventions (lien section + ordre,
 // cf. migration 2026-05-28_photos_section.sql) ; bytes téléchargés via
 // l'API Drive avec drive_file_id et le token OAuth FoxO. Les légendes
@@ -103,6 +109,17 @@ export interface ReportData {
   conclusion: string;
   recommandation: string;
   fait_a_date: string;
+  // Optionnel — consommé par le moteur PDF uniquement (clôture) ; le builder
+  // docx l'ignore.
+  technicien_nom?: string;
+  // Optionnel — ville du bâtiment (depuis l'ACP) pour la clôture « Fait à … » ;
+  // PDF uniquement, repli sur le siège si absente. Le builder docx l'ignore.
+  fait_a_ville?: string;
+  // Optionnels — synthèse IA « L'essentiel » (cause + action) pour la couverture
+  // PDF. Générés par l'agent synthese_essentiel ; repli sur résumé local si absents.
+  // Le builder docx les ignore.
+  essentiel_cause?: string;
+  essentiel_action?: string;
 }
 
 // ─── Helpers atomiques (port FOXO_BASE) ───────────────────────────────

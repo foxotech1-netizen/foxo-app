@@ -17,6 +17,7 @@ import {
 } from '@/lib/rapport/report-data-mapping';
 import { techniquesFromKeys } from '@/lib/rapport/techniques';
 import { fetchRapportPhotos } from '@/lib/rapport/photos';
+import { summarizeEssentiel } from '@/lib/rapport/synthese-essentiel';
 import type { Acp, Intervention, Occupant, Organisation, ParticulierContact, Rapport, Utilisateur } from '@/lib/types/database';
 
 export type DispatchResult = { ok: true; emailId?: string } | { ok: false; error: string };
@@ -132,6 +133,14 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     ? techniquesFromKeys(techKeys)
     : buildTechniques(observations);
 
+  // Synthèse IA « L'essentiel » (couverture) : best-effort, null → repli local
+  // côté RapportPdf. Texte brut en entrée (pas le format ||PARA||).
+  const essentiel = await summarizeEssentiel({
+    interventionId,
+    conclusion: rapport.conclusion ?? '',
+    recommandation: rapport.recommandations ?? '',
+  });
+
   const reportData: ReportData = {
     numero: ref,
     ref_label: refLabelValue.ref_label,
@@ -147,6 +156,12 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     conclusion: toParaFmt(rapport.conclusion ?? ''),
     recommandation: toParaFmt(rapport.recommandations ?? ''),
     fait_a_date: fmtDateShort(today),
+    ...(techNom ? { technicien_nom: techNom } : {}),
+    // « Fait à » : ville du bâtiment depuis l'ACP (repli sur le siège côté PDF).
+    ...(acp?.ville ? { fait_a_ville: acp.ville } : {}),
+    // Synthèse IA « L'essentiel » (repli sur résumé local côté PDF si absente).
+    ...(essentiel?.cause ? { essentiel_cause: essentiel.cause } : {}),
+    ...(essentiel?.action ? { essentiel_action: essentiel.action } : {}),
   };
 
   // Photos (DÉGÂTS + INSPECTION) téléchargées EN AMONT et passées au moteur
@@ -154,7 +169,8 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
   // (fetchRapportPhotos) pour un rendu jumeau. Best-effort : jamais bloquant.
   const photos = await fetchRapportPhotos(interventionId);
 
-  // PDF jumeau du template, généré depuis le MÊME ReportData que le docx.
+  // PDF (référence visuelle client), généré depuis le MÊME ReportData que
+  // le docx interne.
   const pdfBuffer = await generateRapportPdf(reportData, photos);
 
   return {
