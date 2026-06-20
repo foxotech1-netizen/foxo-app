@@ -112,6 +112,9 @@ export interface ReportData {
   // Optionnel — consommé par le moteur PDF uniquement (clôture) ; le builder
   // docx l'ignore.
   technicien_nom?: string;
+  // Optionnel — ville du bâtiment (depuis l'ACP) pour la clôture « Fait à … » ;
+  // PDF uniquement, repli sur le siège si absente. Le builder docx l'ignore.
+  fait_a_ville?: string;
 }
 
 // ─── Helpers atomiques (port FOXO_BASE) ───────────────────────────────

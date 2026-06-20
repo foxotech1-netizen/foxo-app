@@ -148,6 +148,8 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     recommandation: toParaFmt(rapport.recommandations ?? ''),
     fait_a_date: fmtDateShort(today),
     ...(techNom ? { technicien_nom: techNom } : {}),
+    // « Fait à » : ville du bâtiment depuis l'ACP (repli sur le siège côté PDF).
+    ...(acp?.ville ? { fait_a_ville: acp.ville } : {}),
   };
 
   // Photos (DÉGÂTS + INSPECTION) téléchargées EN AMONT et passées au moteur
