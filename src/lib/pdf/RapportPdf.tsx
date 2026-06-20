@@ -315,10 +315,10 @@ export function RapportPdf({ data, logo, photos }: {
   const mandataire = facturationLines.slice(1)
     .map((l, i) => (i === 0 ? l.replace(/^c\/o\s+/i, '') : l));
 
-  // L'essentiel : 1er paragraphe de la conclusion (cause) et de la
-  // recommandation (action) — purement dérivé, aucune donnée inventée.
-  const essCause = summarize(paragraphs(data.conclusion)[0] ?? '');
-  const essAction = summarize(paragraphs(data.recommandation)[0] ?? '');
+  // L'essentiel : synthèse IA (essentiel_cause / essentiel_action) si disponible,
+  // sinon repli sur le 1er paragraphe résumé localement. Aucune donnée inventée.
+  const essCause = data.essentiel_cause?.trim() || summarize(paragraphs(data.conclusion)[0] ?? '');
+  const essAction = data.essentiel_action?.trim() || summarize(paragraphs(data.recommandation)[0] ?? '');
   const showEssentiel = Boolean(essCause || essAction);
 
   // « Fait à » : ville d'intervention si renseignée, sinon repli sur le siège.
