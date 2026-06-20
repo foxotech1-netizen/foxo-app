@@ -60,7 +60,7 @@ async function solidPhoto(
   const bytes = await sharp({ create: { width, height, channels: 3, background: rgb } })
     .jpeg({ quality: 80 })
     .toBuffer();
-  return { bytes, width, height, label };
+  return { bytes, width, height, label, ancrage_para: null };
 }
 
 async function buildTestPhotos(): Promise<RapportPhotosBySection> {

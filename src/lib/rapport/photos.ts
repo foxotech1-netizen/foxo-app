@@ -19,6 +19,7 @@ export type RapportPhotoData = {
   width: number;          // dimension intrinsèque (px)
   height: number;         // dimension intrinsèque (px)
   label: string | null;   // légende (photos_interventions.label)
+  ancrage_para: number | null; // index 1-based du paragraphe d'ancrage, ou null (fin de section)
 };
 
 export type RapportPhotosBySection = {
@@ -62,7 +63,7 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
   const admin = createAdminClient();
   const { data } = await admin
     .from('photos_interventions')
-    .select('drive_file_id, filename, section, ordre, label')
+    .select('drive_file_id, filename, section, ordre, label, ancrage_para')
     .eq('intervention_id', interventionId)
     .in('section', SECTIONS as unknown as string[])   // DÉGÂTS + INSPECTION uniquement
     .order('section', { ascending: true })
@@ -74,6 +75,7 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
     section: PhotoSection;
     ordre: number;
     label: string | null;
+    ancrage_para: number | null;
   }>;
   if (rows.length === 0) return empty;
 
@@ -86,7 +88,7 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
     if (!raw) { console.warn(`[rapport/photos] download échoué (section ${p.section})`); continue; }
     const norm = await toJpegWithDims(raw);
     if (!norm) { console.warn(`[rapport/photos] décodage échoué (section ${p.section})`); continue; }
-    empty[p.section].push({ bytes: norm.bytes, width: norm.width, height: norm.height, label: p.label });
+    empty[p.section].push({ bytes: norm.bytes, width: norm.width, height: norm.height, label: p.label, ancrage_para: p.ancrage_para });
   }
   return empty;
 }

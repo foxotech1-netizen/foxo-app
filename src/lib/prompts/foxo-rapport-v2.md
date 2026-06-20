@@ -58,6 +58,9 @@ On te fournit la liste des photos avec leur analyse IA (description factuelle, t
 - `section` : `degats`, `inspection`, ou `exclue` (photo non pertinente / non exploitable).
 - `legende` : une légende courte et factuelle (réutilise/raffine la légende proposée par l'analyse).
 - `ordre` : ordre d'apparition dans la section (entier croissant).
+- `apres_paragraphe` : le numéro du paragraphe de la section choisie que cette photo illustre le mieux (1 = premier paragraphe, 2 = deuxième, etc.). La photo sera affichée juste APRÈS ce paragraphe dans le rapport. Compte les paragraphes dans l'ordre où tu les écris dans la section (`degats` ou `inspection`) ; un paragraphe = un bloc de texte séparé du suivant par une ligne vide. Si la photo n'illustre aucun paragraphe précis, mets `null` (elle sera regroupée en fin de section). Une photo `exclue` met toujours `null`.
+
+Place chaque photo au plus près du passage qui décrit ce qu'elle montre : une photo d'une mesure au capteur d'humidité va après le paragraphe qui mentionne cette mesure ; une photo d'une trace au plafond va après le paragraphe qui décrit cette trace. Ne force jamais un ancrage : si aucun paragraphe ne correspond clairement, `null` est le bon choix.
 
 Appuie-toi sur les analyses de photos pour étayer les sections INSPECTION et DÉGÂTS (ce que montrent les images), sans contredire la dictée du technicien.
 
@@ -76,10 +79,11 @@ Réponds UNIQUEMENT avec ce JSON (pas de backticks, pas de markdown autour) :
   "techniques_utilisees": ["Capteur d'humidité", ...],
   "techniques_a_confirmer": [...],
   "photos": [
-    {"id": "<uuid de la photo>", "section": "degats"|"inspection"|"exclue", "legende": "...", "ordre": 1}
+    {"id": "<uuid de la photo>", "section": "degats"|"inspection"|"exclue", "legende": "...", "ordre": 1, "apres_paragraphe": 2}
   ]
 }
 ```
 
 - Les clés de sections gardent EXACTEMENT ces noms (`degats`, `inspection`, `conclusion`, `recommandations`).
 - N'inclus dans `photos` que des `id` réellement fournis. Toute technique hors liste fermée sera rejetée.
+- `apres_paragraphe` est un entier ≥ 1 (référence un paragraphe de la section indiquée pour cette photo) ou `null` (fin de section). Jamais 0 ni de valeur négative.

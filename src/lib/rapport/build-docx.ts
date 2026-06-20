@@ -470,6 +470,25 @@ function photosTable(photos: RapportPhotoData[]): Table | null {
   });
 }
 
+// Range les photos d'une section par ancrage (jumeau du moteur PDF) : ancrage_para
+// valide (1..N) -> après le paragraphe correspondant ; sinon (null / hors plage) ->
+// fin de section.
+function bucketDocxPhotos(photos: RapportPhotoData[], paraCount: number) {
+  const afterPara = new Map<number, RapportPhotoData[]>();
+  const atEnd: RapportPhotoData[] = [];
+  for (const p of photos) {
+    const a = p.ancrage_para;
+    if (a !== null && a >= 1 && a <= paraCount) {
+      const arr = afterPara.get(a);
+      if (arr) arr.push(p);
+      else afterPara.set(a, [p]);
+    } else {
+      atEnd.push(p);
+    }
+  }
+  return { afterPara, atEnd };
+}
+
 // ─── Builder principal ────────────────────────────────────────────────
 
 export async function buildRapportDocx(args: {
@@ -579,14 +598,33 @@ export async function buildRapportDocx(args: {
     gap(200, 200),
   ];
 
-  // 4 sections : titre + corps (split sur ||PARA||). Les photos ne sont
-  // rattachées qu'en fin de DÉGÂTS et d'INSPECTION (règle métier Foxo).
+  // 4 sections : titre + corps (split sur ||PARA||). Pour DÉGÂTS et INSPECTION,
+  // les photos sont ancrées dans le texte (après leur paragraphe via ancrage_para),
+  // les non-ancrées regroupées en fin de section — jumeau du moteur PDF.
   for (const s of sectionsConfig) {
     bodyChildren.push(sectionTitle(s.title));
-    bodyChildren.push(...textToParas(s.text));
     if (s.key === 'degats' || s.key === 'inspection') {
-      const tbl = photosTable(photosBySection[s.key as PhotoSectionKey]);
-      if (tbl) bodyChildren.push(tbl);
+      const photos = photosBySection[s.key as PhotoSectionKey];
+      const paraTexts = (s.text ?? '').split(/\|\|PARA\|\|/g).map((p) => p.trim()).filter(Boolean);
+      const { afterPara, atEnd } = bucketDocxPhotos(photos, paraTexts.length);
+      if (paraTexts.length === 0) {
+        bodyChildren.push(bodyTextMuted('—'));
+      } else {
+        paraTexts.forEach((p, i) => {
+          bodyChildren.push(bodyText(p));
+          const grp = afterPara.get(i + 1);
+          if (grp && grp.length > 0) {
+            const tbl = photosTable(grp);
+            if (tbl) bodyChildren.push(tbl);
+          }
+        });
+      }
+      if (atEnd.length > 0) {
+        const tbl = photosTable(atEnd);
+        if (tbl) bodyChildren.push(tbl);
+      }
+    } else {
+      bodyChildren.push(...textToParas(s.text));
     }
   }
 
