@@ -63,7 +63,7 @@ function readAsset(rel: string): Buffer | null {
     return null;
   }
 }
-const COLOR_LOGO = readAsset('public/foxo-logo-transparent.png');
+const COLOR_LOGO = readAsset('public/foxo-logo-renard.png');
 const HEADER_LOGO_W = 52;
 const HEADER_LOGO_H = 52;
 const COVER_LOGO = 100;
@@ -90,7 +90,7 @@ const cover = StyleSheet.create({
     paddingBottom: 34,
   },
   logoZone: { alignItems: 'center', marginBottom: 14 },
-  logo: { width: COVER_LOGO, height: COVER_LOGO },
+  logo: { width: 84, height: 102 },
   logoFallback: { fontFamily: 'Syne', fontWeight: 'bold', fontSize: 40, color: C.title },
   tagline: { fontSize: 8, letterSpacing: 3, textTransform: 'uppercase', color: C.accent, marginTop: 5 },
   title: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   // ── Header (fixed) : logo couleur à gauche, coordonnées à droite, filet
   // accent en assise. ──
   header: { position: 'absolute', top: 26, left: 36, right: 36 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
+  headerLogoRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 8 },
   headerFallback: { fontFamily: 'Syne', fontWeight: 'bold', fontSize: 20, color: C.title },
   headerCoords: { textAlign: 'right' },
   headerSociete: { fontFamily: 'Inter', fontWeight: 600, fontSize: 8, color: C.title, marginBottom: 1.5 },
@@ -185,6 +185,17 @@ function paragraphs(text: string): string[] {
     .split('||PARA||')
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+// Résumé court pour le bloc « L'essentiel » de la couverture : coupe au mot
+// près sous une longueur max et ajoute une ellipse. Le détail complet figure
+// dans les sections CONCLUSION / RECOMMANDATION (dernière page).
+function summarize(text: string, maxLen = 200): string {
+  const s = (text ?? '').replace(/\s+/g, ' ').trim();
+  if (s.length <= maxLen) return s;
+  const cut = s.slice(0, maxLen);
+  const i = cut.lastIndexOf(' ');
+  return (i > 40 ? cut.slice(0, i) : cut).trimEnd() + '…';
 }
 
 function CheckItem({ label, checked }: { label: string; checked: boolean }) {
@@ -306,8 +317,8 @@ export function RapportPdf({ data, logo, photos }: {
 
   // L'essentiel : 1er paragraphe de la conclusion (cause) et de la
   // recommandation (action) — purement dérivé, aucune donnée inventée.
-  const essCause = paragraphs(data.conclusion)[0] ?? '';
-  const essAction = paragraphs(data.recommandation)[0] ?? '';
+  const essCause = summarize(paragraphs(data.conclusion)[0] ?? '');
+  const essAction = summarize(paragraphs(data.recommandation)[0] ?? '');
   const showEssentiel = Boolean(essCause || essAction);
 
   // « Fait à » : ville d'intervention si renseignée, sinon repli sur le siège.
@@ -426,17 +437,12 @@ export function RapportPdf({ data, logo, photos }: {
       <Page size="A4" style={styles.page}>
         {/* Header (répété chaque page) */}
         <View style={styles.header} fixed>
-          <View style={styles.headerRow}>
+          <View style={styles.headerLogoRow}>
             {COLOR_LOGO
-              ? <Image src={{ data: COLOR_LOGO, format: 'png' }} style={{ width: HEADER_LOGO_W, height: HEADER_LOGO_H }} />
+              ? <Image src={{ data: COLOR_LOGO, format: 'png' }} style={{ width: 40, height: 48 }} />
               : logo
                 ? <Image src={{ data: logo, format: 'jpg' }} style={{ width: HEADER_LOGO_W, height: Math.round(HEADER_LOGO_W / 1.9) }} />
                 : <Text style={styles.headerFallback}>FoxO</Text>}
-            <View style={styles.headerCoords}>
-              <Text style={styles.headerSociete}>Fox Group srl</Text>
-              <Text style={styles.headerContact}>Stationstraat 55, 3070 Kortenberg</Text>
-              <Text style={styles.headerContact}>info@foxo.be  ·  +32 488 700 007</Text>
-            </View>
           </View>
           <View style={styles.headerRule} />
         </View>
@@ -447,18 +453,18 @@ export function RapportPdf({ data, logo, photos }: {
         <PhotosGrid photos={photos.degats} startNumber={1} />
         <Section title="INSPECTION" text={data.inspection} />
         <PhotosGrid photos={photos.inspection} startNumber={(photos.degats?.length ?? 0) + 1} />
-        <Section title="CONCLUSION" text={data.conclusion} />
-        <Section title="RECOMMANDATION" text={data.recommandation} />
+        {/* CONCLUSION + RECOMMANDATION + clôture : page dédiée (dernière),
+            détachée des constats DÉGÂTS/INSPECTION et des photos. */}
+        <View break>
+          <Section title="CONCLUSION" text={data.conclusion} />
+          <Section title="RECOMMANDATION" text={data.recommandation} />
 
-        {/* Clôture */}
-        <View style={styles.closing} wrap={false}>
-          <Text style={styles.faitA}>
-            Fait à {faitAVille}, le <Text style={styles.faitADate}>{data.fait_a_date}</Text>
-          </Text>
-          <Text style={styles.closingSociete}>Fox Group srl</Text>
-          {data.technicien_nom
-            ? <Text style={styles.closingTech}>Technicien : {data.technicien_nom}</Text>
-            : null}
+          {/* Clôture : uniquement « Fait à … » */}
+          <View style={styles.closing} wrap={false}>
+            <Text style={styles.faitA}>
+              Fait à {faitAVille}, le <Text style={styles.faitADate}>{data.fait_a_date}</Text>
+            </Text>
+          </View>
         </View>
 
         {/* Footer 3 lignes + numéro de page (répétés chaque page) */}
