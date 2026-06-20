@@ -40,7 +40,9 @@ export type AgentName =
   | "notes_frais_extract"
   | "assistant_chat"
   // Briefing quotidien du Tableau de bord (chantier Briefing IA)
-  | "briefing";
+  | "briefing"
+  // Synthèse « L'essentiel » de la couverture du rapport PDF (chantier Rapport PDF)
+  | "synthese_essentiel";
 
 export type AgentKind = "canonical" | "utility";
 
