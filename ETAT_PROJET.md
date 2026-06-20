@@ -1,3 +1,31 @@
+# État du projet FoxO — snapshot 2026-06-20 — Photos ANCRÉES DANS LE TEXTE du rapport (PDF + DOCX) LIVRÉ
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus le merge de la PR #115 (merge commit 8014770, feat/photos-inline-rapport). Branche supprimée post-merge. Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Photos ancrées dans le texte (feat/photos-inline-rapport, PR #115, merge 8014770 ; 6 commits ; 7 fichiers +134/−29 ; 1 SQL appliquée prod 2026-06-20). Validé visuellement par Foxo sur le dossier sandbox 2026-000 (préversion Vercel). Lève l'item « Photos placées par IA dans le texte » qui était DÉFÉRÉ au snapshot précédent.
+
+Objet : les photos n'apparaissent plus seulement en grille de fin de section — l'agent rédacteur attribue à chaque photo le paragraphe qu'elle illustre, et elle s'affiche juste APRÈS ce paragraphe, en PDF (référence client) ET en DOCX (doc de travail). Repli : une photo sans ancrage (ou ancrage hors plage) retombe en fin de section → zéro régression sur les anciens rapports.
+
+Chaîne de bout en bout (6 étapes, 1 commit chacune) :
+1. 4dc0dba — db/migrations/2026-06-20_photos_ancrage_para.sql : ADD COLUMN IF NOT EXISTS ancrage_para integer sur photos_interventions (1-based, NULL = fin de section). Appliquée prod AVANT le code. Aucune policy RLS touchée (lecture/écriture service-role).
+2. bb658e7 — prompt v2 (src/lib/prompts/foxo-rapport-v2.md) : l'agent produit, par photo placée, apres_paragraphe (numéro 1-based du paragraphe illustré, ou null). Ajouté §4 PHOTOS + exemple JSON §5.
+3. 9ad7d10 — persistance (generate-action.ts) : mapping apres_paragraphe (sortie LLM) → ancrage_para (colonne). Garde-fou : ancrage gardé seulement si entier ≥ 1 ET photo placée dans une section ; écrit dans le patch photos_interventions sous le MÊME verrou de statut que section/ordre (jamais si rapport valide/transmis).
+4. 398b852 — photos.ts : ancrage_para ajouté au select + au type RapportPhotoData (REQUIS, number|null) + propagé dans fetchRapportPhotos. NB : un 2e constructeur de RapportPhotoData existe — scripts/dev/preview-rapport-pdf.ts (solidPhoto) — ajusté à ancrage_para: null. Champ gardé REQUIS volontairement (contrat strict ; les renderers ne gèrent que number|null, pas undefined).
+5. db87a40 — rendu PDF (RapportPdf.tsx) : PhotosGrid prend désormais items:[{p,num}] (numéro « Photo N » pré-calculé) ; nouvelles fonctions bucketByAnchor (1..N → après le paragraphe ; null/hors plage → fin) et SectionWithPhotos (titre + chaque paragraphe suivi de ses photos ancrées + reliquat en fin). Composant Section INCHANGÉ (toujours utilisé pour CONCLUSION/RECOMMANDATION). Numérotation continue préservée (startNumber=1 DÉGÂTS, suite INSPECTION).
+6. 0ffaf55 — rendu DOCX (build-docx.ts) : fonction jumelle bucketDocxPhotos + boucle des sections réécrite (paragraphe → photosTable ancrée → … → photosTable de fin). Même règle 1-based, même repli. Le DOCX ne numérote pas les photos (légende seule, inchangé).
+
+INVARIANTS / RAPPELS confirmés cette session :
+- PDF ↔ DOCX partagent la même règle d'ancrage 1-based et le même repli « fin de section ». CONCLUSION/RECOMMANDATION sans photo des deux côtés.
+- Contrat de nommage VOULU : apres_paragraphe = champ « parlant » côté IA ; ancrage_para = nom de colonne/de type. Mapping dans generate-action.ts.
+- Indexation des paragraphes : texte stocké en \n\n, converti en ||PARA|| par toParaFmt (dispatch.ts + api/tech/rapport-docx). Les deux renderers découpent sur ||PARA|| et FILTRENT les blocs vides → l'ancrage 1-based vise les paragraphes non vides ; hors plage → fin de section (dégradation gracieuse).
+- buildRapportPdf (dispatch.ts) reste le POINT UNIQUE de construction du PDF (aperçu admin preview-pdf + envoi). buildRapportDocx pour le DOCX brouillon tech.
+
+BACKLOG — item levé : « Photos placées par IA dans le texte » → FAIT (ce chantier).
+
+PROCHAIN CHANTIER — à redécider avec Foxo (auditer main d'abord, ne rien présumer). Majorité de l'ancien backlog déjà faite (Observabilité runAgent, outils Google PR #112, audit migrations, RLS utilisateurs). Jalon clé inchangé : faire tourner la plateforme EN VRAI au quotidien (crons mails coupés, re-encodage manuel) → débloque Analytics puis Facturation (dernier chantier). Pistes restantes : nettoyage backlog technique (lint react-hooks, sécurité basse), ou nouveau besoin.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-20 — Rapport PDF : refonte visuelle + synthèse IA « L'essentiel » LIVRÉ
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus le merge de la PR #114 (merge commit 912ed24, feat/signature-pdf). Vérifier le git log live en début de session.
