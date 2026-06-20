@@ -115,6 +115,11 @@ export interface ReportData {
   // Optionnel — ville du bâtiment (depuis l'ACP) pour la clôture « Fait à … » ;
   // PDF uniquement, repli sur le siège si absente. Le builder docx l'ignore.
   fait_a_ville?: string;
+  // Optionnels — synthèse IA « L'essentiel » (cause + action) pour la couverture
+  // PDF. Générés par l'agent synthese_essentiel ; repli sur résumé local si absents.
+  // Le builder docx les ignore.
+  essentiel_cause?: string;
+  essentiel_action?: string;
 }
 
 // ─── Helpers atomiques (port FOXO_BASE) ───────────────────────────────
