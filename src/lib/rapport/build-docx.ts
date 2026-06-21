@@ -32,6 +32,7 @@ import {
   VerticalAlign,
   WidthType,
   ShadingType,
+  PageBreak,
   PageBorderDisplay,
   PageBorderOffsetFrom,
   PageBorderZOrder,
@@ -335,7 +336,7 @@ function buildIdentificationTable(data: ReportData): Table {
       new TableRow({
         children: [
           labelCell(C1 + C2, 'Objet intervention :', 2),
-          labelCell(C3 + C4, 'Adresse Facturation :', 2),
+          labelCell(C3 + C4, "Mandataire (donneur d'ordre) :", 2),
         ],
       }),
       // L3 : objet contenu (span 2) | facturation 4 lignes (span 2) — h ≥ 1000
@@ -491,6 +492,75 @@ function bucketDocxPhotos(photos: RapportPhotoData[], paraCount: number) {
 
 // ─── Builder principal ────────────────────────────────────────────────
 
+// ─── « L'essentiel » — encadré takeaway (jumeau du bloc couverture PDF) ──
+// Cause + action en tête de dossier. Repli identique au PDF : synthèse IA
+// (essentiel_cause/action) si présente, sinon 1er paragraphe résumé de
+// CONCLUSION / RECOMMANDATION. Rien à afficher -> bloc entièrement omis.
+
+function summarizeFirstPara(text: string): string {
+  const first = (text ?? '').split(/\|\|PARA\|\|/g)[0]?.trim() ?? '';
+  if (first.length <= 160) return first;
+  const cut = first.slice(0, 160);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > 80 ? cut.slice(0, sp) : cut).trimEnd() + '…';
+}
+
+function essentielCell(label: string, value: string): TableCell {
+  return new TableCell({
+    width: { size: Math.floor(TW / 2), type: WidthType.DXA },
+    shading: { type: ShadingType.CLEAR, color: 'auto', fill: LIGHT_BLUE },
+    borders: {
+      top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+    },
+    margins: { top: 120, bottom: 120, left: 160, right: 140 },
+    verticalAlign: VerticalAlign.TOP,
+    children: [
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [t(label, { bold: true, size: 18, color: MID_BLUE, allCaps: true })],
+      }),
+      new Paragraph({
+        children: [t(value || '—', { size: 20 })],
+      }),
+    ],
+  });
+}
+
+function buildEssentielBlock(data: ReportData): (Paragraph | Table)[] {
+  const essCause = data.essentiel_cause?.trim() || summarizeFirstPara(data.conclusion);
+  const essAction = data.essentiel_action?.trim() || summarizeFirstPara(data.recommandation);
+  if (!essCause && !essAction) return [];
+  return [
+    new Paragraph({
+      spacing: { before: 260, after: 90 },
+      children: [t("L'essentiel", { bold: true, size: 24, color: DARK_BLUE })],
+    }),
+    new Table({
+      width: { size: TW, type: WidthType.DXA },
+      columnWidths: [Math.floor(TW / 2), Math.floor(TW / 2)],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 4, color: DIVIDER },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color: DIVIDER },
+        left: { style: BorderStyle.SINGLE, size: 24, color: ACCENT_LINE },
+        right: { style: BorderStyle.SINGLE, size: 4, color: DIVIDER },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            essentielCell('Cause la plus probable', essCause),
+            essentielCell('Action recommandée', essAction),
+          ],
+        }),
+      ],
+    }),
+  ];
+}
+
 export async function buildRapportDocx(args: {
   interventionId: string;
   data: ReportData;
@@ -584,7 +654,7 @@ export async function buildRapportDocx(args: {
     // Titre principal
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 400 },
+      spacing: { before: 200, after: 120 },
       children: [
         t("RAPPORT D'INTERVENTION", {
           bold: true, allCaps: true, size: 48, color: DARK_BLUE,
@@ -592,10 +662,21 @@ export async function buildRapportDocx(args: {
       ],
     }),
 
+    // Tagline (jumelle de la couverture PDF)
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 360 },
+      children: [t('Détection de fuites · Lekdetectie', { size: 20, color: MUTED })],
+    }),
+
     // Tableau identification 5 lignes
     buildIdentificationTable(data),
 
-    gap(200, 200),
+    // Encadré « L'essentiel » (cause + action) — jumeau couverture PDF
+    ...buildEssentielBlock(data),
+
+    // Fin de la page de garde -> les constats démarrent en page 2
+    new Paragraph({ children: [new PageBreak()] }),
   ];
 
   // 4 sections : titre + corps (split sur ||PARA||). Pour DÉGÂTS et INSPECTION,
