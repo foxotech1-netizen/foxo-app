@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { compressImage } from '@/lib/images/compress-image';
 import {
   Beaker, Camera, Droplet, Eye, Gauge, HelpCircle,
   ImagePlus, Plus, Thermometer, X,
@@ -157,13 +158,16 @@ export function ObservationsPanel({
       // d'un fichier = continue avec les suivants.
       const photos: ObsPhoto[] = [];
       for (const file of formPhotos) {
+        const compressed = await compressImage(file);
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('file', compressed);
         fd.append('intervention_id', interventionId);
-        const uploadRes = await fetch('/api/tech/upload-photo', {
-          method: 'POST',
-          body: fd,
-        }).then((r) => r.json());
+        const uploadResp = await fetch('/api/tech/upload-photo', { method: 'POST', body: fd });
+        if (!uploadResp.ok) {
+          setError(uploadResp.status === 413 ? 'Photo trop lourde, réessayez.' : `Upload échoué (HTTP ${uploadResp.status}).`);
+          continue;
+        }
+        const uploadRes = await uploadResp.json();
         if (!uploadRes.ok || !uploadRes.id) continue;
         const newPhoto: ObsPhoto = {
           id: uploadRes.id,

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Camera, Send, WifiOff } from 'lucide-react';
+import { compressImage } from '@/lib/images/compress-image';
 
 export type Photo = { name: string; url: string; createdAt: string | null };
 
@@ -77,7 +78,8 @@ async function uploadToDrive(interventionId: string, file: File | Blob, filename
   const fd = new FormData();
   // Repackage Blob en File pour préserver le filename côté server
   const f = file instanceof File ? file : new File([file], filename, { type });
-  fd.append('file', f);
+  const compressed = await compressImage(f);
+  fd.append('file', compressed);
   fd.append('intervention_id', interventionId);
   try {
     const res = await fetch('/api/tech/upload-photo', { method: 'POST', body: fd });

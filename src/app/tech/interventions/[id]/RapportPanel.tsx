@@ -7,6 +7,7 @@ import { Sparkles, FileText, Eye, Check, X, Cloud, Camera } from 'lucide-react';
 import { saveRapport, publishRapport, triggerDriveSync, type RapportInput } from '../../actions';
 import { generateRapportSections } from './generate-action';
 import type { Rapport } from '@/lib/types/database';
+import { compressImage } from '@/lib/images/compress-image';
 
 const SECTIONS: { key: keyof RapportInput; label: string; placeholder: string }[] = [
   { key: 'degats',          label: 'Dégâts',         placeholder: 'Description des dégâts visibles, étendue, support touché…' },
@@ -105,8 +106,9 @@ export function RapportPanel({
   async function uploadPhotoToSection(section: SectionKey, file: File) {
     setUploadingSection(section);
     try {
+      const compressed = await compressImage(file);
       const fd = new FormData();
-      fd.append('file', file);
+      fd.append('file', compressed);
       fd.append('intervention_id', interventionId);
       fd.append('section', section);
       const r = await fetch('/api/tech/upload-photo', { method: 'POST', body: fd });
