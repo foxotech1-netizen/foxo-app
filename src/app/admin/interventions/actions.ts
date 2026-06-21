@@ -39,6 +39,7 @@ export interface CreateInterventionColdInput {
   description?: string;
   priorite?: PrioriteIntervention; // défaut 'normale'
   adresse?: string;
+  reference_externe?: string;      // réf interne du donneur d'ordre (syndic/courtier)
   creneau_debut?: string | null;   // ISO, optionnel (date du RDV / réalisation)
   technicien_id?: string | null;   // optionnel
   demandeur: CreateFromSlotSyndic | CreateFromSlotParticulier;
@@ -147,6 +148,9 @@ export async function createInterventionCold(
       date_demande: nowIso,
     };
   }
+
+  // Réf. externe (donneur d'ordre) — commune aux deux modes, optionnelle.
+  basePayload.reference_externe = input.reference_externe?.trim() || null;
 
   // 2 + 5. Référence + INSERT avec retry 1x sur 23505 (réf en double).
   //    - réf AUTO : on régénère et on retente une fois.

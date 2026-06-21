@@ -72,6 +72,7 @@ export function ColdInterventionModal({
 
   // Champs communs / spécifiques cold
   const [ref, setRef] = useState('');
+  const [refExterne, setRefExterne] = useState('');
   const [statut, setStatut] = useState<StatutIntervention>('nouvelle');
   const [type, setType] = useState<TypeIntervention | ''>('');
   const [description, setDescription] = useState('');
@@ -202,6 +203,7 @@ export function ColdInterventionModal({
     startTransition(async () => {
       const res = await createInterventionCold({
         ref: ref.trim() || undefined,
+        reference_externe: refExterne.trim() || undefined,
         statut,
         type: type || undefined,
         description: description.trim() || undefined,
@@ -296,6 +298,10 @@ export function ColdInterventionModal({
             <div>
               <Lbl>Référence</Lbl>
               <input className={`${INPUT_CLASS} font-mono`} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="auto si vide" />
+            </div>
+            <div>
+              <Lbl>Réf. syndic / courtier</Lbl>
+              <input className={`${INPUT_CLASS} font-mono`} value={refExterne} onChange={(e) => setRefExterne(e.target.value)} placeholder="optionnel" />
             </div>
             <div>
               <Lbl>Statut</Lbl>
@@ -441,6 +447,7 @@ export function ColdInterventionModal({
                 )}
               </div>
               {/* Adresse d'intervention structurée — optionnel, mode syndic */}
+              <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted pt-1">Adresse d&apos;intervention</div>
               <div>
                 <Lbl>Rue et n° (optionnel)</Lbl>
                 <input className={INPUT_CLASS} value={adrRue} onChange={(e) => setAdrRue(e.target.value)} />
