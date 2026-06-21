@@ -447,6 +447,7 @@ export function ColdInterventionModal({
                 )}
               </div>
               {/* Adresse d'intervention structurée — optionnel, mode syndic */}
+              <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted pt-1">Adresse d&apos;intervention</div>
               <div>
                 <Lbl>Rue et n° (optionnel)</Lbl>
                 <input className={INPUT_CLASS} value={adrRue} onChange={(e) => setAdrRue(e.target.value)} />
