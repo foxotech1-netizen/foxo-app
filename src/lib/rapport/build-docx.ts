@@ -393,61 +393,47 @@ const CELL_NO_BORDERS = {
   top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER,
 };
 
-// Une photo numérotée en continu (jumeau du moteur PDF : « Photo N — légende »).
-type NumberedPhoto = { p: RapportPhotoData; num: number };
-
-// Une cellule = une photo (image centrée + légende « Photo N — … » sous l'image),
-// ou une cellule vide pour compléter une ligne impaire.
-function photoCell(item: NumberedPhoto | null): TableCell {
-  if (!item) {
+// Une cellule = une photo (image centrée + légende sous l'image), ou une
+// cellule vide pour compléter une ligne impaire.
+function photoCell(photo: RapportPhotoData | null): TableCell {
+  if (!photo) {
     return new TableCell({
       width: { size: PHOTO_CELL_DXA, type: WidthType.DXA },
       borders: CELL_NO_BORDERS,
       children: [new Paragraph({ children: [] })],
     });
   }
-  const { p, num } = item;
-  const { width, height } = photoDisplaySize(p);
+  const { width, height } = photoDisplaySize(photo);
   const children: Paragraph[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: 40 },
+      spacing: { before: 120, after: photo.label ? 40 : 160 },
       children: [
         new ImageRun({
-          data: p.bytes,
+          data: photo.bytes,
           transformation: { width, height },
           type: 'jpg',
         }),
       ],
     }),
-    // Légende « Photo N — » (numéro accent semi-gras) + label (muted italique),
-    // jumeau de PhotosGrid côté PDF.
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      spacing: { before: 0, after: 160 },
-      children: [
-        new TextRun({
-          text: `Photo ${num}${p.label ? ' — ' : ''}`,
-          size: 18,
-          color: MID_BLUE,
-          bold: true,
-          italics: false,
-          font: FONT,
-        }),
-        ...(p.label
-          ? [
-              new TextRun({
-                text: p.label,
-                size: 18,
-                color: MUTED,
-                italics: true,
-                font: FONT,
-              }),
-            ]
-          : []),
-      ],
-    }),
   ];
+  if (photo.label) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 160 },
+        children: [
+          new TextRun({
+            text: photo.label,
+            size: 18,
+            color: MUTED,
+            italics: true,
+            font: FONT,
+          }),
+        ],
+      }),
+    );
+  }
   return new TableCell({
     width: { size: PHOTO_CELL_DXA, type: WidthType.DXA },
     borders: CELL_NO_BORDERS,
@@ -457,15 +443,15 @@ function photoCell(item: NumberedPhoto | null): TableCell {
   });
 }
 
-function photosTable(items: NumberedPhoto[]): Table | null {
-  if (items.length === 0) return null;
+function photosTable(photos: RapportPhotoData[]): Table | null {
+  if (photos.length === 0) return null;
 
   const rows: TableRow[] = [];
-  for (let i = 0; i < items.length; i += 2) {
+  for (let i = 0; i < photos.length; i += 2) {
     rows.push(
       new TableRow({
         cantSplit: true, // paire(s) image+légende insécable(s) → pas de coupure de page
-        children: [photoCell(items[i]), photoCell(items[i + 1] ?? null)],
+        children: [photoCell(photos[i]), photoCell(photos[i + 1] ?? null)],
       }),
     );
   }
@@ -484,17 +470,17 @@ function photosTable(items: NumberedPhoto[]): Table | null {
 // Range les photos d'une section par ancrage (jumeau du moteur PDF) : ancrage_para
 // valide (1..N) -> après le paragraphe correspondant ; sinon (null / hors plage) ->
 // fin de section.
-function bucketDocxPhotos(items: NumberedPhoto[], paraCount: number) {
-  const afterPara = new Map<number, NumberedPhoto[]>();
-  const atEnd: NumberedPhoto[] = [];
-  for (const it of items) {
-    const a = it.p.ancrage_para;
+function bucketDocxPhotos(photos: RapportPhotoData[], paraCount: number) {
+  const afterPara = new Map<number, RapportPhotoData[]>();
+  const atEnd: RapportPhotoData[] = [];
+  for (const p of photos) {
+    const a = p.ancrage_para;
     if (a !== null && a >= 1 && a <= paraCount) {
       const arr = afterPara.get(a);
-      if (arr) arr.push(it);
-      else afterPara.set(a, [it]);
+      if (arr) arr.push(p);
+      else afterPara.set(a, [p]);
     } else {
-      atEnd.push(it);
+      atEnd.push(p);
     }
   }
   return { afterPara, atEnd };
@@ -692,9 +678,6 @@ export async function buildRapportDocx(args: {
   // 4 sections : titre + corps (split sur ||PARA||). Pour DÉGÂTS et INSPECTION,
   // les photos sont ancrées dans le texte (après leur paragraphe via ancrage_para),
   // les non-ancrées regroupées en fin de section — jumeau du moteur PDF.
-  // Compteur de photos continu sur DÉGÂTS puis INSPECTION (jumeau du PDF :
-  // startNumber = 1 pour DÉGÂTS, suite pour INSPECTION).
-  let photoCounter = 0;
   for (const s of sectionsConfig) {
     // CONCLUSION + RECOMMANDATION sur une page dédiée (jumeau du PDF, dernière page).
     if (s.key === 'conclusion') {
@@ -702,14 +685,9 @@ export async function buildRapportDocx(args: {
     }
     bodyChildren.push(sectionTitle(s.title));
     if (s.key === 'degats' || s.key === 'inspection') {
-      const sectionPhotos = photosBySection[s.key as PhotoSectionKey];
-      const numbered: NumberedPhoto[] = sectionPhotos.map((p, i) => ({
-        p,
-        num: photoCounter + i + 1,
-      }));
-      photoCounter += sectionPhotos.length;
+      const photos = photosBySection[s.key as PhotoSectionKey];
       const paraTexts = (s.text ?? '').split(/\|\|PARA\|\|/g).map((p) => p.trim()).filter(Boolean);
-      const { afterPara, atEnd } = bucketDocxPhotos(numbered, paraTexts.length);
+      const { afterPara, atEnd } = bucketDocxPhotos(photos, paraTexts.length);
       if (paraTexts.length === 0) {
         bodyChildren.push(bodyTextMuted('—'));
       } else {
