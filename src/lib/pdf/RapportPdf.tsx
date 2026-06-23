@@ -212,15 +212,16 @@ function Section({ title, text }: { title: string; text: string }) {
   const paras = paragraphs(text);
   return (
     <View>
-      {/* Filet + titre insécables avec la 1re ligne du corps : jamais de titre
-          orphelin en bas de page. */}
-      <View minPresenceAhead={72}>
+      {/* Titre + 1er paragraphe INSÉCABLES (wrap=false) : la section démarre
+          toujours en bloc, jamais un titre seul ou avec 1-2 lignes en bas de page. */}
+      <View wrap={false}>
         <View style={styles.sectionRule} />
         <Text style={styles.sectionTitle}>{title}</Text>
+        {paras.length > 0
+          ? <Text style={styles.paragraph}>{paras[0]}</Text>
+          : <Text style={styles.empty}>—</Text>}
       </View>
-      {paras.length > 0
-        ? paras.map((p, i) => <Text key={i} style={styles.paragraph}>{p}</Text>)
-        : <Text style={styles.empty}>—</Text>}
+      {paras.slice(1).map((p, i) => <Text key={i} style={styles.paragraph}>{p}</Text>)}
     </View>
   );
 }
@@ -311,23 +312,29 @@ function SectionWithPhotos({ title, text, photos }: {
 }) {
   const paras = paragraphs(text);
   const { afterPara, atEnd } = bucketByAnchor(photos ?? [], paras.length);
+  const firstPhotos = afterPara.get(1);
   return (
     <View>
-      <View minPresenceAhead={72}>
+      {/* Titre + 1er paragraphe INSÉCABLES (wrap=false) : la section démarre
+          toujours en bloc. Les photos restent HORS du bloc (sinon il pourrait
+          dépasser la hauteur d'une page). */}
+      <View wrap={false}>
         <View style={styles.sectionRule} />
         <Text style={styles.sectionTitle}>{title}</Text>
+        {paras.length > 0
+          ? <Text style={styles.paragraph}>{paras[0]}</Text>
+          : <Text style={styles.empty}>—</Text>}
       </View>
-      {paras.length > 0
-        ? paras.map((p, i) => {
-            const grp = afterPara.get(i + 1);
-            return (
-              <View key={i}>
-                <Text style={styles.paragraph}>{p}</Text>
-                {grp && grp.length > 0 ? <PhotosGrid items={grp} /> : null}
-              </View>
-            );
-          })
-        : <Text style={styles.empty}>—</Text>}
+      {firstPhotos && firstPhotos.length > 0 ? <PhotosGrid items={firstPhotos} /> : null}
+      {paras.slice(1).map((p, i) => {
+        const grp = afterPara.get(i + 2);
+        return (
+          <View key={i}>
+            <Text style={styles.paragraph}>{p}</Text>
+            {grp && grp.length > 0 ? <PhotosGrid items={grp} /> : null}
+          </View>
+        );
+      })}
       {atEnd.length > 0 ? <PhotosGrid items={atEnd} /> : null}
     </View>
   );
