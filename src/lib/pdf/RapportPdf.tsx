@@ -160,7 +160,6 @@ const styles = StyleSheet.create({
   photoCell: { width: '50%', paddingHorizontal: 4, marginBottom: 8, alignItems: 'center' },
   photoFrame: { borderWidth: 1, borderColor: C.cardBorder, borderRadius: 4, backgroundColor: C.paper, padding: 4 },
   photoCaption: { fontFamily: 'Inter', fontStyle: 'italic', fontSize: 8, color: C.muted, textAlign: 'center', marginTop: 4 },
-  photoCaptionNum: { fontFamily: 'Inter', fontWeight: 600, fontStyle: 'normal', fontSize: 7.5, color: C.accent },
 
   // ── Clôture ──
   closing: { marginTop: 28, alignItems: 'flex-end' },
@@ -215,7 +214,7 @@ function Section({ title, text }: { title: string; text: string }) {
     <View>
       {/* Filet + titre insécables avec la 1re ligne du corps : jamais de titre
           orphelin en bas de page. */}
-      <View minPresenceAhead={40}>
+      <View minPresenceAhead={72}>
         <View style={styles.sectionRule} />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
@@ -260,23 +259,20 @@ function photoDisplaySize(p: RapportPhotoData): { width: number; height: number 
   return { width, height };
 }
 
-// Grille de photos (2 colonnes, paire cadre+légende insécable). `items` porte
-// le numéro continu « Photo N » déjà calculé par SectionWithPhotos.
-function PhotosGrid({ items }: { items?: Array<{ p: RapportPhotoData; num: number }> }) {
+// Grille de photos (2 colonnes, paire cadre+légende insécable). Légende = label
+// seul (pas de numérotation), jumeau du Word.
+function PhotosGrid({ items }: { items?: RapportPhotoData[] }) {
   if (!items || items.length === 0) return null;
   return (
     <View style={styles.photosGrid}>
-      {items.map(({ p, num }, i) => {
+      {items.map((p, i) => {
         const { width, height } = photoDisplaySize(p);
         return (
           <View key={i} style={styles.photoCell} wrap={false}>
             <View style={styles.photoFrame}>
               <Image src={{ data: p.bytes, format: 'jpg' }} style={{ width, height }} />
             </View>
-            <Text style={styles.photoCaption}>
-              <Text style={styles.photoCaptionNum}>Photo {num}{p.label ? ' — ' : ''}</Text>
-              {p.label ?? ''}
-            </Text>
+            {p.label ? <Text style={styles.photoCaption}>{p.label}</Text> : null}
           </View>
         );
       })}
@@ -284,22 +280,22 @@ function PhotosGrid({ items }: { items?: Array<{ p: RapportPhotoData; num: numbe
   );
 }
 
-// Range les photos numérotées par ancrage : ancrage_para valide (1..N) ->
+// Range les photos par ancrage : ancrage_para valide (1..N) ->
 // après le paragraphe correspondant ; sinon (null / hors plage) -> fin de section.
 function bucketByAnchor(
-  numbered: Array<{ p: RapportPhotoData; num: number }>,
+  photos: RapportPhotoData[],
   paraCount: number,
 ) {
-  const afterPara = new Map<number, Array<{ p: RapportPhotoData; num: number }>>();
-  const atEnd: Array<{ p: RapportPhotoData; num: number }> = [];
-  for (const np of numbered) {
-    const a = np.p.ancrage_para;
+  const afterPara = new Map<number, RapportPhotoData[]>();
+  const atEnd: RapportPhotoData[] = [];
+  for (const p of photos) {
+    const a = p.ancrage_para;
     if (a !== null && a >= 1 && a <= paraCount) {
       const arr = afterPara.get(a);
-      if (arr) arr.push(np);
-      else afterPara.set(a, [np]);
+      if (arr) arr.push(p);
+      else afterPara.set(a, [p]);
     } else {
-      atEnd.push(np);
+      atEnd.push(p);
     }
   }
   return { afterPara, atEnd };
@@ -307,20 +303,17 @@ function bucketByAnchor(
 
 // Section DÉGÂTS / INSPECTION : prose + photos ancrées dans le texte. Chaque
 // photo s'affiche juste après le paragraphe attribué par l'IA (ancrage_para) ;
-// les photos sans ancrage sont regroupées en fin de section. Numérotation
-// « Photo N » continue (startNumber = 1 pour DÉGÂTS, suite pour INSPECTION).
-function SectionWithPhotos({ title, text, photos, startNumber }: {
+// les photos sans ancrage sont regroupées en fin de section.
+function SectionWithPhotos({ title, text, photos }: {
   title: string;
   text: string;
   photos: RapportPhotoData[] | undefined;
-  startNumber: number;
 }) {
   const paras = paragraphs(text);
-  const numbered = (photos ?? []).map((p, i) => ({ p, num: startNumber + i }));
-  const { afterPara, atEnd } = bucketByAnchor(numbered, paras.length);
+  const { afterPara, atEnd } = bucketByAnchor(photos ?? [], paras.length);
   return (
     <View>
-      <View minPresenceAhead={40}>
+      <View minPresenceAhead={72}>
         <View style={styles.sectionRule} />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
@@ -498,10 +491,10 @@ export function RapportPdf({ data, logo, photos }: {
           <View style={styles.headerRule} />
         </View>
 
-        {/* DÉGÂTS et INSPECTION : prose + photos ancrées dans le texte (ancrage_para),
-            numérotées en continu ; photos sans ancrage regroupées en fin de section. */}
-        <SectionWithPhotos title="DÉGÂTS" text={data.degats} photos={photos.degats} startNumber={1} />
-        <SectionWithPhotos title="INSPECTION" text={data.inspection} photos={photos.inspection} startNumber={(photos.degats?.length ?? 0) + 1} />
+        {/* DÉGÂTS et INSPECTION : prose + photos ancrées dans le texte (ancrage_para) ;
+            photos sans ancrage regroupées en fin de section (label seul, pas de numéro). */}
+        <SectionWithPhotos title="DÉGÂTS" text={data.degats} photos={photos.degats} />
+        <SectionWithPhotos title="INSPECTION" text={data.inspection} photos={photos.inspection} />
         {/* CONCLUSION + RECOMMANDATION + clôture : page dédiée (dernière),
             détachée des constats DÉGÂTS/INSPECTION et des photos. */}
         <View break>

@@ -32,9 +32,7 @@ import {
   VerticalAlign,
   WidthType,
   ShadingType,
-  PageBorderDisplay,
-  PageBorderOffsetFrom,
-  PageBorderZOrder,
+  PageBreak,
 } from 'docx';
 import { getRapportLogoBytes, RAPPORT_LOGO } from '@/lib/rapport/logo';
 import { fetchRapportPhotos, type RapportPhotoData } from '@/lib/rapport/photos';
@@ -144,13 +142,11 @@ function t(text: string, opts: TextOpts = {}): TextRun {
   });
 }
 
-function gap(before = 160, after = 0): Paragraph {
-  return new Paragraph({ spacing: { before, after }, children: [] });
-}
-
 function sectionTitle(label: string): Paragraph {
   return new Paragraph({
     spacing: { before: 340, after: 200 },
+    keepNext: true,   // titre collé à son texte → jamais orphelin en bas de page
+    keepLines: true,
     children: [t(label, { bold: true, allCaps: true, size: 32, color: DARK_BLUE })],
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 10, color: ACCENT_LINE, space: 6 },
@@ -182,7 +178,7 @@ function checkItem(text: string, checked: boolean): Paragraph {
     children: [
       t(checked ? '☑  ' : '☐  ', {
         size: 18,
-        color: checked ? DARK_BLUE : MID_BLUE,
+        color: checked ? MID_BLUE : MUTED,
         bold: checked,
       }),
       t(text, {
@@ -211,7 +207,8 @@ function labelCell(width: number, label: string, columnSpan?: number): TableCell
     columnSpan,
     shading: { type: ShadingType.CLEAR, fill: LIGHT_BLUE, color: 'auto' },
     children: [new Paragraph({
-      children: [t(label, { bold: true, color: DARK_BLUE, size: 19 })],
+      // Libellés en petites capitales accent (jumeau des labels de la couverture PDF).
+      children: [t(label, { bold: true, allCaps: true, color: MID_BLUE, size: 16 })],
     })],
   });
 }
@@ -335,7 +332,7 @@ function buildIdentificationTable(data: ReportData): Table {
       new TableRow({
         children: [
           labelCell(C1 + C2, 'Objet intervention :', 2),
-          labelCell(C3 + C4, 'Adresse Facturation :', 2),
+          labelCell(C3 + C4, "Mandataire (donneur d'ordre) :", 2),
         ],
       }),
       // L3 : objet contenu (span 2) | facturation 4 lignes (span 2) — h ≥ 1000
@@ -491,6 +488,75 @@ function bucketDocxPhotos(photos: RapportPhotoData[], paraCount: number) {
 
 // ─── Builder principal ────────────────────────────────────────────────
 
+// ─── « L'essentiel » — encadré takeaway (jumeau du bloc couverture PDF) ──
+// Cause + action en tête de dossier. Repli identique au PDF : synthèse IA
+// (essentiel_cause/action) si présente, sinon 1er paragraphe résumé de
+// CONCLUSION / RECOMMANDATION. Rien à afficher -> bloc entièrement omis.
+
+function summarizeFirstPara(text: string): string {
+  const first = (text ?? '').split(/\|\|PARA\|\|/g)[0]?.trim() ?? '';
+  if (first.length <= 160) return first;
+  const cut = first.slice(0, 160);
+  const sp = cut.lastIndexOf(' ');
+  return (sp > 80 ? cut.slice(0, sp) : cut).trimEnd() + '…';
+}
+
+function essentielCell(label: string, value: string): TableCell {
+  return new TableCell({
+    width: { size: Math.floor(TW / 2), type: WidthType.DXA },
+    shading: { type: ShadingType.CLEAR, color: 'auto', fill: LIGHT_BLUE },
+    borders: {
+      top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+    },
+    margins: { top: 120, bottom: 120, left: 160, right: 140 },
+    verticalAlign: VerticalAlign.TOP,
+    children: [
+      new Paragraph({
+        spacing: { after: 40 },
+        children: [t(label, { bold: true, size: 18, color: MID_BLUE, allCaps: true })],
+      }),
+      new Paragraph({
+        children: [t(value || '—', { size: 20 })],
+      }),
+    ],
+  });
+}
+
+function buildEssentielBlock(data: ReportData): (Paragraph | Table)[] {
+  const essCause = data.essentiel_cause?.trim() || summarizeFirstPara(data.conclusion);
+  const essAction = data.essentiel_action?.trim() || summarizeFirstPara(data.recommandation);
+  if (!essCause && !essAction) return [];
+  return [
+    new Paragraph({
+      spacing: { before: 260, after: 90 },
+      children: [t("L'essentiel", { bold: true, size: 24, color: DARK_BLUE })],
+    }),
+    new Table({
+      width: { size: TW, type: WidthType.DXA },
+      columnWidths: [Math.floor(TW / 2), Math.floor(TW / 2)],
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 4, color: DIVIDER },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color: DIVIDER },
+        left: { style: BorderStyle.SINGLE, size: 24, color: ACCENT_LINE },
+        right: { style: BorderStyle.SINGLE, size: 4, color: DIVIDER },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            essentielCell('Cause la plus probable', essCause),
+            essentielCell('Action recommandée', essAction),
+          ],
+        }),
+      ],
+    }),
+  ];
+}
+
 export async function buildRapportDocx(args: {
   interventionId: string;
   data: ReportData;
@@ -584,7 +650,7 @@ export async function buildRapportDocx(args: {
     // Titre principal
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 200, after: 400 },
+      spacing: { before: 200, after: 120 },
       children: [
         t("RAPPORT D'INTERVENTION", {
           bold: true, allCaps: true, size: 48, color: DARK_BLUE,
@@ -592,16 +658,44 @@ export async function buildRapportDocx(args: {
       ],
     }),
 
+    // Tagline (jumelle de la couverture PDF)
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 200 },
+      children: [t('Détection de fuites · Lekdetectie', { size: 20, color: MUTED })],
+    }),
+
+    // Filet accent court et centré sous le bloc titre (jumeau de la couverture PDF).
+    // Indents gauche/droite symétriques → la bordure basse ne s'étend que sur une
+    // largeur réduite et centrée (un filet court centré ne se fait pas autrement en .docx).
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 360 },
+      indent: { left: 4400, right: 4400 },
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 16, color: ACCENT_LINE, space: 1 },
+      },
+      children: [],
+    }),
+
     // Tableau identification 5 lignes
     buildIdentificationTable(data),
 
-    gap(200, 200),
+    // Encadré « L'essentiel » (cause + action) — jumeau couverture PDF
+    ...buildEssentielBlock(data),
+
+    // Fin de la page de garde -> les constats démarrent en page 2
+    new Paragraph({ children: [new PageBreak()] }),
   ];
 
   // 4 sections : titre + corps (split sur ||PARA||). Pour DÉGÂTS et INSPECTION,
   // les photos sont ancrées dans le texte (après leur paragraphe via ancrage_para),
   // les non-ancrées regroupées en fin de section — jumeau du moteur PDF.
   for (const s of sectionsConfig) {
+    // CONCLUSION + RECOMMANDATION sur une page dédiée (jumeau du PDF, dernière page).
+    if (s.key === 'conclusion') {
+      bodyChildren.push(new Paragraph({ children: [new PageBreak()] }));
+    }
     bodyChildren.push(sectionTitle(s.title));
     if (s.key === 'degats' || s.key === 'inspection') {
       const photos = photosBySection[s.key as PhotoSectionKey];
@@ -628,14 +722,16 @@ export async function buildRapportDocx(args: {
     }
   }
 
-  // Clôture (alignée droite)
+  // Clôture (alignée droite) — jumeau du PDF : « Fait à {ville}, le {date} ».
+  // Ville = bâtiment (fait_a_ville) si renseignée, sinon repli sur le siège (Kortenberg).
+  const faitAVille = (data.fait_a_ville && data.fait_a_ville.trim()) || 'Kortenberg';
   bodyChildren.push(
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       spacing: { before: 600 },
       children: [
-        // Conforme template : texte normal (pas d'italique), date en gras.
-        t('Fait à Bruxelles le,  ', { size: 22, italic: false, color: MUTED }),
+        // Texte normal (pas d'italique), date en gras.
+        t(`Fait à ${faitAVille}, le `, { size: 22, italic: false, color: MUTED }),
         t(data.fait_a_date, { size: 22, italic: false, bold: true, color: DARK_BLUE }),
       ],
     }),
@@ -661,26 +757,7 @@ export async function buildRapportDocx(args: {
               top: MARGIN, right: MARGIN, bottom: 1300, left: MARGIN,
               header: 360, footer: 360,
             },
-            borders: {
-              pageBorderTop:    { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              pageBorderRight:  { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              pageBorderBottom: { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              pageBorderLeft:   { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              // Conformité FOXO_BASE.js : sans ces 3 propriétés, certains
-              // clients Word (notamment Word for Mac et LibreOffice) tronquent
-              // la bordure ou la rendent derrière l'en-tête. ALL_PAGES + PAGE
-              // + FRONT garantissent un encadrement uniforme et au-dessus
-              // du contenu de l'en-tête/pied de page. La lib docx (8.x) lit
-              // ces 3 attrs UNIQUEMENT depuis ce sous-objet `pageBorders`
-              // (cf. PageBorders dans dist/index.cjs:15935) — les mettre en
-              // siblings de pageBorderTop/etc. est ignoré silencieusement
-              // côté XML final.
-              pageBorders: {
-                display:    PageBorderDisplay.ALL_PAGES,
-                offsetFrom: PageBorderOffsetFrom.PAGE,
-                zOrder:     PageBorderZOrder.FRONT,
-              },
-            },
+            // Cadre de page retiré (plus d'encadrement autour des pages du rapport).
           },
         },
         headers: { default: header },
