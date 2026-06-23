@@ -179,7 +179,7 @@ function checkItem(text: string, checked: boolean): Paragraph {
     children: [
       t(checked ? '☑  ' : '☐  ', {
         size: 18,
-        color: checked ? DARK_BLUE : MID_BLUE,
+        color: checked ? MID_BLUE : MUTED,
         bold: checked,
       }),
       t(text, {
@@ -208,7 +208,8 @@ function labelCell(width: number, label: string, columnSpan?: number): TableCell
     columnSpan,
     shading: { type: ShadingType.CLEAR, fill: LIGHT_BLUE, color: 'auto' },
     children: [new Paragraph({
-      children: [t(label, { bold: true, color: DARK_BLUE, size: 19 })],
+      // Libellés en petites capitales accent (jumeau des labels de la couverture PDF).
+      children: [t(label, { bold: true, allCaps: true, color: MID_BLUE, size: 16 })],
     })],
   });
 }
@@ -661,8 +662,21 @@ export async function buildRapportDocx(args: {
     // Tagline (jumelle de la couverture PDF)
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 360 },
+      spacing: { after: 200 },
       children: [t('Détection de fuites · Lekdetectie', { size: 20, color: MUTED })],
+    }),
+
+    // Filet accent court et centré sous le bloc titre (jumeau de la couverture PDF).
+    // Indents gauche/droite symétriques → la bordure basse ne s'étend que sur une
+    // largeur réduite et centrée (un filet court centré ne se fait pas autrement en .docx).
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 360 },
+      indent: { left: 4400, right: 4400 },
+      border: {
+        bottom: { style: BorderStyle.SINGLE, size: 16, color: ACCENT_LINE, space: 1 },
+      },
+      children: [],
     }),
 
     // Tableau identification 5 lignes
