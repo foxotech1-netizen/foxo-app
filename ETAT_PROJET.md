@@ -1,3 +1,29 @@
+# État du projet FoxO — snapshot 2026-06-23 — Rapport d'intervention : parité Word↔PDF + finitions (PR #116, #117, #118, #119)
+
+ÉTAT GIT : main = 4c4bfda (merge PR #119). Historique récent : 4650f2c (merge #118) ← 90e15b0 (merge #117) ← 90cc4ac (merge #116). Branches feat/docx-pdf-parity et fix/pdf-titre-section-insecable supprimées post-merge. En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIERS LIVRÉS CETTE SESSION (4 PR) :
+
+PR #116 (merge 90cc4ac) — Création intervention « à froid » : champ réf syndic/courtier écrit dans interventions.reference_externe (colonne existante, 0 SQL) + sous-en-tête « Adresse d'intervention » dans le modal. Fichiers : src/app/admin/interventions/actions.ts + ColdInterventionModal.tsx.
+
+PR #117 (merge 90e15b0) — Fix upload photo « 413 » (cap Vercel ~4.5 Mo sur /api/) : helper src/lib/images/compress-image.ts (compressImage : redimensionne ≤2000px, JPEG q0.82) appliqué aux 3 points d'upload (ObservationsPanel, PhotosPanel, RapportPanel) + garde du statut HTTP avant .json(). Cause : photo >4.5 Mo rejetée en texte brut → .json() plantait.
+
+PR #118 (merge 4650f2c) — Parité Word↔PDF du rapport :
+- Word (src/lib/rapport/build-docx.ts) : page de garde alignée PDF (encadré « L'essentiel » via buildEssentielBlock/summarizeFirstPara, tagline « Détection de fuites · Lekdetectie », libellé « Mandataire (donneur d'ordre) ») ; filet accent court centré sous le titre (indents L/R symétriques + bordure basse) ; libellés du tableau en petites capitales accent (allCaps + MID_BLUE size 16) ; cases bleu/gris (MID_BLUE/MUTED) ; CONCLUSION + RECOMMANDATION sur page dédiée (PageBreak) ; clôture « Fait à {ville}, le {date} » (fait_a_ville → repli 'Kortenberg') ; CADRE DE PAGE RETIRÉ (borders/pageBorders + imports PageBorder* supprimés) ; titres de section keepNext + keepLines.
+- PDF (src/lib/pdf/RapportPdf.tsx) : numérotation des photos RETIRÉE (label seul, parité Word ; photoCaptionNum + num/startNumber supprimés, chaîne en RapportPhotoData[]).
+
+PR #119 (merge 4c4bfda) — Titres de section insécables (PDF) : titre + 1er paragraphe collés via bloc wrap={false} (remplace minPresenceAhead=72, trop souple). Photos HORS du bloc. Vaut pour Section + SectionWithPhotos. Validé sur PDF réel 2026-136 : DÉGÂTS/INSPECTION/CONCLUSION démarrent tous en haut de page (rapport passé de 5 à 6 pages).
+
+RÉSULTAT RAPPORT : Word et PDF en photos label-seul ; couverture Word rapprochée du PDF ; aucun titre orphelin (Word keepNext, PDF wrap=false) ; Word sans cadre de page.
+
+PLAFOND DE PARITÉ acté (limites .docx, NON faits) : logo fox centré+agrandi (le logo Word = bandeau fox+adresse logo-foxo.jpg ; faudrait un asset fox-seul + restructure en-tête via titlePage) ; cartes flottantes arrondies (impossible en .docx). ~85-90 %.
+
+MÉTHODE VALIDATION (réutilisable) : générer Word/PDF du sandbox 2026-000 ou 2026-136 depuis la PRÉVERSION DE LA BRANCHE — jamais la prod tant que non fusionné (piège récurrent) —, puis rendu images (soffice → pdftoppm) + analyse pixel.
+
+INVARIANTS INCHANGÉS : crons mails fermés. tsc + hook pre-push OK. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail de PROD. dispatch.ts = point d'assemblage unique PDF/DOCX.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet après ce commit (même URL raw).
+
 # État du projet FoxO — snapshot 2026-06-20 — Photos ANCRÉES DANS LE TEXTE du rapport (PDF + DOCX) LIVRÉ
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus le merge de la PR #115 (merge commit 8014770, feat/photos-inline-rapport). Branche supprimée post-merge. Vérifier le git log live en début de session.
