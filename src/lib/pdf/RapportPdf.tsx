@@ -214,7 +214,7 @@ function Section({ title, text }: { title: string; text: string }) {
     <View>
       {/* Filet + titre insécables avec la 1re ligne du corps : jamais de titre
           orphelin en bas de page. */}
-      <View minPresenceAhead={40}>
+      <View minPresenceAhead={72}>
         <View style={styles.sectionRule} />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
@@ -313,7 +313,7 @@ function SectionWithPhotos({ title, text, photos }: {
   const { afterPara, atEnd } = bucketByAnchor(photos ?? [], paras.length);
   return (
     <View>
-      <View minPresenceAhead={40}>
+      <View minPresenceAhead={72}>
         <View style={styles.sectionRule} />
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
@@ -491,8 +491,8 @@ export function RapportPdf({ data, logo, photos }: {
           <View style={styles.headerRule} />
         </View>
 
-        {/* DÉGÂTS et INSPECTION : prose + photos ancrées dans le texte (ancrage_para),
-            numérotées en continu ; photos sans ancrage regroupées en fin de section. */}
+        {/* DÉGÂTS et INSPECTION : prose + photos ancrées dans le texte (ancrage_para) ;
+            photos sans ancrage regroupées en fin de section (label seul, pas de numéro). */}
         <SectionWithPhotos title="DÉGÂTS" text={data.degats} photos={photos.degats} />
         <SectionWithPhotos title="INSPECTION" text={data.inspection} photos={photos.inspection} />
         {/* CONCLUSION + RECOMMANDATION + clôture : page dédiée (dernière),

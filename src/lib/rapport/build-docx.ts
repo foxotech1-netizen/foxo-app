@@ -33,9 +33,6 @@ import {
   WidthType,
   ShadingType,
   PageBreak,
-  PageBorderDisplay,
-  PageBorderOffsetFrom,
-  PageBorderZOrder,
 } from 'docx';
 import { getRapportLogoBytes, RAPPORT_LOGO } from '@/lib/rapport/logo';
 import { fetchRapportPhotos, type RapportPhotoData } from '@/lib/rapport/photos';
@@ -148,6 +145,8 @@ function t(text: string, opts: TextOpts = {}): TextRun {
 function sectionTitle(label: string): Paragraph {
   return new Paragraph({
     spacing: { before: 340, after: 200 },
+    keepNext: true,   // titre collé à son texte → jamais orphelin en bas de page
+    keepLines: true,
     children: [t(label, { bold: true, allCaps: true, size: 32, color: DARK_BLUE })],
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 10, color: ACCENT_LINE, space: 6 },
@@ -758,26 +757,7 @@ export async function buildRapportDocx(args: {
               top: MARGIN, right: MARGIN, bottom: 1300, left: MARGIN,
               header: 360, footer: 360,
             },
-            borders: {
-              pageBorderTop:    { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              pageBorderRight:  { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              pageBorderBottom: { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              pageBorderLeft:   { style: BorderStyle.SINGLE, size: 18, color: DARK_BLUE, space: 24 },
-              // Conformité FOXO_BASE.js : sans ces 3 propriétés, certains
-              // clients Word (notamment Word for Mac et LibreOffice) tronquent
-              // la bordure ou la rendent derrière l'en-tête. ALL_PAGES + PAGE
-              // + FRONT garantissent un encadrement uniforme et au-dessus
-              // du contenu de l'en-tête/pied de page. La lib docx (8.x) lit
-              // ces 3 attrs UNIQUEMENT depuis ce sous-objet `pageBorders`
-              // (cf. PageBorders dans dist/index.cjs:15935) — les mettre en
-              // siblings de pageBorderTop/etc. est ignoré silencieusement
-              // côté XML final.
-              pageBorders: {
-                display:    PageBorderDisplay.ALL_PAGES,
-                offsetFrom: PageBorderOffsetFrom.PAGE,
-                zOrder:     PageBorderZOrder.FRONT,
-              },
-            },
+            // Cadre de page retiré (plus d'encadrement autour des pages du rapport).
           },
         },
         headers: { default: header },
