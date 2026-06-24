@@ -14,6 +14,7 @@ import {
   buildRefLabelValue,
   buildTechniques,
   fmtDateShort,
+  fmtDateIsoToShort,
 } from '@/lib/rapport/report-data-mapping';
 import { techniquesFromKeys } from '@/lib/rapport/techniques';
 import { fetchRapportPhotos } from '@/lib/rapport/photos';
@@ -155,7 +156,7 @@ export async function buildRapportPdf(interventionId: string): Promise<BuildResu
     inspection: toParaFmt(rapport.inspection ?? ''),
     conclusion: toParaFmt(rapport.conclusion ?? ''),
     recommandation: toParaFmt(rapport.recommandations ?? ''),
-    fait_a_date: fmtDateShort(today),
+    fait_a_date: rapport.date_rapport ? fmtDateIsoToShort(rapport.date_rapport) : fmtDateShort(today),
     ...(techNom ? { technicien_nom: techNom } : {}),
     // « Fait à » : ville du bâtiment depuis l'ACP (repli sur le siège côté PDF).
     ...(acp?.ville ? { fait_a_ville: acp.ville } : {}),

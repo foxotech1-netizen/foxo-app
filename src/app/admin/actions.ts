@@ -266,6 +266,9 @@ export async function saveRapportDraftFromAdmin(
   // Optionnel (audit Rapport v2) : snapshot des 8 techniques cochées côté admin
   // (tableau de clés canoniques). Omis = on ne touche pas aux techniques.
   techniques?: string[],
+  // Optionnel : date de cloture du rapport ('YYYY-MM-DD'). '' ou null = remet a NULL
+  // (repli date de generation). undefined = ne touche pas a la colonne.
+  dateRapport?: string | null,
 ): Promise<ActionState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -297,6 +300,7 @@ export async function saveRapportDraftFromAdmin(
         conclusion: sections.conclusion,
         recommandations: sections.recommandations,
         ...(techniques ? { techniques } : {}),
+        ...(dateRapport !== undefined ? { date_rapport: dateRapport || null } : {}),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'intervention_id' },

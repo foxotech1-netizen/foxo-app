@@ -236,6 +236,7 @@ export default async function TechInterventionPage({
             pdf_drive_url: null,
             pdf_drive_file_id: null,
             genere_par_agent: true,
+            date_rapport: null,
           }
         }
         canPublish={Boolean(iv.ended_at)}

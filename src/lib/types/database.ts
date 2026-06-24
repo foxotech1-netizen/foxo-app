@@ -255,6 +255,8 @@ export interface Rapport {
   pdf_drive_url: string | null;
   pdf_drive_file_id: string | null;
   genere_par_agent: boolean;
+  // Date de cloture choisie ('YYYY-MM-DD'). NULL = date de generation.
+  date_rapport: string | null;
 }
 
 export type ContactPreference = 'email' | 'sms' | 'whatsapp' | 'both';
