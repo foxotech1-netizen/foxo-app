@@ -12,6 +12,7 @@ import {
   buildRefLabelValue,
   buildTechniques,
   fmtDateShort,
+  fmtDateIsoToShort,
 } from '@/lib/rapport/report-data-mapping';
 import { techniquesFromKeys } from '@/lib/rapport/techniques';
 
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
     inspection: toParaFmt(sections.inspection),
     conclusion: toParaFmt(sections.conclusion),
     recommandation: toParaFmt(sections.recommandations),
-    fait_a_date: fmtDate(today),
+    fait_a_date: rapport?.date_rapport ? fmtDateIsoToShort(rapport.date_rapport) : fmtDate(today),
   };
 
   // Génération du .docx selon le template FoxO complet (photos par section,
