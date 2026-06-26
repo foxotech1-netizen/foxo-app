@@ -45,7 +45,7 @@ export async function GET(
   // (uploaded_at). drive_url est directement affichable (webViewLink Drive).
   const { data: photosData } = await supabase
     .from('photos_interventions')
-    .select('id, drive_url, filename, label, section, ordre, uploaded_at')
+    .select('id, drive_url, annotated_drive_url, annotations_json, filename, label, section, ordre, uploaded_at')
     .eq('intervention_id', intervention_id)
     .order('ordre', { ascending: true })
     .order('uploaded_at', { ascending: true });
@@ -53,6 +53,8 @@ export async function GET(
   const photos = (photosData ?? []).map((p) => ({
     id: p.id as string,
     url: p.drive_url as string,
+    annotated_url: (p.annotated_drive_url as string | null) ?? null,
+    annotations: (p.annotations_json as unknown) ?? null,
     caption: (p.label as string | null) ?? null,
     piece: (p.section as string | null) ?? null,
     ordre_rapport: (p.ordre as number | null) ?? 0,
