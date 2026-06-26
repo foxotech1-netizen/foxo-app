@@ -1,3 +1,23 @@
+# État du projet FoxO — snapshot 2026-06-26 — Date de clôture du rapport CHOISIE (PDF + Word) LIVRÉ
+
+ÉTAT GIT : main = ce snapshot doc, par-dessus le merge de la PR #120 (merge commit 78c3c6b, feat/date-rapport-choisie). Branche supprimée post-merge. En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Date de clôture du rapport choisie (feat/date-rapport-choisie, PR #120, merge 78c3c6b ; 2 commits cfca243 + 2caefe8 ; 1 SQL appliquée prod). Validé par Foxo sur la préversion Vercel (date choisie visible sur la dernière page du PDF ; repli « date du jour » OK).
+
+Objet : l'admin peut choisir la date affichée dans la clôture « Fait à …, le {date} » du rapport (PDF ET Word). Champ « Date du rapport » en tête du bloc « Rapport au syndic » (InterventionsClient.tsx), éditable en brouillon (input type=date), lecture seule (JJ/MM/AAAA) sinon, enregistré via le bouton « Enregistrer les corrections » existant. Repli : champ vide → date de génération (comportement antérieur inchangé, zéro régression).
+
+SQL (appliquée prod AVANT le code) — db/migrations/2026-06-24_add_date_rapport.sql : ALTER TABLE public.rapports ADD COLUMN IF NOT EXISTS date_rapport date (nullable ; NULL = date de génération). Aucune policy RLS touchée.
+
+Chaîne (2 commits) :
+1. cfca243 (backend) — helper fmtDateIsoToShort ('YYYY-MM-DD' → 'JJ/MM/AAAA', sans new Date() donc zéro décalage de fuseau) dans report-data-mapping.ts. dispatch.ts (point d'assemblage unique PDF + Word de transmission) : fait_a_date = fmtDateIsoToShort(rapport.date_rapport) si présent, sinon fmtDateShort(today). saveRapportDraftFromAdmin (admin/actions.ts) : 4e param optionnel dateRapport ('YYYY-MM-DD' | null) persisté dans l'upsert (undefined = ne touche pas la colonne ; '' ou null = remet à NULL). GET /api/admin/rapports/[id] : date_rapport ajouté au select. Type Rapport (database.ts) : champ date_rapport requis (string|null) → fix induit (seule erreur tsc) dans src/app/tech/interventions/[id]/page.tsx (objet Rapport de repli) : date_rapport: null.
+2. 2caefe8 (UI admin + parité Word tech) — InterventionsClient.tsx : état rapportDate, pré-rempli depuis la base au chargement, champ « Date du rapport » câblé au save (4e arg rapportDate || null). Route Word brouillon tech (/api/tech/rapport-docx) : honore aussi rapport?.date_rapport (repli date du jour) — SEUL autre endroit qui fabrique fait_a_date hors dispatch.ts.
+
+INVARIANT clé confirmé : il n'existe que DEUX constructeurs de fait_a_date dans le code — dispatch.ts (PDF + Word transmission) et /api/tech/rapport-docx (Word brouillon tech) — les deux couverts. Aucun troisième builder.
+
+INVARIANTS INCHANGÉS : tsc + hook pre-push verts. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail de PROD. dispatch.ts = point d'assemblage unique PDF/DOCX de transmission.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet après ce commit (même URL raw).
+
 # État du projet FoxO — snapshot 2026-06-23 — Rapport d'intervention : parité Word↔PDF + finitions (PR #116, #117, #118, #119)
 
 ÉTAT GIT : main = 4c4bfda (merge PR #119). Historique récent : 4650f2c (merge #118) ← 90e15b0 (merge #117) ← 90cc4ac (merge #116). Branches feat/docx-pdf-parity et fix/pdf-titre-section-insecable supprimées post-merge. En prod via Vercel. Vérifier le git log live en début de session.
