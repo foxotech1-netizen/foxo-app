@@ -24,18 +24,25 @@ export default async function ClientDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [clientRes, facturesRes] = await Promise.all([
-    supabase.from('clients').select('*').eq('id', id).maybeSingle(),
-    supabase.from('factures')
-      .select('id, numero, date_emission, montant_ttc, statut')
-      .eq('client_id', id)
-      .order('date_emission', { ascending: false })
-      .limit(50),
-  ]);
+  // L'id recu peut etre un id de CLIENT ou un id d'ACP : le bouton « Fiche »
+  // d'une ACP (drawer syndic + recap destinataires) passe l'id de l'ACP.
+  // Resolution : d'abord par id de client, puis en repli par acp_id — chaque
+  // ACP a un client miroir type='acp' lie via clients.acp_id (migration
+  // 2026-05-30_sync_acps_clients).
+  const byId = await supabase.from('clients').select('*').eq('id', id).maybeSingle();
+  const byAcp = byId.data
+    ? null
+    : await supabase.from('clients').select('*').eq('acp_id', id).limit(1).maybeSingle();
+  const clientRow = byId.data ?? byAcp?.data ?? null;
+  if (!clientRow) notFound();
+  const client = clientRow as Client;
 
-  if (!clientRes.data) notFound();
-  const client = clientRes.data as Client;
-  const factures = (facturesRes.data ?? []) as Pick<Facture, 'id' | 'numero' | 'date_emission' | 'montant_ttc' | 'statut'>[];
+  const { data: facturesData } = await supabase.from('factures')
+    .select('id, numero, date_emission, montant_ttc, statut')
+    .eq('client_id', client.id)
+    .order('date_emission', { ascending: false })
+    .limit(50);
+  const factures = (facturesData ?? []) as Pick<Facture, 'id' | 'numero' | 'date_emission' | 'montant_ttc' | 'statut'>[];
 
   return (
     <>
