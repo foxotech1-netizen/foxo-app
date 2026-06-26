@@ -20,6 +20,14 @@ export function fmtDateShort(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
+// Formate une date ISO 'YYYY-MM-DD' (colonne Postgres `date`) en 'JJ/MM/AAAA'
+// sans passer par new Date() — evite tout decalage de fuseau horaire.
+export function fmtDateIsoToShort(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
 const SEP_DASH = '  –  ';
 const FALLBACK_OBJET = 'Recherche de fuite';
 // Format "AAAA-NNNN" (réf interne FoxO, 4 chiffres après l'année).

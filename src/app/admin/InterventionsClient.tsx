@@ -263,6 +263,7 @@ export function InterventionsClient({
     conclusion: string | null;
     recommandations: string | null;
     techniques: string[] | null;
+    date_rapport: string | null;
   } | null>(null);
   // Techniques cochées (édition brouillon) — Set de clés canoniques.
   const [rapportTech, setRapportTech] = useState<Set<string>>(new Set());
@@ -274,6 +275,8 @@ export function InterventionsClient({
   }>>([]);
   // Édition admin des 4 sections (brouillon uniquement).
   const [rapportEdit, setRapportEdit] = useState<{ degats: string; inspection: string; conclusion: string; recommandations: string } | null>(null);
+  // Date de cloture choisie ('YYYY-MM-DD'). '' = date du jour a la generation.
+  const [rapportDate, setRapportDate] = useState<string>('');
   const [rapportSaveMsg, setRapportSaveMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [rapportSavePending, startRapportSaveTransition] = useTransition();
   const [rapportReopenPending, startRapportReopenTransition] = useTransition();
@@ -607,6 +610,7 @@ export function InterventionsClient({
     setRapportInfoLoading(true);
     setRapportSaveMsg(null);
     setRapportEdit(null);
+    setRapportDate('');
     fetch(`/api/admin/rapports/${id}`)
       .then((r) => r.json())
       .then((data) => {
@@ -622,6 +626,7 @@ export function InterventionsClient({
               conclusion: data.rapport.conclusion ?? '',
               recommandations: data.rapport.recommandations ?? '',
             });
+            setRapportDate(data.rapport.date_rapport ?? '');
           }
         }
       })
@@ -633,7 +638,7 @@ export function InterventionsClient({
     if (!selected || !rapportEdit) return;
     setRapportSaveMsg(null);
     startRapportSaveTransition(async () => {
-      const res = await saveRapportDraftFromAdmin(selected.id, rapportEdit, Array.from(rapportTech));
+      const res = await saveRapportDraftFromAdmin(selected.id, rapportEdit, Array.from(rapportTech), rapportDate || null);
       if (res.error) setRapportSaveMsg({ kind: 'err', msg: res.error });
       else {
         setRapportSaveMsg({ kind: 'ok', msg: 'Corrections enregistrées.' });
@@ -2665,6 +2670,25 @@ export function InterventionsClient({
                             en brouillon) puis galerie photos. Le bloc statut/boutons
                             existant suit en dessous. */}
                         <div className="mb-4 space-y-3">
+                          {/* Date du rapport (cloture « Fait a …, le … ») — editable en brouillon. Vide = date du jour a la generation. */}
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">Date du rapport</div>
+                            {rapportInfo.statut === 'brouillon' ? (
+                              <>
+                                <input
+                                  type="date"
+                                  value={rapportDate}
+                                  onChange={(e) => setRapportDate(e.target.value)}
+                                  className="px-2.5 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid"
+                                />
+                                <p className="text-[10px] text-ink-muted mt-1">Laisser vide = date du jour à la génération.</p>
+                              </>
+                            ) : (
+                              <p className="text-[12px] text-ink bg-cream border border-sand-border rounded-lg px-2.5 py-2">
+                                {rapportDate ? rapportDate.split('-').reverse().join('/') : 'Date du jour à la génération'}
+                              </p>
+                            )}
+                          </div>
                           {([
                             { key: 'degats', label: 'Dégâts' },
                             { key: 'inspection', label: 'Inspection' },
