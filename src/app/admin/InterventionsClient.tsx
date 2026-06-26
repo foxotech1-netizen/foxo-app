@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import PhotoAnnotator, { type Annotation } from './PhotoAnnotator';
 import {
   AlertTriangle,
   Banknote,
@@ -271,8 +272,10 @@ export function InterventionsClient({
   // Galerie photos de l'intervention (consultation admin du rapport).
   const [rapportPhotos, setRapportPhotos] = useState<Array<{
     id: string; url: string; caption: string | null; piece: string | null;
+    annotated_url: string | null; annotations: Annotation[] | null;
     ordre_rapport: number; pris_at: string | null; filename: string | null;
   }>>([]);
+  const [annotatingPhoto, setAnnotatingPhoto] = useState<{ id: string; annotations: Annotation[] | null } | null>(null);
   // Édition admin des 4 sections (brouillon uniquement).
   const [rapportEdit, setRapportEdit] = useState<{ degats: string; inspection: string; conclusion: string; recommandations: string } | null>(null);
   // Date de cloture choisie ('YYYY-MM-DD'). '' = date du jour a la generation.
@@ -2757,17 +2760,20 @@ export function InterventionsClient({
                               </div>
                               <div className="grid grid-cols-3 gap-2">
                                 {rapportPhotos.map((p) => (
-                                  <a
+                                  <button
                                     key={p.id}
-                                    href={p.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block group"
-                                    title={p.caption ?? p.filename ?? 'Photo'}
+                                    type="button"
+                                    onClick={() => setAnnotatingPhoto({ id: p.id, annotations: p.annotations })}
+                                    className="group block w-full p-0 text-left cursor-pointer"
+                                    title="Annoter cette photo"
                                   >
-                                    <div className="aspect-square rounded-lg overflow-hidden border border-sand-border bg-sand">
+                                    <div className="relative aspect-square rounded-lg overflow-hidden border border-sand-border bg-sand">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img src={p.url} alt={p.caption ?? p.filename ?? 'Photo'} className="w-full h-full object-cover group-hover:opacity-90" />
+                                      <img src={p.annotated_url ?? p.url} alt={p.caption ?? p.filename ?? 'Photo'} className="w-full h-full object-cover group-hover:opacity-90" />
+                                      {p.annotated_url && (
+                                        <span className="absolute left-1 top-1 rounded bg-navy/90 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white">Annotée</span>
+                                      )}
+                                      <span className="absolute inset-x-0 bottom-0 bg-navy/80 py-0.5 text-center text-[9px] font-bold text-white opacity-0 group-hover:opacity-100">Annoter</span>
                                     </div>
                                     {(p.caption || p.piece) && (
                                       <div className="text-[9px] text-ink-muted mt-0.5 truncate">
@@ -2776,10 +2782,19 @@ export function InterventionsClient({
                                         {p.caption ?? ''}
                                       </div>
                                     )}
-                                  </a>
+                                  </button>
                                 ))}
                               </div>
                             </div>
+                          )}
+
+                          {annotatingPhoto && (
+                            <PhotoAnnotator
+                              photoId={annotatingPhoto.id}
+                              initialAnnotations={annotatingPhoto.annotations}
+                              onClose={() => setAnnotatingPhoto(null)}
+                              onSaved={() => { if (selected) refreshRapportInfo(selected.id); }}
+                            />
                           )}
 
                           {/* Brouillon : enregistrer les corrections */}
