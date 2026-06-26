@@ -63,7 +63,7 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
   const admin = createAdminClient();
   const { data } = await admin
     .from('photos_interventions')
-    .select('drive_file_id, filename, section, ordre, label, ancrage_para')
+    .select('drive_file_id, annotated_drive_file_id, filename, section, ordre, label, ancrage_para')
     .eq('intervention_id', interventionId)
     .in('section', SECTIONS as unknown as string[])   // DÉGÂTS + INSPECTION uniquement
     .order('section', { ascending: true })
@@ -71,6 +71,7 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
 
   const rows = (data ?? []) as Array<{
     drive_file_id: string | null;
+    annotated_drive_file_id: string | null;
     filename: string | null;
     section: PhotoSection;
     ordre: number;
@@ -83,8 +84,9 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
   if (!auth) { console.warn('[rapport/photos] Google non connecté — aucune photo embarquée.'); return empty; }
 
   for (const p of rows) {
-    if (!p.drive_file_id) continue;
-    const raw = await downloadDriveBytes(p.drive_file_id, auth.access_token);
+    const fileId = p.annotated_drive_file_id ?? p.drive_file_id;
+    if (!fileId) continue;
+    const raw = await downloadDriveBytes(fileId, auth.access_token);
     if (!raw) { console.warn(`[rapport/photos] download échoué (section ${p.section})`); continue; }
     const norm = await toJpegWithDims(raw);
     if (!norm) { console.warn(`[rapport/photos] décodage échoué (section ${p.section})`); continue; }
