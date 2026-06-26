@@ -1,3 +1,27 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite) — Bug « Fiche ACP -> 404 » CORRIGÉ (PR #122) + migration sync acps<->clients appliquée à la base
+
+ÉTAT GIT : main = 5beb237 (merge PR #122, branche fix/fiche-acp-404 supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Bug « Fiche ACP -> 404 » (fix/fiche-acp-404, PR #122, merge 5beb237 ; 1 commit 9f7442f ; 1 fichier, code-only). 0 nouvelle SQL côté repo, MAIS 1 migration EXISTANTE appliquée à la base (voir plus bas). Validé par Foxo sur la préversion de branche (ACP « Résidence Test » -> Fiche s'ouvre).
+
+SYMPTÔME : le bouton « Fiche » d'une ACP (OrganisationDrawer.tsx + récap destinataires dans InterventionsClient.tsx) faisait router.push vers /admin/clients/{acp.id} -> 404.
+
+CAUSE RÉELLE (double) :
+1. CODE : src/app/admin/clients/[id]/page.tsx ne cherchait que par id de client (.from('clients').eq('id', id)) ; on lui passe un id d'ACP -> notFound().
+2. BASE (le vrai blocage) : la migration db/migrations/2026-05-30_sync_acps_clients.sql (colonne clients.acp_id + trigger sync_acp_to_client + backfill) était DANS LE REPO mais N'AVAIT JAMAIS ÉTÉ APPLIQUÉE À CETTE BASE. Vérifié en SQL : colonne acp_id absente, 0 client type='acp'. Donc même le repli par acp_id n'aurait rien trouvé.
+
+CORRECTIFS APPLIQUÉS :
+- CODE (PR #122) : la page résout par id de client, PUIS en repli par acp_id (.eq('acp_id', id).limit(1).maybeSingle()). Les factures sont lues par l'id du client RÉSOLU (client.id), pas par l'id de l'URL. Corrige les DEUX appelants d'un coup.
+- BASE (appliquée via Supabase le 2026-06-27, hors repo) : migration 2026-05-30_sync_acps_clients exécutée intégralement = colonne clients.acp_id (FK acps, ON DELETE SET NULL) + index + fonction/trigger trg_sync_acp_to_client (AFTER INSERT/UPDATE sur acps -> crée/maj un client miroir type='acp' lié par acp_id) + backfill (UPDATE acps SET nom=nom). Confirmé : clients type='acp' >= 1, miroir de Résidence Test présent. NOTIFY pgrst reload schema fait.
+
+CONSÉQUENCE OPÉRATIONNELLE : le trigger est désormais ACTIF en prod -> toute création/modif d'ACP crée/synchronise sa fiche client (facturation). Comportement voulu par le design (Sprint C), simplement jamais activé sur cette base jusqu'ici.
+
+LEÇON (rappel d'invariant) : une migration présente dans le repo n'est PAS forcément appliquée à la base. Toujours vérifier en SQL (information_schema / pg_trigger) avant de s'appuyer dessus. D'autres migrations anciennes du repo pourraient être dans le même cas -> à auditer au besoin.
+
+INVARIANTS INCHANGÉS : crons mails fermés. tsc + hook pre-push verts. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail de PROD (sandbox 2026-000 pour E2E). dispatch.ts = point d'assemblage unique PDF/DOCX. Photos NON numérotées. createAdminClient pour les écritures serveur. utilisateurs.role = seule source admin.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 — Annotation des photos du rapport LIVRÉE (PR #121)
 
 ÉTAT GIT : main = 7887dc8 (merge PR #121, branche feat/annotation-photos supprimée). En prod via Vercel. Vérifier le git log live en début de session.
