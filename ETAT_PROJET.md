@@ -1,3 +1,30 @@
+# État du projet FoxO — snapshot 2026-06-27 — Annotation des photos du rapport LIVRÉE (PR #121)
+
+ÉTAT GIT : main = 7887dc8 (merge PR #121, branche feat/annotation-photos supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Annotation des photos du rapport (feat/annotation-photos, PR #121, merge 7887dc8 ; 7 commits ; 6 fichiers ; 1 SQL appliquée prod 2026-06-26). Validé end-to-end par Foxo sur le sandbox 2026-000 (préversion Vercel) : dessin, enregistrement, rendu dans PDF + Word, ré-édition, retrait ; éditeur amélioré validé aussi (annuler/refaire, icônes, sélection + suppression).
+
+OBJET : l'admin annote les photos d'intervention (flèches, cercles, rectangles, lignes, crayon, texte) depuis la galerie du panneau « Rapport au syndic ». Les annotations sont APLATIES dans l'image, qui remplace l'originale dans le PDF ET le Word. Originale conservée, annotations ré-éditables.
+
+ARCHITECTURE (point clé) :
+- Migration db/migrations/2026-06-26_photos_annotations.sql (additive, appliquée prod AVANT le code) : photos_interventions += annotations_json (jsonb), annotated_drive_file_id (text), annotated_drive_url (text). NULL = non annotée -> repli sur l'originale. Aucune policy RLS touchée (écritures service-role).
+- POINT UNIQUE DE BASCULE : fetchRapportPhotos (src/lib/rapport/photos.ts) télécharge annotated_drive_file_id sinon drive_file_id -> le PDF (RapportPdf via dispatch.ts) ET le Word (build-docx.ts) prennent l'annotée automatiquement, zéro double travail. RapportPhotoData inchangé.
+- Endpoint src/app/api/admin/photos/[id]/route.ts (auth isAdminUser, écritures createAdminClient) : GET sert l'image ORIGINALE en MÊME ORIGINE (proxy Drive normalisé JPEG via sharp) pour charger le canvas sans tainted-canvas ; POST reçoit l'image aplatie (JPEG) + annotations_json, upload Drive (uploadPhoto) puis écrit les 3 colonnes ; DELETE remet les 3 colonnes à NULL (retour à l'originale).
+- Route /api/admin/rapports/[intervention_id] expose annotated_url + annotations sur chaque photo (galerie + ré-édition).
+- Éditeur src/app/admin/PhotoAnnotator.tsx (canvas maison, ~524 lignes) : coordonnées NORMALISÉES 0..1 -> aperçu écran = export pleine résolution identiques (export offscreen toBlob JPEG 0.92). Outils en icônes lucide-react. Annuler/Refaire (historique past/future) + Ctrl+Z / Ctrl+Y. Outil sélection (hit-test) -> cadre pointillé -> suppression (corbeille ou touche Suppr) ; Échap désélectionne.
+- Galerie admin (InterventionsClient.tsx) : chaque photo = bouton qui ouvre l'éditeur ; vignette annotée si présente + badge « Annotée ».
+
+NOTES / DÉCISIONS :
+- Annotation autorisée QUEL QUE SOIT le statut du rapport (pas seulement brouillon) — choix assumé ; régénérer / retransmettre reste manuel.
+- Seules les photos des sections DÉGÂTS + INSPECTION apparaissent dans le rapport (règle fetchRapportPhotos inchangée) : annoter une photo d'une autre section la sauve mais elle ne sort pas dans le rapport.
+- L'image annotée est un NOUVEAU fichier Drive ; l'ancienne version annotée reste orpheline au remplacement / retrait (bénin).
+
+PROCHAIN CHANTIER (bug remonté par Foxo le 27/06) — « Fiche ACP -> 404 ». Le bouton « Fiche » d'une ACP (src/app/admin/syndics/OrganisationDrawer.tsx ~l.543) fait router.push('/admin/clients/' + acp.id), mais src/app/admin/clients/[id]/page.tsx cherche dans la table clients (.from('clients').eq('id', id)) — table DIFFÉRENTE de acps -> notFound() -> 404. Bug PRÉ-EXISTANT (sans lien avec l'annotation). À auditer AVANT correctif : relation acps<->clients (les ACP ont-elles une ligne clients ? FK ? création auto ?). Branche dédiée off main.
+
+INVARIANTS INCHANGÉS : crons mails fermés. tsc + hook pre-push verts avant chaque push. Merge commit (jamais squash), branche supprimée post-merge. Préversion Vercel = base/Drive/Gmail de PROD (sandbox 2026-000 pour tout E2E). dispatch.ts = point d'assemblage unique PDF/DOCX. Photos NON numérotées. createAdminClient pour les écritures serveur. utilisateurs.role = seule source de vérité admin.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-26 — Date de clôture du rapport CHOISIE (PDF + Word) LIVRÉ
 
 ÉTAT GIT : main = ce snapshot doc, par-dessus le merge de la PR #120 (merge commit 78c3c6b, feat/date-rapport-choisie). Branche supprimée post-merge. En prod via Vercel. Vérifier le git log live en début de session.
