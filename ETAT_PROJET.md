@@ -1,3 +1,26 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite 2) — AUDIT des 83 migrations repo<->base : 3 rattrapées, reste conforme
+
+ÉTAT GIT : main = f815f4e (rien de nouveau côté CODE ; cet audit = corrections SCHÉMA appliquées via Supabase, pas de PR). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER — Audit « repo migration != base » (déclenché par le bug Fiche ACP). Comparé les 83 fichiers db/migrations/*.sql au catalogue RÉEL de la base (dump information_schema + pg_proc/pg_trigger/pg_type/pg_constraint). 0 changement de code. Correctifs = SQL appliqué directement via Supabase le 2026-06-27 (les fichiers de migration existaient déjà dans le repo, simplement jamais exécutés sur cette base).
+
+RÉSULTAT : sur 83 migrations, SEULES 3 n'étaient pas appliquées. Toutes rattrapées :
+1. 2026-05-30_sync_acps_clients — clients.acp_id + trigger sync_acp_to_client + backfill (rattrapée via le chantier Fiche ACP, cf. snapshot précédent).
+2. 2026-05-03_billing_override — colonne interventions.billing_override (jsonb). Appliquée 2026-06-27.
+3. 2026-05-06_notes_frais_comptable — colonnes categorie_comptable/taux_deductibilite déjà présentes, mais manquaient : fonction notes_frais_set_comptable + trigger trg_notes_frais_set_comptable (classification compta auto : representation/50% vs professionnel/100%) + index idx_notes_frais_categorie_comptable + 2 valeurs d'enum categorie_note_frais (formation, autre_achat). Tout appliqué 2026-06-27.
+
+VÉRIFIÉ CONFORME : les 33 tables ; tous les enums (intervention_type/statut/priorite, occupant_statut, user_role, categorie_note_frais, statut_note_frais) ; les colonnes des tables clés (interventions, rapports, photos_interventions, clients, factures, mails_analyses, acps, utilisateurs, occupants, agent_logs, notifications, sms_logs, delegues — dont delegues.est_contact_principal, rapports.* validation/transmission, photos.* annotations/ancrage, mails_analyses.* phase3) ; fonctions RLS ; contraintes CHECK étendues (notifications.type inclut message ; messages.auteur_type inclut expert ; agent_logs.agent_name inclut briefing + synthese_essentiel ; occupants.type_occupant et organisations.type étendus).
+
+NON COUVERT (assumé) : les policies RLS une par une (dures à vérifier mécaniquement) — mais toutes les fonctions RLS sont présentes et les 3 portails fonctionnent. utilisateurs n'a volontairement PAS de CHECK sur role (géré applicativement).
+
+MÉTHODE RÉUTILISABLE (re-audit futur) : un seul SELECT lecture-seule dumpant le catalogue (string_agg sur information_schema.tables/columns + pg_proc + pg_trigger + pg_type enums + pg_get_constraintdef), comparé à l'inventaire CREATE/ALTER du repo. Les objets distinctifs (fonctions, triggers, types) sont le signal le plus fiable d'une migration non appliquée.
+
+INVARIANT RENFORCÉ : une migration présente dans le repo n'est PAS forcément appliquée à la base — toujours vérifier en SQL avant de s'appuyer dessus (3 cas trouvés sur 83).
+
+INVARIANTS INCHANGÉS : crons mails fermés. tsc + hook pre-push verts. Merge commit (jamais squash). Préversion Vercel = base/Drive/Gmail de PROD (sandbox 2026-000). dispatch.ts = point d'assemblage unique PDF/DOCX. Photos NON numérotées. createAdminClient pour les écritures serveur. utilisateurs.role = seule source admin.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite) — Bug « Fiche ACP -> 404 » CORRIGÉ (PR #122) + migration sync acps<->clients appliquée à la base
 
 ÉTAT GIT : main = 5beb237 (merge PR #122, branche fix/fiche-acp-404 supprimée). En prod via Vercel. Vérifier le git log live en début de session.
