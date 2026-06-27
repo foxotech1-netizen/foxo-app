@@ -1,3 +1,25 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite 4) — Filtre ACP dans la liste du portail (PR #123) + correction d'un verdict d'audit (la recherche par référence existait déjà)
+
+ÉTAT GIT : main = b201a59 (merge PR #123, branche feat/portal-acp-filter). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER — Filtre déroulant par ACP dans la liste des dossiers du portail (src/app/portal/interventions/InterventionsPortalClient.tsx). Client-only, AUCUN SQL, aucune autre modif. PR #123 mergée (merge commit).
+- Ajout : état acpFilter + liste acpOptions (dédupliquée par acp_id, triée FR) dérivée des items déjà chargés ; filtre dans le useMemo ; select ACP dans la barre, SYNDIC UNIQUEMENT, visible seulement si au moins 2 ACP (sinon inutile). Courtier/expert : aucun impact (pas d'ACP).
+
+CORRECTION D'UN VERDICT D'AUDIT (important) : le snapshot « suite 3 » disait « recherche par référence ABSENTE » côté portail. C'ÉTAIT FAUX. La recherche multi-champs existait déjà (input + useMemo cherchant ref, acp_nom, acp_adresse, adresse, acp_bce, ref_courtier, reference_externe, assureur_nom, type). L'erreur venait d'un grep TRONQUÉ lors de l'audit (la zone de rendu n'avait pas été lue). Leçon : un audit par grep partiel peut produire un FAUX NÉGATIF — lire le fichier ENTIER avant de conclure « absent ».
+
+ÉTAT story « Filtres et recherche » (doc 06, MVP syndic) = MAINTENANT COMPLÈTE : recherche par référence (existait déjà), filtre statut (chips), filtre période (select), filtre ACP (ce chantier).
+
+BACKLOG RESTANT (corrigé), par priorité :
+1. Multilingue NL (MVP syndic) — MANQUE. Gros chantier i18n (extraction chaînes + trad NL + bascule langue + mémorisation). Seul vrai trou MVP.
+2. Relance directe occupant (P2 syndic) — MANQUE. Différable.
+3. Vue chronologique du sinistre (P3 courtier) — MANQUE. Priorité basse.
+4. Jalons séquencés : Analytics puis Facturation (= dernier chantier), PAS avant que la plateforme tourne en vrai au quotidien (crons mails coupés, re-encodage manuel).
+5. Bruit Netlify (4 checks rouges non bloquants par PR).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main en direct ET lire le fichier entier, pas un grep partiel) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit ; supprimer la branche feat/portal-acp-filter si pas déjà fait.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite 3) — AUDIT PORTAILS (technicien, admin, syndic/courtier vs doc 06) : 2 volets conformes, manques côté syndic/courtier
 
 ÉTAT GIT : main = 8dde3e1 (audit lecture seule, 0 code modifié). En prod via Vercel. Vérifier le git log live en début de session.
