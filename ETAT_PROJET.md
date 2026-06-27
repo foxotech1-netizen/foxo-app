@@ -1,3 +1,40 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite 5) — Portail MULTILINGUE FR/NL/EN : moteur i18n + bascule de langue livrés (PR #124) — ÉTAPE 0/N
+
+ÉTAT GIT : main = 4f2bac6 (merge PR #124, branche feat/portal-i18n supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER EN COURS — Portail multilingue (FR/NL/EN, extensible). ÉTAPE 0 LIVRÉE (l'ossature). Le reste = traduction écran par écran (étapes 1→5, À FAIRE).
+
+ARCHITECTURE (décidée, en place) :
+- Moteur maison, PAS de librairie i18n, PAS de colonne en base (organisations/utilisateurs n'ont AUCUNE colonne langue — le doc 04 qui les mentionnait est périmé).
+- Langue mémorisée par un COOKIE portal_lang (fr|nl|en), lu côté SERVEUR dans src/app/portal/layout.tsx => rendu SSR direct dans la bonne langue, pas de flash. Défaut = fr. Tout texte manquant retombe sur le fr (repli automatique).
+- Extensible : ajouter une langue = ajouter son code dans LANGS (i18n.ts) + fournir les traductions. La bascule n'affiche que les langues listées dans LANGS.
+
+FICHIERS DU MOTEUR (livrés étape 0) :
+- src/lib/portal/i18n.ts (NOUVEAU) : type Lang, LANGS, DEFAULT_LANG, PORTAL_LANG_COOKIE, normalizeLang(), + dictionnaire des CHAÎNES GÉNÉRALES : PortalStringKey + STRINGS (fr/nl/en) + tFor(lang). >>> C'EST ICI qu'on ajoute les nouvelles clés de texte au fil des écrans traduits.
+- src/lib/portal/vocab.ts (réécrit) : libellés liés au TYPE D'ORG (syndic/courtier/expert), désormais PAR LANGUE. VOCAB_I18N[lang][orgType], accent séparé. vocabFor(orgType, lang='fr'). ~15 libellés x 3 types x 3 langues déjà traduits.
+- src/app/portal/PortalContext.tsx : PortalProvider reçoit lang ; hooks useLang(), useVocab() (lang-aware), useT() (= tFor(lang)).
+- src/app/portal/actions.ts : server action setPortalLang(lang) => écrit le cookie.
+- src/app/portal/LangSwitcher.tsx (NOUVEAU) : bascule FR|NL|EN, appelle setPortalLang + router.refresh() (useTransition). Montée dans PortalNav : pied de sidebar (desktop) + header (mobile).
+- src/app/portal/PortalNav.tsx : libellés du menu via t() + vocab. Bascule montée.
+
+CE QUI BASCULE DÉJÀ : bannière, libellés du menu (desktop + bottom-nav), bouton « Nouvelle demande », « Déconnexion ». LE CORPS DES ÉCRANS RESTE EN FRANÇAIS — objet des étapes suivantes.
+
+RESTE À FAIRE — traduction écran par écran. Méthode par étape (= 1 PR) : repérer le texte FR en dur -> ajouter les clés FR/NL/EN dans STRINGS (i18n.ts) -> remplacer par t('cle') dans le composant -> tsc -> PR. Composants, par taille :
+  Étape 1 : src/app/portal/page.tsx (327 l.) accueil partenaire + DATES (toLocaleDateString selon la langue : fr-BE / nl-BE / en-GB).
+  Étape 2 : InterventionsPortalClient.tsx (383 l.) liste + filtres (placeholders, chips, en-têtes, période, état vide) + interventions/page.tsx (200 l.).
+  Étape 3 : interventions/[id]/DossierPortalClient.tsx (452 l.) détail dossier (le plus visible) + interventions/[id]/page.tsx.
+  Étape 4 : nouveau/NewRequestClient.tsx (848 l.) LE PLUS GROS (formulaire) + nouveau/page.tsx.
+  Étape 5 : calendar/page.tsx (184 l.) + NotificationBell.tsx (180 l.) + restes.
+COMPOSANT PARTAGÉ : StatutBadge (@/components/StatutBadge) affiche les statuts en FR et sert AUSSI à l'admin -> pour le traduire côté portail sans toucher l'admin, lui ajouter un prop lang optionnel (défaut fr). À traiter au moment des statuts.
+
+RELECTURE : traductions NL/EN générées par Claude (notes dans i18n.ts/vocab.ts). À FAIRE RELIRE par un néerlandophone avant usage client réel (NL surtout). Termes à valider : acpLabel NL='VME', 'Syndicusportaal', 'schadedossier' ; portalLabel EN='Property Manager Portal'.
+
+BACKLOG (inchangé) : Multilingue = en cours (étape 0 faite). Puis Relance directe occupant (P2), Chronologie sinistre courtier (P3). Jalons Analytics puis Facturation (dernier) = pas avant mise en service quotidienne. Bruit Netlify (rouge non bloquant).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite 4) — Filtre ACP dans la liste du portail (PR #123) + correction d'un verdict d'audit (la recherche par référence existait déjà)
 
 ÉTAT GIT : main = b201a59 (merge PR #123, branche feat/portal-acp-filter). En prod via Vercel. Vérifier le git log live en début de session.
