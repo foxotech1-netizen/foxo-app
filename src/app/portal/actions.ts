@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+import { normalizeLang, PORTAL_LANG_COOKIE } from '@/lib/portal/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
@@ -16,6 +18,18 @@ function adminOrThrow() {
 }
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
+
+// ── Preference de langue du portail ─────────────────────────────────
+// Memorise la langue choisie dans un cookie (lu cote serveur par le layout).
+// Le composant LangSwitcher appellera cette action puis router.refresh().
+export async function setPortalLang(lang: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(PORTAL_LANG_COOKIE, normalizeLang(lang), {
+    path: '/',
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: 'lax',
+  });
+}
 
 // ── Notifications ───────────────────────────────────────────────────
 

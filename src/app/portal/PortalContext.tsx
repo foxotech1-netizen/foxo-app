@@ -2,11 +2,13 @@
 
 import { createContext, useContext, useMemo } from 'react';
 import { type OrgType, type PortalVocab, vocabFor } from '@/lib/portal/vocab';
+import { type Lang, type PortalStringKey, tFor } from '@/lib/portal/i18n';
 
 type PortalContextValue = {
   orgType: OrgType;
   orgNom: string;
   orgEmail: string;
+  lang: Lang;
   vocab: PortalVocab;
 };
 
@@ -16,16 +18,18 @@ export function PortalProvider({
   orgType,
   orgNom,
   orgEmail,
+  lang,
   children,
 }: {
   orgType: OrgType;
   orgNom: string;
   orgEmail: string;
+  lang: Lang;
   children: React.ReactNode;
 }) {
   const value = useMemo<PortalContextValue>(
-    () => ({ orgType, orgNom, orgEmail, vocab: vocabFor(orgType) }),
-    [orgType, orgNom, orgEmail],
+    () => ({ orgType, orgNom, orgEmail, lang, vocab: vocabFor(orgType, lang) }),
+    [orgType, orgNom, orgEmail, lang],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -42,6 +46,15 @@ export function useOrgType(): OrgType {
 
 export function useVocab(): PortalVocab {
   return usePortal().vocab;
+}
+
+export function useLang(): Lang {
+  return usePortal().lang;
+}
+
+// Hook de traduction des chaines generales : const t = useT(); t('logout').
+export function useT(): (key: PortalStringKey) => string {
+  return tFor(usePortal().lang);
 }
 
 export function usePortalContext(): PortalContextValue {

@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { type OrgType } from '@/lib/portal/vocab';
+import { cookies } from 'next/headers';
+import { normalizeLang, PORTAL_LANG_COOKIE } from '@/lib/portal/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { MainContent } from '@components/layout/MainContent';
 import { PortalProvider } from './PortalContext';
@@ -24,6 +26,11 @@ export default async function PortalLayout({
     org?.type === 'courtier' ? 'courtier' :
     org?.type === 'expert'   ? 'expert'   :
     'syndic';
+
+  // Langue du portail : cookie portal_lang (fr|nl|en), defaut fr. Lue cote
+  // serveur pour un rendu SSR directement dans la bonne langue (pas de flash).
+  const cookieStore = await cookies();
+  const lang = normalizeLang(cookieStore.get(PORTAL_LANG_COOKIE)?.value);
 
   // Notifications non lues du partenaire connecté. Best-effort : tout échec
   // (table absente, RLS, etc.) laisse une cloche vide sans casser le rendu.
@@ -58,6 +65,7 @@ export default async function PortalLayout({
       orgType={orgType}
       orgNom={org?.nom ?? ''}
       orgEmail={user.email ?? ''}
+      lang={lang}
     >
       {/* Layout flex calqué sur src/app/admin/layout.tsx :
           - PortalNav rend la sidebar desktop (sticky 220px) + mobile header
