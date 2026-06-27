@@ -1,3 +1,30 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite 3) — AUDIT PORTAILS (technicien, admin, syndic/courtier vs doc 06) : 2 volets conformes, manques côté syndic/courtier
+
+ÉTAT GIT : main = 8dde3e1 (audit lecture seule, 0 code modifié). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER — Audit des 3 portails (lecture seule). Aucun code touché ; ce snapshot consigne les findings.
+
+VOLET TECHNICIEN — CONFORME. Tous les champs de texte libre que le technicien dicte sont des <textarea> (Constatations, Notes, « Brief/Dictée pour l'IA », sections du rapport). Les <input> restants = champs courts/structurés (Étage, Localisation, légende photo) ou sélecteurs de fichier. AUCUN micro / SpeechRecognition / MediaRecorder / transcription : la dictée passe par le clavier natif du téléphone. Rien à faire.
+
+VOLET ADMIN — NAVIGATION PROPRE. Toutes les vraies navigations de page (router.push / Link / href) mènent à des routes existantes. Les fiches de détail (syndic, client, courtier, expert, technicien, utilisateur) s'ouvrent en DRAWER via ?id= sur les pages-listes (pas de routes [id] séparées), et les liens utilisent bien ?id=. Seul lien réellement cassé = Fiche ACP, DÉJÀ CORRIGÉ (PR #122). Les autres « suspects » d'un grep large étaient des appels /api/admin/... (faux positifs). Rien à faire.
+
+VOLET SYNDIC/COURTIER vs DOC 06 — MVP quasi complet, 2 features P2 déjà livrées. Code sous src/app/portal/ (InterventionsPortalClient = liste, DossierPortalClient = détail, nouveau/ = nouvelle demande, NotificationBell = notifs).
+FAIT (syndic) : liste dossiers + statut + réf interne ; coordonnées occupants (email+tél) visibles dans le détail ; détail dossier (RDV/occupants/statut/rapport/facture) ; statut confirmation occupant (compteur + badge) ; téléchargement rapport ; téléchargement facture (P2, en avance) ; nouvelle demande (P2, en avance).
+FAIT (courtier) : liste + détail sinistre (bloc réf sinistre / réf police / contact assureur, dossiers_sinistres) ; téléchargement rapport ; notification rapport dispo (NotificationBell).
+MANQUES (= backlog réel, par priorité) :
+1. MULTILINGUE NL (MVP syndic) — MANQUE. Aucun i18n : tout en français en dur (seul toLocaleDateString fr-BE). GROS chantier (extraction de toutes les chaînes du portail + traductions NL + bascule de langue + mémorisation préférence). Seul vrai trou MVP.
+2. FILTRES portail — PARTIEL. Filtres statut (chips) + période OK ; recherche libre par référence et filtre par ACP ABSENTS. Chantier LÉGER (ajouter champ recherche + filtre ACP à la barre existante d'InterventionsPortalClient).
+3. Relance directe occupant depuis le portail (P2 syndic) — MANQUE. Différable.
+4. Vue chronologique du sinistre (P3 courtier) — MANQUE. Priorité la plus basse.
+
+RAPPEL backlog : « notif retard technicien » = DÉJÀ FAIT (PR #59, deep links SMS sms: / WhatsApp wa.me pré-remplis côté appli tech) — ne pas remettre au backlog.
+
+JALONS SÉQUENCÉS (inchangés) : Analytics puis Facturation (= dernier chantier), PAS avant que la plateforme tourne en vrai au quotidien (crons mails coupés, re-encodage manuel).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main en direct) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite 2) — AUDIT des 83 migrations repo<->base : 3 rattrapées, reste conforme
 
 ÉTAT GIT : main = f815f4e (rien de nouveau côté CODE ; cet audit = corrections SCHÉMA appliquées via Supabase, pas de PR). En prod via Vercel. Vérifier le git log live en début de session.
