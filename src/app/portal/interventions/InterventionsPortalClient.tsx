@@ -69,14 +69,28 @@ export function InterventionsPortalClient({
   const [query, setQuery] = useState(initialQuery);
   const [chip, setChip] = useState<ChipId>(chipFromStatutParam(initialStatut));
   const [periode, setPeriode] = useState<PeriodeId>('tout');
+  const [acpFilter, setAcpFilter] = useState<string>('tous');
 
   const activeChip = CHIPS.find((c) => c.id === chip) ?? CHIPS[0];
+
+  // Liste des ACP presentes dans les dossiers du partenaire (filtre deroulant
+  // ACP, syndic uniquement). Dedupliquee par acp_id, triee par nom.
+  const acpOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const iv of items) {
+      if (iv.acp_id && iv.acp_nom) map.set(iv.acp_id, iv.acp_nom);
+    }
+    return Array.from(map, ([id, nom]) => ({ id, nom }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+  }, [items]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((iv) => {
       // Filtre chip (statut)
       if (!activeChip.match(iv.statut)) return false;
+      // Filtre ACP (syndic) : 'tous' = pas de filtre
+      if (acpFilter !== 'tous' && iv.acp_id !== acpFilter) return false;
       // Filtre période sur created_at
       const periodeDef = PERIODES.find((p) => p.id === periode);
       if (periodeDef && periodeDef.jours != null) {
@@ -105,7 +119,7 @@ export function InterventionsPortalClient({
         .join(' ');
       return haystack.includes(q);
     });
-  }, [items, query, activeChip, periode]);
+  }, [items, query, activeChip, periode, acpFilter]);
 
   // Compte par chip pour afficher les totaux dans les boutons.
   const counts = useMemo(() => {
@@ -152,16 +166,29 @@ export function InterventionsPortalClient({
         </div>
       )}
 
-      {/* Barre de recherche + filtre période */}
-      <div className="flex gap-2 items-center">
+      {/* Barre de recherche + filtres ACP / période */}
+      <div className="flex flex-wrap gap-2 items-center">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={isCourtier
             ? 'Rechercher — référence, assuré, adresse, BCE, sinistre…'
             : 'Rechercher — référence, ACP, adresse, BCE…'}
-          className="flex-1 min-w-0 px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+          className="flex-1 min-w-[160px] px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
         />
+        {orgType === 'syndic' && acpOptions.length > 1 && (
+          <select
+            value={acpFilter}
+            onChange={(e) => setAcpFilter(e.target.value)}
+            aria-label="Filtrer par ACP"
+            className="max-w-[200px] px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream text-ink-mid outline-none focus:border-navy-mid cursor-pointer"
+          >
+            <option value="tous">— {v.acpLabel} —</option>
+            {acpOptions.map((a) => (
+              <option key={a.id} value={a.id}>{a.nom}</option>
+            ))}
+          </select>
+        )}
         <select
           value={periode}
           onChange={(e) => setPeriode(e.target.value as PeriodeId)}
