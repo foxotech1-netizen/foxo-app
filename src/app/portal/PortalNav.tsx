@@ -9,7 +9,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Home, ClipboardList, Calendar, Plus, type LucideIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Logo } from '@/components/Logo';
-import { usePortalContext } from './PortalContext';
+import { usePortalContext, useT } from './PortalContext';
+import { LangSwitcher } from './LangSwitcher';
 import { NotificationBell, type PortalNotification } from './NotificationBell';
 
 // ─── Styles inline (mêmes constantes que la sidebar admin) ─────────────
@@ -155,26 +156,27 @@ export function PortalNav({
   const router = useRouter();
   const supabase = createClient();
   const { orgType, orgNom, orgEmail, vocab } = usePortalContext();
+  const t = useT();
 
   const accent = orgType === 'courtier' ? '#1D6FA4' : '#1B3A6B';
 
   // 4 items principaux. Le dernier (Nouvelle demande) est rendu en bouton
   // accent ; les 3 autres en items neutres avec état actif.
   const NAV: NavItem[] = [
-    { href: '/portal',               icon: Home,            label: 'Tableau de bord' },
+    { href: '/portal',               icon: Home,            label: t('dashboard') },
     { href: '/portal/interventions', icon: ClipboardList,   label: vocab.interventionsCap },
-    { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
+    { href: '/portal/calendar',      icon: Calendar,        label: t('planning') },
   ];
 
   // Bottom nav iOS — 3 ou 4 items selon orgType. L'item "Nouveau" n'apparaît
   // que si le vocab de l'org expose un verbe de création (newRequestVerb non
   // null). Aujourd'hui les 3 types (syndic, courtier, expert) peuvent créer.
   const BOTTOM_NAV: NavItem[] = [
-    { href: '/portal',               icon: Home,            label: 'Accueil' },
+    { href: '/portal',               icon: Home,            label: t('home') },
     { href: '/portal/interventions', icon: ClipboardList,   label: vocab.interventionsCap },
-    { href: '/portal/calendar',      icon: Calendar,        label: 'Planning' },
+    { href: '/portal/calendar',      icon: Calendar,        label: t('planning') },
     ...(vocab.newRequestVerb
-      ? [{ href: '/portal/nouveau', icon: Plus, label: 'Nouveau' } as NavItem]
+      ? [{ href: '/portal/nouveau', icon: Plus, label: t('newShort') } as NavItem]
       : []),
   ];
 
@@ -222,6 +224,7 @@ export function PortalNav({
         </nav>
 
         <div style={S.footer}>
+          <LangSwitcher />
           <span style={S.footerEmail} title={orgEmail}>{orgEmail}</span>
           <button
             onClick={handleLogout}
@@ -237,13 +240,16 @@ export function PortalNav({
               width: '100%',
             }}
           >
-            Déconnexion
+            {t('logout')}
           </button>
         </div>
       </aside>
 
       {/* ── MOBILE header fixe ──────────────────────────────────────────── */}
       <header className="foxo-portal-mobile-header">
+        <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 96 }}>
+          <LangSwitcher />
+        </div>
         <Logo size={36} variant="blanc" />
         <span className="foxo-portal-mobile-header-label">{orgNom || vocab.portalLabel}</span>
         <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
