@@ -4,6 +4,8 @@ import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { InterventionsPortalClient } from './InterventionsPortalClient';
 import type { Acp, Intervention, PrioriteIntervention, StatutIntervention } from '@/lib/types/database';
+import { cookies } from 'next/headers';
+import { normalizeLang, PORTAL_LANG_COOKIE, tFor } from '@/lib/portal/i18n';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,13 +56,17 @@ export default async function InterventionsPage({
   if (!session) return null;
   const { user, org } = session;
 
+  const lang = normalizeLang((await cookies()).get(PORTAL_LANG_COOKIE)?.value);
+  const t = tFor(lang);
+
   if (!org) {
     return (
       <div className="bg-cream border border-sand-border rounded-2xl p-8 text-center">
-        <h1 className="fxs-title-sm mb-2">Compte non lié</h1>
-        <p className="text-sm text-ink-mid">
-          {user.email} n&apos;est pas associé à un partenaire. Contactez{' '}
-          <a href="mailto:info@foxo.be" className="text-navy underline">info@foxo.be</a>.
+        <h1 className="fxs-title-sm mb-2">{t('accountNotLinkedTitle')}</h1>
+        <p className="text-sm text-ink-mid">{t('accountNotLinkedBody')}</p>
+        <p className="text-xs text-ink-muted mt-3">
+          <strong>{user.email}</strong> ·{' '}
+          <a href="mailto:info@foxo.be" className="text-navy underline">info@foxo.be</a>
         </p>
       </div>
     );
