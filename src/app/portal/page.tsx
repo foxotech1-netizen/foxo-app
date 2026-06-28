@@ -1,12 +1,14 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { Hand, FileText } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
 import { buildOrgVisibilityFilter, getMandatedInterventionIds } from '@/lib/portal/org-visibility';
 import { getMonthSlots } from '@/lib/portal/availability';
 import { StatutBadge } from '@/components/StatutBadge';
-import { fmtDate, fmtTime, todayLong, TZ_BRUSSELS } from '@/lib/format';
+import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { vocabFor, type OrgType } from '@/lib/portal/vocab';
+import { normalizeLang, PORTAL_LANG_COOKIE, tFor, localeFor } from '@/lib/portal/i18n';
 import { SyndicMapWrapper } from '@/components/portal/SyndicMapWrapper';
 import type { Intervention } from '@/lib/types/database';
 
@@ -17,25 +19,28 @@ export default async function PortalDashboard() {
   if (!session) return null; // proxy redirige déjà
   const { user, org } = session;
 
-  // Si l'utilisateur n'est lié à aucune org, pas d'interventions à montrer.
-  // Affichage explicite plutôt que fallback "voir tout" comme dans le legacy.
+  // Langue du portail (cookie portal_lang, defaut fr) — composant serveur :
+  // on lit la langue ici et on traduit via tFor / localeFor (pas de hook client).
+  const lang = normalizeLang((await cookies()).get(PORTAL_LANG_COOKIE)?.value);
+  const t = tFor(lang);
+  const locale = localeFor(lang);
+
   if (!org) {
     return (
       <div className="premium-card p-8 text-center">
-        <h1 className="fxs-title-sm mb-2">Compte non lié</h1>
+        <h1 className="fxs-title-sm mb-2">{t('accountNotLinkedTitle')}</h1>
         <p className="text-sm text-ink-mid leading-relaxed max-w-md mx-auto">
-          L&apos;adresse <strong>{user.email}</strong> n&apos;est pas encore associée
-          à un syndic, un courtier ou un expert dans nos fichiers. Contactez{' '}
-          <a href="mailto:info@foxo.be" className="text-[#60A5FA] underline">info@foxo.be</a>{' '}
-          pour finaliser l&apos;ouverture de votre compte.
+          {t('accountNotLinkedBody')}
+        </p>
+        <p className="text-xs text-ink-muted mt-3">
+          <strong>{user.email}</strong> ·{' '}
+          <a href="mailto:info@foxo.be" className="text-[#60A5FA] underline">info@foxo.be</a>
         </p>
       </div>
     );
   }
 
   const supabase = await createClient();
-  // Visibilité : filtre canonique partagé (lien direct syndic_id/organisation_id
-  // OU mandat dossier sinistre — cf. @/lib/portal/org-visibility).
   const mandatedIds = await getMandatedInterventionIds(supabase, org.id);
   const { data: interventionsData } = await supabase
     .from('interventions')
@@ -49,7 +54,6 @@ export default async function PortalDashboard() {
     'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id' | 'adresse'
   >[] = interventionsData ?? [];
 
-  // Joindre nom + coords des ACPs (lat/lng requis pour la carte).
   type AcpLite = { id: string; nom: string; lat: number | null; lng: number | null };
   const acpIds = Array.from(new Set(interventions.map((i) => i.acp_id).filter(Boolean) as string[]));
   let acps: AcpLite[] = [];
@@ -60,7 +64,6 @@ export default async function PortalDashboard() {
     acpMap = new Map(acps.map((a) => [a.id, a.nom]));
   }
 
-  // Pins carte : filtre les interventions clôturées et sans coords ACP.
   const pins = interventions
     .filter((iv) => iv.statut !== 'cloturee')
     .map((iv) => {
@@ -79,8 +82,6 @@ export default async function PortalDashboard() {
     })
     .filter((p): p is NonNullable<typeof p> => p !== null);
 
-  // Prochain RDV : intervention confirmée/nouvelle avec creneau futur le
-  // plus proche (sert au bandeau highlighted en haut du dashboard).
   const nowDate = new Date();
   const prochainRdv = interventions
     .filter((iv) =>
@@ -92,7 +93,6 @@ export default async function PortalDashboard() {
       new Date(a.creneau_debut!).getTime() - new Date(b.creneau_debut!).getTime(),
     )[0] ?? null;
 
-  // Stats
   const stats = {
     enCours: interventions.filter((i) =>
       ['confirmee', 'realisee', 'attente'].includes(i.statut),
@@ -102,7 +102,6 @@ export default async function PortalDashboard() {
     cloturees: interventions.filter((i) => i.statut === 'cloturee').length,
   };
 
-  // Prochaines dispos (slots libres dans les 14 jours)
   const now = new Date();
   const monthSlots = await getMonthSlots(now.getFullYear(), now.getMonth());
   const upcoming = monthSlots
@@ -115,7 +114,7 @@ export default async function PortalDashboard() {
     org.type === 'courtier' ? 'courtier' :
     org.type === 'expert'   ? 'expert'   :
     'syndic';
-  const v = vocabFor(orgType);
+  const v = vocabFor(orgType, lang);
   const accentBg = orgType === 'courtier'
     ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
     : orgType === 'expert'
@@ -127,12 +126,12 @@ export default async function PortalDashboard() {
       <div className="flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1 inline-flex items-center gap-2">
-            Bonjour
+            {t('greeting')}
             <Hand size={20} className="text-[var(--color-navy)]" />
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide capitalize">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            {todayLong()} · <span className="font-semibold normal-case">{org.nom}</span> · {org.type}
+            {new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ_BRUSSELS })} · <span className="font-semibold normal-case">{org.nom}</span> · {org.type}
           </div>
         </div>
         {v.newRequestVerb && (
@@ -145,28 +144,25 @@ export default async function PortalDashboard() {
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard num={stats.enCours} label="En cours" />
-        <StatCard num={stats.enAttente} label="En attente" />
-        <StatCard num={stats.rapports} label="Rapports dispo." accent />
-        <StatCard num={stats.cloturees} label="Clôturées" muted />
+        <StatCard num={stats.enCours} label={t('statInProgress')} />
+        <StatCard num={stats.enAttente} label={t('statPending')} />
+        <StatCard num={stats.rapports} label={t('statReportsAvailable')} accent />
+        <StatCard num={stats.cloturees} label={t('statClosed')} muted />
       </div>
 
-      {/* Banner rapport */}
       {stats.rapports > 0 && (
         <Link
           href="/portal/interventions?statut=rapport"
           className="inline-flex items-center gap-1.5 bg-terra-light border border-terra-mid text-terra rounded-lg px-4 py-2.5 text-xs font-semibold hover:bg-[#F2DBC9]"
         >
-          <FileText size={14} /> {stats.rapports} rapport(s) disponible(s) — consulter
+          <FileText size={14} /> {stats.rapports} {t('reportsBannerSuffix')}
         </Link>
       )}
 
-      {/* Prochain RDV */}
       {prochainRdv && (
         <section className="premium-card p-4">
-          <h2 className="section-label mb-3">Prochain RDV</h2>
+          <h2 className="section-label mb-3">{t('nextAppointment')}</h2>
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[15px] font-extrabold text-ink">
@@ -176,25 +172,24 @@ export default async function PortalDashboard() {
                 const d = new Date(prochainRdv.creneau_debut);
                 return (
                   <div className="mt-1 text-[13px] font-bold capitalize" style={{ color: '#60A5FA' }}>
-                    {d.toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })}
+                    {d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })}
                     {' · '}
                     {fmtTime(prochainRdv.creneau_debut)}
                   </div>
                 );
               })()}
-              <div className="text-[11px] text-ink-muted mt-0.5">{prochainRdv.type ?? 'Intervention'}</div>
+              <div className="text-[11px] text-ink-muted mt-0.5">{prochainRdv.type ?? v.interventionCap}</div>
             </div>
             <Link
               href={`/portal/interventions/${prochainRdv.id}`}
               className="shrink-0 bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90"
             >
-              Voir →
+              {t('see')} →
             </Link>
           </div>
         </section>
       )}
 
-      {/* Carte interactive */}
       {pins.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
@@ -205,21 +200,20 @@ export default async function PortalDashboard() {
       )}
 
       <div className="grid md:grid-cols-2 gap-5">
-        {/* Récentes */}
         <section>
           <h2 className="section-label mb-3">{v.recentTitle}</h2>
           {recent.length === 0 ? (
             <div className="premium-card p-4">
               {v.newRequestVerb ? (
                 <p className="text-xs text-ink-muted">
-                  {v.emptyList} pour l&apos;instant.{' '}
+                  {v.emptyList}.{' '}
                   <Link href="/portal/nouveau" className="text-[#60A5FA] underline">
-                    Créer le premier
+                    {t('createFirst')}
                   </Link>.
                 </p>
               ) : (
                 <p className="text-xs text-ink-muted">
-                  {v.emptyList} pour l&apos;instant.
+                  {v.emptyList}.
                 </p>
               )}
             </div>
@@ -241,11 +235,11 @@ export default async function PortalDashboard() {
                     {acpMap.get(iv.acp_id ?? '') ?? '—'}
                   </div>
                   <div className="text-[11px] text-ink-muted mt-0.5 flex items-center gap-2 flex-wrap">
-                    <span>{iv.type ?? 'Type non précisé'}</span>
+                    <span>{iv.type ?? t('typeUnspecified')}</span>
                     {iv.creneau_debut && (() => {
                       const d = new Date(iv.creneau_debut);
                       const time = fmtTime(iv.creneau_debut);
-                      const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ_BRUSSELS });
+                      const dateLabel = d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ_BRUSSELS });
                       return (
                         <>
                           <span>·</span>
@@ -262,13 +256,12 @@ export default async function PortalDashboard() {
           )}
         </section>
 
-        {/* Prochaines dispos */}
         <section>
-          <h2 className="section-label mb-3">Prochaines disponibilités FoxO</h2>
+          <h2 className="section-label mb-3">{t('availabilitiesTitle')}</h2>
           {upcoming.length === 0 ? (
             <div className="premium-card p-4">
               <p className="text-xs text-ink-muted">
-                Aucun créneau libre sur les 14 prochains jours.
+                {t('noSlots')}
               </p>
             </div>
           ) : (
@@ -281,12 +274,12 @@ export default async function PortalDashboard() {
                 >
                   <div>
                     <div className="text-[13px] font-semibold capitalize">
-                      {fmtDate(s.iso)}
+                      {new Date(s.iso).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })}
                     </div>
-                    <div className="text-[11px] font-bold" style={{ color: '#60A5FA' }}>{s.hour.replace(':', 'h')}</div>
+                    <div className="text-[11px] font-bold" style={{ color: '#60A5FA' }}>{lang === 'fr' ? s.hour.replace(':', 'h') : s.hour}</div>
                   </div>
                   <span className="text-[10px] font-bold text-ok bg-ok-light border border-ok-mid rounded-full px-2 py-0.5">
-                    Disponible
+                    {t('available')}
                   </span>
                 </Link>
               ))}
@@ -303,8 +296,6 @@ function StatCard({
 }: {
   num: number; label: string; accent?: boolean; muted?: boolean;
 }) {
-  // Couleur de la barre 3px en haut. default → navy ; accent
-  // (rapports dispo) → bleu portal ; muted (clôturées) → gris.
   let barColor = '#1B3A6B';
   if (accent) barColor = '#60A5FA';
   else if (muted) barColor = '#9A9690';
