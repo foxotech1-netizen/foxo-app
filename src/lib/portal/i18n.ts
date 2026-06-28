@@ -58,7 +58,9 @@ export type PortalStringKey =
   | 'slotDesiredTitle' | 'slotNonContractual' | 'slotPreselected' | 'dateLabel' | 'timeLabel' | 'indifferentOption' | 'slotCanLeaveEmpty'
   | 'billingPrefilledHelp' | 'invoiceRecipient' | 'invoiceRecipientPlaceholder' | 'poReference'
   | 'insuredNameRequired' | 'insuredNamePlaceholder' | 'claimAddress' | 'claimAddressPlaceholder' | 'companyRefRequired' | 'companyRefOptional' | 'companyRefPlaceholder'
-  | 'claimRefPlaceholder' | 'insuranceCompanyPlaceholder' | 'insuranceFieldsHelp' | 'companyRefHelp';
+  | 'claimRefPlaceholder' | 'insuranceCompanyPlaceholder' | 'insuranceFieldsHelp' | 'companyRefHelp'
+  // — Etape 5 : calendrier + cloche notifications —
+  | 'availabilitiesPageTitle' | 'calendarSubtitle' | 'reserved' | 'notifications' | 'noNotifications' | 'justNow';
 
 const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
   fr: {
@@ -97,6 +99,7 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     billingPrefilledHelp: 'Pré-rempli avec les coordonnées de votre société. Modifiez si nécessaire.', invoiceRecipient: 'Destinataire de la facture', invoiceRecipientPlaceholder: 'Nom ou raison sociale', poReference: 'Référence bon de commande',
     insuredNameRequired: "Nom de l'assuré *", insuredNamePlaceholder: "ex : SPRL Dupont — Cabinet d'expertise", claimAddress: 'Adresse du sinistre', claimAddressPlaceholder: 'Rue du Marché 10, 1000 Bruxelles', companyRefRequired: 'Référence compagnie *', companyRefOptional: 'Référence compagnie (optionnel)', companyRefPlaceholder: 'Numéro de dossier interne (ex : SIN-2026-1234)',
     claimRefPlaceholder: 'ex : 2026/87234', insuranceCompanyPlaceholder: 'ex : Ethias, AXA, Allianz…', insuranceFieldsHelp: 'Optionnels. Apparaissent sur la fiche du dossier et permettent au technicien de référencer le sinistre auprès de la compagnie.', companyRefHelp: 'La référence compagnie vous permettra de retrouver le dossier dans votre liste et apparaîtra sur les rapports/factures.',
+    availabilitiesPageTitle: 'Disponibilités FoxO', calendarSubtitle: 'Cliquez sur un créneau libre pour pré-remplir une demande', reserved: 'Réservé', notifications: 'Notifications', noNotifications: 'Aucune notification', justNow: "à l'instant",
   },
   nl: {
     home: 'Start', dashboard: 'Dashboard', planning: 'Planning', newShort: 'Nieuw', logout: 'Afmelden',
@@ -134,6 +137,7 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     billingPrefilledHelp: 'Vooraf ingevuld met de gegevens van uw bedrijf. Pas aan indien nodig.', invoiceRecipient: 'Bestemmeling van de factuur', invoiceRecipientPlaceholder: 'Naam of bedrijfsnaam', poReference: 'Referentie bestelbon',
     insuredNameRequired: 'Naam van de verzekerde *', insuredNamePlaceholder: 'bv. BVBA Dupont — Expertisekantoor', claimAddress: 'Adres van de schade', claimAddressPlaceholder: 'Marktstraat 10, 1000 Brussel', companyRefRequired: 'Referentie maatschappij *', companyRefOptional: 'Referentie maatschappij (optioneel)', companyRefPlaceholder: 'Intern dossiernummer (bv. SIN-2026-1234)',
     claimRefPlaceholder: 'bv. 2026/87234', insuranceCompanyPlaceholder: 'bv. Ethias, AXA, Allianz…', insuranceFieldsHelp: 'Optioneel. Verschijnen op de dossierfiche en laten de technieker toe de schade bij de maatschappij te refereren.', companyRefHelp: 'Met de referentie van de maatschappij vindt u het dossier terug in uw lijst en verschijnt ze op de rapporten/facturen.',
+    availabilitiesPageTitle: 'Beschikbaarheden FoxO', calendarSubtitle: 'Klik op een vrij tijdslot om een aanvraag voor te vullen', reserved: 'Gereserveerd', notifications: 'Meldingen', noNotifications: 'Geen meldingen', justNow: 'zonet',
   },
   en: {
     home: 'Home', dashboard: 'Dashboard', planning: 'Schedule', newShort: 'New', logout: 'Log out',
@@ -171,6 +175,7 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     billingPrefilledHelp: 'Pre-filled with your company details. Edit if necessary.', invoiceRecipient: 'Invoice recipient', invoiceRecipientPlaceholder: 'Name or company name', poReference: 'Purchase order reference',
     insuredNameRequired: "Insured's name *", insuredNamePlaceholder: 'e.g. Dupont Ltd — Expert firm', claimAddress: 'Claim address', claimAddressPlaceholder: 'Rue du Marché 10, 1000 Brussels', companyRefRequired: 'Company reference *', companyRefOptional: 'Company reference (optional)', companyRefPlaceholder: 'Internal file number (e.g. SIN-2026-1234)',
     claimRefPlaceholder: 'e.g. 2026/87234', insuranceCompanyPlaceholder: 'e.g. Ethias, AXA, Allianz…', insuranceFieldsHelp: 'Optional. They appear on the file and let the technician reference the claim with the company.', companyRefHelp: 'The company reference lets you find the file in your list and appears on reports/invoices.',
+    availabilitiesPageTitle: 'FoxO availability', calendarSubtitle: 'Click a free slot to pre-fill a request', reserved: 'Reserved', notifications: 'Notifications', noNotifications: 'No notifications', justNow: 'just now',
   },
 };
 

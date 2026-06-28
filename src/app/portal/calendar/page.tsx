@@ -1,6 +1,9 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { normalizeLang, PORTAL_LANG_COOKIE, tFor, localeFor, type Lang } from '@/lib/portal/i18n';
+import { TZ_BRUSSELS } from '@/lib/format';
 import {
   formatMonthParam,
   getMonthSlots,
@@ -10,11 +13,11 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-const MONTHS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-];
-const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DAYS_BY_LANG: Record<Lang, string[]> = {
+  fr: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+  nl: ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'],
+  en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+};
 
 export default async function CalendarPage({
   searchParams,
@@ -24,6 +27,11 @@ export default async function CalendarPage({
   const sp = await searchParams;
   const session = await getCurrentSyndic();
   if (!session) return null;
+
+  const lang = normalizeLang((await cookies()).get(PORTAL_LANG_COOKIE)?.value);
+  const t = tFor(lang);
+  const locale = localeFor(lang);
+  const DAYS = DAYS_BY_LANG[lang];
 
   const { year, month } = parseMonthParam(sp.m);
   const slots = await getMonthSlots(year, month);
@@ -77,16 +85,20 @@ export default async function CalendarPage({
     cells.push({ key: `tail-${cells.length}`, day: 0, inMonth: false, iso: '', isToday: false, slots: [] });
   }
 
+  // En-tête du mois localisé (ex. « Juin 2026 » / « Juni 2026 » / « June 2026 »),
+  // première lettre forcée en majuscule (toLocaleDateString rend le mois en minuscule en nl/en).
+  const monthLabel = new Date(year, month, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: TZ_BRUSSELS });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">
-            Disponibilités FoxO
+            {t('availabilitiesPageTitle')}
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            Cliquez sur un créneau libre pour pré-remplir une demande
+            {t('calendarSubtitle')}
           </div>
         </div>
       </div>
@@ -94,7 +106,7 @@ export default async function CalendarPage({
       <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
         <div className="flex justify-between items-center px-4 py-3 border-b border-sand-border">
           <span className="text-base font-bold text-ink">
-            {MONTHS[month]} {year}
+            {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
           </span>
           <div className="flex gap-2">
             <Link
@@ -166,8 +178,8 @@ export default async function CalendarPage({
         </div>
 
         <div className="flex flex-wrap gap-4 px-4 py-3 border-t border-sand-border">
-          <Legend color="bg-ok-light" border="border-ok-mid" label="Disponible" />
-          <Legend color="bg-navy-light" border="border-navy-mid" label="Réservé" />
+          <Legend color="bg-ok-light" border="border-ok-mid" label={t('available')} />
+          <Legend color="bg-navy-light" border="border-navy-mid" label={t('reserved')} />
         </div>
       </div>
     </div>
