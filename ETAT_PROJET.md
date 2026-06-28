@@ -1,3 +1,39 @@
+# État du projet FoxO — snapshot 2026-06-28 (suite 8) — Portail multilingue ÉTAPE 3 : détail dossier traduit FR/NL/EN + StatutBadge multilingue (PR #127)
+
+ÉTAT GIT : main = 1db0097 (merge PR #127, branche feat/portal-i18n-detail supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER EN COURS — Portail multilingue (FR/NL/EN). ÉTAPES 0, 1, 2, 3 LIVRÉES. Reste étapes 4, 5.
+
+ÉTAPE 3 LIVRÉE (PR #127) :
+- interventions/[id]/DossierPortalClient.tsx (CLIENT, 452->463 l.) entièrement traduit : en-tête (réf, URGENT, statut, « Créé le / Intervention prévue / Technicien », « Mise à jour »), bloc « Ma référence » syndic (placeholder + Enregistrer/Enregistrement + « Référence enregistrée »), bandeau motif de suspension, bloc Description (type / description initiale / appartement(s) concerné(s) / adresse précise), bloc Rapport (dispo + boutons Télécharger rapport/facture + « en préparation »), bloc « Demander une suite » (intro + bouton + état envoyé), bloc « Informations assurance » (courtier/expert), Occupants (titre + suffixe confirmé(s) + états de confirmation), Facturation. Hooks CLIENT : useT()/useLang()/localeFor(). Dates via toLocaleDateString/String(locale, … timeZone TZ_BRUSSELS). « Assuré » réutilise v.acpLabel (vocab). relTime laissé tel quel.
+- StatutBadge (@/components/StatutBadge, PARTAGÉ avec l'admin) : nouveau prop lang?: Lang (défaut 'fr'). Table interne STATUT_LABEL (fr/nl/en) ; les libellés FR = STATUT_INFO.label historiques ; couleurs toujours issues de STATUT_INFO. L'admin appelle SANS lang -> 100% FR, inchangé. Les 7 statuts (nouvelle, attente, confirmee, realisee, rapport, cloturee, en_suspens) sont couverts dans chaque langue (sinon tsc casse).
+- i18n.ts : +41 clés (bloc « Etape 3 » dans PortalStringKey + les 3 langues), PUREMENT ADDITIF. Total ~88 clés STRINGS (étapes 1+2+3).
+- DÉCISION : le corps du message « Demande de suite / révision … » posté via /api/messages est volontairement conservé en FR (lu par l'équipe FoxO francophone dans la messagerie admin — ce n'est pas du texte d'interface portail). Commenté dans le code.
+- interventions/[id]/page.tsx (SERVEUR) NON modifié : aucun texte visible utilisateur (que de la récupération de données). Vérifié.
+
+NOTE PROCÉDURE (incident fermé) : le 1er bloc Claude Code envoyé avait son heredoc DossierPortalClient.tsx corrompu (artefact ="" + fences markdown, dû à une coupure d'envoi en 2 messages). Claude Code a REFUSÉ de le lancer et a reconstruit le fichier depuis le réel sur main + le mapping de clés. Diff vérifié en direct côté assistant : fidèle, tsc vert. Leçon : fournir un gros fichier via heredoc reste fragile à la coupure d'envoi — toujours vérifier le diff live avant merge (fait).
+
+RESTE À FAIRE :
+  Étape 4 : nouveau/NewRequestClient.tsx (848 l.) LE PLUS GROS (formulaire de demande) + nouveau/page.tsx (serveur).
+  Étape 5 : calendar/page.tsx + NotificationBell.tsx + restes.
+
+FR-ISMES RESTANTS (mineurs, à traiter plus tard) :
+- relTime (@/lib/format) renvoie « Xh / Xj » (j = jours, FR) — laissé tel quel ; helper partagé avec l'admin.
+- (StatutBadge multilingue = FAIT à cette étape.)
+
+MÉTHODE / RAPPELS :
+- Pattern par étape (= 1 PR) : repérer texte FR en dur -> ajouter clés FR/NL/EN dans STRINGS (i18n.ts) -> remplacer par t() (CLIENT : useT()/useLang()/useVocab() ; SERVEUR : tFor(lang)/localeFor(lang) en lisant le cookie portal_lang) -> dates via toLocaleDateString/String(locale, avec timeZone TZ_BRUSSELS) -> tsc -> PR.
+- Réécriture de fichier entier = méthode fiable pour les écrans denses. CONSERVER les commentaires d'origine.
+- Réutiliser les clés existantes ET le vocab (vocabFor) quand le texte est identique (ex. v.acpLabel = « Assuré » ; bceLabel ; reportBadge ; thCreated/thTechnician).
+
+RELECTURE : traductions NL/EN générées par Claude (i18n.ts ET la table STATUT_LABEL de StatutBadge). À FAIRE RELIRE par un néerlandophone avant usage client réel (NL surtout). Termes belges déjà posés : ACP=VME (nl), BCE=KBO (nl), courtier=makelaar, dossier sinistre=schadedossier, syndic EN=Property Manager. Statuts NL à valider notamment : en_suspens=Opgeschort, realisee=Uitgevoerd, confirmee=Bevestigd, rapport=Rapport besch.
+
+BACKLOG (inchangé) : Multilingue en cours (0+1+2+3 faits). Puis Relance directe occupant (P2), Chronologie sinistre courtier (P3). Jalons Analytics puis Facturation (dernier) = pas avant mise en service quotidienne. Bruit Netlify (rouge non bloquant).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite 7) — Portail multilingue ÉTAPE 2 : liste des dossiers traduite FR/NL/EN (PR #126)
 
 ÉTAT GIT : main = d1c6839 (merge PR #126, branche supprimée). En prod via Vercel. Vérifier le git log live en début de session.
