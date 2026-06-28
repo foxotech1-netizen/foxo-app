@@ -1,3 +1,41 @@
+# État du projet FoxO — snapshot 2026-06-28 (suite 9) — Portail multilingue ÉTAPE 4 : formulaire de nouvelle demande traduit FR/NL/EN (PR #128)
+
+ÉTAT GIT : main = c376bee (merge PR #128, branche feat/portal-i18n-nouveau supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER EN COURS — Portail multilingue (FR/NL/EN). ÉTAPES 0, 1, 2, 3, 4 LIVRÉES. Reste l'ÉTAPE 5 (dernière).
+
+ÉTAPE 4 LIVRÉE (PR #128, 2 commits sur la branche : 557984c i18n + 8985a22 formulaire) :
+- nouveau/NewRequestClient.tsx (CLIENT, 848->856 l.) — assistant 5 étapes entièrement traduit : en-tête (titre syndic/partenaire + sous-titre), StepIndicator, Step1 (sélection/création ACP), Step1Courtier (sinistre + bloc assurance), Step2 (type + description + priorité), Step3 (occupants), Step4 (créneau), Step5 (facturation), boutons Précédent/Suivant/Soumettre. Chaque sous-composant a son `const t = useT();` ; Step1 a aussi useVocab() ; Step2 a aussi useLang(). StepIndicator inchangé (reçoit labels traduits).
+- RÈGLE VALEUR ≠ AFFICHAGE (critique) : les valeurs envoyées en base ne sont JAMAIS traduites. Select des types : `value={tp}` = valeur DB FR conservée, affichage via `typeLabel(tp, lang)` (helper + table TYPE_LABEL dans i18n.ts, fallback = la valeur). Priorité : valeurs 'normale'/'urgente' intactes, seul l'affichage est traduit (priorityNormal/priorityUrgent).
+- 2 COLLISIONS de variable `t` corrigées (sinon le hook useT était masqué) : dans l'effet de recherche ACP, `const t = setTimeout(...)` -> `const timer` (+ clearTimeout(timer)) ; et `TYPES.map((t) => ...)` -> `TYPES.map((tp) => ...)`. À RETENIR pour les prochaines réécritures : repérer les variables locales nommées `t`.
+- Compositions notables : « ACP sélectionnée » -> `{vocab.acpLabel} {t('selectedSuffix')}` ; STEP_LABELS syndic démarre par vocab.acpLabel ; « {referenceLabel} (optionnel) » ; « Aucune ACP trouvée pour <strong>{query}</strong> » ; « BCE : … » via bceLabel ; compteur `{n} {t('charactersCount')}` ; « Occupant {i+1} ».
+- nouveau/page.tsx (SERVEUR) : langue via cookie (normalizeLang + PORTAL_LANG_COOKIE) + tFor(lang) ; bloc « Compte non lié » traduit (titre/corps/lien), href mailto:info@foxo.be conservé.
+- i18n.ts : +~70 clés (bloc « Etape 4 ») dans les 3 langues, PUREMENT ADDITIF, + TYPE_LABEL/typeLabel. Total ~158 clés STRINGS (étapes 1->4).
+- LAISSÉ LITTÉRAL (format technique, neutre) : placeholders d'emails/BCE/téléphone/exemples ('BE0123.456.789', '+32…', '3B', 'Dupont Marc', 'BC-2026-…'), et l'affichage des heures du créneau `{h.replace(':', 'h')}` (FR-isme mineur).
+- NOTE COSMÉTIQUE : la réécriture d'i18n.ts (partie 1/2) a retiré 3 commentaires « — Etape 3 — » dans les blocs de langue (sans impact ; clés/valeurs intactes).
+
+RESTE À FAIRE — ÉTAPE 5 (dernière du chantier multilingue) :
+  calendar/page.tsx + NotificationBell.tsx + restes éventuels. Auditer en direct sur main à jour avant d'écrire.
+
+FR-ISMES RESTANTS (mineurs, à traiter plus tard) :
+- relTime (@/lib/format) « Xh / Xj » — laissé tel quel ; helper partagé avec l'admin.
+- Affichage des heures du créneau (nouveau/NewRequestClient Step4) : `{h.replace(':', 'h')}` -> « 08h » ; FR-isme assumé, à localiser un jour si besoin.
+
+MÉTHODE / RAPPELS :
+- Pattern par étape (= 1 PR) : repérer texte FR en dur -> ajouter clés FR/NL/EN dans STRINGS (i18n.ts) -> remplacer par t() (CLIENT : useT()/useLang()/useVocab() ; SERVEUR : tFor(lang)/localeFor(lang) en lisant le cookie portal_lang) -> dates via toLocaleDateString/String(locale, avec timeZone TZ_BRUSSELS) -> tsc -> PR.
+- VALEUR ≠ AFFICHAGE : pour tout champ dont la valeur est stockée en base (enum type/priorité/statut), garder la valeur d'origine et ne traduire QUE l'affichage (table de libellés + fallback). Vu sur StatutBadge (étape 3) et le select des types (étape 4).
+- Réécriture de fichier entier = méthode fiable pour les écrans denses. CONSERVER les commentaires d'origine. Repérer et renommer les variables locales `t` avant d'injecter le hook useT.
+- Si un gros fichier est fourni en heredoc et arrive coupé/corrompu à l'envoi : NE PAS exécuter de contenu cassé — reconstruire depuis le fichier réel sur la branche + le mapping de clés, puis tsc + vérif diff (validé étapes 3 et 4).
+- Réutiliser les clés existantes ET le vocab (vocabFor) quand le texte est identique.
+
+RELECTURE : traductions NL/EN générées par Claude (i18n.ts STRINGS + TYPE_LABEL + STATUT_LABEL du StatutBadge). À FAIRE RELIRE par un néerlandophone avant usage client réel. Termes belges déjà posés : ACP=VME, BCE=KBO, courtier=makelaar, dossier sinistre=schadedossier, syndic EN=Property Manager. Types NL à valider : Fuite canalisation=Leidinglek, Fuite chauffage=Verwarmingslek, Fuite infiltration=Infiltratie, Surconsommation eau=Overmatig waterverbruik, Autre=Andere. Statuts NL à valider : en_suspens=Opgeschort, realisee=Uitgevoerd, confirmee=Bevestigd.
+
+BACKLOG (inchangé) : Multilingue en cours (0+1+2+3+4 faits ; reste étape 5). Puis Relance directe occupant (P2), Chronologie sinistre courtier (P3). Jalons Analytics puis Facturation (dernier) = pas avant mise en service quotidienne. Bruit Netlify (rouge non bloquant).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-28 (suite 8) — Portail multilingue ÉTAPE 3 : détail dossier traduit FR/NL/EN + StatutBadge multilingue (PR #127)
 
 ÉTAT GIT : main = 1db0097 (merge PR #127, branche feat/portal-i18n-detail supprimée). En prod via Vercel. Vérifier le git log live en début de session.
