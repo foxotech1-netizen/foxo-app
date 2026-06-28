@@ -1,3 +1,33 @@
+# État du projet FoxO — snapshot 2026-06-28 (suite 12) — P3 « Chronologie sinistre courtier » LIVRÉ (PR #131)
+
+ÉTAT GIT : main = 94fbcfe (merge PR #131, branche feat/portal-chrono-courtier supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+P3 LIVRÉ (PR #131, commit 789b30d) — Frise « Chronologie » dans le détail dossier :
+- DossierPortalClient.tsx : section « Chronologie » insérée juste après l'en-tête, RÉSERVÉE aux dossiers sinistre (gate isSinistre = courtier/expert). Frise verticale de 3 jalons DÉRIVÉS des données existantes (AUCUNE nouvelle table) :
+  1. Sinistre déclaré — iv.date_demande (repli iv.created_at).
+  2. Intervention — libellé « réalisée le… » si statut ∈ {realisee, rapport, cloturee}, sinon « prévue le… » (plannedIntervention) ; valeur = creneau_debut, ou « À planifier » (toBeScheduled) si pas de créneau.
+  3. Rapport transmis — reportTransmittedAt (rapports.transmis_at), ou « En attente » (chipPending réutilisé) si pas encore transmis.
+  Helpers ajoutés en fin de fichier : fmtDay(iso, locale) (date localisée jour/mois/année, TZ_BRUSSELS) et TimelineItem (puce done/pending). Pas de date inventée : une étape non atteinte s'affiche sans date.
+- page.tsx (serveur) : DossierData gagne reportTransmittedAt: string | null ; la requête rapports sélectionne désormais transmis_at, statut ; reportTransmittedAt dérivé de rapportRows[0].transmis_at ; ajouté à l'objet data.
+- i18n.ts : +5 clés (chronologyTitle / evtDeclared / evtCompleted / evtReportTransmitted / toBeScheduled) FR/NL/EN, purement additif.
+
+DÉCISIONS (P3, validées Foxo) :
+- 3 jalons (déclaration / intervention / rapport) pour le MVP — pas de jalon « confirmations occupants » (utile surtout au syndic, pas au courtier).
+- Sinistre-only (courtier/expert), colle à la user story 06 « Vue chronologique du sinistre ». Extensible au syndic plus tard.
+- Dérivé, zéro nouvelle table : il n'existe PAS d'historique de transitions de statut. Pas de 4e jalon « clôturé » car aucune colonne cloturee_at en base — à ajouter seulement si une source de date apparaît.
+
+À VALIDER EN USAGE RÉEL : en compte courtier/expert, ouvrir un dossier sinistre → section « Chronologie » sous l'en-tête, 3 jalons, bascule FR/NL/EN. En compte syndic, la frise NE doit PAS apparaître.
+
+BACKLOG (mis à jour) :
+- FAIT : portail multilingue (étapes 0→5, PR #124→#129) + P2 relance occupant (PR #130) + P3 chronologie sinistre (PR #131). => Toutes les features portail prévues sont livrées.
+- RESTE (gros chantiers, à attaquer en session fraîche) : Analytics (doc 06_Volet_Syndic_Analytics_FoxO + PLAN_CHANTIER_Module_Analytics_FoxO) — pas avant mise en service quotidienne réelle (données encodées nécessaires). Puis Facturation (DERNIER chantier — Peppol/UBL obligation B2B 2026, 06_Spec_Module_Facturation_FoxO.md v0.3).
+- Dette mineure : bruit Netlify (4 checks rouges non bloquants par PR) à éliminer un jour.
+- ⚠️ PRÉREQUIS PROD MULTILINGUE TOUJOURS OUVERT : relecture NL/EN par un néerlandophone (STRINGS i18n.ts, TYPE_LABEL, STATUT_LABEL, DAYS_BY_LANG) avant ouverture du portail NL/EN à de vrais clients.
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; PR créée AVANT merge ; merge commit jamais squash + supprimer branche (merge manuel dans l'UI GitHub, jamais l'assistant/Claude Code) ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail, courtier/expert pour les dossiers sinistre) ; createAdminClient pour écritures serveur bornées ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-28 (suite 11) — P2 « Bouton de relance directe occupant » LIVRÉ (PR #130)
 
 ÉTAT GIT : main = 1dda902 (merge PR #130, branche feat/portal-relance-occupant supprimée). En prod via Vercel. Vérifier le git log live en début de session.
