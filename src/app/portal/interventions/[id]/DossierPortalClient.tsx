@@ -8,7 +8,7 @@ import { DownloadButton } from '@/components/DownloadButton';
 import { relTime, TZ_BRUSSELS } from '@/lib/format';
 import { usePortalContext, useVocab, useOrgType, useT, useLang } from '../../PortalContext';
 import { localeFor, type PortalStringKey } from '@/lib/portal/i18n';
-import { updateReferenceExterne } from '../../actions';
+import { updateReferenceExterne, relanceOccupant } from '../../actions';
 import { MessagesPanel } from '@/components/MessagesPanel';
 import type { Occupant } from '@/lib/types/database';
 import type { DossierData } from './page';
@@ -63,6 +63,15 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
   const [refError, setRefError] = useState<string | null>(null);
   const [isSavingRef, startSaveRef] = useTransition();
   const refUnchanged = refValue === (iv.reference_externe ?? '');
+
+  // Relance occupant (syndic) : état par occupant pour le bouton de la liste.
+  const [relanceState, setRelanceState] = useState<Record<string, 'sending' | 'sent' | 'error'>>({});
+  async function handleRelance(occId: string) {
+    if (relanceState[occId] === 'sending') return;
+    setRelanceState((s) => ({ ...s, [occId]: 'sending' }));
+    const res = await relanceOccupant(iv.id, occId);
+    setRelanceState((s) => ({ ...s, [occId]: res.ok ? 'sent' : 'error' }));
+  }
 
   function saveReference() {
     setRefError(null);
@@ -358,12 +367,28 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
                       {o.telephone ? <> · {o.telephone}</> : null}
                     </div>
                   </div>
-                  <span
-                    className="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap"
-                    style={{ color: cs.fg, background: cs.bg }}
-                  >
-                    {t(CONF_KEY[conf])}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span
+                      className="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap"
+                      style={{ color: cs.fg, background: cs.bg }}
+                    >
+                      {t(CONF_KEY[conf])}
+                    </span>
+                    {orgType === 'syndic' && conf === 'en_attente' && iv.creneau_debut && (
+                      relanceState[o.id] === 'sent' ? (
+                        <span className="text-[10px] font-semibold text-ok">{t('relanceSent')}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleRelance(o.id)}
+                          disabled={relanceState[o.id] === 'sending'}
+                          className="text-[10px] font-semibold text-navy underline hover:no-underline disabled:opacity-50"
+                        >
+                          {relanceState[o.id] === 'sending' ? t('sending') : relanceState[o.id] === 'error' ? t('relanceError') : t('relanceBtn')}
+                        </button>
+                      )
+                    )}
+                  </div>
                 </div>
               );
             })}

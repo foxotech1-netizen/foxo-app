@@ -7,6 +7,7 @@ import { normalizeLang, PORTAL_LANG_COOKIE } from '@/lib/portal/i18n';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCurrentSyndic } from '@/lib/portal/syndic';
+import { notifyOccupantsForIntervention } from '@/lib/occupants/notify-occupants';
 import { notifyStatusChange } from '@/lib/email/notifications';
 import { nextRefForYear } from '@/lib/intervention-ref';
 import type { Acp } from '@/lib/types/database';
@@ -360,5 +361,54 @@ export async function updateReferenceExterne(
 
   revalidatePath(`/portal/interventions/${interventionId}`);
   revalidatePath('/portal/interventions');
+  return { ok: true };
+}
+
+// ── Relance occupant (syndic) ───────────────────────────────────────
+// Renvoie la demande de confirmation a UN occupant encore en attente, depuis
+// le portail. Override de relance manuelle (decision metier 2026-06-15) :
+// notifyOccupantsForIntervention avec occupantId explicite envoie meme si
+// token_sent_at est deja rempli. Borne au syndic courant (jamais confiance a
+// l'id client seul). Reserve au type 'syndic'.
+export async function relanceOccupant(
+  interventionId: string,
+  occupantId: string,
+): Promise<ActionResult> {
+  const session = await getCurrentSyndic();
+  if (!session?.org) return { ok: false, error: 'Compte non lié à un partenaire.' };
+  if (session.org.type !== 'syndic') {
+    return { ok: false, error: 'Action réservée aux syndics.' };
+  }
+
+  const admin = adminOrThrow();
+  // 1) Le dossier doit appartenir au syndic courant.
+  const { data: iv } = await admin
+    .from('interventions')
+    .select('id')
+    .eq('id', interventionId)
+    .eq('syndic_id', session.org.id)
+    .maybeSingle();
+  if (!iv) return { ok: false, error: 'Dossier introuvable ou non autorisé.' };
+
+  // 2) L'occupant doit appartenir a ce dossier.
+  const { data: occ } = await admin
+    .from('occupants')
+    .select('id')
+    .eq('id', occupantId)
+    .eq('intervention_id', interventionId)
+    .maybeSingle();
+  if (!occ) return { ok: false, error: 'Occupant introuvable.' };
+
+  // 3) Envoi (helper canonique ; override = pas de filtre token_sent_at).
+  const res = await notifyOccupantsForIntervention(interventionId, {
+    occupantIds: [occupantId],
+    sentBy: session.org.email ?? 'portal',
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  if (res.sent === 0) {
+    return { ok: false, error: "Aucun canal disponible pour cet occupant (email/téléphone manquant ?)." };
+  }
+
+  revalidatePath(`/portal/interventions/${interventionId}`);
   return { ok: true };
 }
