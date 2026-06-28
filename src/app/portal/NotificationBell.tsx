@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Bell } from 'lucide-react';
 import { markMyNotificationsRead } from '@/app/portal/actions';
+import { useT, useLang } from './PortalContext';
+import { localeFor } from '@/lib/portal/i18n';
 
 export type PortalNotification = {
   id: string;
@@ -14,19 +16,20 @@ export type PortalNotification = {
   created_at: string;
 };
 
-// Date relative simple (fr-BE), aligné sur le rendu de MessagesPanel.
-function relTime(iso: string): string {
+// Date relative localisée (Intl.RelativeTimeFormat, style court), alignée sur la langue du portail.
+function relTime(iso: string, locale: string, justNow: string): string {
   const ts = new Date(iso).getTime();
   if (Number.isNaN(ts)) return '';
   const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (diffSec < 60) return "à l'instant";
+  if (diffSec < 60) return justNow;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'always', style: 'short' });
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `il y a ${diffMin} min`;
+  if (diffMin < 60) return rtf.format(-diffMin, 'minute');
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `il y a ${diffH} h`;
+  if (diffH < 24) return rtf.format(-diffH, 'hour');
   const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `il y a ${diffD} j`;
-  return new Date(iso).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  if (diffD < 7) return rtf.format(-diffD, 'day');
+  return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 export function NotificationBell({
@@ -36,6 +39,9 @@ export function NotificationBell({
   notifications?: PortalNotification[];
   unreadCount?: number;
 }) {
+  const t = useT();
+  const lang = useLang();
+  const locale = localeFor(lang);
   const [open, setOpen] = useState(false);
   // Détection du montage client : on ne portale dans document.body qu'une fois
   // hydraté, pour éviter tout mismatch SSR. setState dans cet effet de montage
@@ -63,7 +69,7 @@ export function NotificationBell({
       <button
         type="button"
         onClick={toggle}
-        aria-label="Notifications"
+        aria-label={t('notifications')}
         style={{
           position: 'relative',
           display: 'inline-flex',
@@ -139,11 +145,11 @@ export function NotificationBell({
                 fontSize: 12,
               }}
             >
-              Notifications
+              {t('notifications')}
             </div>
             {notifications.length === 0 ? (
               <div style={{ padding: '18px 14px', fontSize: 12, color: '#8A8278', textAlign: 'center' }}>
-                Aucune notification
+                {t('noNotifications')}
               </div>
             ) : (
               notifications.map((n) => (
@@ -167,7 +173,7 @@ export function NotificationBell({
                 >
                   <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 2 }}>{n.titre}</div>
                   <div style={{ fontSize: 11, color: '#5A5346', lineHeight: 1.35 }}>{n.message}</div>
-                  <div style={{ fontSize: 10, color: '#A39B8C', marginTop: 3 }}>{relTime(n.created_at)}</div>
+                  <div style={{ fontSize: 10, color: '#A39B8C', marginTop: 3 }}>{relTime(n.created_at, locale, t('justNow'))}</div>
                 </button>
               ))
             )}
