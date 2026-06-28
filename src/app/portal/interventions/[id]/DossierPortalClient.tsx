@@ -5,22 +5,32 @@ import Link from 'next/link';
 import { ArrowLeft, Zap, MapPin, FileText, Receipt, Landmark, RotateCcw } from 'lucide-react';
 import { StatutBadge } from '@/components/StatutBadge';
 import { DownloadButton } from '@/components/DownloadButton';
-import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
-import { usePortalContext, useVocab, useOrgType } from '../../PortalContext';
+import { relTime, TZ_BRUSSELS } from '@/lib/format';
+import { usePortalContext, useVocab, useOrgType, useT, useLang } from '../../PortalContext';
+import { localeFor, type PortalStringKey } from '@/lib/portal/i18n';
 import { updateReferenceExterne } from '../../actions';
 import { MessagesPanel } from '@/components/MessagesPanel';
 import type { Occupant } from '@/lib/types/database';
 import type { DossierData } from './page';
 
-const CONF_INFO: Record<NonNullable<Occupant['conf']>, { label: string; fg: string; bg: string }> = {
-  confirme:   { label: 'Confirmé',   fg: '#1F6B45', bg: '#D4EDE2' },
-  en_attente: { label: 'En attente', fg: '#B8830A', bg: '#FBF3E0' },
-  decline:    { label: 'Décliné',    fg: '#C4622D', bg: '#F7EDE5' },
+// Couleurs de l'etat de confirmation occupant — libelles via t() (multilingue).
+const CONF_STYLE: Record<NonNullable<Occupant['conf']>, { fg: string; bg: string }> = {
+  confirme:   { fg: '#1F6B45', bg: '#D4EDE2' },
+  en_attente: { fg: '#B8830A', bg: '#FBF3E0' },
+  decline:    { fg: '#C4622D', bg: '#F7EDE5' },
+};
+const CONF_KEY: Record<NonNullable<Occupant['conf']>, PortalStringKey> = {
+  confirme: 'occConfirmed',
+  en_attente: 'occPending',
+  decline: 'occDeclined',
 };
 
 export function DossierPortalClient({ data }: { data: DossierData }) {
   const v = useVocab();
   const orgType = useOrgType();
+  const t = useT();
+  const lang = useLang();
+  const locale = localeFor(lang);
   const { orgEmail } = usePortalContext();
   const { intervention: iv, acp, occupants, technicien: tech, isSinistre, hasReport } = data;
 
@@ -77,19 +87,22 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           intervention_id: iv.id,
+          // Corps du message volontairement conservé en FR : il est lu par
+          // l'équipe FoxO (francophone) dans la messagerie admin — ce n'est pas
+          // du texte d'interface du portail.
           contenu:
             'Demande de suite / révision sur ce dossier. Merci de me recontacter à ce sujet.',
         }),
       });
       const d = await r.json();
       if (!d.ok) {
-        setFollowUpError(d.error ?? 'Échec de l\'envoi de la demande.');
+        setFollowUpError(d.error ?? t('followUpSendError'));
         setFollowUpState('idle');
         return;
       }
       setFollowUpState('sent');
     } catch (e) {
-      setFollowUpError(e instanceof Error ? e.message : 'Erreur réseau.');
+      setFollowUpError(e instanceof Error ? e.message : t('networkError'));
       setFollowUpState('idle');
     }
   }
@@ -110,30 +123,30 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           <span className="font-mono text-xs text-[var(--color-ink-muted)]">{iv.ref ?? '—'}</span>
           {iv.priorite === 'urgente' && (
             <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra)]/30 rounded-full px-2 py-0.5">
-              <Zap size={12} /> URGENT
+              <Zap size={12} /> {t('urgent')}
             </span>
           )}
-          <StatutBadge statut={iv.statut} big />
+          <StatutBadge statut={iv.statut} big lang={lang} />
         </div>
         <h1 className="fxs-page-title">{acp?.nom ?? '—'}</h1>
         {adresseFull && (
           <div className="inline-flex items-center gap-1.5 text-[13px] text-ink-mid mt-1"><MapPin size={14} /> {adresseFull}</div>
         )}
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
-          <Meta label="Créé le" value={fmtDate(iv.created_at)} />
+          <Meta label={t('thCreated')} value={new Date(iv.created_at).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })} />
           <Meta
-            label="Intervention prévue"
-            value={iv.creneau_debut ? fmtDateTime(iv.creneau_debut, true) : 'Non confirmé'}
+            label={t('plannedIntervention')}
+            value={iv.creneau_debut ? new Date(iv.creneau_debut).toLocaleString(locale, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS }) : t('notConfirmed')}
             highlight={!iv.creneau_debut ? 'text-terra' : undefined}
           />
           <Meta
-            label="Technicien"
-            value={techNom ?? 'Non encore assigné'}
+            label={t('thTechnician')}
+            value={techNom ?? t('notYetAssigned')}
             highlight={!techNom ? 'text-ink-muted italic' : undefined}
           />
         </div>
         <div className="text-[10px] text-ink-muted mt-3 font-mono">
-          Mise à jour {relTime(iv.updated_at)}
+          {t('lastUpdate')} {relTime(iv.updated_at)}
         </div>
       </header>
 
@@ -145,7 +158,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
               type="text"
               value={refValue}
               onChange={(e) => { setRefValue(e.target.value); setRefSaved(false); }}
-              placeholder="Votre référence interne"
+              placeholder={t('yourInternalRef')}
               className="flex-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
             />
             <button
@@ -154,7 +167,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
               disabled={isSavingRef || refUnchanged}
               className="inline-flex items-center justify-center gap-1.5 bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
             >
-              {isSavingRef ? 'Enregistrement…' : 'Enregistrer'}
+              {isSavingRef ? t('saving') : t('save')}
             </button>
           </div>
           {refError && (
@@ -163,7 +176,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
             </div>
           )}
           {refSaved && !refError && (
-            <p className="mt-2 text-[11px] text-ink-muted">Référence enregistrée.</p>
+            <p className="mt-2 text-[11px] text-ink-muted">{t('refSavedMsg')}</p>
           )}
         </Block>
       )}
@@ -172,24 +185,24 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       {iv.statut === 'en_suspens' && iv.suspens_motif && (
         <div className="bg-terra-light border border-terra-mid rounded-2xl p-4">
           <div className="text-[10px] font-bold text-terra uppercase tracking-wider mb-2">
-            Motif de suspension
+            {t('suspensionReason')}
           </div>
           <p className="text-[13px] text-terra">{iv.suspens_motif}</p>
         </div>
       )}
 
       {/* Bloc description : type + description + appartements concernés */}
-      <Block title="Description">
+      <Block title={t('descriptionTitle')}>
         <div className="space-y-3">
           {iv.type && (
             <div>
-              <Label>Type d&apos;intervention</Label>
+              <Label>{t('interventionType')}</Label>
               <div className="font-semibold text-[13px] mt-0.5">{iv.type}</div>
             </div>
           )}
           {iv.description && (
             <div>
-              <Label>Description initiale</Label>
+              <Label>{t('initialDescription')}</Label>
               <p className="text-[13px] text-ink-mid mt-0.5 whitespace-pre-wrap leading-relaxed">
                 {iv.description}
               </p>
@@ -197,14 +210,14 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           )}
           {appartements.length > 0 && (
             <div>
-              <Label>Appartement(s) concerné(s)</Label>
+              <Label>{t('apartmentsConcerned')}</Label>
               <div className="flex flex-wrap gap-1 mt-1">
                 {appartements.map((a) => (
                   <span
                     key={a}
                     className="inline-block text-[11px] font-mono font-semibold bg-navy-pale text-navy border border-navy-light rounded px-2 py-0.5"
                   >
-                    Apt. {a}
+                    {t('aptShort')} {a}
                   </span>
                 ))}
               </div>
@@ -212,7 +225,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           )}
           {iv.adresse && iv.adresse !== adresseFull && (
             <div>
-              <Label>Adresse précise</Label>
+              <Label>{t('preciseAddress')}</Label>
               <div className="text-[13px] text-ink-mid mt-0.5">{iv.adresse}</div>
             </div>
           )}
@@ -220,30 +233,30 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       </Block>
 
       {/* Bloc rapport */}
-      <Block title="Rapport">
+      <Block title={t('reportBadge')}>
         {hasReport ? (
           <div className="space-y-2">
             <p className="text-[13px] text-ink-mid">
-              Le rapport d&apos;intervention est disponible.
+              {t('reportIsAvailable')}
             </p>
             <DownloadButton
               href={`/api/rapport/${iv.id}`}
               filename={`rapport-${iv.ref ?? iv.id}.pdf`}
-              label="Télécharger le rapport"
+              label={t('downloadReport')}
               icon={FileText}
             />
             {iv.statut === 'cloturee' && (
               <DownloadButton
                 href={`/api/facture/${iv.id}`}
                 filename={`facture-${iv.ref ?? iv.id}.pdf`}
-                label="Télécharger la facture"
+                label={t('downloadInvoice')}
                 icon={Receipt}
               />
             )}
           </div>
         ) : (
           <p className="text-[13px] text-ink-muted italic">
-            Rapport en cours de préparation. Vous serez notifié dès qu&apos;il sera disponible.
+            {t('reportInPreparation')}
           </p>
         )}
       </Block>
@@ -252,18 +265,15 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           abouti (rapport disponible ou dossier clôturé). Poste un message
           pré-formaté dans le fil ci-dessous via /api/messages. */}
       {hasReport && (
-        <Block title="Demander une suite">
+        <Block title={t('requestFollowUpTitle')}>
           {followUpState === 'sent' ? (
             <p className="text-[13px] text-ink-mid">
-              Demande envoyée — l&apos;équipe FoxO a été notifiée et vous répondra
-              via la messagerie ci-dessous.
+              {t('followUpSentMsg')}
             </p>
           ) : (
             <>
               <p className="text-[13px] text-ink-mid mb-3">
-                Un problème persiste ou vous souhaitez un nouveau passage sur ce
-                dossier ? Envoyez une demande de suite : elle est transmise à
-                l&apos;équipe FoxO et apparaît dans la messagerie ci-dessous.
+                {t('followUpIntro')}
               </p>
               {followUpError && (
                 <div className="mb-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
@@ -277,7 +287,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
                 className="inline-flex items-center gap-1.5 bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
               >
                 <RotateCcw size={14} />
-                {followUpState === 'sending' ? 'Envoi…' : 'Demander une suite / révision'}
+                {followUpState === 'sending' ? t('sending') : t('requestFollowUpButton')}
               </button>
             </>
           )}
@@ -298,28 +308,28 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}
         >
           <h2 className="inline-flex items-center gap-1.5 fxs-block-title mb-3" style={{ color: '#1D6FA4' }}>
-            <Landmark size={14} /> Informations assurance
+            <Landmark size={14} /> {t('insuranceInfo')}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
             {iv.assureur?.assure && (
-              <CourtierField label="Assuré" value={iv.assureur.assure} />
+              <CourtierField label={v.acpLabel} value={iv.assureur.assure} />
             )}
             {iv.assureur?.nom && (
-              <CourtierField label="Compagnie d'assurance" value={iv.assureur.nom} />
+              <CourtierField label={t('insuranceCompany')} value={iv.assureur.nom} />
             )}
             {iv.assureur?.reference_sinistre && (
-              <CourtierField label="Référence sinistre" value={iv.assureur.reference_sinistre} mono />
+              <CourtierField label={t('claimReference')} value={iv.assureur.reference_sinistre} mono />
             )}
             {iv.assureur?.reference_police && (
-              <CourtierField label="Référence police" value={iv.assureur.reference_police} mono />
+              <CourtierField label={t('policyReference')} value={iv.assureur.reference_police} mono />
             )}
             {iv.assureur?.email && (
-              <CourtierField label="Contact assureur" value={iv.assureur.email} mono small />
+              <CourtierField label={t('insurerContact')} value={iv.assureur.email} mono small />
             )}
             {iv.action_requise && (
               <div className="sm:col-span-2 pt-1 border-t" style={{ borderColor: '#A8C8E0' }}>
                 <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: '#1D6FA4' }}>
-                  Action requise
+                  {t('actionRequired')}
                 </div>
                 <p className="text-ink whitespace-pre-wrap">{iv.action_requise}</p>
               </div>
@@ -332,26 +342,27 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       {occupants.length > 0 && (
         <section>
           <h2 className="fxs-block-title text-ink mb-3">
-            Occupants — {confirmedCount}/{occupants.length} confirmé(s)
+            {t('occupantsTitle')} — {confirmedCount}/{occupants.length} {t('confirmedSuffix')}
           </h2>
           <div className="bg-cream rounded-xl border border-sand-border divide-y divide-sand-mid">
             {occupants.map((o) => {
-              const ci = o.conf ? CONF_INFO[o.conf] : CONF_INFO.en_attente;
+              const conf = o.conf ?? 'en_attente';
+              const cs = CONF_STYLE[conf];
               return (
                 <div key={o.id} className="px-4 py-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-[13px] font-semibold text-ink">{o.nom ?? '—'}</div>
                     <div className="text-[11px] text-ink-muted mt-0.5">
-                      Apt. {o.appartement ?? '—'}
+                      {t('aptShort')} {o.appartement ?? '—'}
                       {o.email ? <> · <span className="font-mono">{o.email}</span></> : null}
                       {o.telephone ? <> · {o.telephone}</> : null}
                     </div>
                   </div>
                   <span
                     className="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap"
-                    style={{ color: ci.fg, background: ci.bg }}
+                    style={{ color: cs.fg, background: cs.bg }}
                   >
-                    {ci.label}
+                    {t(CONF_KEY[conf])}
                   </span>
                 </div>
               );
@@ -363,29 +374,29 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
       {/* Bloc facturation (récap, si renseigné) */}
       {showFacturationBlock && (
         <section>
-          <h2 className="fxs-block-title text-ink mb-3">Facturation</h2>
+          <h2 className="fxs-block-title text-ink mb-3">{t('billingTitle')}</h2>
           <div className="bg-cream border border-sand-border rounded-xl p-4 text-[13px] grid grid-cols-1 sm:grid-cols-2 gap-3">
             {iv.nom_facturation && (
               <div>
-                <Label>Destinataire</Label>
+                <Label>{t('recipient')}</Label>
                 <div className="mt-0.5">{iv.nom_facturation}</div>
               </div>
             )}
             {iv.email_facturation && (
               <div>
-                <Label>Email</Label>
+                <Label>{t('emailLabel')}</Label>
                 <div className="mt-0.5 font-mono text-xs">{iv.email_facturation}</div>
               </div>
             )}
             {iv.bce_facturation && (
               <div>
-                <Label>BCE</Label>
+                <Label>{t('bceLabel')}</Label>
                 <div className="mt-0.5 font-mono text-xs">{iv.bce_facturation}</div>
               </div>
             )}
             {iv.ref_bon_commande && (
               <div>
-                <Label>Bon de commande</Label>
+                <Label>{t('purchaseOrder')}</Label>
                 <div className="mt-0.5 font-mono text-xs">{iv.ref_bon_commande}</div>
               </div>
             )}
