@@ -43,7 +43,22 @@ export type PortalStringKey =
   | 'requestFollowUpTitle' | 'followUpSentMsg' | 'followUpIntro' | 'requestFollowUpButton' | 'sending' | 'followUpSendError' | 'networkError'
   | 'insuranceInfo' | 'insuranceCompany' | 'claimReference' | 'policyReference' | 'insurerContact' | 'actionRequired'
   | 'occupantsTitle' | 'confirmedSuffix' | 'occConfirmed' | 'occPending' | 'occDeclined'
-  | 'billingTitle' | 'recipient' | 'emailLabel' | 'purchaseOrder';
+  | 'billingTitle' | 'recipient' | 'emailLabel' | 'purchaseOrder'
+  // — Etape 4 : formulaire de nouvelle demande —
+  | 'mustBeLinkedToCreate' | 'contactUsAt'
+  | 'newRequestTitle' | 'assignMissionTitle' | 'wizardSubtitle'
+  | 'stepClaim' | 'stepProblem' | 'stepSlot'
+  | 'previous' | 'next' | 'assignMissionBtn' | 'submitRequestBtn'
+  | 'buildingConcerned' | 'selectedSuffix' | 'change'
+  | 'searchByNameOrBce' | 'searchAcpPlaceholder' | 'searchingEllipsis' | 'noAcpFoundFor' | 'createNewAcp' | 'newAcpTitle'
+  | 'nameRequired' | 'acpNamePlaceholder' | 'buildingAddress' | 'addressPlaceholder' | 'bceNumber' | 'emailReport' | 'emailBilling' | 'cancel' | 'creatingEllipsis' | 'createAndSelect' | 'createError'
+  | 'preciseAddressLabel' | 'preciseAddressPlaceholder' | 'optionalParen'
+  | 'problemDescriptionTitle' | 'typeRequired' | 'selectPlaceholder' | 'descriptionRequired' | 'descriptionPlaceholder' | 'charactersCount' | 'priority' | 'priorityNormal' | 'priorityUrgent'
+  | 'occupantsConcernedTitle' | 'occupantsHelp' | 'occupantN' | 'remove' | 'nameLabel' | 'phone' | 'addOccupant'
+  | 'slotDesiredTitle' | 'slotNonContractual' | 'slotPreselected' | 'dateLabel' | 'timeLabel' | 'indifferentOption' | 'slotCanLeaveEmpty'
+  | 'billingPrefilledHelp' | 'invoiceRecipient' | 'invoiceRecipientPlaceholder' | 'poReference'
+  | 'insuredNameRequired' | 'insuredNamePlaceholder' | 'claimAddress' | 'claimAddressPlaceholder' | 'companyRefRequired' | 'companyRefOptional' | 'companyRefPlaceholder'
+  | 'claimRefPlaceholder' | 'insuranceCompanyPlaceholder' | 'insuranceFieldsHelp' | 'companyRefHelp';
 
 const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
   fr: {
@@ -59,7 +74,6 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     urgent: 'URGENT', reportBadge: 'Rapport', unreadFromFoxo: 'message(s) non lu(s) de FoxO', createdLabel: 'Créé', slotLabel: 'Créneau :',
     thRef: 'Réf.', thAddress: 'Adresse', thStatus: 'Statut', thCreated: 'Créé le', thTechnician: 'Technicien',
     bceLabel: 'BCE', notAssigned: 'Non assigné', reportAvailable: 'Rapport disponible', ofTotal: 'sur',
-    // — Etape 3 —
     plannedIntervention: 'Intervention prévue', notConfirmed: 'Non confirmé', notYetAssigned: 'Non encore assigné', lastUpdate: 'Mise à jour',
     yourInternalRef: 'Votre référence interne', save: 'Enregistrer', saving: 'Enregistrement…', refSavedMsg: 'Référence enregistrée.',
     suspensionReason: 'Motif de suspension',
@@ -69,6 +83,20 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     insuranceInfo: 'Informations assurance', insuranceCompany: "Compagnie d'assurance", claimReference: 'Référence sinistre', policyReference: 'Référence police', insurerContact: 'Contact assureur', actionRequired: 'Action requise',
     occupantsTitle: 'Occupants', confirmedSuffix: 'confirmé(s)', occConfirmed: 'Confirmé', occPending: 'En attente', occDeclined: 'Décliné',
     billingTitle: 'Facturation', recipient: 'Destinataire', emailLabel: 'Email', purchaseOrder: 'Bon de commande',
+    mustBeLinkedToCreate: "Vous devez être associé à un syndic ou un courtier pour créer une demande.", contactUsAt: 'Contactez info@foxo.be',
+    newRequestTitle: "Nouvelle demande d'intervention", assignMissionTitle: 'Confier une mission', wizardSubtitle: '5 étapes — vous pouvez revenir en arrière à tout moment',
+    stepClaim: 'Sinistre', stepProblem: 'Problème', stepSlot: 'Créneau',
+    previous: 'Précédent', next: 'Suivant', assignMissionBtn: 'Confier la mission', submitRequestBtn: 'Soumettre la demande',
+    buildingConcerned: 'Immeuble concerné', selectedSuffix: 'sélectionnée', change: 'Changer',
+    searchByNameOrBce: 'Rechercher par nom ou par numéro BCE', searchAcpPlaceholder: 'ex : Résidence Bellevue · BE0123.456.789', searchingEllipsis: 'Recherche…', noAcpFoundFor: 'Aucune ACP trouvée pour', createNewAcp: 'Créer une nouvelle ACP', newAcpTitle: 'Nouvelle ACP',
+    nameRequired: 'Nom *', acpNamePlaceholder: 'Résidence Bellevue', buildingAddress: "Adresse de l'immeuble", addressPlaceholder: 'Avenue Louise 42, 1050 Bruxelles', bceNumber: 'Numéro BCE', emailReport: 'Email rapport', emailBilling: 'Email facturation', cancel: 'Annuler', creatingEllipsis: 'Création…', createAndSelect: 'Créer & sélectionner', createError: 'Erreur création.',
+    preciseAddressLabel: "Adresse précise de l'intervention (si différente de l'ACP)", preciseAddressPlaceholder: 'ex : Apt 3B, étage 5', optionalParen: '(optionnel)',
+    problemDescriptionTitle: 'Description du problème', typeRequired: 'Type *', selectPlaceholder: '— Sélectionner —', descriptionRequired: 'Description *', descriptionPlaceholder: "Décrivez le problème, l'étage, les dégâts visibles…", charactersCount: 'caractère(s)', priority: 'Priorité', priorityNormal: 'Normale', priorityUrgent: 'Urgente',
+    occupantsConcernedTitle: 'Occupants concernés', occupantsHelp: 'Optionnel. Chacun recevra un lien de confirmation personnalisé une fois la demande validée.', occupantN: 'Occupant', remove: 'Supprimer', nameLabel: 'Nom', phone: 'Téléphone', addOccupant: 'Ajouter un occupant',
+    slotDesiredTitle: 'Créneau souhaité', slotNonContractual: 'Non contractuel — FoxO confirmera sous 24h ouvrables.', slotPreselected: 'Créneau pré-sélectionné depuis le calendrier', dateLabel: 'Date', timeLabel: 'Heure', indifferentOption: '— Indifférent —', slotCanLeaveEmpty: 'Vous pouvez aussi laisser vide — FoxO vous proposera un créneau.',
+    billingPrefilledHelp: 'Pré-rempli avec les coordonnées de votre société. Modifiez si nécessaire.', invoiceRecipient: 'Destinataire de la facture', invoiceRecipientPlaceholder: 'Nom ou raison sociale', poReference: 'Référence bon de commande',
+    insuredNameRequired: "Nom de l'assuré *", insuredNamePlaceholder: "ex : SPRL Dupont — Cabinet d'expertise", claimAddress: 'Adresse du sinistre', claimAddressPlaceholder: 'Rue du Marché 10, 1000 Bruxelles', companyRefRequired: 'Référence compagnie *', companyRefOptional: 'Référence compagnie (optionnel)', companyRefPlaceholder: 'Numéro de dossier interne (ex : SIN-2026-1234)',
+    claimRefPlaceholder: 'ex : 2026/87234', insuranceCompanyPlaceholder: 'ex : Ethias, AXA, Allianz…', insuranceFieldsHelp: 'Optionnels. Apparaissent sur la fiche du dossier et permettent au technicien de référencer le sinistre auprès de la compagnie.', companyRefHelp: 'La référence compagnie vous permettra de retrouver le dossier dans votre liste et apparaîtra sur les rapports/factures.',
   },
   nl: {
     home: 'Start', dashboard: 'Dashboard', planning: 'Planning', newShort: 'Nieuw', logout: 'Afmelden',
@@ -83,7 +111,6 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     urgent: 'DRINGEND', reportBadge: 'Rapport', unreadFromFoxo: 'ongelezen bericht(en) van FoxO', createdLabel: 'Aangemaakt', slotLabel: 'Tijdslot:',
     thRef: 'Ref.', thAddress: 'Adres', thStatus: 'Status', thCreated: 'Aangemaakt op', thTechnician: 'Technieker',
     bceLabel: 'KBO', notAssigned: 'Niet toegewezen', reportAvailable: 'Rapport beschikbaar', ofTotal: 'van',
-    // — Etape 3 —
     plannedIntervention: 'Geplande interventie', notConfirmed: 'Niet bevestigd', notYetAssigned: 'Nog niet toegewezen', lastUpdate: 'Bijgewerkt',
     yourInternalRef: 'Uw interne referentie', save: 'Opslaan', saving: 'Opslaan…', refSavedMsg: 'Referentie opgeslagen.',
     suspensionReason: 'Reden van opschorting',
@@ -93,6 +120,20 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     insuranceInfo: 'Verzekeringsgegevens', insuranceCompany: 'Verzekeringsmaatschappij', claimReference: 'Schadereferentie', policyReference: 'Polisreferentie', insurerContact: 'Contact verzekeraar', actionRequired: 'Vereiste actie',
     occupantsTitle: 'Bewoners', confirmedSuffix: 'bevestigd', occConfirmed: 'Bevestigd', occPending: 'In afwachting', occDeclined: 'Geweigerd',
     billingTitle: 'Facturatie', recipient: 'Bestemmeling', emailLabel: 'E-mail', purchaseOrder: 'Bestelbon',
+    mustBeLinkedToCreate: 'U moet gekoppeld zijn aan een syndicus of makelaar om een aanvraag aan te maken.', contactUsAt: 'Neem contact op via info@foxo.be',
+    newRequestTitle: 'Nieuwe interventieaanvraag', assignMissionTitle: 'Een opdracht toevertrouwen', wizardSubtitle: '5 stappen — u kunt op elk moment terugkeren',
+    stepClaim: 'Schade', stepProblem: 'Probleem', stepSlot: 'Tijdslot',
+    previous: 'Vorige', next: 'Volgende', assignMissionBtn: 'Opdracht toevertrouwen', submitRequestBtn: 'Aanvraag indienen',
+    buildingConcerned: 'Betrokken gebouw', selectedSuffix: 'geselecteerd', change: 'Wijzigen',
+    searchByNameOrBce: 'Zoeken op naam of KBO-nummer', searchAcpPlaceholder: 'bv. Residentie Bellevue · BE0123.456.789', searchingEllipsis: 'Zoeken…', noAcpFoundFor: 'Geen VME gevonden voor', createNewAcp: 'Nieuwe VME aanmaken', newAcpTitle: 'Nieuwe VME',
+    nameRequired: 'Naam *', acpNamePlaceholder: 'Residentie Bellevue', buildingAddress: 'Adres van het gebouw', addressPlaceholder: 'Louizalaan 42, 1050 Brussel', bceNumber: 'KBO-nummer', emailReport: 'E-mail rapport', emailBilling: 'E-mail facturatie', cancel: 'Annuleren', creatingEllipsis: 'Aanmaken…', createAndSelect: 'Aanmaken & selecteren', createError: 'Fout bij het aanmaken.',
+    preciseAddressLabel: 'Exact adres van de interventie (indien anders dan de VME)', preciseAddressPlaceholder: 'bv. App 3B, verdieping 5', optionalParen: '(optioneel)',
+    problemDescriptionTitle: 'Beschrijving van het probleem', typeRequired: 'Type *', selectPlaceholder: '— Selecteren —', descriptionRequired: 'Beschrijving *', descriptionPlaceholder: 'Beschrijf het probleem, de verdieping, de zichtbare schade…', charactersCount: 'teken(s)', priority: 'Prioriteit', priorityNormal: 'Normaal', priorityUrgent: 'Dringend',
+    occupantsConcernedTitle: 'Betrokken bewoners', occupantsHelp: 'Optioneel. Elke bewoner ontvangt een persoonlijke bevestigingslink zodra de aanvraag is gevalideerd.', occupantN: 'Bewoner', remove: 'Verwijderen', nameLabel: 'Naam', phone: 'Telefoon', addOccupant: 'Een bewoner toevoegen',
+    slotDesiredTitle: 'Gewenst tijdslot', slotNonContractual: 'Niet-contractueel — FoxO bevestigt binnen 24 werkuren.', slotPreselected: 'Tijdslot vooraf geselecteerd vanuit de kalender', dateLabel: 'Datum', timeLabel: 'Uur', indifferentOption: '— Maakt niet uit —', slotCanLeaveEmpty: 'U kunt dit ook leeg laten — FoxO stelt dan een tijdslot voor.',
+    billingPrefilledHelp: 'Vooraf ingevuld met de gegevens van uw bedrijf. Pas aan indien nodig.', invoiceRecipient: 'Bestemmeling van de factuur', invoiceRecipientPlaceholder: 'Naam of bedrijfsnaam', poReference: 'Referentie bestelbon',
+    insuredNameRequired: 'Naam van de verzekerde *', insuredNamePlaceholder: 'bv. BVBA Dupont — Expertisekantoor', claimAddress: 'Adres van de schade', claimAddressPlaceholder: 'Marktstraat 10, 1000 Brussel', companyRefRequired: 'Referentie maatschappij *', companyRefOptional: 'Referentie maatschappij (optioneel)', companyRefPlaceholder: 'Intern dossiernummer (bv. SIN-2026-1234)',
+    claimRefPlaceholder: 'bv. 2026/87234', insuranceCompanyPlaceholder: 'bv. Ethias, AXA, Allianz…', insuranceFieldsHelp: 'Optioneel. Verschijnen op de dossierfiche en laten de technieker toe de schade bij de maatschappij te refereren.', companyRefHelp: 'Met de referentie van de maatschappij vindt u het dossier terug in uw lijst en verschijnt ze op de rapporten/facturen.',
   },
   en: {
     home: 'Home', dashboard: 'Dashboard', planning: 'Schedule', newShort: 'New', logout: 'Log out',
@@ -107,7 +148,6 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     urgent: 'URGENT', reportBadge: 'Report', unreadFromFoxo: 'unread message(s) from FoxO', createdLabel: 'Created', slotLabel: 'Slot:',
     thRef: 'Ref.', thAddress: 'Address', thStatus: 'Status', thCreated: 'Created on', thTechnician: 'Technician',
     bceLabel: 'Company no.', notAssigned: 'Not assigned', reportAvailable: 'Report available', ofTotal: 'of',
-    // — Etape 3 —
     plannedIntervention: 'Scheduled intervention', notConfirmed: 'Not confirmed', notYetAssigned: 'Not yet assigned', lastUpdate: 'Updated',
     yourInternalRef: 'Your internal reference', save: 'Save', saving: 'Saving…', refSavedMsg: 'Reference saved.',
     suspensionReason: 'Reason for suspension',
@@ -117,10 +157,37 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     insuranceInfo: 'Insurance information', insuranceCompany: 'Insurance company', claimReference: 'Claim reference', policyReference: 'Policy reference', insurerContact: 'Insurer contact', actionRequired: 'Action required',
     occupantsTitle: 'Occupants', confirmedSuffix: 'confirmed', occConfirmed: 'Confirmed', occPending: 'Pending', occDeclined: 'Declined',
     billingTitle: 'Billing', recipient: 'Recipient', emailLabel: 'Email', purchaseOrder: 'Purchase order',
+    mustBeLinkedToCreate: 'You must be linked to a property manager or broker to create a request.', contactUsAt: 'Contact us at info@foxo.be',
+    newRequestTitle: 'New intervention request', assignMissionTitle: 'Assign a mission', wizardSubtitle: '5 steps — you can go back at any time',
+    stepClaim: 'Claim', stepProblem: 'Problem', stepSlot: 'Slot',
+    previous: 'Previous', next: 'Next', assignMissionBtn: 'Assign the mission', submitRequestBtn: 'Submit the request',
+    buildingConcerned: 'Building concerned', selectedSuffix: 'selected', change: 'Change',
+    searchByNameOrBce: 'Search by name or company number', searchAcpPlaceholder: 'e.g. Bellevue Residence · BE0123.456.789', searchingEllipsis: 'Searching…', noAcpFoundFor: 'No co-ownership found for', createNewAcp: 'Create a new co-ownership', newAcpTitle: 'New co-ownership',
+    nameRequired: 'Name *', acpNamePlaceholder: 'Bellevue Residence', buildingAddress: 'Building address', addressPlaceholder: 'Avenue Louise 42, 1050 Brussels', bceNumber: 'Company number', emailReport: 'Report email', emailBilling: 'Billing email', cancel: 'Cancel', creatingEllipsis: 'Creating…', createAndSelect: 'Create & select', createError: 'Creation error.',
+    preciseAddressLabel: 'Precise address of the intervention (if different from the co-ownership)', preciseAddressPlaceholder: 'e.g. Apt 3B, floor 5', optionalParen: '(optional)',
+    problemDescriptionTitle: 'Problem description', typeRequired: 'Type *', selectPlaceholder: '— Select —', descriptionRequired: 'Description *', descriptionPlaceholder: 'Describe the problem, the floor, the visible damage…', charactersCount: 'character(s)', priority: 'Priority', priorityNormal: 'Normal', priorityUrgent: 'Urgent',
+    occupantsConcernedTitle: 'Occupants concerned', occupantsHelp: 'Optional. Each will receive a personalised confirmation link once the request is validated.', occupantN: 'Occupant', remove: 'Remove', nameLabel: 'Name', phone: 'Phone', addOccupant: 'Add an occupant',
+    slotDesiredTitle: 'Preferred slot', slotNonContractual: 'Non-binding — FoxO will confirm within 24 working hours.', slotPreselected: 'Slot pre-selected from the calendar', dateLabel: 'Date', timeLabel: 'Time', indifferentOption: '— No preference —', slotCanLeaveEmpty: 'You can also leave it empty — FoxO will propose a slot.',
+    billingPrefilledHelp: 'Pre-filled with your company details. Edit if necessary.', invoiceRecipient: 'Invoice recipient', invoiceRecipientPlaceholder: 'Name or company name', poReference: 'Purchase order reference',
+    insuredNameRequired: "Insured's name *", insuredNamePlaceholder: 'e.g. Dupont Ltd — Expert firm', claimAddress: 'Claim address', claimAddressPlaceholder: 'Rue du Marché 10, 1000 Brussels', companyRefRequired: 'Company reference *', companyRefOptional: 'Company reference (optional)', companyRefPlaceholder: 'Internal file number (e.g. SIN-2026-1234)',
+    claimRefPlaceholder: 'e.g. 2026/87234', insuranceCompanyPlaceholder: 'e.g. Ethias, AXA, Allianz…', insuranceFieldsHelp: 'Optional. They appear on the file and let the technician reference the claim with the company.', companyRefHelp: 'The company reference lets you find the file in your list and appears on reports/invoices.',
   },
 };
 
 export function tFor(lang: Lang) {
   return (key: PortalStringKey): string =>
     STRINGS[lang]?.[key] ?? STRINGS[DEFAULT_LANG][key] ?? key;
+}
+
+// Libelles d'affichage des TYPES d'intervention (valeurs DB en FR conservees,
+// seul l'affichage est traduit). Fallback = la valeur elle-meme.
+// NOTE: traductions NL/EN generees par Claude — A FAIRE RELIRE par un natif NL.
+const TYPE_LABEL: Record<Lang, Record<string, string>> = {
+  fr: { 'Fuite canalisation': 'Fuite canalisation', 'Fuite chauffage': 'Fuite chauffage', 'Fuite infiltration': 'Fuite infiltration', 'Surconsommation eau': 'Surconsommation eau', 'Autre': 'Autre' },
+  nl: { 'Fuite canalisation': 'Leidinglek', 'Fuite chauffage': 'Verwarmingslek', 'Fuite infiltration': 'Infiltratie', 'Surconsommation eau': 'Overmatig waterverbruik', 'Autre': 'Andere' },
+  en: { 'Fuite canalisation': 'Pipe leak', 'Fuite chauffage': 'Heating leak', 'Fuite infiltration': 'Infiltration', 'Surconsommation eau': 'Excess water consumption', 'Autre': 'Other' },
+};
+
+export function typeLabel(value: string, lang: Lang): string {
+  return TYPE_LABEL[lang]?.[value] ?? value;
 }

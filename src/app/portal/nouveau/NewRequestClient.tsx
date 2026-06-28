@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Check, ArrowLeft, ArrowRight, Plus, Zap, CheckCircle2, Landmark } from 'lucide-react';
 import type { Acp, PrioriteIntervention, TypeIntervention } from '@/lib/types/database';
 import type { OrgType } from '@/lib/portal/vocab';
-import { useOrgType, useVocab } from '../PortalContext';
+import { useOrgType, useVocab, useT, useLang } from '../PortalContext';
+import { typeLabel } from '@/lib/portal/i18n';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
 import {
   searchAcp,
@@ -39,6 +40,7 @@ export function NewRequestClient({
   const router = useRouter();
   const orgType = useOrgType();
   const vocab = useVocab();
+  const t = useT();
   const isPartner = orgType === 'courtier' || orgType === 'expert';
   const accentBg =
     orgType === 'expert'
@@ -48,8 +50,8 @@ export function NewRequestClient({
         : 'bg-navy hover:bg-navy-mid';
 
   const STEP_LABELS = isPartner
-    ? ['Sinistre', 'Problème', 'Occupants', 'Créneau', 'Facturation']
-    : ['ACP', 'Problème', 'Occupants', 'Créneau', 'Facturation'];
+    ? [t('stepClaim'), t('stepProblem'), t('occupantsTitle'), t('stepSlot'), t('billingTitle')]
+    : [vocab.acpLabel, t('stepProblem'), t('occupantsTitle'), t('stepSlot'), t('billingTitle')];
 
   const [step, setStep] = useState<Step>(1);
   const [pending, startTransition] = useTransition();
@@ -119,7 +121,7 @@ export function NewRequestClient({
     if (selectedAcp) return; // pas de search si on a déjà une ACP
     const q = acpQuery.trim();
     if (q.length < 2) { setAcpResults([]); setAcpSearchError(null); return; }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       startTransition(async () => {
         const res = await searchAcp(q);
         if (res.ok) {
@@ -131,7 +133,7 @@ export function NewRequestClient({
         }
       });
     }, 280);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [acpQuery, selectedAcp]);
 
   function pickAcp(acp: Acp) {
@@ -163,7 +165,7 @@ export function NewRequestClient({
     try {
       const res = await createAcp(newAcp);
       if (res.ok && res.data) pickAcp(res.data);
-      else setAcpSearchError(res.ok ? 'Erreur création.' : res.error);
+      else setAcpSearchError(res.ok ? t('createError') : res.error);
     } finally {
       setCreatingAcp(false);
     }
@@ -235,11 +237,11 @@ export function NewRequestClient({
     <div className="space-y-5 max-w-[760px] mx-auto">
       <div className="pb-3.5 border-b border-[var(--color-sand-border)]">
         <h1 className="fxs-page-title mb-1">
-          {isPartner ? 'Confier une mission' : 'Nouvelle demande d\'intervention'}
+          {isPartner ? t('assignMissionTitle') : t('newRequestTitle')}
         </h1>
         <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-          5 étapes — vous pouvez revenir en arrière à tout moment
+          {t('wizardSubtitle')}
         </div>
       </div>
 
@@ -327,7 +329,7 @@ export function NewRequestClient({
           disabled={step === 1 || submitting}
           className="inline-flex items-center gap-1.5 bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
         >
-          <ArrowLeft size={14} /> Précédent
+          <ArrowLeft size={14} /> {t('previous')}
         </button>
         {step < 5 ? (
           <button
@@ -335,7 +337,7 @@ export function NewRequestClient({
             disabled={!canProceed()}
             className={`inline-flex items-center gap-1.5 text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
-            Suivant <ArrowRight size={14} />
+            {t('next')} <ArrowRight size={14} />
           </button>
         ) : (
           <button
@@ -344,10 +346,10 @@ export function NewRequestClient({
             className={`inline-flex items-center gap-1.5 text-white px-4 py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 ${accentBg}`}
           >
             {submitting ? (
-              'Envoi…'
+              t('sending')
             ) : (
               <>
-                {isPartner ? 'Confier la mission' : 'Soumettre la demande'}
+                {isPartner ? t('assignMissionBtn') : t('submitRequestBtn')}
                 <Check size={14} />
               </>
             )}
@@ -410,16 +412,18 @@ function Step1({
   newAcp: AcpInput; setNewAcp: (v: AcpInput) => void;
   onCreate: () => void; creating: boolean;
 }) {
+  const t = useT();
+  const vocab = useVocab();
   return (
     <div className="space-y-4">
-      <h3 className="fxs-block-title text-navy">1. Immeuble concerné</h3>
+      <h3 className="fxs-block-title text-navy">1. {t('buildingConcerned')}</h3>
 
       {selectedAcp ? (
         <div className="bg-navy-pale border border-navy-light rounded-lg p-3.5">
           <div className="flex justify-between items-start gap-3">
             <div>
               <div className="text-xs text-navy/70 font-semibold uppercase tracking-wider">
-                ACP sélectionnée
+                {vocab.acpLabel} {t('selectedSuffix')}
               </div>
               <div className="font-bold text-[15px] text-navy mt-1">{selectedAcp.nom}</div>
               <div className="text-xs text-navy/80 mt-0.5">
@@ -427,14 +431,14 @@ function Step1({
                   .filter(Boolean).join(', ') || '—'}
               </div>
               {selectedAcp.bce && (
-                <div className="text-[11px] font-mono text-navy/60 mt-1">BCE : {selectedAcp.bce}</div>
+                <div className="text-[11px] font-mono text-navy/60 mt-1">{t('bceLabel')} : {selectedAcp.bce}</div>
               )}
             </div>
             <button
               onClick={onClear}
               className="text-[11px] text-navy underline hover:no-underline"
             >
-              Changer
+              {t('change')}
             </button>
           </div>
         </div>
@@ -442,15 +446,15 @@ function Step1({
         <>
           <div>
             <label className="text-xs font-semibold text-ink-mid block mb-1.5">
-              Rechercher par nom ou par numéro BCE
+              {t('searchByNameOrBce')}
             </label>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="ex : Résidence Bellevue · BE0123.456.789"
+              placeholder={t('searchAcpPlaceholder')}
               className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
             />
-            {searching && <p className="text-[11px] text-ink-muted mt-1.5">Recherche…</p>}
+            {searching && <p className="text-[11px] text-ink-muted mt-1.5">{t('searchingEllipsis')}</p>}
             {searchError && <p className="text-[11px] text-terra mt-1.5">{searchError}</p>}
           </div>
 
@@ -465,7 +469,7 @@ function Step1({
                   <div className="font-semibold text-[13px]">{a.nom}</div>
                   <div className="text-[11px] text-ink-muted">
                     {[a.adresse, a.code_postal, a.ville].filter(Boolean).join(', ') || '—'}
-                    {a.bce ? ` · BCE ${a.bce}` : ''}
+                    {a.bce ? ` · ${t('bceLabel')} ${a.bce}` : ''}
                   </div>
                 </button>
               ))}
@@ -475,14 +479,14 @@ function Step1({
           {query.length >= 2 && !searching && results.length === 0 && (
             <div className="bg-amber-light border border-[#E8C896] rounded-lg p-3.5">
               <p className="text-[13px] text-[#8A5A1A] mb-2">
-                Aucune ACP trouvée pour <strong>{query}</strong>.
+                {t('noAcpFoundFor')} <strong>{query}</strong>.
               </p>
               {!showCreate ? (
                 <button
                   onClick={() => { setShowCreate(true); setNewAcp({ ...newAcp, nom: query }); }}
                   className="inline-flex items-center gap-1.5 bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold"
                 >
-                  <Plus size={14} /> Créer une nouvelle ACP
+                  <Plus size={14} /> {t('createNewAcp')}
                 </button>
               ) : null}
             </div>
@@ -491,11 +495,11 @@ function Step1({
           {showCreate && (
             <div className="bg-white border border-sand-border rounded-lg p-4 space-y-3">
               <div className="text-xs font-bold text-navy uppercase tracking-wider">
-                Nouvelle ACP
+                {t('newAcpTitle')}
               </div>
-              <Field label="Nom *" value={newAcp.nom} onChange={(v) => setNewAcp({ ...newAcp, nom: v })} placeholder="Résidence Bellevue" />
+              <Field label={t('nameRequired')} value={newAcp.nom} onChange={(v) => setNewAcp({ ...newAcp, nom: v })} placeholder={t('acpNamePlaceholder')} />
               <AddressAutocomplete
-                label="Adresse de l'immeuble"
+                label={t('buildingAddress')}
                 value={addressFromString(newAcp.adresse)}
                 onChange={(v) => setNewAcp({
                   ...newAcp,
@@ -505,22 +509,22 @@ function Step1({
                   lat: v.lat,
                   lng: v.lng,
                 })}
-                placeholder="Avenue Louise 42, 1050 Bruxelles"
+                placeholder={t('addressPlaceholder')}
                 required
               />
-              <Field label="Numéro BCE" value={newAcp.bce} onChange={(v) => setNewAcp({ ...newAcp, bce: v })} placeholder="BE0123.456.789" />
-              <Field label="Email rapport" value={newAcp.email_rapport} onChange={(v) => setNewAcp({ ...newAcp, email_rapport: v })} placeholder="rapport@..." type="email" />
-              <Field label="Email facturation" value={newAcp.email_facturation} onChange={(v) => setNewAcp({ ...newAcp, email_facturation: v })} placeholder="facturation@..." type="email" />
+              <Field label={t('bceNumber')} value={newAcp.bce} onChange={(v) => setNewAcp({ ...newAcp, bce: v })} placeholder="BE0123.456.789" />
+              <Field label={t('emailReport')} value={newAcp.email_rapport} onChange={(v) => setNewAcp({ ...newAcp, email_rapport: v })} placeholder="rapport@..." type="email" />
+              <Field label={t('emailBilling')} value={newAcp.email_facturation} onChange={(v) => setNewAcp({ ...newAcp, email_facturation: v })} placeholder="facturation@..." type="email" />
               <div className="flex justify-end gap-2 pt-1">
                 <button onClick={() => setShowCreate(false)} className="bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-xs font-semibold">
-                  Annuler
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={onCreate}
                   disabled={creating || !newAcp.nom.trim()}
                   className="bg-navy text-white px-3.5 py-2 rounded-lg text-xs font-bold disabled:opacity-50"
                 >
-                  {creating ? 'Création…' : 'Créer & sélectionner'}
+                  {creating ? t('creatingEllipsis') : t('createAndSelect')}
                 </button>
               </div>
             </div>
@@ -530,23 +534,23 @@ function Step1({
 
       <div>
         <label className="text-xs font-semibold text-ink-mid block mb-1.5">
-          Adresse précise de l&apos;intervention (si différente de l&apos;ACP)
+          {t('preciseAddressLabel')}
         </label>
         <input
           value={adressePrecise}
           onChange={(e) => setAdressePrecise(e.target.value)}
-          placeholder="ex : Apt 3B, étage 5"
+          placeholder={t('preciseAddressPlaceholder')}
           className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
         />
       </div>
       <div>
         <label className="text-xs font-semibold text-ink-mid block mb-1.5">
-          {referenceLabel} (optionnel)
+          {referenceLabel} {t('optionalParen')}
         </label>
         <input
           value={referenceSyndic}
           onChange={(e) => setReferenceSyndic(e.target.value)}
-          placeholder="Votre référence interne"
+          placeholder={t('yourInternalRef')}
           className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
         />
       </div>
@@ -563,33 +567,35 @@ function Step2({
   description: string; setDescription: (v: string) => void;
   priorite: PrioriteIntervention; setPriorite: (v: PrioriteIntervention) => void;
 }) {
+  const t = useT();
+  const lang = useLang();
   return (
     <div className="space-y-4">
-      <h3 className="fxs-block-title text-navy">2. Description du problème</h3>
+      <h3 className="fxs-block-title text-navy">2. {t('problemDescriptionTitle')}</h3>
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
+        <label className="text-xs font-semibold text-ink-mid block mb-1.5">{t('typeRequired')}</label>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as TypeIntervention)}
           className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
         >
-          <option value="">— Sélectionner —</option>
-          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          <option value="">{t('selectPlaceholder')}</option>
+          {TYPES.map((tp) => <option key={tp} value={tp}>{typeLabel(tp, lang)}</option>)}
         </select>
       </div>
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">Description *</label>
+        <label className="text-xs font-semibold text-ink-mid block mb-1.5">{t('descriptionRequired')}</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Décrivez le problème, l'étage, les dégâts visibles…"
+          placeholder={t('descriptionPlaceholder')}
           rows={5}
           className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y min-h-[100px]"
         />
-        <p className="text-[11px] text-ink-muted mt-1">{description.trim().length} caractère(s)</p>
+        <p className="text-[11px] text-ink-muted mt-1">{description.trim().length} {t('charactersCount')}</p>
       </div>
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">Priorité</label>
+        <label className="text-xs font-semibold text-ink-mid block mb-1.5">{t('priority')}</label>
         <div className="grid grid-cols-2 gap-2">
           {(['normale', 'urgente'] as PrioriteIntervention[]).map((p) => (
             <label
@@ -607,8 +613,8 @@ function Step2({
                 className="accent-[#1B3A6B]"
               />
               {p === 'urgente' ? (
-                <span className="inline-flex items-center gap-1.5"><Zap size={14} /> Urgente</span>
-              ) : 'Normale'}
+                <span className="inline-flex items-center gap-1.5"><Zap size={14} /> {t('priorityUrgent')}</span>
+              ) : t('priorityNormal')}
             </label>
           ))}
         </div>
@@ -627,12 +633,13 @@ function Step3({
   onRemove: (i: number) => void;
   onUpdate: (i: number, field: keyof OccupantInput, v: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="fxs-block-title text-navy">3. Occupants concernés</h3>
+        <h3 className="fxs-block-title text-navy">3. {t('occupantsConcernedTitle')}</h3>
         <p className="text-[12px] text-ink-mid mt-1">
-          Optionnel. Chacun recevra un lien de confirmation personnalisé une fois la demande validée.
+          {t('occupantsHelp')}
         </p>
       </div>
       <div className="space-y-2.5">
@@ -640,30 +647,30 @@ function Step3({
           <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-ink-muted uppercase tracking-wider">
-                Occupant {i + 1}
+                {t('occupantN')} {i + 1}
               </span>
               {occupants.length > 1 && (
                 <button
                   onClick={() => onRemove(i)}
                   className="text-[11px] text-terra hover:underline"
                 >
-                  Supprimer
+                  {t('remove')}
                 </button>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Apt." value={o.appartement} onChange={(v) => onUpdate(i, 'appartement', v)} placeholder="3B" />
-              <Field label="Nom" value={o.nom} onChange={(v) => onUpdate(i, 'nom', v)} placeholder="Dupont Marc" />
+              <Field label={t('aptShort')} value={o.appartement} onChange={(v) => onUpdate(i, 'appartement', v)} placeholder="3B" />
+              <Field label={t('nameLabel')} value={o.nom} onChange={(v) => onUpdate(i, 'nom', v)} placeholder="Dupont Marc" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Field label="Email" value={o.email} onChange={(v) => onUpdate(i, 'email', v)} placeholder="dupont@..." type="email" />
-              <Field label="Téléphone" value={o.telephone} onChange={(v) => onUpdate(i, 'telephone', v)} placeholder="+32…" type="tel" />
+              <Field label={t('emailLabel')} value={o.email} onChange={(v) => onUpdate(i, 'email', v)} placeholder="dupont@..." type="email" />
+              <Field label={t('phone')} value={o.telephone} onChange={(v) => onUpdate(i, 'telephone', v)} placeholder="+32…" type="tel" />
             </div>
           </div>
         ))}
       </div>
       <button onClick={onAdd} className="inline-flex items-center gap-1.5 bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-xs font-semibold">
-        <Plus size={14} /> Ajouter un occupant
+        <Plus size={14} /> {t('addOccupant')}
       </button>
     </div>
   );
@@ -678,33 +685,34 @@ function Step4({
   heure: string; setHeure: (v: string) => void;
   preselected: boolean;
 }) {
+  const t = useT();
   return (
     <div className="space-y-4">
-      <h3 className="fxs-block-title text-navy">4. Créneau souhaité</h3>
+      <h3 className="fxs-block-title text-navy">4. {t('slotDesiredTitle')}</h3>
       <p className="text-[12px] text-ink-mid">
-        Non contractuel — FoxO confirmera sous 24h ouvrables.
+        {t('slotNonContractual')}
       </p>
       {preselected && (
         <div className="inline-flex items-center gap-1.5 bg-ok-light border border-ok-mid rounded-lg px-3.5 py-2.5 text-[13px] text-ok">
-          <CheckCircle2 size={14} /> Créneau pré-sélectionné depuis le calendrier
+          <CheckCircle2 size={14} /> {t('slotPreselected')}
         </div>
       )}
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Date" type="date" value={date} onChange={setDate} />
+        <Field label={t('dateLabel')} type="date" value={date} onChange={setDate} />
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">Heure</label>
+          <label className="text-xs font-semibold text-ink-mid block mb-1.5">{t('timeLabel')}</label>
           <select
             value={heure}
             onChange={(e) => setHeure(e.target.value)}
             className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
           >
-            <option value="">— Indifférent —</option>
+            <option value="">{t('indifferentOption')}</option>
             {HOURS.map((h) => <option key={h} value={h}>{h.replace(':', 'h')}</option>)}
           </select>
         </div>
       </div>
       <p className="text-[11px] text-ink-muted">
-        Vous pouvez aussi laisser vide — FoxO vous proposera un créneau.
+        {t('slotCanLeaveEmpty')}
       </p>
     </div>
   );
@@ -720,17 +728,18 @@ function Step5({
   bce: string; setBce: (v: string) => void;
   refBC: string; setRefBC: (v: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-4">
-      <h3 className="fxs-block-title text-navy">5. Facturation</h3>
+      <h3 className="fxs-block-title text-navy">5. {t('billingTitle')}</h3>
       <p className="text-[12px] text-ink-mid">
-        Pré-rempli avec les coordonnées de votre société. Modifiez si nécessaire.
+        {t('billingPrefilledHelp')}
       </p>
-      <Field label="Destinataire de la facture" value={nom} onChange={setNom} placeholder="Nom ou raison sociale" />
-      <Field label="Email facturation" value={email} onChange={setEmail} placeholder="facturation@…" type="email" />
+      <Field label={t('invoiceRecipient')} value={nom} onChange={setNom} placeholder={t('invoiceRecipientPlaceholder')} />
+      <Field label={t('emailBilling')} value={email} onChange={setEmail} placeholder="facturation@…" type="email" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Numéro BCE" value={bce} onChange={setBce} placeholder="BE0123.456.789" />
-        <Field label="Référence bon de commande" value={refBC} onChange={setRefBC} placeholder="BC-2026-…" />
+        <Field label={t('bceNumber')} value={bce} onChange={setBce} placeholder="BE0123.456.789" />
+        <Field label={t('poReference')} value={refBC} onChange={setRefBC} placeholder="BC-2026-…" />
       </div>
     </div>
   );
@@ -759,14 +768,15 @@ function Step1Courtier({
   referenceSinistre: string; setReferenceSinistre: (v: string) => void;
   compagnieAssurance: string; setCompagnieAssurance: (v: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-4">
-      <h3 className="fxs-block-title" style={{ color: '#1D6FA4' }}>1. Sinistre</h3>
+      <h3 className="fxs-block-title" style={{ color: '#1D6FA4' }}>1. {t('stepClaim')}</h3>
 
-      <Field label="Nom de l'assuré *" value={assureNom} onChange={setAssureNom} placeholder="ex : SPRL Dupont — Cabinet d'expertise" />
+      <Field label={t('insuredNameRequired')} value={assureNom} onChange={setAssureNom} placeholder={t('insuredNamePlaceholder')} />
 
       <AddressAutocomplete
-        label="Adresse du sinistre"
+        label={t('claimAddress')}
         value={{
           adresse: rue,
           rue: '',
@@ -784,44 +794,42 @@ function Step1Courtier({
           setVille(v.ville);
           setSinisterCoords({ lat: v.lat, lng: v.lng });
         }}
-        placeholder="Rue du Marché 10, 1000 Bruxelles"
+        placeholder={t('claimAddressPlaceholder')}
         required
       />
 
       <Field
-        label={orgType === 'expert' ? 'Référence compagnie (optionnel)' : 'Référence compagnie *'}
+        label={orgType === 'expert' ? t('companyRefOptional') : t('companyRefRequired')}
         value={refCompagnie}
         onChange={setRefCompagnie}
-        placeholder="Numéro de dossier interne (ex : SIN-2026-1234)"
+        placeholder={t('companyRefPlaceholder')}
       />
 
       <div className="rounded-lg p-3" style={{ background: '#EAF2F8', border: '1px solid #A8C8E0' }}>
         <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider mb-2" style={{ color: '#1D6FA4' }}>
-          <Landmark size={12} /> Informations assurance
+          <Landmark size={12} /> {t('insuranceInfo')}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field
-            label="Référence sinistre"
+            label={t('claimReference')}
             value={referenceSinistre}
             onChange={setReferenceSinistre}
-            placeholder="ex : 2026/87234"
+            placeholder={t('claimRefPlaceholder')}
           />
           <Field
-            label="Compagnie d'assurance"
+            label={t('insuranceCompany')}
             value={compagnieAssurance}
             onChange={setCompagnieAssurance}
-            placeholder="ex : Ethias, AXA, Allianz…"
+            placeholder={t('insuranceCompanyPlaceholder')}
           />
         </div>
         <p className="text-[10px] mt-2" style={{ color: '#1D6FA4' }}>
-          Optionnels. Apparaissent sur la fiche du dossier et permettent au technicien
-          de référencer le sinistre auprès de la compagnie.
+          {t('insuranceFieldsHelp')}
         </p>
       </div>
 
       <p className="text-[11px] text-ink-muted">
-        La référence compagnie vous permettra de retrouver le dossier dans votre liste
-        et apparaîtra sur les rapports/factures.
+        {t('companyRefHelp')}
       </p>
     </div>
   );
