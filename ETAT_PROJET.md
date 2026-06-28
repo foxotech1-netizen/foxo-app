@@ -1,3 +1,36 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite 7) — Portail multilingue ÉTAPE 2 : liste des dossiers traduite FR/NL/EN (PR #126)
+
+ÉTAT GIT : main = d1c6839 (merge PR #126, branche supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER EN COURS — Portail multilingue (FR/NL/EN). ÉTAPES 0, 1, 2 LIVRÉES. Reste étapes 3, 4, 5.
+
+ÉTAPE 2 LIVRÉE (PR #126) :
+- interventions/InterventionsPortalClient.tsx (CLIENT) entièrement traduit : chips de statut, filtres période, recherche, en-têtes table, badges (URGENT/Rapport), état vide, compteurs, dates locale-aware. Libellés chips/périodes via maps CHIP_KEY/PERIODE_KEY -> t() (le champ label a été retiré de CHIPS/PERIODES). Hooks client : useT()/useLang()/localeFor(). Logique de filtrage INCHANGÉE.
+- interventions/page.tsx (SERVEUR) : bloc « compte non lié » traduit (réutilise accountNotLinkedTitle/Body).
+- i18n.ts : ~47 clés STRINGS au total (Étapes 1+2).
+
+RESTE À FAIRE :
+  Étape 3 : interventions/[id]/DossierPortalClient.tsx (452 l.) détail dossier (le plus visible côté client) + interventions/[id]/page.tsx (serveur).
+  Étape 4 : nouveau/NewRequestClient.tsx (848 l.) LE PLUS GROS (formulaire) + nouveau/page.tsx.
+  Étape 5 : calendar/page.tsx + NotificationBell.tsx + restes.
+
+FR-ISMES RESTANTS (mineurs, à traiter plus tard) :
+- relTime (@/lib/format) renvoie « Xh / Xj » (j = jours, FR) — laissé tel quel ; helper partagé avec l'admin.
+- StatutBadge (@/components/StatutBadge) affiche les statuts en FR et sert AUSSI à l'admin -> lui ajouter un prop lang optionnel (défaut fr) pour traduire côté portail sans toucher l'admin. À faire pendant l'étape 3 (statuts très visibles dans le détail).
+
+MÉTHODE / RAPPELS :
+- Pattern par étape (= 1 PR) : repérer texte FR en dur -> ajouter clés FR/NL/EN dans STRINGS (i18n.ts) -> remplacer par t() (CLIENT : useT()/useLang()/useVocab() ; SERVEUR : tFor(lang)/localeFor(lang) en lisant le cookie portal_lang) -> dates via toLocaleDateString/String(locale, avec timeZone TZ_BRUSSELS) -> tsc -> PR.
+- Réécriture de fichier entier = méthode fiable pour les écrans denses (préférée aux multiples str_replace). CONSERVER les commentaires d'origine dans les réécritures (étapes 1-2 en ont supprimé par mégarde — cosmétique).
+- Réutiliser les clés existantes quand le texte est identique (ex. accountNotLinkedTitle/Body partagés accueil + liste).
+
+RELECTURE : traductions NL/EN générées par Claude. À FAIRE RELIRE par un néerlandophone avant usage client réel (NL surtout). Termes belges déjà posés : ACP=VME (nl), BCE=KBO (nl), courtier=makelaar, dossier sinistre=schadedossier, syndic EN=Property Manager.
+
+BACKLOG (inchangé) : Multilingue en cours (0+1+2 faits). Puis Relance directe occupant (P2), Chronologie sinistre courtier (P3). Jalons Analytics puis Facturation (dernier) = pas avant mise en service quotidienne. Bruit Netlify (rouge non bloquant).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite 6) — Portail multilingue ÉTAPE 1 : accueil/dashboard traduit FR/NL/EN + dates locale-aware (PR #125)
 
 ÉTAT GIT : main = ebed068 (merge PR #125, branche supprimée). En prod via Vercel. Vérifier le git log live en début de session.
