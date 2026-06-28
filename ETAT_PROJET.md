@@ -1,3 +1,36 @@
+# État du projet FoxO — snapshot 2026-06-28 (suite 11) — P2 « Bouton de relance directe occupant » LIVRÉ (PR #130)
+
+ÉTAT GIT : main = 1dda902 (merge PR #130, branche feat/portal-relance-occupant supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+P2 LIVRÉ (PR #130, commit 1c4ac21) — Bouton de relance occupant dans le portail :
+- DossierPortalClient.tsx : bouton « Relancer » par occupant dans la liste Occupants. Conditions d'affichage : orgType === 'syndic' ET conf === 'en_attente' ET iv.creneau_debut (un créneau est fixé → il y a une date à rappeler). États par occupant : sending / sent (« Relance envoyée ») / error. Le badge de confirmation et le bouton sont dans une colonne à droite de chaque ligne occupant.
+- actions.ts : server action relanceOccupant(interventionId, occupantId). Réservée au type 'syndic'. Bornée : (1) le dossier doit appartenir au syndic courant (.eq('syndic_id', session.org.id)), (2) l'occupant doit appartenir au dossier (.eq('intervention_id', interventionId)). Jamais confiance à un id client seul. Envoi via le helper canonique notifyOccupantsForIntervention(interventionId, { occupantIds:[occupantId], sentBy: session.org.email ?? 'portal' }) = override de relance manuelle (envoie MÊME si token_sent_at déjà rempli, conforme décision métier 2026-06-15). revalidatePath du dossier.
+- i18n.ts : +3 clés (relanceBtn / relanceSent / relanceError) FR/NL/EN, purement additif.
+- ENVOI RÉEL (mail/SMS selon occupants.contact_preference, défaut email). sms_logs.sent_by = colonne text libre (pas de FK) → 'portal'/email OK ; pour un occupant en email pur, sms_logs n'est même pas écrit.
+
+DÉCISIONS (P2) :
+- Syndic uniquement (colle à la user story 06 « Bouton de relance directe » + auth simple bornée syndic_id). Courtier/expert = extension ultérieure si besoin (DossierPortalClient affiche déjà les occupants pour eux, mais sans bouton).
+- Bouton seulement si occupant en attente + créneau fixé (sinon mail sans date).
+- Le mail occupant reste en FR (template notify-occupants) — traduire ce mail = hors périmètre ; seul le BOUTON est FR/NL/EN.
+- Pas de cooldown : feedback « Relance envoyée » après succès.
+
+À VALIDER EN USAGE RÉEL : connecté en syndic propriétaire (ex. syndic@foxo.be), sur un dossier avec créneau + occupant en attente dont on contrôle l'email → clic « Relancer » → réception du mail « Confirmer ma présence ». (Occupant de test connu : foxotech1@gmail.com sur 2026-133, mais le bouton n'apparaît que pour le syndic propriétaire du dossier.)
+
+BACKLOG (mis à jour) :
+- FAIT : chantier portail multilingue (étapes 0→5, PR #124→#129) + P2 bouton de relance occupant (PR #130).
+- RESTE : Chronologie sinistre courtier (P3). Puis Analytics (doc 06, pas avant mise en service quotidienne). Puis Facturation (dernier chantier, Peppol/UBL, 06_Spec_Module_Facturation_FoxO.md). Bruit Netlify (rouge non bloquant) à éliminer un jour.
+- ⚠️ PRÉREQUIS PROD MULTILINGUE TOUJOURS OUVERT : relecture NL/EN par un néerlandophone (STRINGS i18n.ts, TYPE_LABEL, STATUT_LABEL, DAYS_BY_LANG) avant ouverture du portail NL/EN à de vrais clients.
+
+MÉTHODE / LEÇONS À CONSERVER :
+- VALEUR ≠ AFFICHAGE : tout champ stocké en base (statut, type, priorité) garde sa valeur ; on ne traduit que l'affichage. (StatutBadge étape 3, types/priorité étape 4.)
+- Ouverture de PR : la PR doit être CRÉÉE (GitHub UI « Compare & pull request », ou outil GitHub MCP de Claude Code) AVANT de pouvoir merger. Le merge se fait TOUJOURS à la main dans l'interface GitHub (merge commit, jamais squash, puis Delete branch) — ni l'assistant ni Claude Code ne mergent (gh push --delete = 403 dans le conteneur).
+- Server action portail sensible : getCurrentSyndic + bornage par syndic_id (jamais l'id client seul) + createAdminClient pour l'écriture. Modèle : updateReferenceExterne, relanceOccupant.
+- Vérifier le type réel d'une colonne avant d'y écrire une valeur libre (sms_logs.sent_by = text, vérifié en migration).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-28 (suite 10) — CHANTIER PORTAIL MULTILINGUE CLOS (étapes 0→5, FR/NL/EN) — Étape 5 : calendrier + cloche de notifications (PR #129)
 
 ÉTAT GIT : main = 6270205 (merge PR #129, branche feat/portal-i18n-calendar supprimée). En prod via Vercel. Vérifier le git log live en début de session.
