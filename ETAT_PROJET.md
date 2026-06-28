@@ -1,3 +1,32 @@
+# État du projet FoxO — snapshot 2026-06-27 (suite 6) — Portail multilingue ÉTAPE 1 : accueil/dashboard traduit FR/NL/EN + dates locale-aware (PR #125)
+
+ÉTAT GIT : main = ebed068 (merge PR #125, branche supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+CHANTIER EN COURS — Portail multilingue (FR/NL/EN). ÉTAPES 0 + 1 LIVRÉES. Reste étapes 2 -> 5.
+
+ÉTAPE 1 LIVRÉE (PR #125) — src/app/portal/page.tsx (accueil/dashboard partenaire) entièrement traduit.
+- PATTERN composant SERVEUR confirmé (à réutiliser pour les autres pages serveur) : lire la langue en haut via const lang = normalizeLang((await cookies()).get(PORTAL_LANG_COOKIE)?.value), puis const t = tFor(lang) et const locale = localeFor(lang). Textes via t('cle') / vocabFor(orgType, lang). Dates via toLocaleDateString(locale, { ... timeZone: TZ_BRUSSELS }).
+- AJOUT i18n.ts : helper localeFor(lang) -> fr-BE / nl-BE / en-GB. + ~15 nouvelles clés STRINGS (greeting, statInProgress/Pending/ReportsAvailable/Closed, reportsBannerSuffix, nextAppointment, see, createFirst, typeUnspecified, availabilitiesTitle, noSlots, available, accountNotLinkedTitle/Body).
+- fmtTime conservé (heures = neutres entre locales). fmtDate/todayLong remplacés par des appels inline locale-aware ; les helpers partagés @/lib/format restent INTACTS (admin non touché).
+- Note mineure : la réécriture de page.tsx a supprimé quelques commentaires explicatifs (visibilité, pins, stats) — purement cosmétique, logique inchangée ; à restaurer au prochain passage si souhaité.
+
+RAPPEL PATTERN par étape (= 1 PR) : repérer le texte FR en dur -> ajouter les clés FR/NL/EN dans STRINGS (i18n.ts) -> remplacer par t('cle') -> tsc -> PR. ATTENTION client vs serveur : composant CLIENT => hooks useT()/useLang()/useVocab() ; composant SERVEUR => tFor(lang)/localeFor(lang) en lisant le cookie.
+
+RESTE À FAIRE :
+  Étape 2 : interventions/InterventionsPortalClient.tsx (383 l., CLIENT => useT/useLang) liste + filtres + état vide ; interventions/page.tsx (200 l., serveur).
+  Étape 3 : interventions/[id]/DossierPortalClient.tsx (452 l.) détail dossier ; interventions/[id]/page.tsx.
+  Étape 4 : nouveau/NewRequestClient.tsx (848 l.) LE PLUS GROS ; nouveau/page.tsx.
+  Étape 5 : calendar/page.tsx + NotificationBell.tsx + restes.
+COMPOSANT PARTAGÉ : StatutBadge (@/components/StatutBadge) affiche les statuts en FR et sert AUSSI à l'admin -> lui ajouter un prop lang optionnel (défaut fr) pour traduire côté portail sans toucher l'admin. À traiter au moment des statuts (étape 2/3).
+
+RELECTURE : traductions NL/EN générées par Claude. À FAIRE RELIRE par un néerlandophone avant usage client réel (NL surtout).
+
+BACKLOG (inchangé) : Multilingue en cours (étapes 0+1 faites). Puis Relance directe occupant (P2), Chronologie sinistre courtier (P3). Jalons Analytics puis Facturation (dernier) = pas avant mise en service quotidienne. Bruit Netlify (rouge non bloquant).
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-27 (suite 5) — Portail MULTILINGUE FR/NL/EN : moteur i18n + bascule de langue livrés (PR #124) — ÉTAPE 0/N
 
 ÉTAT GIT : main = 4f2bac6 (merge PR #124, branche feat/portal-i18n supprimée). En prod via Vercel. Vérifier le git log live en début de session.
