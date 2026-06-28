@@ -18,18 +18,22 @@ export function normalizeLang(value: string | null | undefined): Lang {
   return value === 'nl' || value === 'en' ? value : DEFAULT_LANG;
 }
 
-// Locale BCP-47 pour le formatage des dates selon la langue.
 export function localeFor(lang: Lang): string {
   return lang === 'nl' ? 'nl-BE' : lang === 'en' ? 'en-GB' : 'fr-BE';
 }
 
-// Chaines UI generales (hors libelles lies au type d'org, qui sont dans vocab.ts).
 export type PortalStringKey =
   | 'home' | 'dashboard' | 'planning' | 'newShort' | 'logout'
   | 'greeting' | 'statInProgress' | 'statPending' | 'statReportsAvailable' | 'statClosed'
   | 'reportsBannerSuffix' | 'nextAppointment' | 'see' | 'createFirst' | 'typeUnspecified'
   | 'availabilitiesTitle' | 'noSlots' | 'available'
-  | 'accountNotLinkedTitle' | 'accountNotLinkedBody';
+  | 'accountNotLinkedTitle' | 'accountNotLinkedBody'
+  | 'totalLabel' | 'dbLimited' | 'searchSyndic' | 'searchSinistre'
+  | 'chipAll' | 'chipInProgress' | 'chipPending' | 'chipReportReady' | 'chipClosed'
+  | 'periodAll' | 'period30d' | 'period3m' | 'period12m'
+  | 'urgent' | 'reportBadge' | 'unreadFromFoxo' | 'createdLabel' | 'slotLabel'
+  | 'thRef' | 'thAddress' | 'thStatus' | 'thCreated' | 'thTechnician'
+  | 'bceLabel' | 'notAssigned' | 'reportAvailable' | 'ofTotal';
 
 const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
   fr: {
@@ -39,6 +43,12 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     availabilitiesTitle: 'Prochaines disponibilités FoxO', noSlots: 'Aucun créneau libre sur les 14 prochains jours.', available: 'Disponible',
     accountNotLinkedTitle: 'Compte non lié',
     accountNotLinkedBody: "Cette adresse n'est pas encore associée à un syndic, un courtier ou un expert dans nos fichiers. Contactez-nous pour finaliser l'ouverture de votre compte.",
+    totalLabel: 'au total', dbLimited: 'Connexion à la base limitée :', searchSyndic: 'Rechercher — référence, ACP, adresse, BCE…', searchSinistre: 'Rechercher — référence, assuré, adresse, BCE, sinistre…',
+    chipAll: 'Tous', chipInProgress: 'En cours', chipPending: 'En attente', chipReportReady: 'Rapport prêt', chipClosed: 'Clôturé',
+    periodAll: 'Tout', period30d: '30 derniers jours', period3m: '3 derniers mois', period12m: '12 derniers mois',
+    urgent: 'URGENT', reportBadge: 'Rapport', unreadFromFoxo: 'message(s) non lu(s) de FoxO', createdLabel: 'Créé', slotLabel: 'Créneau :',
+    thRef: 'Réf.', thAddress: 'Adresse', thStatus: 'Statut', thCreated: 'Créé le', thTechnician: 'Technicien',
+    bceLabel: 'BCE', notAssigned: 'Non assigné', reportAvailable: 'Rapport disponible', ofTotal: 'sur',
   },
   nl: {
     home: 'Start', dashboard: 'Dashboard', planning: 'Planning', newShort: 'Nieuw', logout: 'Afmelden',
@@ -47,6 +57,12 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     availabilitiesTitle: 'Eerstvolgende beschikbaarheden FoxO', noSlots: 'Geen vrije momenten in de komende 14 dagen.', available: 'Beschikbaar',
     accountNotLinkedTitle: 'Account niet gekoppeld',
     accountNotLinkedBody: 'Dit adres is nog niet gekoppeld aan een syndicus, makelaar of expert in onze bestanden. Neem contact met ons op om uw account te activeren.',
+    totalLabel: 'in totaal', dbLimited: 'Databaseverbinding beperkt:', searchSyndic: 'Zoeken — referentie, VME, adres, KBO…', searchSinistre: 'Zoeken — referentie, verzekerde, adres, KBO, schade…',
+    chipAll: 'Alle', chipInProgress: 'Lopend', chipPending: 'In afwachting', chipReportReady: 'Rapport klaar', chipClosed: 'Afgesloten',
+    periodAll: 'Alles', period30d: 'Laatste 30 dagen', period3m: 'Laatste 3 maanden', period12m: 'Laatste 12 maanden',
+    urgent: 'DRINGEND', reportBadge: 'Rapport', unreadFromFoxo: 'ongelezen bericht(en) van FoxO', createdLabel: 'Aangemaakt', slotLabel: 'Tijdslot:',
+    thRef: 'Ref.', thAddress: 'Adres', thStatus: 'Status', thCreated: 'Aangemaakt op', thTechnician: 'Technieker',
+    bceLabel: 'KBO', notAssigned: 'Niet toegewezen', reportAvailable: 'Rapport beschikbaar', ofTotal: 'van',
   },
   en: {
     home: 'Home', dashboard: 'Dashboard', planning: 'Schedule', newShort: 'New', logout: 'Log out',
@@ -55,6 +71,12 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     availabilitiesTitle: 'Next FoxO availability', noSlots: 'No free slots in the next 14 days.', available: 'Available',
     accountNotLinkedTitle: 'Account not linked',
     accountNotLinkedBody: 'This address is not yet linked to a property manager, broker or expert in our records. Contact us to finalise your account setup.',
+    totalLabel: 'total', dbLimited: 'Database connection limited:', searchSyndic: 'Search — reference, co-ownership, address, reg. no.…', searchSinistre: 'Search — reference, insured, address, reg. no., claim…',
+    chipAll: 'All', chipInProgress: 'In progress', chipPending: 'Pending', chipReportReady: 'Report ready', chipClosed: 'Closed',
+    periodAll: 'All', period30d: 'Last 30 days', period3m: 'Last 3 months', period12m: 'Last 12 months',
+    urgent: 'URGENT', reportBadge: 'Report', unreadFromFoxo: 'unread message(s) from FoxO', createdLabel: 'Created', slotLabel: 'Slot:',
+    thRef: 'Ref.', thAddress: 'Address', thStatus: 'Status', thCreated: 'Created on', thTechnician: 'Technician',
+    bceLabel: 'Company no.', notAssigned: 'Not assigned', reportAvailable: 'Report available', ofTotal: 'of',
   },
 };
 

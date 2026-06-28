@@ -5,38 +5,40 @@ import { useMemo, useState } from 'react';
 import { Zap, FileText, MapPin, Wrench, MessageCircle } from 'lucide-react';
 import type { StatutIntervention } from '@/lib/types/database';
 import { StatutBadge } from '@/components/StatutBadge';
-import { fmtDate, fmtDateTime, relTime } from '@/lib/format';
-import { useOrgType, useVocab } from '../PortalContext';
+import { relTime, TZ_BRUSSELS } from '@/lib/format';
+import { useOrgType, useVocab, useT, useLang } from '../PortalContext';
+import { localeFor, type PortalStringKey } from '@/lib/portal/i18n';
 import type { InterventionPortalItem } from './page';
 
-// Chips de filtre rapide. La fonction `match` est évaluée sur chaque
-// item dans le useMemo de filtrage. L'ordre est l'ordre d'affichage.
 type ChipId = 'tous' | 'enCours' | 'enAttente' | 'rapportPret' | 'cloture';
 interface Chip {
   id: ChipId;
-  label: string;
   match: (s: StatutIntervention) => boolean;
 }
 const CHIPS: Chip[] = [
-  { id: 'tous',       label: 'Tous',           match: () => true },
-  { id: 'enCours',    label: 'En cours',       match: (s) => s === 'nouvelle' || s === 'confirmee' || s === 'realisee' },
-  { id: 'enAttente',  label: 'En attente',     match: (s) => s === 'attente' || s === 'en_suspens' },
-  { id: 'rapportPret', label: 'Rapport prêt',  match: (s) => s === 'rapport' },
-  { id: 'cloture',    label: 'Clôturé',        match: (s) => s === 'cloturee' },
+  { id: 'tous',        match: () => true },
+  { id: 'enCours',     match: (s) => s === 'nouvelle' || s === 'confirmee' || s === 'realisee' },
+  { id: 'enAttente',   match: (s) => s === 'attente' || s === 'en_suspens' },
+  { id: 'rapportPret', match: (s) => s === 'rapport' },
+  { id: 'cloture',     match: (s) => s === 'cloturee' },
 ];
 
-// Filtres période rapides, appliqués sur created_at. `jours = null` = pas de
-// borne (tout). L'ordre est l'ordre d'affichage.
 const PERIODES = [
-  { id: 'tout', label: 'Tout', jours: null as number | null },
-  { id: '30j', label: '30 derniers jours', jours: 30 },
-  { id: '3m', label: '3 derniers mois', jours: 90 },
-  { id: '12m', label: '12 derniers mois', jours: 365 },
+  { id: 'tout', jours: null as number | null },
+  { id: '30j', jours: 30 },
+  { id: '3m', jours: 90 },
+  { id: '12m', jours: 365 },
 ] as const;
 type PeriodeId = (typeof PERIODES)[number]['id'];
 
-// Mappe un searchParam ?statut=… legacy vers une chip pour compat avec
-// les anciens liens (ex: bandeau dashboard "rapports disponibles").
+// Cles i18n des libelles de chips / periodes (le texte vit dans STRINGS).
+const CHIP_KEY: Record<ChipId, PortalStringKey> = {
+  tous: 'chipAll', enCours: 'chipInProgress', enAttente: 'chipPending', rapportPret: 'chipReportReady', cloture: 'chipClosed',
+};
+const PERIODE_KEY: Record<PeriodeId, PortalStringKey> = {
+  tout: 'periodAll', '30j': 'period30d', '3m': 'period3m', '12m': 'period12m',
+};
+
 function chipFromStatutParam(s: string | null): ChipId {
   if (!s) return 'tous';
   if (s === 'rapport') return 'rapportPret';
@@ -59,6 +61,9 @@ export function InterventionsPortalClient({
 }) {
   const orgType = useOrgType();
   const v = useVocab();
+  const t = useT();
+  const lang = useLang();
+  const locale = localeFor(lang);
   const isCourtier = orgType === 'courtier';
   const accentBg = isCourtier
     ? 'bg-[#1D6FA4] hover:bg-[#175E8E]'
@@ -73,8 +78,6 @@ export function InterventionsPortalClient({
 
   const activeChip = CHIPS.find((c) => c.id === chip) ?? CHIPS[0];
 
-  // Liste des ACP presentes dans les dossiers du partenaire (filtre deroulant
-  // ACP, syndic uniquement). Dedupliquee par acp_id, triee par nom.
   const acpOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const iv of items) {
@@ -87,21 +90,14 @@ export function InterventionsPortalClient({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((iv) => {
-      // Filtre chip (statut)
       if (!activeChip.match(iv.statut)) return false;
-      // Filtre ACP (syndic) : 'tous' = pas de filtre
       if (acpFilter !== 'tous' && iv.acp_id !== acpFilter) return false;
-      // Filtre période sur created_at
       const periodeDef = PERIODES.find((p) => p.id === periode);
       if (periodeDef && periodeDef.jours != null) {
-        // Seuil relatif « N derniers jours » : Date.now() au rendu est
-        // volontaire ici (filtre temporel), l'impureté est sans effet de bord.
         // eslint-disable-next-line react-hooks/purity
         const seuil = Date.now() - periodeDef.jours * 24 * 60 * 60 * 1000;
         if (new Date(iv.created_at).getTime() < seuil) return false;
       }
-      // Filtre recherche multi-champs : ref, ACP, adresse, BCE, ref courtier,
-      // réf. syndic (reference_externe) — recherche cross-références.
       if (!q) return true;
       const haystack = [
         iv.ref,
@@ -121,7 +117,6 @@ export function InterventionsPortalClient({
     });
   }, [items, query, activeChip, periode, acpFilter]);
 
-  // Compte par chip pour afficher les totaux dans les boutons.
   const counts = useMemo(() => {
     const out: Record<ChipId, number> = {
       tous: items.length,
@@ -147,7 +142,7 @@ export function InterventionsPortalClient({
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            {items.length} au total
+            {items.length} {t('totalLabel')}
           </div>
         </div>
         {v.newRequestVerb && (
@@ -162,25 +157,22 @@ export function InterventionsPortalClient({
 
       {loadError && (
         <div className="px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold">
-          Connexion à la base limitée : {loadError}
+          {t('dbLimited')} {loadError}
         </div>
       )}
 
-      {/* Barre de recherche + filtres ACP / période */}
       <div className="flex flex-wrap gap-2 items-center">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={isCourtier
-            ? 'Rechercher — référence, assuré, adresse, BCE, sinistre…'
-            : 'Rechercher — référence, ACP, adresse, BCE…'}
+          placeholder={isCourtier ? t('searchSinistre') : t('searchSyndic')}
           className="flex-1 min-w-[160px] px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
         />
         {orgType === 'syndic' && acpOptions.length > 1 && (
           <select
             value={acpFilter}
             onChange={(e) => setAcpFilter(e.target.value)}
-            aria-label="Filtrer par ACP"
+            aria-label={v.acpLabel}
             className="max-w-[200px] px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream text-ink-mid outline-none focus:border-navy-mid cursor-pointer"
           >
             <option value="tous">— {v.acpLabel} —</option>
@@ -192,16 +184,15 @@ export function InterventionsPortalClient({
         <select
           value={periode}
           onChange={(e) => setPeriode(e.target.value as PeriodeId)}
-          aria-label="Filtrer par période"
+          aria-label={t('periodAll')}
           className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream text-ink-mid outline-none focus:border-navy-mid cursor-pointer"
         >
           {PERIODES.map((p) => (
-            <option key={p.id} value={p.id}>{p.label}</option>
+            <option key={p.id} value={p.id}>{t(PERIODE_KEY[p.id])}</option>
           ))}
         </select>
       </div>
 
-      {/* Chips filtres rapides */}
       <div className="flex flex-wrap gap-1.5">
         {CHIPS.map((c) => {
           const active = c.id === chip;
@@ -218,7 +209,7 @@ export function InterventionsPortalClient({
                   : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-mid')
               }
             >
-              {c.label}
+              {t(CHIP_KEY[c.id])}
               <span className={'ml-1.5 text-[10px] font-semibold ' + (active ? 'opacity-80' : 'opacity-60')}>
                 ({n})
               </span>
@@ -228,7 +219,6 @@ export function InterventionsPortalClient({
       </div>
 
 
-      {/* Mobile : cards */}
       <div className="md:hidden space-y-2">
         {filtered.length === 0 ? (
           <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-6 text-center">
@@ -245,15 +235,15 @@ export function InterventionsPortalClient({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-mono text-[11px] font-semibold text-navy">{iv.ref ?? '—'}</span>
                   {iv.priorite === 'urgente' && (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra"><Zap size={12} /> URGENT</span>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-terra"><Zap size={12} /> {t('urgent')}</span>
                   )}
                   {iv.has_rapport && (
-                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-ok"><FileText size={12} /> Rapport</span>
+                    <span className="inline-flex items-center gap-1 text-[9px] font-bold text-ok"><FileText size={12} /> {t('reportBadge')}</span>
                   )}
                   {iv.unread_messages_count > 0 && (
                     <span
                       className="inline-flex items-center gap-1 text-[9px] font-bold text-navy"
-                      title={`${iv.unread_messages_count} message(s) non lu(s) de FoxO`}
+                      title={`${iv.unread_messages_count} ${t('unreadFromFoxo')}`}
                     >
                       <MessageCircle size={12} /> {iv.unread_messages_count}
                     </span>
@@ -269,7 +259,7 @@ export function InterventionsPortalClient({
                   </div>
                 )}
                 <div className="text-[10px] text-ink-muted mt-1 flex items-center gap-2 flex-wrap">
-                  <span>Créé {fmtDate(iv.created_at)}</span>
+                  <span>{t('createdLabel')} {new Date(iv.created_at).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })}</span>
                   {iv.technicien_nom && (
                     <>
                       <span>·</span>
@@ -282,25 +272,24 @@ export function InterventionsPortalClient({
             </div>
             {iv.creneau_debut && (
               <div className="mt-2 text-[10px] text-ink-muted font-mono">
-                Créneau : {fmtDateTime(iv.creneau_debut)}
+                {t('slotLabel')} {new Date(iv.creneau_debut).toLocaleString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}
               </div>
             )}
           </Link>
         ))}
       </div>
 
-      {/* Desktop : table */}
       <div className="hidden md:block bg-cream rounded-xl border border-sand-border overflow-hidden">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-sand">
               {[
-                { key: 'ref', node: 'Réf.' },
+                { key: 'ref', node: t('thRef') },
                 { key: 'acp', node: v.acpLabel },
-                { key: 'adresse', node: 'Adresse' },
-                { key: 'statut', node: 'Statut' },
-                { key: 'cree', node: 'Créé le' },
-                { key: 'tech', node: 'Technicien' },
+                { key: 'adresse', node: t('thAddress') },
+                { key: 'statut', node: t('thStatus') },
+                { key: 'cree', node: t('thCreated') },
+                { key: 'tech', node: t('thTechnician') },
                 { key: 'rapport', node: <FileText size={14} /> },
               ].map((h) => (
                 <th
@@ -328,13 +317,13 @@ export function InterventionsPortalClient({
                 <td className="px-3.5 py-3 whitespace-nowrap">
                   <span className="font-mono text-xs font-semibold text-navy">{iv.ref ?? '—'}</span>
                   {iv.priorite === 'urgente' && (
-                    <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-terra"><Zap size={12} /> URGENT</span>
+                    <span className="inline-flex items-center gap-1 mt-1 text-[9px] font-bold text-terra"><Zap size={12} /> {t('urgent')}</span>
                   )}
                 </td>
                 <td className="px-3.5 py-3">
                   <div className="font-bold text-[13px]">{iv.acp_nom ?? '—'}</div>
                   {iv.acp_bce && (
-                    <div className="text-[10px] text-ink-muted font-mono mt-0.5">BCE {iv.acp_bce}</div>
+                    <div className="text-[10px] text-ink-muted font-mono mt-0.5">{t('bceLabel')} {iv.acp_bce}</div>
                   )}
                   {orgType === 'syndic' && iv.reference_externe && (
                     <div className="text-[10px] text-ink-muted font-mono mt-0.5">{v.referenceLabel} {iv.reference_externe}</div>
@@ -349,7 +338,7 @@ export function InterventionsPortalClient({
                     {iv.unread_messages_count > 0 && (
                       <span
                         className="inline-flex items-center gap-1 text-[9px] font-bold text-navy"
-                        title={`${iv.unread_messages_count} message(s) non lu(s) de FoxO`}
+                        title={`${iv.unread_messages_count} ${t('unreadFromFoxo')}`}
                       >
                         <MessageCircle size={12} />{iv.unread_messages_count}
                       </span>
@@ -357,15 +346,15 @@ export function InterventionsPortalClient({
                   </div>
                 </td>
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
-                  {fmtDate(iv.created_at)}
+                  {new Date(iv.created_at).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'long', timeZone: TZ_BRUSSELS })}
                   <div className="text-[10px] text-ink-muted">{relTime(iv.updated_at)}</div>
                 </td>
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid whitespace-nowrap">
-                  {iv.technicien_nom ?? <span className="text-ink-muted italic">Non assigné</span>}
+                  {iv.technicien_nom ?? <span className="text-ink-muted italic">{t('notAssigned')}</span>}
                 </td>
                 <td className="px-3.5 py-3 text-center">
                   {iv.has_rapport && (
-                    <span className="inline-flex" title="Rapport disponible"><FileText size={14} /></span>
+                    <span className="inline-flex" title={t('reportAvailable')}><FileText size={14} /></span>
                   )}
                 </td>
               </tr>
@@ -376,7 +365,7 @@ export function InterventionsPortalClient({
 
       <p className="text-[11px] text-ink-muted">
         {filtered.length} {v.countSuffix}
-        {filtered.length !== items.length ? ` sur ${items.length}` : ''}
+        {filtered.length !== items.length ? ` ${t('ofTotal')} ${items.length}` : ''}
       </p>
     </div>
   );
