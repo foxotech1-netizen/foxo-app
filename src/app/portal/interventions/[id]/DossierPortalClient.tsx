@@ -32,7 +32,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
   const lang = useLang();
   const locale = localeFor(lang);
   const { orgEmail } = usePortalContext();
-  const { intervention: iv, acp, occupants, technicien: tech, isSinistre, hasReport } = data;
+  const { intervention: iv, acp, occupants, technicien: tech, isSinistre, hasReport, reportTransmittedAt } = data;
 
   const adresseFull = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ');
   const techNom = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ').trim() : null;
@@ -158,6 +158,34 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
           {t('lastUpdate')} {relTime(iv.updated_at)}
         </div>
       </header>
+
+      {/* Chronologie du sinistre (courtier/expert uniquement) — frise dérivée des
+          jalons datés existants : déclaration, intervention, rapport. Pas de table
+          d'historique de statuts -> les étapes non atteintes sont « à planifier /
+          en attente », sans date inventée. */}
+      {isSinistre && (
+        <Block title={t('chronologyTitle')}>
+          <ol className="ml-1 space-y-4 border-l-2 border-sand-mid pl-5">
+            <TimelineItem
+              done
+              label={t('evtDeclared')}
+              value={fmtDay(iv.date_demande ?? iv.created_at, locale)}
+            />
+            <TimelineItem
+              done={iv.statut === 'realisee' || iv.statut === 'rapport' || iv.statut === 'cloturee'}
+              pending={!iv.creneau_debut}
+              label={iv.statut === 'realisee' || iv.statut === 'rapport' || iv.statut === 'cloturee' ? t('evtCompleted') : t('plannedIntervention')}
+              value={iv.creneau_debut ? fmtDay(iv.creneau_debut, locale) : t('toBeScheduled')}
+            />
+            <TimelineItem
+              done={!!reportTransmittedAt}
+              pending={!reportTransmittedAt}
+              label={t('evtReportTransmitted')}
+              value={reportTransmittedAt ? fmtDay(reportTransmittedAt, locale) : t('chipPending')}
+            />
+          </ol>
+        </Block>
+      )}
 
       {/* Ma référence — éditable côté syndic uniquement (reference_externe) */}
       {orgType === 'syndic' && (
@@ -484,5 +512,24 @@ function CourtierField({
         {value}
       </div>
     </div>
+  );
+}
+
+// Date courte localisée (jour mois année) — pour la frise Chronologie.
+function fmtDay(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ_BRUSSELS });
+}
+
+function TimelineItem({
+  label, value, done, pending,
+}: {
+  label: string; value: string; done?: boolean; pending?: boolean;
+}) {
+  return (
+    <li className="relative">
+      <span className={'absolute -left-[22px] top-1.5 w-2.5 h-2.5 rounded-full ' + (done ? 'bg-navy' : 'bg-sand-mid')} />
+      <div className="text-[12px] font-semibold text-ink">{label}</div>
+      <div className={'text-[12px] ' + (pending ? 'text-ink-muted italic' : 'text-ink-mid')}>{value}</div>
+    </li>
   );
 }

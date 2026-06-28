@@ -17,6 +17,7 @@ export type DossierData = {
   // l'affichage du bloc Assuré / assureur dans DossierPortalClient.
   isSinistre: boolean;
   hasReport: boolean;
+  reportTransmittedAt: string | null;
 };
 
 export default async function InterventionDetail({
@@ -66,9 +67,10 @@ export default async function InterventionDetail({
   // l'affichage sur ce que le syndic peut réellement télécharger.
   const { data: rapportRows } = await supabase
     .from('rapports')
-    .select('intervention_id')
+    .select('intervention_id, transmis_at, statut')
     .eq('intervention_id', intervention.id);
   const hasReport = (rapportRows?.length ?? 0) > 0;
+  const reportTransmittedAt = (rapportRows?.[0] as { transmis_at: string | null } | undefined)?.transmis_at ?? null;
 
   const data: DossierData = {
     intervention,
@@ -77,6 +79,7 @@ export default async function InterventionDetail({
     technicien: (techRes.data as Pick<Utilisateur, 'id' | 'prenom' | 'nom'> | null) ?? null,
     isSinistre: org.type === 'courtier' || org.type === 'expert',
     hasReport,
+    reportTransmittedAt,
   };
 
   return <DossierPortalClient data={data} />;
