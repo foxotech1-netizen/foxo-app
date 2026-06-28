@@ -1,3 +1,49 @@
+# État du projet FoxO — snapshot 2026-06-28 (suite 10) — CHANTIER PORTAIL MULTILINGUE CLOS (étapes 0→5, FR/NL/EN) — Étape 5 : calendrier + cloche de notifications (PR #129)
+
+ÉTAT GIT : main = 6270205 (merge PR #129, branche feat/portal-i18n-calendar supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+
+=== CHANTIER PORTAIL MULTILINGUE : CLOS ===
+Tout le portail partenaire (syndic / courtier / expert) est traduit FR / NL / EN. Bascule par cookie portal_lang (défaut fr), repli auto sur le FR. AUCUNE colonne langue en base — moteur maison src/lib/portal/i18n.ts (STRINGS ~164 clés + tFor/localeFor/normalizeLang + TYPE_LABEL/typeLabel) + vocab.ts (vocabFor par type d'org × langue) + PortalContext (useT/useLang/useVocab).
+
+Récap des étapes livrées :
+- Étape 0 (PR #124) : moteur i18n + LangSwitcher (sidebar + header mobile) + libellés du menu.
+- Étape 1 (PR #125) : accueil/dashboard (portal/page.tsx, serveur) + dates locale-aware.
+- Étape 2 (PR #126) : liste des dossiers (InterventionsPortalClient + page.tsx).
+- Étape 3 (PR #127) : détail dossier (DossierPortalClient) + StatutBadge doté d'un prop lang (statuts traduits côté portail, admin 100% FR).
+- Étape 4 (PR #128) : formulaire de nouvelle demande (NewRequestClient, 5 étapes) + page.tsx ; TYPE_LABEL/typeLabel pour l'affichage des types.
+- Étape 5 (PR #129) : calendrier des disponibilités (calendar/page.tsx) + cloche de notifications (NotificationBell).
+
+ÉTAPE 5 (détail) :
+- calendar/page.tsx (SERVEUR) : cookie -> tFor/localeFor ; tableau MONTHS supprimé (mois via toLocaleDateString(locale, { month:'long', year:'numeric', timeZone: TZ_BRUSSELS }) avec 1re lettre capitalisée) ; DAYS -> DAYS_BY_LANG (module, fr/nl/en) ; titre availabilitiesPageTitle, sous-titre calendarSubtitle, légendes available/reserved.
+- NotificationBell.tsx (CLIENT) : relTime local réécrit en localisé (Intl.RelativeTimeFormat, numeric:'always', style:'short', repli justNow ; date longue via toLocaleDateString(locale)) ; hooks useT/useLang + localeFor ; aria-label + en-tête « Notifications » + « Aucune notification » via t().
+- i18n.ts : +6 clés (availabilitiesPageTitle, calendarSubtitle, reserved, notifications, noNotifications, justNow), purement additif.
+- Heures du créneau (calendar ET NewRequestClient) : affichage « 08h » via replace(':','h') laissé tel quel — FR-isme mineur assumé, cohérent avec relTime.
+
+FICHIERS PORTAIL SANS TEXTE (vérifiés, rien à traduire) : layout.tsx (lit la langue + monte le provider), PortalNav (déjà i18n étape 0), LangSwitcher (étape 0), courtier/expert/syndic/page.tsx (simples redirect vers /portal), interventions/[id]/page.tsx (data only).
+
+⚠️ RELECTURE NL/EN — À FAIRE AVANT OUVERTURE À DE VRAIS CLIENTS (NL surtout). Tout le NL/EN a été généré par Claude. À faire relire par un néerlandophone : STRINGS (i18n.ts), TYPE_LABEL (types d'intervention), STATUT_LABEL (StatutBadge), DAYS_BY_LANG (calendar). Termes belges posés : ACP=VME, BCE=KBO, courtier=makelaar, dossier sinistre=schadedossier, syndic EN=Property Manager. À valider notamment : types (Leidinglek/Verwarmingslek/Infiltratie/Overmatig waterverbruik/Andere), statuts (en_suspens=Opgeschort, realisee=Uitgevoerd, confirmee=Bevestigd).
+
+FR-ISMES RESTANTS (mineurs) :
+- relTime (@/lib/format, partagé admin) « Xh / Xj » — laissé tel quel.
+- Affichage des heures « 08h » (calendar + NewRequestClient Step4) — FR-isme assumé.
+
+PROCHAIN CHANTIER (backlog, par priorité) :
+1. Relance directe occupant depuis le portail (P2) — EN TÊTE.
+2. Chronologie sinistre courtier (P3).
+3. Analytics (doc 06) — pas avant mise en service quotidienne réelle (données encodées nécessaires).
+4. Facturation (dernier chantier) — Peppol/UBL, cf. 06_Spec_Module_Facturation_FoxO.md.
+5. Bruit Netlify (4 checks rouges non bloquants par PR) — à éliminer un jour.
+
+MÉTHODE / LEÇONS À CONSERVER :
+- VALEUR ≠ AFFICHAGE : tout champ dont la valeur est stockée en base (statut, type d'intervention, priorité) garde sa valeur d'origine ; on ne traduit QUE l'affichage (table de libellés + fallback). Appliqué à StatutBadge (étape 3) et au select des types/priorité (étape 4).
+- Repérer/renommer les variables locales nommées `t` avant d'injecter le hook useT (collisions corrigées étape 4 : timer, tp).
+- Pattern écran : repérer FR en dur -> clé STRINGS (réutiliser si identique) -> t() (CLIENT useT/useLang/useVocab ; SERVEUR tFor/localeFor via cookie) -> dates toLocaleDateString/String(locale, timeZone TZ_BRUSSELS) -> tsc -> PR.
+- Gros fichier : si fourni en heredoc et arrivé coupé/corrompu, reconstruire depuis le fichier réel + mapping de clés (validé étapes 3/4/5), tsc + vérif diff live avant merge.
+
+INVARIANTS INCHANGÉS : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; merge commit jamais squash + supprimer branche ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000, syndic@foxo.be pour le portail) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-28 (suite 9) — Portail multilingue ÉTAPE 4 : formulaire de nouvelle demande traduit FR/NL/EN (PR #128)
 
 ÉTAT GIT : main = c376bee (merge PR #128, branche feat/portal-i18n-nouveau supprimée). En prod via Vercel. Vérifier le git log live en début de session.
