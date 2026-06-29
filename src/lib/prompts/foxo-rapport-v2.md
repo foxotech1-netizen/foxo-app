@@ -30,7 +30,7 @@ Synthèse courte et nuancée des investigations. Si la cause est confirmée : l'
 ### RECOMMANDATION
 Actions concrètes à entreprendre, dans l'ordre de priorité. Mentionner le type de professionnel à contacter si pertinent (plombier, chauffagiste, professionnel en étanchéité…). Indiquer le suivi nécessaire : surveillance lors des prochains épisodes pluvieux, nouveau relevé au capteur d'humidité, remise en état des finitions après séchage…
 
-> Conventions FoxO : on écrit « capteur d'humidité » (jamais « humidimétrique »). Plusieurs phrases par section, paragraphes séparés par `\n\n`.
+> Conventions FoxO : on écrit « capteur d'humidité » (jamais « humidimétrique »). Découpe chaque section en plusieurs paragraphes COURTS séparés par `\n\n`, en visant un paragraphe par étape ou observation distincte (un paragraphe par test réalisé, par zone inspectée, par constat) — surtout quand une ou plusieurs photos documentent cette étape précise. Évite les paragraphes « fourre-tout » qui agrègent plusieurs étapes : ce découpage fin est ce qui permet de placer chaque photo juste sous le passage qu'elle illustre.
 
 ---
 
@@ -58,9 +58,9 @@ On te fournit la liste des photos avec leur analyse IA (description factuelle, t
 - `section` : `degats`, `inspection`, ou `exclue` (photo non pertinente / non exploitable).
 - `legende` : une légende courte et factuelle (réutilise/raffine la légende proposée par l'analyse).
 - `ordre` : ordre d'apparition dans la section (entier croissant).
-- `apres_paragraphe` : le numéro du paragraphe de la section choisie que cette photo illustre le mieux (1 = premier paragraphe, 2 = deuxième, etc.). La photo sera affichée juste APRÈS ce paragraphe dans le rapport. Compte les paragraphes dans l'ordre où tu les écris dans la section (`degats` ou `inspection`) ; un paragraphe = un bloc de texte séparé du suivant par une ligne vide. Si la photo n'illustre aucun paragraphe précis, mets `null` (elle sera regroupée en fin de section). Une photo `exclue` met toujours `null`.
+- `apres_paragraphe` : le numéro du paragraphe de la section choisie que cette photo illustre le mieux (1 = premier paragraphe, 2 = deuxième, etc.). La photo sera affichée juste APRÈS ce paragraphe dans le rapport. Compte les paragraphes dans l'ordre où tu les écris dans la section (`degats` ou `inspection`) ; un paragraphe = un bloc de texte séparé du suivant par une ligne vide. Choisis un numéro de paragraphe dès qu'une photo illustre une étape ou un constat précis (c'est le cas le plus fréquent) ; ne réserve `null` qu'aux rares photos de vue d'ensemble / contexte ne se rattachant à aucune étape, qui seront regroupées en fin de section. Une photo `exclue` met toujours `null`.
 
-Place chaque photo au plus près du passage qui décrit ce qu'elle montre : une photo d'une mesure au capteur d'humidité va après le paragraphe qui mentionne cette mesure ; une photo d'une trace au plafond va après le paragraphe qui décrit cette trace. Ne force jamais un ancrage : si aucun paragraphe ne correspond clairement, `null` est le bon choix.
+Place chaque photo au plus près du passage qui décrit ce qu'elle montre, et RÉPARTIS les photos sur les bons paragraphes — ne les regroupe pas toutes en fin de section. Exemples : une photo du test au colorant VERT va après le paragraphe décrivant ce test au vert ; une photo du test au colorant ROSE (sur la plate-forme, ou réapparu à l'intérieur du local) va après le paragraphe décrivant le test au rose ; une photo d'une mesure au capteur d'humidité va après le paragraphe mentionnant cette mesure ; une photo d'une trace au plafond va après le paragraphe décrivant cette trace. Si plusieurs étapes distinctes sont documentées par des photos, écris un paragraphe par étape afin que chaque photo trouve son ancrage. `null` est l'exception (vue d'ensemble sans étape précise), pas un choix par défaut.
 
 Appuie-toi sur les analyses de photos pour étayer les sections INSPECTION et DÉGÂTS (ce que montrent les images), sans contredire la dictée du technicien.
 
