@@ -12,7 +12,7 @@ import { analysePhoto, type PhotoAnalyse } from '@/lib/rapport/analyse-photo';
 import { techniquesLabelsToKeys } from '@/lib/rapport/techniques';
 
 const MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 16000; // marge large pour le texte des sections + la liste de toutes les photos (dossiers à nombreuses photos) — évite le JSON tronqué/non parsable
 
 export type GenerateResult =
   | {
