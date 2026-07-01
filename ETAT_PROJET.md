@@ -1,3 +1,35 @@
+# État du projet FoxO — snapshot 2026-07-01 (suite 13) — CHANTIER PHOTOS DU RAPPORT FIABILISÉ (PR #134) : sélection par observation + classement déterministe + dédoublonnage
+
+ÉTAT GIT : main = cb23b6b (merge PR #134, branche feat/rapport-photo-classification supprimée). En prod via Vercel. Vérifier le git log live en début de session.
+Rappel — 2 correctifs rapport mergés AVANT ce chantier et documentés ici a posteriori (suite 12 ne les couvrait pas) : PR #133 (ac2e8f8) MAX_TOKENS 4096→16000 (l'agent rapport émet un seul JSON pour TOUTES les photos → réponse tronquée sur dossiers riches) ; PR #132 (cde7139) prompt d'ancrage (paragraphes courts, ancrage par défaut).
+
+PROBLÈME RÉSOLU : les photos du rapport sortaient mal — INSPECTION vide (preuves colorant/UV classées en null, donc invisibles), DÉGÂTS noyé sous des doublons quasi-identiques, mauvais classement, colorant décrit « jaune » (fluorescence UV trompeuse), et une légende parasite sous chaque photo. Chantier de fiabilisation complet, 6 commits.
+
+LIVRÉ (PR #134) :
+1. (2d1d7e0) CLASSEMENT DÉTERMINISTE — generate-action.ts : sectionCandidate() déduit la section « plancher » d'une photo de l'analyse vision (passe 1) : type_contenu test/resultat ou technique de recherche (Liquide traceur, thermographie, endoscopie…) → INSPECTION ; degats → DÉGÂTS ; inexploitable → null. L'agent passe 2 ne peut PLUS faire disparaître une photo par omission (elle retombe sur son plancher) ; il ne peut qu'exclure explicitement.
+2. (8fb76e6) PROMPT ALIGNÉ — foxo-rapport-v2.md §4 réécrit : la section est pré-assignée, l'agent ne fait que placer (apres_paragraphe) / légender / exclure un doublon.
+3. (48b2ef2) PLUS DE LÉGENDE SOUS LES PHOTOS — supprimée dans RapportPdf.tsx ET build-docx.ts. La photo est ancrée sous le paragraphe qui la décrit ; le texte fait office de légende.
+4. (3c8c8a3) COULEUR DU COLORANT — prompt §1 : la couleur d'un colorant traceur (et tout fait précis : étage, nature du test) vient de la DICTÉE et des NOTES d'observations, JAMAIS de l'apparence d'une photo (un colorant fluoresce sous UV dans une teinte différente — rose/vert peut sembler jaune/orangé).
+5. (4563ada) ★ SÉLECTION PAR OBSERVATION (décision Foxo, cœur du chantier) — le rapport n'affiche QUE les photos que le technicien a RATTACHÉES à une observation terrain (photos_interventions.observation_id). Section déduite de la NATURE de l'observation : sectionFromObservation() → « Inspection visuelle »/constat/dégât → DÉGÂTS ; tout le reste (Test colorant…) → INSPECTION. Photos « libres » non rattachées = masquées. FALLBACK : si le dossier n'a AUCUNE photo rattachée, repli sur le candidat vision (jamais de rapport sans photo). Clés : anyLinked, finalSectionById ; photosForPrompt filtré aux seules photos retenues ; en mode normal l'exclusion de l'agent ne s'applique plus (la sélection prime).
+6. (b732dd8) DÉDOUBLONNAGE DÉTERMINISTE — fetchRapportPhotos (photos.ts) : par fichier source (annotated_drive_file_id ?? drive_file_id, avant téléchargement) ET par contenu (SHA-1 des octets JPEG normalisés, après décodage). Une même image n'apparaît jamais deux fois, même si plusieurs lignes photos_interventions pointent le même fichier Drive (cas fréquent : lier une photo libre à une observation duplique la ligne).
+
+MODÈLE MENTAL (à conserver) : le TECHNICIEN cure les photos en les rattachant/retirant de ses observations ; le rapport reflète fidèlement cette sélection, de façon DÉTERMINISTE. L'IA ne fait que PLACER les photos retenues sous le bon paragraphe (aidée par zone/note de l'observation). Aucune SÉLECTION ni DÉDOUBLONNAGE laissé à l'IA — c'était non déterministe (gardait 8 photos un run, 16 le suivant).
+
+VALIDÉ EN USAGE RÉEL (dossier 2026-136) : régénéré sur préversion, Word vérifié image par image (extraction des médias du .docx). Résultat = 2 photos de plafond en DÉGÂTS, 5 photos de colorant rose en INSPECTION, 0 doublon, 0 photo parasite — correspond exactement à la curation du technicien (qui avait retiré les photos où le colorant paraissait jaune). NB : le texte INSPECTION mentionne encore les résurgences UV alors que ces photos ont été retirées par le technicien (compte-rendu correct, choix de curation) ; pour les réintégrer, rattacher une photo UV propre à l'observation et régénérer.
+
+LEÇONS À CONSERVER :
+- Une modif IA ne se valide PAS au diff : régénérer un vrai rapport et INSPECTER le rendu (ici, extraire les images du Word par section).
+- Le tri/dédoublonnage par LLM est non déterministe et non fiable pour la SÉLECTION → déterministe dans le code ; LLM pour le PLACEMENT seulement.
+- Doublons « même image » = plusieurs lignes photos_interventions → même fichier Drive → dédoublonnage par fichier + contenu au rendu.
+- Reclassement des photos bloqué si rapport valide/transmis → remettre en brouillon (update rapports set statut='brouillon' where intervention_id=…) AVANT de re-tester ; « Générer le rapport » côté technicien sur la préversion.
+- Anomalie section=null + ancrage_para chiffré = bouton « délier une photo » (met section=null sans effacer l'ancrage) — bénigne (photo invisible filtrée avant lecture de l'ancrage).
+
+BACKLOG (inchangé) : Analytics (doc 06 / PLAN_CHANTIER_Module_Analytics_FoxO) — pas avant mise en service quotidienne réelle. Puis Facturation (DERNIER chantier — Peppol/UBL obligation B2B 2026, 06_Spec_Module_Facturation_FoxO.md v0.3). PRÉREQUIS PROD MULTILINGUE toujours ouvert : relecture NL/EN par un néerlandophone. Bruit Netlify (4 checks rouges non bloquants par PR) à éliminer. Petite hygiène : la branche feat/rapport-photo-ancrage-prompt (PR #132) traîne encore côté distant — à supprimer dans l'UI GitHub (onglet Branches).
+
+INVARIANTS (mis à jour) : repo > doc (auditer main + lire le fichier entier) ; migration repo != base (vérifier en SQL) ; tsc + hook pre-push verts ; PR créée AVANT merge ; merge commit jamais squash + supprimer branche (merge manuel UI GitHub) ; commit DOC-only (ETAT_PROJET.md) direct sur main sans PR ; SQL via Supabase uniquement ; préversion Vercel = PROD (sandbox 2026-000 ; dossier photo de test 2026-136) ; createAdminClient pour écritures serveur ; agents canoniques via runAgent ; dispatch.ts = assemblage unique PDF/DOCX ; photos NON numérotées ; SECTION photo déterministe (jamais l'IA) ; SÉLECTION photo = uniquement les rattachées à une observation (fallback si aucune) ; dédoublonnage photo par fichier + contenu ; PLUS de légende sous les photos.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge (même URL raw) après ce commit.
+
 # État du projet FoxO — snapshot 2026-06-28 (suite 12) — P3 « Chronologie sinistre courtier » LIVRÉ (PR #131)
 
 ÉTAT GIT : main = 94fbcfe (merge PR #131, branche feat/portal-chrono-courtier supprimée). En prod via Vercel. Vérifier le git log live en début de session.
