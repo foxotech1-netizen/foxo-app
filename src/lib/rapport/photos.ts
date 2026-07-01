@@ -10,6 +10,7 @@
 // d'affichage en préservant le ratio. Best-effort : une photo dont le
 // téléchargement/décodage échoue est omise (console.warn), jamais bloquant.
 
+import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getValidAccessToken } from '@/lib/google-auth';
@@ -83,13 +84,24 @@ export async function fetchRapportPhotos(interventionId: string): Promise<Rappor
   const auth = await getValidAccessToken();
   if (!auth) { console.warn('[rapport/photos] Google non connecté — aucune photo embarquée.'); return empty; }
 
+  // Dédoublonnage 1/2 — par fichier source : deux lignes pointant vers la même
+  // image Drive ne sont téléchargées/affichées qu'une fois (garde la première).
+  const seenFile = new Set<string>();
+  // Dédoublonnage 2/2 — par contenu : deux fichiers distincts aux octets
+  // identiques (même photo importée deux fois) ne s'affichent qu'une fois.
+  const seenHash = new Set<string>();
+
   for (const p of rows) {
     const fileId = p.annotated_drive_file_id ?? p.drive_file_id;
-    if (!fileId) continue;
+    if (!fileId || seenFile.has(fileId)) continue;
+    seenFile.add(fileId);
     const raw = await downloadDriveBytes(fileId, auth.access_token);
     if (!raw) { console.warn(`[rapport/photos] download échoué (section ${p.section})`); continue; }
     const norm = await toJpegWithDims(raw);
     if (!norm) { console.warn(`[rapport/photos] décodage échoué (section ${p.section})`); continue; }
+    const hash = createHash('sha1').update(norm.bytes).digest('hex');
+    if (seenHash.has(hash)) continue; // doublon strict (même image)
+    seenHash.add(hash);
     empty[p.section].push({ bytes: norm.bytes, width: norm.width, height: norm.height, label: p.label, ancrage_para: p.ancrage_para });
   }
   return empty;
