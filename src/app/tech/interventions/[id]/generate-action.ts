@@ -88,6 +88,14 @@ function sectionCandidate(
   return fb ?? 'degats'; // ambigu (localisation/document/autre) -> repli
 }
 
+// Section d'une photo RATTACHÉE, déduite de la nature de l'observation terrain :
+// un simple constat visuel -> DÉGÂTS ; une investigation/test -> INSPECTION.
+function sectionFromObservation(testType: string | null): 'degats' | 'inspection' {
+  const t = (testType ?? '').toLowerCase();
+  if (t.includes('inspection visuelle') || t.includes('constat') || t.includes('dégât') || t.includes('degat')) return 'degats';
+  return 'inspection';
+}
+
 function buildContextSummary(args: {
   iv: Pick<Intervention, 'ref' | 'type' | 'description' | 'priorite' | 'creneau_debut' | 'adresse' | 'started_at' | 'ended_at'>;
   acp: Pick<Acp, 'nom' | 'adresse' | 'code_postal' | 'ville' | 'bce'> | null;
@@ -293,32 +301,53 @@ export async function generateRapportSections(
     }
   }
 
-  // Lien photo -> observation terrain (zone/étage/notes) : signal fort pour le
-  // placement ET le dédoublonnage, jusqu'ici jamais transmis à l'agent.
+  // Lien photo -> observation terrain : base de la SÉLECTION (le rapport
+  // n'affiche que les photos rattachées) + zone/note pour le placement.
   const obsById = new Map(observations.map((o) => [o.id, o]));
 
-  // Section "plancher" déterministe par photo (réutilisée à la persistance).
+  // Section "plancher" vision (repli si une photo rattachée n'a pas de test_type).
   const candidateById = new Map<string, 'degats' | 'inspection' | null>(
     photos.map((p) => [p.id, sectionCandidate(p.analyse_ia, p.section)]),
   );
 
-  // Tableau des photos pour la passe 2 : section pré-assignée + zone terrain + analyse.
-  const photosForPrompt = photos.map((p) => {
-    const obs = p.observation_id ? obsById.get(p.observation_id) ?? null : null;
-    const zone = obs
-      ? ([obs.etage ? `Étage ${obs.etage}` : null, obs.localisation].filter(Boolean).join(' — ') || null)
-      : null;
-    return {
-      id: p.id,
-      section_candidate: candidateById.get(p.id) ?? null,
-      type_contenu: p.analyse_ia?.type_contenu ?? null,
-      technique: p.analyse_ia?.technique_associee ?? null,
-      description: p.analyse_ia?.description ?? null,
-      legende_proposee: p.analyse_ia?.legende_proposee ?? p.label ?? null,
-      zone,
-      observation_note: obs?.notes ?? null,
-    };
-  });
+  // Au moins une photo rattachée à une observation dans ce dossier ?
+  const anyLinked = photos.some((p) => p.observation_id != null);
+
+  // Section FINALE par photo, réutilisée à la persistance ET envoyée à l'agent.
+  // Mode normal : SEULES les photos rattachées apparaissent ; leur section vient
+  // de la nature de l'observation (constat -> DÉGÂTS ; test -> INSPECTION). Les
+  // photos "libres" sont masquées (null). Fallback (aucune photo rattachée) :
+  // on retombe sur le candidat vision pour ne jamais produire un rapport vide.
+  const finalSectionById = new Map<string, 'degats' | 'inspection' | null>(
+    photos.map((p) => {
+      if (!anyLinked) return [p.id, candidateById.get(p.id) ?? null];
+      if (p.observation_id == null) return [p.id, null];
+      const obs = obsById.get(p.observation_id) ?? null;
+      const section = obs ? sectionFromObservation(obs.test_type) : (candidateById.get(p.id) ?? 'inspection');
+      return [p.id, section];
+    }),
+  );
+
+  // Tableau des photos pour la passe 2 : UNIQUEMENT les photos retenues, avec
+  // leur section finale + zone terrain + analyse (l'agent ne fait que placer).
+  const photosForPrompt = photos
+    .filter((p) => finalSectionById.get(p.id) != null)
+    .map((p) => {
+      const obs = p.observation_id ? obsById.get(p.observation_id) ?? null : null;
+      const zone = obs
+        ? ([obs.etage ? `Étage ${obs.etage}` : null, obs.localisation].filter(Boolean).join(' — ') || null)
+        : null;
+      return {
+        id: p.id,
+        section_candidate: finalSectionById.get(p.id) ?? null,
+        type_contenu: p.analyse_ia?.type_contenu ?? null,
+        technique: p.analyse_ia?.technique_associee ?? null,
+        description: p.analyse_ia?.description ?? null,
+        legende_proposee: p.analyse_ia?.legende_proposee ?? p.label ?? null,
+        zone,
+        observation_note: obs?.notes ?? null,
+      };
+    });
 
   // ── PASSE 2 : agent rapport v2 ──
   const userMessage = [
@@ -442,9 +471,13 @@ export async function generateRapportSections(
   }
 
   const photoUpdates = photos.map((p) => {
-    const candidate = candidateById.get(p.id) ?? null;
     const dec = agentById.get(p.id);
-    const section = dec?.excluded ? null : candidate; // plancher déterministe ; l'agent ne fait qu'exclure
+    // Section finale = décision de SÉLECTION (finalSectionById). En mode normal,
+    // seules les photos rattachées ont une section ; l'exclusion de l'agent ne
+    // s'applique qu'au fallback (dossier sans aucune photo rattachée).
+    const section = anyLinked
+      ? (finalSectionById.get(p.id) ?? null)
+      : (dec?.excluded ? null : (finalSectionById.get(p.id) ?? null));
     const ordre = dec?.ordre ?? 0;
     const legende = dec?.legende ?? '';
     const apNum = dec?.apNum ?? null;
