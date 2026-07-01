@@ -60,6 +60,42 @@ async function assertTechOwner(interventionId: string): Promise<{ ok: true } | {
   return { ok: true };
 }
 
+// Techniques de RECHERCHE de fuite (vs simple constat visuel) — signal d'INSPECTION.
+const INVESTIGATION_TECHNIQUES = new Set<string>([
+  "Capteur d'humidité",
+  'Thermographie infrarouge',
+  'Caméra endoscopique',
+  'Liquide traceur',
+  'Détection acoustique',
+  'Test pression / Compteur',
+  'Gaz traceur',
+]);
+
+// Section "plancher" déterministe d'une photo, déduite de l'analyse vision (passe 1).
+// Garantit que les preuves d'investigation atterrissent en INSPECTION et les constats
+// en DÉGÂTS, SANS dépendre du jugement de l'agent passe 2. L'agent ne pourra plus
+// qu'EXCLURE explicitement (cf. persistance), jamais faire disparaître par omission.
+function sectionCandidate(
+  analyse: PhotoAnalyse | null,
+  fallbackSection: string | null,
+): 'degats' | 'inspection' | null {
+  const fb = fallbackSection === 'degats' || fallbackSection === 'inspection' ? fallbackSection : null;
+  if (!analyse) return fb;
+  if (analyse.qualite_exploitable === false) return null; // inexploitable -> exclue d'office
+  if (analyse.type_contenu === 'test' || analyse.type_contenu === 'resultat') return 'inspection';
+  if (analyse.technique_associee && INVESTIGATION_TECHNIQUES.has(analyse.technique_associee)) return 'inspection';
+  if (analyse.type_contenu === 'degats') return 'degats';
+  return fb ?? 'degats'; // ambigu (localisation/document/autre) -> repli
+}
+
+// Section d'une photo RATTACHÉE, déduite de la nature de l'observation terrain :
+// un simple constat visuel -> DÉGÂTS ; une investigation/test -> INSPECTION.
+function sectionFromObservation(testType: string | null): 'degats' | 'inspection' {
+  const t = (testType ?? '').toLowerCase();
+  if (t.includes('inspection visuelle') || t.includes('constat') || t.includes('dégât') || t.includes('degat')) return 'degats';
+  return 'inspection';
+}
+
 function buildContextSummary(args: {
   iv: Pick<Intervention, 'ref' | 'type' | 'description' | 'priorite' | 'creneau_debut' | 'adresse' | 'started_at' | 'ended_at'>;
   acp: Pick<Acp, 'nom' | 'adresse' | 'code_postal' | 'ville' | 'bce'> | null;
@@ -265,10 +301,53 @@ export async function generateRapportSections(
     }
   }
 
-  // Tableau des photos sérialisé pour la passe 2.
-  const photosForPrompt = photos.map((p) => ({
-    id: p.id, section: p.section, label: p.label, analyse_ia: p.analyse_ia,
-  }));
+  // Lien photo -> observation terrain : base de la SÉLECTION (le rapport
+  // n'affiche que les photos rattachées) + zone/note pour le placement.
+  const obsById = new Map(observations.map((o) => [o.id, o]));
+
+  // Section "plancher" vision (repli si une photo rattachée n'a pas de test_type).
+  const candidateById = new Map<string, 'degats' | 'inspection' | null>(
+    photos.map((p) => [p.id, sectionCandidate(p.analyse_ia, p.section)]),
+  );
+
+  // Au moins une photo rattachée à une observation dans ce dossier ?
+  const anyLinked = photos.some((p) => p.observation_id != null);
+
+  // Section FINALE par photo, réutilisée à la persistance ET envoyée à l'agent.
+  // Mode normal : SEULES les photos rattachées apparaissent ; leur section vient
+  // de la nature de l'observation (constat -> DÉGÂTS ; test -> INSPECTION). Les
+  // photos "libres" sont masquées (null). Fallback (aucune photo rattachée) :
+  // on retombe sur le candidat vision pour ne jamais produire un rapport vide.
+  const finalSectionById = new Map<string, 'degats' | 'inspection' | null>(
+    photos.map((p) => {
+      if (!anyLinked) return [p.id, candidateById.get(p.id) ?? null];
+      if (p.observation_id == null) return [p.id, null];
+      const obs = obsById.get(p.observation_id) ?? null;
+      const section = obs ? sectionFromObservation(obs.test_type) : (candidateById.get(p.id) ?? 'inspection');
+      return [p.id, section];
+    }),
+  );
+
+  // Tableau des photos pour la passe 2 : UNIQUEMENT les photos retenues, avec
+  // leur section finale + zone terrain + analyse (l'agent ne fait que placer).
+  const photosForPrompt = photos
+    .filter((p) => finalSectionById.get(p.id) != null)
+    .map((p) => {
+      const obs = p.observation_id ? obsById.get(p.observation_id) ?? null : null;
+      const zone = obs
+        ? ([obs.etage ? `Étage ${obs.etage}` : null, obs.localisation].filter(Boolean).join(' — ') || null)
+        : null;
+      return {
+        id: p.id,
+        section_candidate: finalSectionById.get(p.id) ?? null,
+        type_contenu: p.analyse_ia?.type_contenu ?? null,
+        technique: p.analyse_ia?.technique_associee ?? null,
+        description: p.analyse_ia?.description ?? null,
+        legende_proposee: p.analyse_ia?.legende_proposee ?? p.label ?? null,
+        zone,
+        observation_note: obs?.notes ?? null,
+      };
+    });
 
   // ── PASSE 2 : agent rapport v2 ──
   const userMessage = [
@@ -372,24 +451,39 @@ export async function generateRapportSections(
   const techKeysConfirm = techniquesLabelsToKeys(asLabels(parsed.techniques_a_confirmer)).filter((k) => !utilSet.has(k));
 
   // ── Persistance des photos (section/ordre/ancrage_para/label) — guard statut ──
+  // PRINCIPE : la section vient du PLANCHER déterministe (candidateById) ; l'agent ne
+  // peut que (a) EXCLURE explicitement (doublon/hors sujet) -> null, ou (b) PLACER +
+  // légender. Une photo OMISE par l'agent retombe sur son plancher -> jamais perdue.
   const photoIds = new Set(photos.map((p) => p.id));
   const labelById = new Map(photos.map((p) => [p.id, p.label]));
-  const validSections = new Set(['degats', 'inspection']);
-  const photoUpdates = Array.isArray(parsed.photos)
-    ? parsed.photos
-        .filter((ph) => typeof ph.id === 'string' && photoIds.has(ph.id as string))
-        .map((ph) => {
-          const id = ph.id as string;
-          const rawSection = typeof ph.section === 'string' ? ph.section : 'exclue';
-          const section = validSections.has(rawSection) ? rawSection : null; // 'exclue'/inconnu → null
-          const ordre = typeof ph.ordre === 'number' && Number.isFinite(ph.ordre) ? Math.trunc(ph.ordre) : 0;
-          const legende = typeof ph.legende === 'string' ? ph.legende.trim() : '';
-          // apres_paragraphe (LLM, 1-based) -> colonne ancrage_para. Garde si entier >= 1 ET section placee, sinon null (fin de section).
-          const apNum = typeof ph.apres_paragraphe === 'number' && Number.isFinite(ph.apres_paragraphe) ? Math.trunc(ph.apres_paragraphe) : null;
-          const ancrage_para = section !== null && apNum !== null && apNum >= 1 ? apNum : null;
-          return { id, section, ordre, legende, ancrage_para };
-        })
-    : [];
+
+  type AgentPhotoDecision = { excluded: boolean; ordre: number; legende: string; apNum: number | null };
+  const agentById = new Map<string, AgentPhotoDecision>();
+  if (Array.isArray(parsed.photos)) {
+    for (const ph of parsed.photos) {
+      if (typeof ph.id !== 'string' || !photoIds.has(ph.id)) continue;
+      const excluded = (typeof ph.section === 'string' ? ph.section : '') === 'exclue';
+      const ordre = typeof ph.ordre === 'number' && Number.isFinite(ph.ordre) ? Math.trunc(ph.ordre) : 0;
+      const legende = typeof ph.legende === 'string' ? ph.legende.trim() : '';
+      const apNum = typeof ph.apres_paragraphe === 'number' && Number.isFinite(ph.apres_paragraphe) ? Math.trunc(ph.apres_paragraphe) : null;
+      agentById.set(ph.id, { excluded, ordre, legende, apNum });
+    }
+  }
+
+  const photoUpdates = photos.map((p) => {
+    const dec = agentById.get(p.id);
+    // Section finale = décision de SÉLECTION (finalSectionById). En mode normal,
+    // seules les photos rattachées ont une section ; l'exclusion de l'agent ne
+    // s'applique qu'au fallback (dossier sans aucune photo rattachée).
+    const section = anyLinked
+      ? (finalSectionById.get(p.id) ?? null)
+      : (dec?.excluded ? null : (finalSectionById.get(p.id) ?? null));
+    const ordre = dec?.ordre ?? 0;
+    const legende = dec?.legende ?? '';
+    const apNum = dec?.apNum ?? null;
+    const ancrage_para = section !== null && apNum !== null && apNum >= 1 ? apNum : null;
+    return { id: p.id, section, ordre, legende, ancrage_para };
+  });
 
   if (photoUpdates.length > 0) {
     try {

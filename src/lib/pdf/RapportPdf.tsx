@@ -273,7 +273,6 @@ function PhotosGrid({ items }: { items?: RapportPhotoData[] }) {
             <View style={styles.photoFrame}>
               <Image src={{ data: p.bytes, format: 'jpg' }} style={{ width, height }} />
             </View>
-            {p.label ? <Text style={styles.photoCaption}>{p.label}</Text> : null}
           </View>
         );
       })}

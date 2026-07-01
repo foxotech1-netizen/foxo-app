@@ -404,10 +404,12 @@ function photoCell(photo: RapportPhotoData | null): TableCell {
     });
   }
   const { width, height } = photoDisplaySize(photo);
+  // Pas de légende sous l'image (décision FoxO) : la photo est ancrée sous le
+  // paragraphe qui la décrit, le texte fait office de légende.
   const children: Paragraph[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 120, after: photo.label ? 40 : 160 },
+      spacing: { before: 120, after: 160 },
       children: [
         new ImageRun({
           data: photo.bytes,
@@ -417,23 +419,6 @@ function photoCell(photo: RapportPhotoData | null): TableCell {
       ],
     }),
   ];
-  if (photo.label) {
-    children.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 0, after: 160 },
-        children: [
-          new TextRun({
-            text: photo.label,
-            size: 18,
-            color: MUTED,
-            italics: true,
-            font: FONT,
-          }),
-        ],
-      }),
-    );
-  }
   return new TableCell({
     width: { size: PHOTO_CELL_DXA, type: WidthType.DXA },
     borders: CELL_NO_BORDERS,
