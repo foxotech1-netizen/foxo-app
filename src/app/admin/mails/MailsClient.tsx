@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
   Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput, Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -20,9 +21,26 @@ import {
   type MailClassification,
 } from '@/lib/mail/categories';
 
-// Onglets métier (Mails V2 P1) — résolus côté serveur en query Gmail
-// (cf. api/admin/mails/route.ts). a_traiter = non lus inbox hors plateforme.
-type FilterMode = 'a_traiter' | 'demandes' | 'occupants' | 'tous' | 'archives' | 'system' | 'trash';
+// Vues métier (Mails V2 P1, restructurées en ergonomie passe 2) — résolues
+// côté serveur en query Gmail (cf. api/admin/mails/route.ts).
+// a_traiter = non lus inbox hors plateforme ; non_lus = tous les non-lus
+// y compris hors inbox (corbeille/spam exclus).
+type FilterMode = 'a_traiter' | 'non_lus' | 'demandes' | 'occupants' | 'tous' | 'archives' | 'system' | 'trash';
+
+// Ergonomie passe 2 (option A) : 3 vues principales en contrôle segmenté,
+// les vues secondaires passent dans le menu « Filtres ».
+const SEGMENT_VIEWS: [FilterMode, string][] = [
+  ['a_traiter', 'À traiter'],
+  ['non_lus', 'Non lus'],
+  ['tous', 'Tous'],
+];
+const MENU_VIEWS: [FilterMode, string, typeof Trash2 | null][] = [
+  ['demandes', 'Demandes', null],
+  ['occupants', 'Occupants', null],
+  ['archives', 'Archivés', Archive],
+  ['system', 'Système', null],
+  ['trash', 'Corbeille', Trash2],
+];
 type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
@@ -602,44 +620,43 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             placeholder="Rechercher — expéditeur, sujet…"
             className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
           />
-          {/* Onglets métier (Mails V2 P1) — chips compactes, passage sur
-              2 lignes accepté sur mobile. Compteur non-lus sur « À traiter »
-              uniquement (inboxUnread déjà chargé, aucun compteur ajouté). */}
-          <div className="flex flex-wrap gap-1.5">
-            {([
-              ['a_traiter', 'À traiter', null],
-              ['demandes', 'Demandes', null],
-              ['occupants', 'Occupants', null],
-              ['tous', 'Tous', null],
-              ['archives', 'Archivés', Archive],
-              ['system', 'Système', null],
-              ['trash', 'Corbeille', Trash2],
-            ] as [FilterMode, string, typeof Trash2 | null][]).map(([f, label, Icon]) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={
-                  'px-2 py-1.5 rounded text-[11px] font-bold border inline-flex items-center justify-center gap-1 ' +
-                  (filter === f
-                    ? 'bg-navy text-white border-navy'
-                    : 'bg-white text-ink-mid border-sand-border')
-                }
-              >
-                {Icon && <Icon size={12} />}
-                {label}
-                {f === 'a_traiter' && inboxUnread > 0 && (
-                  <span
-                    className={
-                      'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
-                      (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
-                    }
-                  >
-                    {inboxUnread}
-                  </span>
-                )}
-              </button>
-            ))}
+          {/* Vues (ergonomie passe 2) : contrôle segmenté 3 vues + menu
+              « Filtres » pour les vues secondaires. Compteur non-lus sur
+              « À traiter » uniquement (inboxUnread déjà chargé). Le menu
+              s'ouvre au clic (utilisable au toucher), se ferme au clic
+              extérieur et à Échap. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <div className="inline-flex rounded-lg border border-sand-border bg-white overflow-hidden">
+              {SEGMENT_VIEWS.map(([f, label]) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className={
+                    'px-2.5 py-1.5 text-[11px] font-bold inline-flex items-center gap-1 border-r border-sand-border last:border-r-0 ' +
+                    (filter === f
+                      ? 'bg-navy text-white'
+                      : 'bg-white text-ink-mid hover:bg-sand-hover')
+                  }
+                >
+                  {label}
+                  {f === 'a_traiter' && inboxUnread > 0 && (
+                    <span
+                      className={
+                        'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
+                        (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
+                      }
+                    >
+                      {inboxUnread}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <FilterMenu
+              active={SEGMENT_VIEWS.some(([f]) => f === filter) ? null : filter}
+              onSelect={setFilter}
+            />
           </div>
           {/* Filtre par catégorie métier (classification canonique U4). */}
           <select
@@ -1617,6 +1634,88 @@ function AttachToDossierButton({
               <div className="px-2 py-1.5 text-[11px] text-ink-muted italic">Aucun dossier trouvé.</div>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Ferme un menu déroulant au clic/toucher extérieur et à Échap. Partagé
+// par le menu « Filtres » (vues secondaires) et le menu « ⋯ » du volet.
+function useCloseOnOutside(
+  ref: React.RefObject<HTMLDivElement | null>,
+  open: boolean,
+  onClose: () => void,
+) {
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent | TouchEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [ref, open, onClose]);
+}
+
+// Menu « Filtres » — regroupe les vues secondaires (Demandes, Occupants,
+// Archivés, Système, Corbeille). Quand une vue du menu est active, le
+// bouton affiche son nom et le contrôle segmenté est désélectionné.
+function FilterMenu({
+  active, onSelect,
+}: {
+  active: FilterMode | null;
+  onSelect: (f: FilterMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useCloseOnOutside(ref, open, () => setOpen(false));
+  const activeLabel = active ? MENU_VIEWS.find(([f]) => f === active)?.[1] ?? null : null;
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={
+          'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 ' +
+          (activeLabel
+            ? 'bg-navy text-white border-navy'
+            : 'bg-white text-ink-mid border-sand-border hover:bg-sand-hover')
+        }
+      >
+        {activeLabel ? `Filtres : ${activeLabel}` : 'Filtres'}
+        <ChevronDown size={12} aria-hidden />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full left-0 mt-1 z-30 min-w-[180px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden"
+        >
+          {MENU_VIEWS.map(([f, label, Icon]) => (
+            <button
+              key={f}
+              type="button"
+              role="menuitem"
+              onClick={() => { onSelect(f); setOpen(false); }}
+              className={
+                'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover min-h-[40px] ' +
+                (active === f ? 'text-navy bg-navy-pale' : 'text-ink')
+              }
+            >
+              {Icon && <Icon size={14} aria-hidden />}
+              {label}
+            </button>
+          ))}
         </div>
       )}
     </div>
