@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
   Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput, Sparkles,
-  ChevronDown,
+  ChevronDown, MoreHorizontal,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -483,6 +483,37 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     }
   }
 
+  // « Analyser avec IA » (ergo2) — déplacé de MailAnalyseActions vers la
+  // barre du volet. Même appel POST analyse-deep ; MailAnalyseActions n'est
+  // plus rendu que quand une analyse existe (actions 1-clic inchangées).
+  const [analyseLoading, setAnalyseLoading] = useState(false);
+  async function runAnalyseDeep() {
+    if (!detail) return;
+    setAnalyseLoading(true);
+    setFeedback(null);
+    try {
+      const r = await fetch('/api/admin/mails/analyse-deep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: detail.thread_id }),
+      });
+      const data = await r.json();
+      if (!data.success) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Échec analyse.' });
+        return;
+      }
+      await refreshAnalyse(detail.thread_id);
+      const errs: string[] = data.analyse?.errors ?? [];
+      setFeedback(errs.length > 0
+        ? { kind: 'err', msg: `Analyse OK avec ${errs.length} avertissement(s)` }
+        : { kind: 'ok', msg: 'Analyse approfondie terminée.' });
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setAnalyseLoading(false);
+    }
+  }
+
   async function sendReply() {
     if (!detail || !replyBody.trim()) return;
     setReplyLoading(true);
@@ -576,6 +607,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     ? selectedListItem.unread
     : (detail?.label_ids.includes('UNREAD') ?? false);
   const detailImportant = (selectedListItem ?? detail)?.label_ids.includes('IMPORTANT') ?? false;
+  const detailAnalyse = detail ? analyses.get(detail.thread_id) ?? null : null;
 
   return (
     <div className="h-full flex">
@@ -997,98 +1029,48 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               ><X size={16} /></button>
             </header>
 
+            {/* Barre d'actions réduite (ergo2) : 2 boutons visibles max —
+                « Analyser avec IA » (si pas encore analysé) + « Répondre ».
+                Toutes les autres actions unitaires (Créer une intervention,
+                Archiver, Lu/Non-lu, Important, Corbeille/Restaurer, Voir
+                dans Gmail) sont déplacées dans le menu « ⋯ » — aucune
+                n'est supprimée. */}
             <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-sand-border bg-sand flex-shrink-0">
+              {detail && !detailAnalyse && (
+                <button
+                  type="button"
+                  onClick={runAnalyseDeep}
+                  disabled={analyseLoading}
+                  className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                >
+                  <Sparkles size={14} />
+                  {analyseLoading ? 'Analyse en cours (5-15s)…' : 'Analyser avec IA'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setReplyOpen((v) => !v)}
                 disabled={!detail}
-                className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px]"
+                className={
+                  'px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] ' +
+                  (detail && !detailAnalyse
+                    ? 'bg-white text-navy border border-navy'
+                    : 'bg-navy text-white')
+                }
               >
                 ↩ Répondre
               </button>
-              <button
-                type="button"
-                onClick={createIntervention}
-                disabled={!detail}
-                className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-              >
-                <ClipboardList size={14} />
-                Créer une intervention
-              </button>
-              <button
-                type="button"
-                onClick={() => detail && applyBulkActionForOne(detail.id, 'archive')}
-                disabled={bulkLoading || !detail}
-                className="bg-[#A17244] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-              >
-                <Archive size={14} />
-                Archiver
-              </button>
-              {/* Lu/non-lu, Important, Corbeille (Mails V2 P1) — mêmes
-                  actions unitaires que le survol de liste. La corbeille
-                  ferme le volet (le mail quitte la vue courante). */}
-              {!inTrash && detail && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, detailUnread ? 'read' : 'unread')}
-                    disabled={bulkLoading}
-                    className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    {detailUnread ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-                    {detailUnread ? 'Marquer lu' : 'Marquer non lu'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, 'important')}
-                    disabled={bulkLoading || detailImportant}
-                    className="bg-amber-light text-[#8A5A1A] border border-[#E8C896] px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    <Star size={14} />
-                    {detailImportant ? 'Important ✓' : 'Important'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, 'trash')}
-                    disabled={bulkLoading}
-                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    <Trash2 size={14} />
-                    Corbeille
-                  </button>
-                </>
-              )}
-              {/* Actions trash spécifiques au mail courant */}
-              {inTrash && detail && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, 'restore')}
-                    disabled={bulkLoading}
-                    className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] min-h-[44px]"
-                  >
-                    ↺ Restaurer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete({ ids: [detail.id] })}
-                    disabled={bulkLoading}
-                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    <Trash2 size={14} />
-                    Supprimer définitivement
-                  </button>
-                </>
-              )}
               {detail && (
-                <a
-                  href={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center min-h-[44px] dark:bg-[rgba(255,255,255,.06)]"
-                >
-                  ↗ Voir dans Gmail
-                </a>
+                <DetailMoreMenu
+                  inTrash={inTrash}
+                  unread={detailUnread}
+                  important={detailImportant}
+                  disabled={bulkLoading}
+                  gmailUrl={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
+                  onCreateIntervention={createIntervention}
+                  onAction={(a) => applyBulkActionForOne(detail.id, a)}
+                  onRequestPermanentDelete={() => setConfirmDelete({ ids: [detail.id] })}
+                />
               )}
             </div>
 
@@ -1105,16 +1087,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             )}
 
-            {/* Analyse IA unifiée (Mails V2 P1) : MailAnalyseActions est
-                l'unique entrée d'analyse — bouton « Analyser avec IA »
-                (POST analyse-deep) si pas encore analysé, sinon actions
-                1-clic (brouillon syndic / confirmer occupant / event
-                Calendar). Le détail vit dans FicheDossierCard (P3 U2). */}
-            {detail && (
+            {/* Actions IA 1-clic (brouillon syndic / confirmer occupant /
+                event Calendar). L'entrée d'analyse « Analyser avec IA » vit
+                désormais dans la barre du volet (ergo2) : MailAnalyseActions
+                n'est rendu que quand une analyse existe. Le détail vit dans
+                FicheDossierCard (P3 U2). */}
+            {detail && detailAnalyse && (
               <div ref={analyseActionsRef}>
                 <MailAnalyseActions
                   threadId={detail.thread_id}
-                  analyse={analyses.get(detail.thread_id) ?? null}
+                  analyse={detailAnalyse}
                   onAnalyseRefresh={refreshAnalyse}
                 />
               </div>
@@ -1724,6 +1706,97 @@ function FilterMenu({
               {label}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Menu « ⋯ » du volet (ergo2) : regroupe toutes les actions unitaires du
+// mail ouvert déplacées hors de la barre (aucune supprimée). Ouverture au
+// clic, fermeture au clic extérieur et à Échap — même mécanique que le
+// menu « Filtres ».
+function DetailMoreMenu({
+  inTrash, unread, important, disabled, gmailUrl,
+  onCreateIntervention, onAction, onRequestPermanentDelete,
+}: {
+  inTrash: boolean;
+  unread: boolean;
+  important: boolean;
+  disabled: boolean;
+  gmailUrl: string;
+  onCreateIntervention: () => void;
+  onAction: (a: BulkAction) => void;
+  onRequestPermanentDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useCloseOnOutside(ref, open, () => setOpen(false));
+  const itemClass = 'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover disabled:opacity-40 min-h-[44px] ';
+  function run(fn: () => void) { setOpen(false); fn(); }
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Plus d'actions"
+        title="Plus d'actions"
+        className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-bold hover:bg-sand-hover min-h-[44px] inline-flex items-center"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full right-0 mt-1 z-30 min-w-[230px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden"
+        >
+          {!inTrash ? (
+            <>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onCreateIntervention)} className={itemClass + 'text-ink'}>
+                <ClipboardList size={14} aria-hidden />
+                Créer une intervention
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('archive'))} className={itemClass + 'text-ink'}>
+                <Archive size={14} aria-hidden />
+                Archiver
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction(unread ? 'read' : 'unread'))} className={itemClass + 'text-ink'}>
+                {unread ? <CheckCircle2 size={14} aria-hidden /> : <Circle size={14} aria-hidden />}
+                {unread ? 'Marquer lu' : 'Marquer non lu'}
+              </button>
+              <button type="button" role="menuitem" disabled={disabled || important} onClick={() => run(() => onAction('important'))} className={itemClass + 'text-ink'}>
+                <Star size={14} aria-hidden />
+                {important ? 'Important ✓' : 'Marquer important'}
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('trash'))} className={itemClass + 'text-terra'}>
+                <Trash2 size={14} aria-hidden />
+                Corbeille
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('restore'))} className={itemClass + 'text-ink'}>
+                <Undo2 size={14} aria-hidden />
+                Restaurer
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onRequestPermanentDelete)} className={itemClass + 'text-terra'}>
+                <Trash2 size={14} aria-hidden />
+                Supprimer définitivement
+              </button>
+            </>
+          )}
+          <a
+            role="menuitem"
+            href={gmailUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className={itemClass + 'text-ink border-t border-sand-border'}
+          >
+            ↗ Voir dans Gmail
+          </a>
         </div>
       )}
     </div>
