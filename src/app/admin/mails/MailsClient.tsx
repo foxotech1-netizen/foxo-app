@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
   Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput, Sparkles,
-  ChevronDown, MoreHorizontal,
+  ChevronDown, MoreHorizontal, RefreshCw,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -128,16 +128,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(initialConnected);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
-  // Bloc Libellés repliable (ergo2 mobile). null = pas encore touché par
-  // l'utilisateur → défaut piloté en CSS pur (replié < 768 px, déplié
-  // au-delà via hidden md:block) : aucun flash au premier paint, aucun
-  // mismatch d'hydratation. Après un clic, le choix explicite prime.
-  const [labelsOpen, setLabelsOpen] = useState<boolean | null>(null);
-  const labelsBodyClass = labelsOpen === null ? 'hidden md:block' : labelsOpen ? '' : 'hidden';
-  const toggleLabels = () => setLabelsOpen((prev) => prev === null
-    // 1er clic : l'état effectif vient du viewport (même seuil que md:).
-    ? !window.matchMedia('(min-width: 768px)').matches
-    : !prev);
+  // Bloc Libellés repliable (ergo2) : replié par défaut PARTOUT, desktop
+  // compris — seul l'en-tête reste visible. Le clic de l'utilisateur
+  // prime ensuite pour la session. Défaut déterministe → aucun flash.
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const labelsBodyClass = labelsOpen ? '' : 'hidden';
+  const toggleLabels = () => setLabelsOpen((v) => !v);
 
   // Analyses Claude (T5 → mails_analyses). Map thread_id → MailAnalyse.
   // Chargée en batch après le mount des mails (1 requête pour tous les
@@ -620,7 +616,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const detailAnalyse = detail ? analyses.get(detail.thread_id) ?? null : null;
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col">
       {createLabelOpen && (
         <CreateLabelModal
           onClose={() => setCreateLabelOpen(false)}
@@ -642,6 +638,101 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         />
       )}
 
+      {/* Barre supérieure (ergo2, maquette option A) — pleine largeur,
+          au-dessus des 2 panneaux. Desktop (≥ md) : une seule rangée
+          segmenté · recherche · catégories · Filtres · ↻ (flex-wrap :
+          entre 768 et ~1024 px la recherche peut passer en 2e ligne,
+          jamais de scroll horizontal). Mobile (< md) : empilement
+          conservé (recherche, puis segmenté + Filtres, puis catégories
+          + ↻) via order-* et un sous-conteneur promu par md:contents.
+          Masquée < sm quand un mail est ouvert (le volet occupe
+          l'écran), comme la liste. */}
+      <div
+        className={
+          'p-3 border-b border-sand-border bg-cream flex-shrink-0 flex-wrap items-center gap-2 ' +
+          (selectedId ? 'hidden sm:flex' : 'flex')
+        }
+      >
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher — expéditeur, sujet…"
+          className="order-1 w-full md:order-2 md:w-auto md:flex-1 md:min-w-[200px] md:max-w-[460px] h-9 px-3 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        />
+        {/* Contrôle segmenté 3 vues — compteur non-lus sur « À traiter »
+            uniquement (inboxUnread déjà chargé). */}
+        <div className="order-2 md:order-1 inline-flex rounded-lg border border-sand-border bg-white overflow-hidden">
+          {SEGMENT_VIEWS.map(([f, label]) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={
+                'h-[34px] px-2.5 text-[11px] font-bold inline-flex items-center gap-1 border-r border-sand-border last:border-r-0 ' +
+                (filter === f
+                  ? 'bg-navy text-white'
+                  : 'bg-white text-ink-mid hover:bg-sand-hover')
+              }
+            >
+              {label}
+              {f === 'a_traiter' && inboxUnread > 0 && (
+                <span
+                  className={
+                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
+                    (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
+                  }
+                >
+                  {inboxUnread}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="order-3 md:order-4">
+          <FilterMenu
+            active={SEGMENT_VIEWS.some(([f]) => f === filter) ? null : filter}
+            onSelect={setFilter}
+          />
+        </div>
+        {/* Catégories + ↻ : ligne dédiée sur mobile ; sur desktop le
+            conteneur disparaît (md:contents) et les 2 contrôles
+            rejoignent la rangée aux positions 3 et 5. */}
+        <div className="order-4 w-full flex items-center gap-2 md:contents">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+            aria-label="Filtrer par catégorie"
+            className={
+              'md:order-3 w-full min-w-0 md:w-auto h-9 px-2 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
+              (categoryFilter !== 'toutes'
+                ? 'bg-navy text-white border-navy'
+                : 'bg-white text-ink-mid border-sand-border')
+            }
+          >
+            <option value="toutes">Toutes les catégories</option>
+            {MAIL_CLASSIFICATIONS.map((c) => (
+              <option key={c} value={c}>
+                {CLASSIFICATION_LABEL_FR[c]}
+              </option>
+            ))}
+          </select>
+          <button
+            ref={refreshRef}
+            type="button"
+            onClick={() => setRefreshTick((t) => t + 1)}
+            aria-label="Actualiser"
+            title="Actualiser"
+            disabled={loading}
+            className="md:order-5 flex-shrink-0 h-9 w-9 rounded-lg border border-sand-border bg-white text-ink-mid hover:text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center justify-center"
+          >
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden />
+          </button>
+        </div>
+      </div>
+
+      {/* Panneaux liste + volet */}
+      <div className="flex-1 flex min-h-0">
+
       {/* Liste à gauche — position relative pour ancrer la BulkActionBar
           en absolute bottom (la chaîne min-h-screen → flex-1 → h-full ne
           garantit pas une hauteur bornée, donc on ne peut pas se reposer
@@ -654,89 +745,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
-        {/* Filtres + Recherche */}
-        <div className="p-3 border-b border-sand-border space-y-2 flex-shrink-0">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher — expéditeur, sujet…"
-            className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
-          />
-          {/* Vues (ergonomie passe 2) : contrôle segmenté 3 vues + menu
-              « Filtres » pour les vues secondaires. Compteur non-lus sur
-              « À traiter » uniquement (inboxUnread déjà chargé). Le menu
-              s'ouvre au clic (utilisable au toucher), se ferme au clic
-              extérieur et à Échap. */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <div className="inline-flex rounded-lg border border-sand-border bg-white overflow-hidden">
-              {SEGMENT_VIEWS.map(([f, label]) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFilter(f)}
-                  className={
-                    'px-2.5 py-1.5 text-[11px] font-bold inline-flex items-center gap-1 border-r border-sand-border last:border-r-0 ' +
-                    (filter === f
-                      ? 'bg-navy text-white'
-                      : 'bg-white text-ink-mid hover:bg-sand-hover')
-                  }
-                >
-                  {label}
-                  {f === 'a_traiter' && inboxUnread > 0 && (
-                    <span
-                      className={
-                        'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
-                        (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
-                      }
-                    >
-                      {inboxUnread}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <FilterMenu
-              active={SEGMENT_VIEWS.some(([f]) => f === filter) ? null : filter}
-              onSelect={setFilter}
-            />
-          </div>
-          {/* Filtre par catégorie métier (classification canonique U4) +
-              Actualiser : une seule ligne sur mobile (< md), empilés
-              comme avant sur desktop (apparence inchangée). */}
-          <div className="flex items-center gap-2 md:flex-col md:items-stretch">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
-              aria-label="Filtrer par catégorie"
-              className={
-                'w-full min-w-0 px-2 py-1.5 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
-                (categoryFilter !== 'toutes'
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border')
-              }
-            >
-              <option value="toutes">Toutes les catégories</option>
-              {MAIL_CLASSIFICATIONS.map((c) => (
-                <option key={c} value={c}>
-                  {CLASSIFICATION_LABEL_FR[c]}
-                </option>
-              ))}
-            </select>
-            <button
-              ref={refreshRef}
-              type="button"
-              onClick={() => setRefreshTick((t) => t + 1)}
-              className="flex-shrink-0 whitespace-nowrap md:w-full text-[11px] text-ink-muted hover:text-navy underline"
-              disabled={loading}
-            >
-              {loading ? 'Chargement…' : '↻ Actualiser'}
-            </button>
-          </div>
-        </div>
-
         {/* Barre d'actions — sticky top-0 quand mails sélectionnés.
-            Placée juste après les filtres pour rester visible en haut
-            de l'aside, indépendamment du scroll de la liste. */}
+            Placée en tête de l'aside pour rester visible en haut,
+            indépendamment du scroll de la liste. */}
         {selectedIds.size > 0 && (
           <BulkActionBar
             count={selectedIds.size}
@@ -758,25 +769,18 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <button
               type="button"
               onClick={toggleLabels}
-              aria-expanded={labelsOpen ?? undefined}
+              aria-expanded={labelsOpen}
               className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-ink-muted hover:text-navy min-h-[24px]"
             >
               Libellés{inboxUnread > 0 ? ` · ${inboxUnread} non lus` : ''}
-              <span aria-hidden>
-                {labelsOpen === null ? (
-                  <>
-                    <span className="md:hidden">▸</span>
-                    <span className="hidden md:inline">▾</span>
-                  </>
-                ) : (labelsOpen ? '▾' : '▸')}
-              </span>
+              <span aria-hidden>{labelsOpen ? '▾' : '▸'}</span>
             </button>
             <button
               type="button"
               onClick={() => setCreateLabelOpen(true)}
               className={
                 'text-[10px] font-bold text-navy hover:underline ' +
-                (labelsOpen === null ? 'hidden md:inline' : labelsOpen ? '' : 'hidden')
+                (labelsOpen ? '' : 'hidden')
               }
             >
               + Nouveau libellé
@@ -1354,6 +1358,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           </>
         )}
       </main>
+      </div>
     </div>
   );
 
@@ -1710,7 +1715,7 @@ function FilterMenu({
         aria-expanded={open}
         aria-haspopup="menu"
         className={
-          'px-2.5 py-1.5 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 ' +
+          'h-9 px-2.5 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 ' +
           (activeLabel
             ? 'bg-navy text-white border-navy'
             : 'bg-white text-ink-mid border-sand-border hover:bg-sand-hover')
