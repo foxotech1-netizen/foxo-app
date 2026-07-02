@@ -616,3 +616,73 @@ export async function resolveInterventionFolderByName(
   // 2) Repli : RAPPORTS/{ref ...} (arborescence sans niveau année)
   return findByRefPrefix(root);
 }
+
+// ─── Lecture seule : listing récursif à plat des fichiers d'un dossier ─────
+//
+// Descend récursivement dans folderId et ses sous-dossiers (arborescence par
+// année/mois) et retourne la liste PLATE de tous les fichiers non-dossier.
+// N'écrit rien. Best-effort : un sous-dossier dont la requête échoue est ignoré
+// (retourne [] pour lui) ; seul un échec sur le dossier RACINE est fatal.
+// Utilisé par l'ingestion « assistant terrain » (cf. NOTE_CONCEPTION §11).
+//
+// NB : un export `listFolderFiles` (listing direct + métadonnées riches) existe
+// déjà plus haut ; cette fonction récursive porte donc un nom distinct.
+export async function listFolderFilesRecursive(
+  folderId: string,
+  opts?: { maxDepth?: number },
+): Promise<{ ok: true; files: Array<{ id: string; name: string; mimeType: string }> } | { ok: false; error: string }> {
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const token = auth.access_token;
+  const maxDepth = opts?.maxDepth ?? 5;
+
+  type Child = { id: string; name: string; mimeType: string };
+
+  // Liste tous les enfants directs d'un dossier (pagination pageSize=1000).
+  // Retour discriminé : succès -> children ; échec HTTP -> status (l'appelant
+  // décide si c'est fatal — racine — ou ignoré — sous-dossier).
+  async function listChildren(
+    parentId: string,
+  ): Promise<{ ok: true; children: Child[] } | { ok: false; status: number }> {
+    const children: Child[] = [];
+    let pageToken: string | undefined;
+    do {
+      const url = new URL(`${DRIVE_API}/files`);
+      url.searchParams.set('q', `'${escapeQuery(parentId)}' in parents and trashed=false`);
+      url.searchParams.set('pageSize', '1000');
+      url.searchParams.set('fields', 'nextPageToken, files(id,name,mimeType)');
+      if (pageToken) url.searchParams.set('pageToken', pageToken);
+      const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) return { ok: false, status: res.status };
+      const j = (await res.json()) as { nextPageToken?: string; files?: Child[] };
+      for (const f of j.files ?? []) children.push(f);
+      pageToken = j.nextPageToken;
+    } while (pageToken);
+    return { ok: true, children };
+  }
+
+  const files: Child[] = [];
+
+  // Descente récursive. `isRoot` : un échec HTTP sur la racine est fatal, sur un
+  // sous-dossier il est ignoré (best-effort). Retourne un status d'erreur
+  // uniquement pour l'échec racine.
+  async function walk(parentId: string, depth: number, isRoot: boolean): Promise<number | null> {
+    const listed = await listChildren(parentId);
+    if (!listed.ok) return isRoot ? listed.status : null;
+    const subFolders: Child[] = [];
+    for (const c of listed.children) {
+      if (c.mimeType === FOLDER_MIME) subFolders.push(c);
+      else files.push(c);
+    }
+    if (depth < maxDepth) {
+      for (const sf of subFolders) {
+        await walk(sf.id, depth + 1, false);
+      }
+    }
+    return null;
+  }
+
+  const rootStatus = await walk(folderId, 0, true);
+  if (rootStatus !== null) return { ok: false, error: `Drive HTTP ${rootStatus}` };
+  return { ok: true, files };
+}
