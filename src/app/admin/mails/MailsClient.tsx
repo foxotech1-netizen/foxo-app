@@ -845,7 +845,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <div
                 key={m.id}
                 className={
-                  'relative group flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
+                  'relative group flex items-start gap-2 px-3 py-4 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
                   (active ? 'bg-navy-pale' : '')
                 }
               >
@@ -895,21 +895,29 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 >
                   <div className="flex items-center gap-2 mb-0.5">
                     {m.unread && (
-                      <span className="w-2 h-2 rounded-full bg-terra flex-shrink-0" aria-label="Non lu" />
+                      <span className="w-2 h-2 rounded-full bg-amber-foxo flex-shrink-0" aria-label="Non lu" />
                     )}
                     {isImportant && (
                       <span className="flex-shrink-0 text-[#D4A547]" title="Marqué important" aria-label="Important">
                         <Star size={12} fill="currentColor" />
                       </span>
                     )}
-                    <div className={'text-[12px] font-bold truncate flex-1 ' + (active ? 'text-navy dark:text-white' : 'text-ink')}>
+                    {/* Lisibilité (ergo2) : la graisse porte l'état non-lu —
+                        gras seulement si non lu, sinon normal et atténué. */}
+                    <div
+                      className={
+                        'text-base truncate flex-1 ' +
+                        (m.unread ? 'font-semibold ' : 'font-normal ') +
+                        (active ? 'text-navy dark:text-white' : (m.unread ? 'text-ink' : 'text-ink-mid'))
+                      }
+                    >
                       {senderName(m.from)}
                     </div>
-                    <span className="text-[10px] text-ink-muted whitespace-nowrap">
+                    <span className="text-[13px] text-ink-muted whitespace-nowrap">
                       {fmtDate(m.date)}
                     </span>
                   </div>
-                  <div className={'text-[12px] truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
+                  <div className={'text-[15px] truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
                     {m.subject}
                   </div>
                   {badges.length > 0 && (
@@ -924,7 +932,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <MailAnalyseBadges analyse={analyse} />
                     </div>
                   )}
-                  <div className="text-[11px] text-ink-muted truncate mt-0.5">
+                  <div className="text-[13.5px] text-ink-muted truncate mt-0.5">
                     {m.snippet}
                   </div>
                 </button>
