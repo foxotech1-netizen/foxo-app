@@ -1,3 +1,35 @@
+# État du projet FoxO — snapshot 2026-07-02 (Mails V2 — ergonomie passe 2 CLOSE, PR #135)
+
+- **Date du recap** : 2026-07-02
+- **HEAD git** : 1ca824a (merge PR #135)
+- **Branche** : main, aligné origin/main. Production via Vercel.
+- ⚠️ Invariant inchangé : **CRONS MAILS TOUJOURS FERMÉS** — rallumage = toute dernière étape du chantier Mails V2, précédée du marquage en lu des mails déjà traités.
+
+## Chantier Mails V2 — ergonomie passe 2 (Option A) : CLOS
+PR #135 mergée (10 commits). Maquette validée en amont (3 options HTML), Option A retenue.
+- **Vues** (c819d59) : rangée de 7 onglets remplacée par un segmenté À traiter (badge) / Non lus / Tous + menu « Filtres ▾ » (Demandes, Occupants, Archivés, Système, Corbeille ; libellé « Filtres : X ▾ » quand actif). Découverte d'audit : « À traiter » était déjà de facto une vue non-lus → « Non lus » = is:unread -in:trash -in:spam hors plateforme (inclut les archivés non lus, filet de sécurité).
+- **Typographie liste** (6ea420c) : expéditeur 16 px gras seulement si non lu, sujet 15 px, extrait 13,5 px, date 13 px, pastille ambre (token bg-amber-foxo), lignes py-4.
+- **Volet** (fc96a30) : barre réduite à « Analyser avec IA » (primaire, si fil non analysé) + « Répondre » ; toutes les autres actions dans le menu « ⋯ » — rien supprimé. Survol de ligne + actions de masse inchangés.
+- **Nav mobile** (d87c0ba) : « Mails » ajouté à BOTTOM_NAV dans components/Sidebar.tsx (manque préexistant, 6e entrée, padding items resserré à 6 px pour tenir sur 360 px) avec badge non-lus (unreadMails déjà chargé dans la Sidebar, event foxo:mails-updated).
+- **Libellés repliables** (1ea00a3 puis 5e31be1) : en-tête bouton accessible avec chevron ; désormais REPLIÉ PAR DÉFAUT PARTOUT (useState(false), déterministe, zéro flash) ; le clic utilisateur prime pour la session.
+- **Barre supérieure unique** (5e31be1) : contrôles sortis de l'aside vers une barre pleine largeur au-dessus des deux panneaux (layout racine en colonne). Desktop : segmenté · recherche (flex-1, max 460 px) · catégories compact (navy quand actif) · Filtres ▾ · bouton icône ↻ (remplace le lien « Actualiser » pleine largeur). Mobile < 768 px : empilement conservé ; la barre se masque quand un mail est ouvert.
+- **État vide recherche explicatif** (6b408c5) : diagnostic prouvé au runtime (harnais Playwright local 17/17, non commité) — aucun câblage cassé ; le symptôme « recherche ne trouve rien » = comportement Gmail (mots entiers + périmètre de la vue active). Message explicatif + boutons « Chercher dans "Tous" » et « Effacer la recherche ».
+- **Recherche deux étages** (a6f0106) : étage 1 instantané dès la frappe = filtrage client par sous-chaîne insensible casse/accents (NFD sans diacritiques) sur expéditeur/sujet/extrait des mails chargés ; étage 2 = recherche Gmail debouncée 400 ms, fusion à l'arrivée (dédup par id, tri date desc, garde anti-résultats périmés). Updates optimistes appliqués aux deux listes via helper commun. Validation runtime 16/16.
+- **Pagination** (d6e1d16 + 6c6420b) : listInboxMails accepte pageToken et renvoie nextPageToken (Gmail ne l'exposait pas — cause de la liste bloquée à la page 1) ; route expose next_page_token, rétro-compatible cron/assistant. Client : bouton « Charger plus de mails » en pied de liste (visible si token, ajout dédupliqué, scroll stable), compteur « X mails affichés », reset propre au changement de vue/recherche/catégorie, fonctionne aussi en recherche.
+
+**Fichiers touchés** : src/app/admin/mails/MailsClient.tsx, src/app/api/admin/mails/route.ts (mapping non_lus + pageToken), src/lib/gmail.ts (pageToken/nextPageToken), components/Sidebar.tsx.
+**Non touché** : crons (fermés), routes IA, SQL. Seule modification serveur = mapping vue + pagination minimale.
+
+## À faire (suite du chantier Mails V2, ordre spec)
+1. Prochaine étape = choix entre : Phase 3 (fiche structurée IA), Phase 8 (messagerie portail), lot Signature visuelle.
+2. Rallumage des crons = toute dernière étape (précédée du marquage en lu des mails déjà traités).
+
+## Backlog noté au fil de la session
+- Badge « À traiter » non décrémenté instantanément au marquage lu (rafraîchissement suivant) — cosmétique, déjà connu.
+- ESLint : 5 erreurs préexistantes sur le repo (aucune ajoutée par le chantier) — à traiter un jour dans un lot hygiène.
+
+---
+
 # État du projet FoxO — snapshot 2026-07-01 (suite 13) — CHANTIER PHOTOS DU RAPPORT FIABILISÉ (PR #134) : sélection par observation + classement déterministe + dédoublonnage
 
 ÉTAT GIT : main = cb23b6b (merge PR #134, branche feat/rapport-photo-classification supprimée). En prod via Vercel. Vérifier le git log live en début de session.
