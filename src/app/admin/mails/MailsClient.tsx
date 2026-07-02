@@ -900,9 +900,44 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             </div>
           )}
           {filtered.length === 0 && !loading && !error && (
-            <div className="text-[13px] text-ink-muted text-center py-12">
-              {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
-            </div>
+            debouncedQuery ? (
+              /* État vide spécifique à la recherche (diagnostic PR #135,
+                 câblage vérifié intact) : Gmail cherche des mots entiers,
+                 dans le périmètre de la vue active (À traiter / Non lus =
+                 non-lus uniquement). Sans ce contexte, « Aucun mail. »
+                 laissait croire à une recherche cassée. */
+              <div className="text-[13px] text-ink-muted text-center py-10 px-4">
+                <div className="font-semibold text-ink-mid">
+                  Aucun résultat pour «&nbsp;{debouncedQuery}&nbsp;» dans cette vue
+                </div>
+                <div className="text-[11px] mt-1">
+                  Gmail cherche des mots entiers, uniquement dans les mails de la vue active
+                  {(filter === 'a_traiter' || filter === 'non_lus') ? ' (ici : non lus seulement)' : ''}.
+                </div>
+                <div className="mt-3 flex items-center justify-center gap-4">
+                  {filter !== 'tous' && (
+                    <button
+                      type="button"
+                      onClick={() => setFilter('tous')}
+                      className="text-[12px] font-bold text-navy underline"
+                    >
+                      Chercher dans « Tous »
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setQuery('')}
+                    className="text-[12px] font-bold text-ink-muted underline"
+                  >
+                    Effacer la recherche
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[13px] text-ink-muted text-center py-12">
+                {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
+              </div>
+            )
           )}
           {!loading && filtered.map((m) => {
             const active = selectedId === m.id;
