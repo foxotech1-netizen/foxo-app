@@ -7,6 +7,7 @@ import { sendEmailResend } from '@/lib/email/resend';
 import { sendSMS, sendWhatsApp, logSmsSend } from '@/lib/sms';
 import { updateCalendarEvent } from '@/lib/google-calendar';
 import type { ContactPreference } from '@/lib/types/database';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -61,8 +62,7 @@ function buildAcceptedEmail(args: {
           <p style="font-size:13px;color:#6B6558;line-height:1.6;margin:20px 0 0">
             Merci de votre disponibilité — à bientôt !
           </p>
-          <div style="height:1px;background:#DDD8CC;margin:24px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique</p>
+          ${SIGNATURE_HTML}
         </td></tr>
       </table>
     </td></tr>

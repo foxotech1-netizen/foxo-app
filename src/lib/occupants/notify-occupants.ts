@@ -19,6 +19,7 @@ import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import { randomBytes } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmailResend } from '@/lib/email/resend';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 import { sendSMS, sendWhatsApp, logSmsSend, applyTemplateVars } from '@/lib/sms';
 import type { ContactPreference, Intervention, ParticulierContact } from '@/lib/types/database';
 
@@ -90,8 +91,7 @@ function buildEmailHtml(args: {
             Si le bouton ne marche pas, copiez ce lien dans votre navigateur :<br/>
             <a href="${args.lien}" style="color:#1B3A6B;word-break:break-all;font-family:'DM Mono',monospace;font-size:12px">${args.lien}</a>
           </p>
-          <div style="height:1px;background:#DDD8CC;margin:24px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique</p>
+          ${SIGNATURE_HTML}
         </td></tr>
       </table>
     </td></tr>

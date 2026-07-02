@@ -1,5 +1,6 @@
 import { fmtDateTime } from '@/lib/format';
 import { sendEmailResend } from '@/lib/email/resend';
+import { appendSignatureToHtml } from '@/lib/email/signature';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { VENDOR } from '@/lib/constants/vendor';
 import { getEmailForDoc } from '@/lib/notifications';
@@ -18,11 +19,13 @@ function buildHeader(title: string): string {
 }
 
 function buildShell(inner: string): string {
+  // Signature société en pied de carte (garde anti-doublon : no-op si le
+  // contenu porte déjà les coordonnées). buildHeader reste intact.
   return `<!DOCTYPE html><html><body style="margin:0;background:#F5F2EC;font-family:'DM Sans',Arial,sans-serif;color:#1C1A16">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F2EC;padding:32px 16px">
   <tr><td align="center">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;background:#FDFBF7;border-radius:12px;border:1px solid #DDD8CC;padding:24px">
-      <tr><td>${inner}</td></tr>
+      <tr><td>${appendSignatureToHtml(inner)}</td></tr>
     </table>
   </td></tr>
 </table></body></html>`;

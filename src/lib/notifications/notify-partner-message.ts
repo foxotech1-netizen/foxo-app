@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmailResend } from '@/lib/email/resend';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 // Déclencheur best-effort : prévient le(s) partenaire(s) d'une intervention
 // qu'un message admin (FoxO) vient d'être posté. Crée une notification in-app
@@ -86,12 +87,22 @@ export async function notifyPartnerOfMessage(input: {
     if (emails.length === 0) return;
 
     // 7. Envoi email best-effort en parallèle (Promise.allSettled).
+    //    Habillage aligné sur les autres mails FoxO (carte crème sur fond
+    //    sable, en-tête FoxO, signature société en pied).
     const subject = 'FoxO — nouveau message sur votre intervention';
     const html =
-      '<p>Bonjour,</p>' +
-      '<p>Vous avez reçu un nouveau message de FoxO concernant une de vos interventions.</p>' +
-      '<p>Connectez-vous à votre portail pour le consulter : ' +
-      '<a href="https://portal.foxo.be">portal.foxo.be</a></p>';
+      '<!DOCTYPE html><html><body style="margin:0;background:#F5F2EC;font-family:\'DM Sans\',Arial,sans-serif;color:#1C1A16">' +
+      '<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5F2EC;padding:32px 16px"><tr><td align="center">' +
+      '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;background:#FDFBF7;border-radius:12px;border:1px solid #DDD8CC;padding:24px"><tr><td>' +
+      '<div style="font-size:20px;font-weight:800;color:#1B3A6B;letter-spacing:.02em">FoxO</div>' +
+      '<div style="font-size:11px;color:#A09A8E;text-transform:uppercase;letter-spacing:.1em;margin-top:2px">Nouveau message</div>' +
+      '<div style="height:1px;background:#DDD8CC;margin:16px 0"></div>' +
+      '<p style="font-size:14px;line-height:1.6;margin:0 0 12px">Bonjour,</p>' +
+      '<p style="font-size:14px;color:#6B6558;line-height:1.6;margin:0 0 14px">Vous avez reçu un nouveau message de FoxO concernant une de vos interventions.</p>' +
+      '<p style="font-size:13px;color:#6B6558;line-height:1.6;margin:0">Connectez-vous à votre portail pour le consulter : ' +
+      '<a href="https://portal.foxo.be" style="color:#1B3A6B">portal.foxo.be</a></p>' +
+      SIGNATURE_HTML +
+      '</td></tr></table></td></tr></table></body></html>';
 
     const results = await Promise.allSettled(
       emails.map((to) => sendEmailResend({ to, subject, html })),

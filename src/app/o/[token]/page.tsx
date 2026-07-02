@@ -160,7 +160,7 @@ export default async function OccupantPortal({
         </div>
 
         <p className="text-center text-[11px] text-[var(--color-ink-mid)] mt-4">
-          Fox Group SRL — Détection de fuites non destructive
+          FoxO — Détection de fuites non intrusive
         </p>
       </div>
     </div>

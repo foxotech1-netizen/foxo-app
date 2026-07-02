@@ -1,6 +1,7 @@
 import { fmtDateTime } from '@/lib/format';
 import { sendEmailResend, type SendResult } from '@/lib/email/resend';
 import { VENDOR } from '@/lib/constants/vendor';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 const ADMIN_NOTIF_EMAIL = 'info@foxo.be';
 
@@ -28,6 +29,9 @@ function fmtCreneau(iso: string | null): string {
   return fmtDateTime(iso, true);
 }
 
+// NB : pas de SIGNATURE_HTML ici — ce mail porte déjà la ligne contact
+// (tél + info@foxo.be) et un pied société complet (VENDOR) ; la garde
+// hasSignature le considère signé, on ne double pas.
 function buildClientHtml(d: RdvEmailData): string {
   return `<!DOCTYPE html><html><body style="margin:0;background:#F5F2EC;font-family:'DM Sans',Arial,sans-serif;color:#1C1A16">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5F2EC;padding:32px 16px">
@@ -98,6 +102,7 @@ function buildAdminHtml(d: RdvEmailData): string {
           ${d.description ? `<div style="background:#F5F2EC;border-radius:8px;padding:12px;font-size:13px;color:#1C1A16;line-height:1.5;margin-top:14px"><div style="font-size:9px;color:#A09A8E;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:700">Description</div>${escapeHtml(d.description)}</div>` : ''}
 
           <a href="https://admin.foxo.be" style="display:inline-block;margin-top:18px;background:#1B3A6B;color:#fff;padding:10px 18px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">Voir dans l'admin</a>
+          ${SIGNATURE_HTML}
         </td></tr>
       </table>
     </td></tr>
