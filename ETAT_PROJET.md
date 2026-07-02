@@ -20,9 +20,15 @@ PR #135 mergée (10 commits). Maquette validée en amont (3 options HTML), Optio
 **Fichiers touchés** : src/app/admin/mails/MailsClient.tsx, src/app/api/admin/mails/route.ts (mapping non_lus + pageToken), src/lib/gmail.ts (pageToken/nextPageToken), components/Sidebar.tsx.
 **Non touché** : crons (fermés), routes IA, SQL. Seule modification serveur = mapping vue + pagination minimale.
 
-## À faire (suite du chantier Mails V2, ordre spec)
-1. Prochaine étape = choix entre : Phase 3 (fiche structurée IA), Phase 8 (messagerie portail), lot Signature visuelle.
-2. Rallumage des crons = toute dernière étape (précédée du marquage en lu des mails déjà traités).
+## À faire (suite du chantier Mails V2) — CORRIGÉ 2026-07-02 après audit
+⚠️ Correction : les snapshots recopiaient « choix entre Phase 3 / Phase 8 / Signature visuelle » — audit du 2026-07-02 : les Phases 3 et 4 et 8 sont DÉJÀ LIVRÉES.
+- Phase 3 (fiche structurée IA) : CLOSE depuis PR #94 (2026-06-12) — extraction JSON validée serveur, colonnes mails_analyses, FicheDossierCard.tsx, ConfirmCreateForm → confirm-and-create, préremplissage planning.
+- Phase 4 (confirmations occupants par mail) : en place dans le code (matching 3 niveaux, panneau « Réponse occupant à valider »).
+- Phase 8 (messagerie portail) : LIVRÉE (~2026-05-27, étendue expert 2026-06-04) — table messages bidirectionnelle admin↔partenaire avec RLS, routes /api/messages, MessagesPanel.tsx monté portail + admin, badges non-lus des deux côtés, notifyPartnerOfMessage. Nature : messagerie PAR DOSSIER (pas de boîte centralisée admin — les non-lus remontent par badges dossier ; une inbox centralisée serait un chantier distinct si le besoin émerge à l'usage).
+Restent réellement à faire sur Mails V2 :
+1. Lot Signature visuelle (branche feat/signature-pdf en pause — décisions associé en attente).
+2. Marquage en lu des mails déjà traités PUIS rallumage des crons mails = toute dernière étape du chantier.
+Dette notée : autocomplete dossier implémenté 3× (factoriser au 4e usage).
 
 ## Backlog noté au fil de la session
 - Badge « À traiter » non décrémenté instantanément au marquage lu (rafraîchissement suivant) — cosmétique, déjà connu.
