@@ -52,6 +52,12 @@ export async function GET(request: Request) {
     // Même définition que countUnreadMails → le badge de l'onglet et la
     // liste restent cohérents sans compteur supplémentaire.
     parts.push('in:inbox', 'is:unread', EXCLUDE_PLATFORM_MAILS_Q);
+  } else if (filter === 'non_lus') {
+    // « Non lus » (ergonomie passe 2) : tous les non-lus, y compris hors
+    // inbox (mail archivé sans avoir été lu). NB : « À traiter » étant
+    // déjà in:inbox is:unread, une vue non-lus limitée à l'inbox serait
+    // identique — on élargit donc hors inbox (corbeille et spam exclus).
+    parts.push('is:unread', '-in:trash', '-in:spam', EXCLUDE_PLATFORM_MAILS_Q);
   } else if (filter === 'demandes') {
     parts.push(`label:"${CLASSIFICATION_TO_LABEL.nouvelle_demande}"`, EXCLUDE_PLATFORM_MAILS_Q);
   } else if (filter === 'occupants') {
@@ -75,7 +81,12 @@ export async function GET(request: Request) {
   if (search) parts.push(search);
   const q = parts.join(' ');
 
-  const res = await listInboxMails({ limit, q });
+  // Pagination « Charger plus » (ergo2) : pageToken Gmail relayé tel quel,
+  // next_page_token renvoyé au client (null = dernière page). Défauts
+  // inchangés pour les appels existants.
+  const pageToken = url.searchParams.get('pageToken') ?? undefined;
+
+  const res = await listInboxMails({ limit, q, pageToken });
   if (!res.ok) {
     return NextResponse.json(
       { ok: false, error: res.error },
@@ -83,7 +94,7 @@ export async function GET(request: Request) {
     );
   }
   return NextResponse.json(
-    { ok: true, mails: res.mails },
+    { ok: true, mails: res.mails, next_page_token: res.nextPageToken },
     { headers: NO_STORE_HEADERS },
   );
 }

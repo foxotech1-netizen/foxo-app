@@ -236,24 +236,30 @@ interface RawMessageWithLabels extends RawMessage {
 
 // Liste les `limit` derniers mails de la boîte (in:inbox), avec metadata
 // suffisante pour l'affichage liste. Inclut le statut "non lu" via labelIds.
-export async function listInboxMails(args: { limit?: number; q?: string }): Promise<{
-  ok: true; mails: MailListItem[];
+export async function listInboxMails(args: { limit?: number; q?: string; pageToken?: string }): Promise<{
+  ok: true; mails: MailListItem[]; nextPageToken: string | null;
 } | { ok: false; error: string }> {
   const auth = await getValidAccessToken();
   if (!auth) return { ok: false, error: 'Google non connecté.' };
 
   const limit = Math.max(1, Math.min(args.limit ?? 30, 100));
   const baseQ = args.q?.trim() || 'in:inbox';
-  const url = `${API}/messages?q=${encodeURIComponent(baseQ)}&maxResults=${limit}`;
+  // pageToken optionnel (pagination « Charger plus ») — relayé tel quel à
+  // l'API Gmail ; nextPageToken est renvoyé à l'appelant (null = fin).
+  const url = `${API}/messages?q=${encodeURIComponent(baseQ)}&maxResults=${limit}`
+    + (args.pageToken ? `&pageToken=${encodeURIComponent(args.pageToken)}` : '');
 
   const listRes = await fetch(url, { headers: { Authorization: `Bearer ${auth.access_token}` } });
   if (!listRes.ok) {
     const body = await listRes.text();
     return { ok: false, error: `Gmail HTTP ${listRes.status} : ${body.slice(0, 200)}` };
   }
-  const listJson = (await listRes.json()) as { messages?: { id: string }[]; resultSizeEstimate?: number };
+  const listJson = (await listRes.json()) as {
+    messages?: { id: string }[]; nextPageToken?: string; resultSizeEstimate?: number;
+  };
+  const nextPageToken = listJson.nextPageToken ?? null;
   const ids = (listJson.messages ?? []).map((m) => m.id);
-  if (ids.length === 0) return { ok: true, mails: [] };
+  if (ids.length === 0) return { ok: true, mails: [], nextPageToken };
 
   // Fetch metadata en parallèle (Gmail API supporte ~10 req/s, on reste sage)
   const fetched = await Promise.all(
@@ -279,7 +285,7 @@ export async function listInboxMails(args: { limit?: number; q?: string }): Prom
     }),
   );
   const mails = fetched.filter((m): m is MailListItem => m !== null);
-  return { ok: true, mails };
+  return { ok: true, mails, nextPageToken };
 }
 
 export async function countUnreadMails(): Promise<number> {

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   X, Trash2, Star, ClipboardList, CheckCircle2, Mail,
   Paperclip, Circle, Tag, Archive, Undo2, Eye, Download, FolderInput, Sparkles,
+  ChevronDown, MoreHorizontal, RefreshCw,
 } from 'lucide-react';
 import type { MailListItem, MailDetail, GmailLabel } from '@/lib/gmail';
 import type { MailAnalyse } from './MailAnalyseTypes';
@@ -20,9 +21,26 @@ import {
   type MailClassification,
 } from '@/lib/mail/categories';
 
-// Onglets métier (Mails V2 P1) — résolus côté serveur en query Gmail
-// (cf. api/admin/mails/route.ts). a_traiter = non lus inbox hors plateforme.
-type FilterMode = 'a_traiter' | 'demandes' | 'occupants' | 'tous' | 'archives' | 'system' | 'trash';
+// Vues métier (Mails V2 P1, restructurées en ergonomie passe 2) — résolues
+// côté serveur en query Gmail (cf. api/admin/mails/route.ts).
+// a_traiter = non lus inbox hors plateforme ; non_lus = tous les non-lus
+// y compris hors inbox (corbeille/spam exclus).
+type FilterMode = 'a_traiter' | 'non_lus' | 'demandes' | 'occupants' | 'tous' | 'archives' | 'system' | 'trash';
+
+// Ergonomie passe 2 (option A) : 3 vues principales en contrôle segmenté,
+// les vues secondaires passent dans le menu « Filtres ».
+const SEGMENT_VIEWS: [FilterMode, string][] = [
+  ['a_traiter', 'À traiter'],
+  ['non_lus', 'Non lus'],
+  ['tous', 'Tous'],
+];
+const MENU_VIEWS: [FilterMode, string, typeof Trash2 | null][] = [
+  ['demandes', 'Demandes', null],
+  ['occupants', 'Occupants', null],
+  ['archives', 'Archivés', Archive],
+  ['system', 'Système', null],
+  ['trash', 'Corbeille', Trash2],
+];
 type CategoryFilter = MailClassification | 'toutes';
 type BulkAction =
   | 'read' | 'unread' | 'archive'
@@ -67,16 +85,24 @@ function senderEmail(from: string): string {
   return (m ? m[1] : from).trim();
 }
 
+// Normalisation pour l'étage 1 de la recherche : minuscules + diacritiques
+// retirés (NFD) des deux côtés — « côté » matche « cote » et inversement.
+function normalizeSearch(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 export function MailsClient({ initialConnected }: { initialConnected: boolean }) {
   const router = useRouter();
   const [mails, setMails] = useState<MailListItem[]>([]);
   const [loading, setLoading] = useState(initialConnected);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  // Recherche serveur (Mails V2 P1) : la saisie est debouncée 400 ms puis
-  // relayée telle quelle à GET /api/admin/mails?search=… qui la combine à
-  // la query Gmail de l'onglet actif. Champ vidé → retour au comportement
-  // normal de l'onglet (debouncedQuery '').
+  // Recherche à deux étages (ergo2) :
+  //  - étage 1, instantané : filtre client par sous-chaîne (insensible
+  //    casse/accents) sur expéditeur/sujet/extrait des mails chargés ;
+  //  - étage 2, debouncé 400 ms : recherche Gmail serveur (mots entiers)
+  //    combinée à la vue active ; résultats fusionnés (dédup par id,
+  //    tri date desc) avec l'étage 1 à leur arrivée.
   const [debouncedQuery, setDebouncedQuery] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query.trim()), 400);
@@ -110,6 +136,12 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(initialConnected);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  // Bloc Libellés repliable (ergo2) : replié par défaut PARTOUT, desktop
+  // compris — seul l'en-tête reste visible. Le clic de l'utilisateur
+  // prime ensuite pour la session. Défaut déterministe → aucun flash.
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const labelsBodyClass = labelsOpen ? '' : 'hidden';
+  const toggleLabels = () => setLabelsOpen((v) => !v);
 
   // Analyses Claude (T5 → mails_analyses). Map thread_id → MailAnalyse.
   // Chargée en batch après le mount des mails (1 requête pour tous les
@@ -137,9 +169,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     if (id) setSelectedId(id);
   }, []);
 
-  // Charge la liste — déclenché au mount + quand filter/activeLabel/refreshTick changent.
-  // `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare. `cache: 'no-store'`
-  // ajoute une ceinture côté fetch.
+  // Pagination « Charger plus » (ergo2) — token de page suivante de la
+  // liste de base (celui de la recherche vit dans searchRes).
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Charge la page 1 de la vue, SANS la recherche (l'étage 2 vit dans
+  // l'effet suivant) — au mount + quand filter/activeLabel/refreshTick
+  // changent. `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare.
+  // `cache: 'no-store'` ajoute une ceinture côté fetch.
   useEffect(() => {
     if (!initialConnected) return;
     let mounted = true;
@@ -150,19 +188,109 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     // entièrement côté serveur ('tous' = défaut serveur).
     params.set('filter', filter);
     if (activeLabel) params.set('label', activeLabel);
-    if (debouncedQuery) params.set('search', debouncedQuery);
     fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
         if (!mounted) return;
         if (!data.ok) { setError(data.error ?? 'Erreur'); return; }
         setMails(data.mails ?? []);
+        setNextPageToken(data.next_page_token ?? null);
         setSelectedIds(new Set());
       })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [initialConnected, filter, activeLabel, refreshTick, debouncedQuery]);
+    // categoryFilter volontairement en dépendance : changer de catégorie
+    // réinitialise la liste et la pagination (page 1 propre — ergo2 pt 7).
+  }, [initialConnected, filter, activeLabel, refreshTick, categoryFilter]);
+
+  // Étage 2 de la recherche : résultats Gmail (mots entiers) pour la vue
+  // active. `q` mémorise la requête à laquelle les items correspondent :
+  // la fusion n'a lieu que si q === saisie courante (jamais de résultats
+  // périmés pendant la frappe) — et « recherche en cours » se dérive de
+  // ce décalage, sans setState synchrone dans l'effet.
+  const [searchRes, setSearchRes] = useState<{
+    q: string; items: MailListItem[]; nextPageToken: string | null;
+  } | null>(null);
+  const searchPending = Boolean(debouncedQuery) && searchRes?.q !== debouncedQuery;
+  useEffect(() => {
+    if (!initialConnected || !debouncedQuery) return;
+    let mounted = true;
+    const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
+    params.set('filter', filter);
+    if (activeLabel) params.set('label', activeLabel);
+    params.set('search', debouncedQuery);
+    fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        // Échec discret : l'étage 1 reste affiché ; items vides = « pas de
+        // résultat Gmail » (le message d'état vide reste honnête).
+        setSearchRes({
+          q: debouncedQuery,
+          items: data.ok ? (data.mails ?? []) : [],
+          nextPageToken: data.ok ? (data.next_page_token ?? null) : null,
+        });
+      })
+      .catch(() => { if (mounted) setSearchRes({ q: debouncedQuery, items: [], nextPageToken: null }); });
+    return () => { mounted = false; };
+    // categoryFilter volontairement en dépendance : même règle de reset de
+    // pagination que la liste de base (page 1 propre — ergo2 pt 7).
+  }, [initialConnected, debouncedQuery, filter, activeLabel, refreshTick, categoryFilter]);
+
+  // Applique une même transformation à la liste de base ET aux résultats
+  // de l'étage 2 — les updates optimistes (lu, archive, libellés…) restent
+  // cohérents quelle que soit la provenance de la ligne affichée.
+  const patchMails = (fn: (arr: MailListItem[]) => MailListItem[]) => {
+    setMails(fn);
+    setSearchRes((prev) => (prev ? { ...prev, items: fn(prev.items) } : prev));
+  };
+
+  // Page suivante du contexte actif — liste de base OU résultats Gmail de
+  // la recherche — ajoutée en fin de liste, dédupliquée par id (jamais
+  // deux fois la même ligne).
+  async function loadMore() {
+    const searchActive = Boolean(debouncedQuery) && searchRes?.q === debouncedQuery;
+    const token = searchActive ? searchRes?.nextPageToken : nextPageToken;
+    if (!token || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
+      params.set('filter', filter);
+      if (activeLabel) params.set('label', activeLabel);
+      if (searchActive) params.set('search', debouncedQuery);
+      params.set('pageToken', token);
+      const r = await fetch(`/api/admin/mails?${params}`, { cache: 'no-store' });
+      const data = await r.json();
+      if (!data.ok) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Chargement de la page suivante échoué.' });
+        return;
+      }
+      const pageMails: MailListItem[] = data.mails ?? [];
+      const nextTok: string | null = data.next_page_token ?? null;
+      const appendDedup = (arr: MailListItem[]) => {
+        const seen = new Set(arr.map((m) => m.id));
+        return [...arr, ...pageMails.filter((m) => !seen.has(m.id))];
+      };
+      if (searchActive) {
+        setSearchRes((prev) => (prev && prev.q === debouncedQuery
+          ? { ...prev, items: appendDedup(prev.items), nextPageToken: nextTok }
+          : prev));
+      } else {
+        setMails(appendDedup);
+        setNextPageToken(nextTok);
+      }
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+  // Bouton visible seulement si Gmail annonce une page suivante pour le
+  // contexte affiché (recherche stabilisée ou liste de base).
+  const canLoadMore = query.trim()
+    ? Boolean(searchRes && searchRes.q === query.trim() && searchRes.nextPageToken)
+    : Boolean(nextPageToken);
 
   // Charge les analyses Claude pour tous les thread_id visibles. Évite
   // d'attendre le clic d'un mail pour savoir s'il a déjà été analysé
@@ -259,7 +387,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (!mounted) return;
         if (data.ok) {
           setDetail(data.mail);
-          setMails((arr) => arr.map((m) => m.id === selectedId
+          patchMails((arr) => arr.map((m) => m.id === selectedId
             ? { ...m, unread: false, label_ids: m.label_ids.filter((l) => l !== 'UNREAD') }
             : m));
           window.dispatchEvent(new Event('foxo:mails-updated'));
@@ -272,10 +400,26 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     return () => { mounted = false; };
   }, [selectedId]);
 
-  // La recherche texte est désormais serveur (query Gmail) — seul le
-  // filtre catégorie reste client (croisement avec la Map analyses).
+  // Liste affichée. Sans recherche : la liste de base telle quelle.
+  // Recherche active : étage 1 (sous-chaîne normalisée sur expéditeur/
+  // sujet/extrait des mails chargés, instantané sur `query`) + étage 2
+  // (résultats Gmail, seulement s'ils correspondent à la saisie courante),
+  // dédupliqués par id et triés par date décroissante.
+  const displayedMails = useMemo(() => {
+    const needle = normalizeSearch(query.trim());
+    if (!needle) return mails;
+    const local = mails.filter((m) =>
+      normalizeSearch(`${m.from} ${m.subject} ${m.snippet}`).includes(needle));
+    if (!searchRes || searchRes.q !== query.trim()) return local;
+    const seen = new Set(local.map((m) => m.id));
+    return [...local, ...searchRes.items.filter((m) => !seen.has(m.id))]
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [mails, searchRes, query]);
+
+  // Filtre catégorie (client, croisement avec la Map analyses) — appliqué
+  // après la fusion de recherche.
   const filtered = useMemo(() => {
-    return mails.filter((m) => {
+    return displayedMails.filter((m) => {
       if (categoryFilter !== 'toutes') {
         const analyse = analyses.get(m.thread_id);
         // Pas d'analyse → pas de classification → exclu du filtre métier.
@@ -285,7 +429,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       }
       return true;
     });
-  }, [mails, categoryFilter, analyses]);
+  }, [displayedMails, categoryFilter, analyses]);
 
   const labelById = useMemo(() => {
     const m = new Map<string, GmailLabel>();
@@ -341,7 +485,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       // Notifie la Sidebar — re-fetch debounced (cf. components/Sidebar.tsx).
       window.dispatchEvent(new Event('foxo:mails-updated'));
       // Update optimiste
-      setMails((arr) => {
+      patchMails((arr) => {
         if (action === 'archive' || action === 'trash' || action === 'delete-permanent') {
           // Le mail disparaît de la vue actuelle
           return arr.filter((m) => !selectedIds.has(m.id));
@@ -415,7 +559,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (args.removeId) next = next.filter((id) => id !== args.removeId);
         return { ...d, label_ids: next };
       });
-      setMails((arr) => arr.map((m) => {
+      patchMails((arr) => arr.map((m) => {
         if (m.id !== detail.id) return m;
         let next = m.label_ids.slice();
         if (args.addId && !next.includes(args.addId)) next = [...next, args.addId];
@@ -465,6 +609,37 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     }
   }
 
+  // « Analyser avec IA » (ergo2) — déplacé de MailAnalyseActions vers la
+  // barre du volet. Même appel POST analyse-deep ; MailAnalyseActions n'est
+  // plus rendu que quand une analyse existe (actions 1-clic inchangées).
+  const [analyseLoading, setAnalyseLoading] = useState(false);
+  async function runAnalyseDeep() {
+    if (!detail) return;
+    setAnalyseLoading(true);
+    setFeedback(null);
+    try {
+      const r = await fetch('/api/admin/mails/analyse-deep', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: detail.thread_id }),
+      });
+      const data = await r.json();
+      if (!data.success) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Échec analyse.' });
+        return;
+      }
+      await refreshAnalyse(detail.thread_id);
+      const errs: string[] = data.analyse?.errors ?? [];
+      setFeedback(errs.length > 0
+        ? { kind: 'err', msg: `Analyse OK avec ${errs.length} avertissement(s)` }
+        : { kind: 'ok', msg: 'Analyse approfondie terminée.' });
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setAnalyseLoading(false);
+    }
+  }
+
   async function sendReply() {
     if (!detail || !replyBody.trim()) return;
     setReplyLoading(true);
@@ -505,7 +680,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         return;
       }
       window.dispatchEvent(new Event('foxo:mails-updated'));
-      setMails((arr) => arr.filter((m) => !ids.includes(m.id)));
+      patchMails((arr) => arr.filter((m) => !ids.includes(m.id)));
       setSelectedIds(new Set());
       if (selectedId && ids.includes(selectedId)) setSelectedId(null);
       setFeedback({ kind: 'ok', msg: `${ids.length} mail(s) supprimé(s) définitivement` });
@@ -553,14 +728,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // État lu/important du mail ouvert — dérivé de la ligne de liste si
   // présente (source la plus fraîche), sinon des labels du détail
   // (cas deep-link ?id= hors onglet courant). Aucun état ajouté.
-  const selectedListItem = selectedId ? mails.find((m) => m.id === selectedId) ?? null : null;
+  const selectedListItem = selectedId ? displayedMails.find((m) => m.id === selectedId) ?? null : null;
   const detailUnread = selectedListItem
     ? selectedListItem.unread
     : (detail?.label_ids.includes('UNREAD') ?? false);
   const detailImportant = (selectedListItem ?? detail)?.label_ids.includes('IMPORTANT') ?? false;
+  const detailAnalyse = detail ? analyses.get(detail.thread_id) ?? null : null;
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col">
       {createLabelOpen && (
         <CreateLabelModal
           onClose={() => setCreateLabelOpen(false)}
@@ -582,72 +758,72 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         />
       )}
 
-      {/* Liste à gauche — position relative pour ancrer la BulkActionBar
-          en absolute bottom (la chaîne min-h-screen → flex-1 → h-full ne
-          garantit pas une hauteur bornée, donc on ne peut pas se reposer
-          sur flex-shrink-0 pour épingler la barre au bas de l'aside).
-          Largeur ~40% bornée : la lecture occupe ~60%, la liste ne flotte
-          plus seule sur les grands écrans. */}
-      <aside
+      {/* Barre supérieure (ergo2, maquette option A) — pleine largeur,
+          au-dessus des 2 panneaux. Desktop (≥ md) : une seule rangée
+          segmenté · recherche · catégories · Filtres · ↻ (flex-wrap :
+          entre 768 et ~1024 px la recherche peut passer en 2e ligne,
+          jamais de scroll horizontal). Mobile (< md) : empilement
+          conservé (recherche, puis segmenté + Filtres, puis catégories
+          + ↻) via order-* et un sous-conteneur promu par md:contents.
+          Masquée < sm quand un mail est ouvert (le volet occupe
+          l'écran), comme la liste. */}
+      <div
         className={
-          'relative flex flex-col w-full sm:w-[40%] sm:min-w-[340px] sm:max-w-[520px] border-r border-sand-border bg-cream ' +
+          'p-3 border-b border-sand-border bg-cream flex-shrink-0 flex-wrap items-center gap-2 ' +
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
-        {/* Filtres + Recherche */}
-        <div className="p-3 border-b border-sand-border space-y-2 flex-shrink-0">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher — expéditeur, sujet…"
-            className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher — expéditeur, sujet…"
+          className="order-1 w-full md:order-2 md:w-auto md:flex-1 md:min-w-[200px] md:max-w-[460px] h-9 px-3 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        />
+        {/* Contrôle segmenté 3 vues — compteur non-lus sur « À traiter »
+            uniquement (inboxUnread déjà chargé). */}
+        <div className="order-2 md:order-1 inline-flex rounded-lg border border-sand-border bg-white overflow-hidden">
+          {SEGMENT_VIEWS.map(([f, label]) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={
+                'h-[34px] px-2.5 text-[11px] font-bold inline-flex items-center gap-1 border-r border-sand-border last:border-r-0 ' +
+                (filter === f
+                  ? 'bg-navy text-white'
+                  : 'bg-white text-ink-mid hover:bg-sand-hover')
+              }
+            >
+              {label}
+              {f === 'a_traiter' && inboxUnread > 0 && (
+                <span
+                  className={
+                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
+                    (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
+                  }
+                >
+                  {inboxUnread}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="order-3 md:order-4">
+          <FilterMenu
+            active={SEGMENT_VIEWS.some(([f]) => f === filter) ? null : filter}
+            onSelect={setFilter}
           />
-          {/* Onglets métier (Mails V2 P1) — chips compactes, passage sur
-              2 lignes accepté sur mobile. Compteur non-lus sur « À traiter »
-              uniquement (inboxUnread déjà chargé, aucun compteur ajouté). */}
-          <div className="flex flex-wrap gap-1.5">
-            {([
-              ['a_traiter', 'À traiter', null],
-              ['demandes', 'Demandes', null],
-              ['occupants', 'Occupants', null],
-              ['tous', 'Tous', null],
-              ['archives', 'Archivés', Archive],
-              ['system', 'Système', null],
-              ['trash', 'Corbeille', Trash2],
-            ] as [FilterMode, string, typeof Trash2 | null][]).map(([f, label, Icon]) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={
-                  'px-2 py-1.5 rounded text-[11px] font-bold border inline-flex items-center justify-center gap-1 ' +
-                  (filter === f
-                    ? 'bg-navy text-white border-navy'
-                    : 'bg-white text-ink-mid border-sand-border')
-                }
-              >
-                {Icon && <Icon size={12} />}
-                {label}
-                {f === 'a_traiter' && inboxUnread > 0 && (
-                  <span
-                    className={
-                      'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
-                      (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
-                    }
-                  >
-                    {inboxUnread}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          {/* Filtre par catégorie métier (classification canonique U4). */}
+        </div>
+        {/* Catégories + ↻ : ligne dédiée sur mobile ; sur desktop le
+            conteneur disparaît (md:contents) et les 2 contrôles
+            rejoignent la rangée aux positions 3 et 5. */}
+        <div className="order-4 w-full flex items-center gap-2 md:contents">
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
             aria-label="Filtrer par catégorie"
             className={
-              'w-full px-2 py-1.5 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
+              'md:order-3 w-full min-w-0 md:w-auto h-9 px-2 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
               (categoryFilter !== 'toutes'
                 ? 'bg-navy text-white border-navy'
                 : 'bg-white text-ink-mid border-sand-border')
@@ -664,16 +840,34 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             ref={refreshRef}
             type="button"
             onClick={() => setRefreshTick((t) => t + 1)}
-            className="w-full text-[11px] text-ink-muted hover:text-navy underline"
+            aria-label="Actualiser"
+            title="Actualiser"
             disabled={loading}
+            className="md:order-5 flex-shrink-0 h-9 w-9 rounded-lg border border-sand-border bg-white text-ink-mid hover:text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center justify-center"
           >
-            {loading ? 'Chargement…' : '↻ Actualiser'}
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden />
           </button>
         </div>
+      </div>
 
+      {/* Panneaux liste + volet */}
+      <div className="flex-1 flex min-h-0">
+
+      {/* Liste à gauche — position relative pour ancrer la BulkActionBar
+          en absolute bottom (la chaîne min-h-screen → flex-1 → h-full ne
+          garantit pas une hauteur bornée, donc on ne peut pas se reposer
+          sur flex-shrink-0 pour épingler la barre au bas de l'aside).
+          Largeur ~40% bornée : la lecture occupe ~60%, la liste ne flotte
+          plus seule sur les grands écrans. */}
+      <aside
+        className={
+          'relative flex flex-col w-full sm:w-[40%] sm:min-w-[340px] sm:max-w-[520px] border-r border-sand-border bg-cream ' +
+          (selectedId ? 'hidden sm:flex' : 'flex')
+        }
+      >
         {/* Barre d'actions — sticky top-0 quand mails sélectionnés.
-            Placée juste après les filtres pour rester visible en haut
-            de l'aside, indépendamment du scroll de la liste. */}
+            Placée en tête de l'aside pour rester visible en haut,
+            indépendamment du scroll de la liste. */}
         {selectedIds.size > 0 && (
           <BulkActionBar
             count={selectedIds.size}
@@ -688,21 +882,32 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           />
         )}
 
-        {/* Section Libellés */}
+        {/* Section Libellés — repliable (ergo2 mobile) : l'en-tête replie/
+            déplie la liste ET le bouton « + Nouveau libellé ». */}
         <div className="p-3 border-b border-sand-border flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+            <button
+              type="button"
+              onClick={toggleLabels}
+              aria-expanded={labelsOpen}
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-ink-muted hover:text-navy min-h-[24px]"
+            >
               Libellés{inboxUnread > 0 ? ` · ${inboxUnread} non lus` : ''}
-            </span>
+              <span aria-hidden>{labelsOpen ? '▾' : '▸'}</span>
+            </button>
             <button
               type="button"
               onClick={() => setCreateLabelOpen(true)}
-              className="text-[10px] font-bold text-navy hover:underline"
+              className={
+                'text-[10px] font-bold text-navy hover:underline ' +
+                (labelsOpen ? '' : 'hidden')
+              }
             >
               + Nouveau libellé
             </button>
           </div>
 
+          <div className={labelsBodyClass}>
           {activeLabel && (
             <button
               type="button"
@@ -773,6 +978,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               })}
             </ul>
           )}
+          </div>
         </div>
 
         {/* Header sélection */}
@@ -814,9 +1020,53 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             </div>
           )}
           {filtered.length === 0 && !loading && !error && (
-            <div className="text-[13px] text-ink-muted text-center py-12">
-              {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
-            </div>
+            query.trim() ? (
+              searchPending ? (
+                /* Étage 1 sans résultat, étage 2 pas encore arrivé : pas de
+                   « aucun résultat » définitif prématuré. */
+                <div className="text-[12px] text-ink-muted text-center py-10">
+                  Recherche dans la boîte Gmail…
+                </div>
+              ) : (
+                /* État vide de la recherche deux étages : les fragments de
+                   mots ne matchent que les mails chargés (étage 1) ; la
+                   boîte complète est interrogée via Gmail par mots entiers,
+                   dans le périmètre de la vue active (étage 2). */
+                <div className="text-[13px] text-ink-muted text-center py-10 px-4">
+                  <div className="font-semibold text-ink-mid">
+                    Aucun résultat pour «&nbsp;{query.trim()}&nbsp;» dans cette vue
+                  </div>
+                  <div className="text-[11px] mt-1">
+                    Les fragments de mots ne sont cherchés que dans les {mails.length} mails
+                    chargés ; la boîte complète est interrogée via Gmail par mots entiers,
+                    dans la vue active
+                    {(filter === 'a_traiter' || filter === 'non_lus') ? ' (ici : non lus seulement)' : ''}.
+                  </div>
+                  <div className="mt-3 flex items-center justify-center gap-4">
+                    {filter !== 'tous' && (
+                      <button
+                        type="button"
+                        onClick={() => setFilter('tous')}
+                        className="text-[12px] font-bold text-navy underline"
+                      >
+                        Chercher dans « Tous »
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setQuery('')}
+                      className="text-[12px] font-bold text-ink-muted underline"
+                    >
+                      Effacer la recherche
+                    </button>
+                  </div>
+                </div>
+              )
+            ) : (
+              <div className="text-[13px] text-ink-muted text-center py-12">
+                {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
+              </div>
+            )
           )}
           {!loading && filtered.map((m) => {
             const active = selectedId === m.id;
@@ -828,7 +1078,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <div
                 key={m.id}
                 className={
-                  'relative group flex items-start gap-2 px-3 py-2.5 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
+                  'relative group flex items-start gap-2 px-3 py-4 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
                   (active ? 'bg-navy-pale' : '')
                 }
               >
@@ -878,21 +1128,29 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 >
                   <div className="flex items-center gap-2 mb-0.5">
                     {m.unread && (
-                      <span className="w-2 h-2 rounded-full bg-terra flex-shrink-0" aria-label="Non lu" />
+                      <span className="w-2 h-2 rounded-full bg-amber-foxo flex-shrink-0" aria-label="Non lu" />
                     )}
                     {isImportant && (
                       <span className="flex-shrink-0 text-[#D4A547]" title="Marqué important" aria-label="Important">
                         <Star size={12} fill="currentColor" />
                       </span>
                     )}
-                    <div className={'text-[12px] font-bold truncate flex-1 ' + (active ? 'text-navy dark:text-white' : 'text-ink')}>
+                    {/* Lisibilité (ergo2) : la graisse porte l'état non-lu —
+                        gras seulement si non lu, sinon normal et atténué. */}
+                    <div
+                      className={
+                        'text-base truncate flex-1 ' +
+                        (m.unread ? 'font-semibold ' : 'font-normal ') +
+                        (active ? 'text-navy dark:text-white' : (m.unread ? 'text-ink' : 'text-ink-mid'))
+                      }
+                    >
                       {senderName(m.from)}
                     </div>
-                    <span className="text-[10px] text-ink-muted whitespace-nowrap">
+                    <span className="text-[13px] text-ink-muted whitespace-nowrap">
                       {fmtDate(m.date)}
                     </span>
                   </div>
-                  <div className={'text-[12px] truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
+                  <div className={'text-[15px] truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
                     {m.subject}
                   </div>
                   {badges.length > 0 && (
@@ -907,13 +1165,37 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <MailAnalyseBadges analyse={analyse} />
                     </div>
                   )}
-                  <div className="text-[11px] text-ink-muted truncate mt-0.5">
+                  <div className="text-[13.5px] text-ink-muted truncate mt-0.5">
                     {m.snippet}
                   </div>
                 </button>
               </div>
             );
           })}
+          {/* Pied de liste (ergo2) : indicateur étage 2, compteur, et
+              pagination « Charger plus » quand Gmail annonce une page
+              suivante pour le contexte actif. L'ajout se fait en fin de
+              liste — le scroll ne saute pas. */}
+          {!loading && !error && filtered.length > 0 && (
+            <div className="px-3 py-3 space-y-2 text-center">
+              {searchPending && (
+                <div className="text-[11px] text-ink-muted">Recherche Gmail en cours…</div>
+              )}
+              <div className="text-[11px] text-ink-muted tabular-nums">
+                {filtered.length} mail{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
+              </div>
+              {canLoadMore && (
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="w-full px-3 py-2 rounded-lg text-[12px] font-bold bg-white text-ink-mid border border-sand-border hover:bg-sand-hover disabled:opacity-50 min-h-[40px]"
+                >
+                  {loadingMore ? 'Chargement…' : 'Charger plus de mails'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
       </aside>
@@ -972,98 +1254,48 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               ><X size={16} /></button>
             </header>
 
+            {/* Barre d'actions réduite (ergo2) : 2 boutons visibles max —
+                « Analyser avec IA » (si pas encore analysé) + « Répondre ».
+                Toutes les autres actions unitaires (Créer une intervention,
+                Archiver, Lu/Non-lu, Important, Corbeille/Restaurer, Voir
+                dans Gmail) sont déplacées dans le menu « ⋯ » — aucune
+                n'est supprimée. */}
             <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-sand-border bg-sand flex-shrink-0">
+              {detail && !detailAnalyse && (
+                <button
+                  type="button"
+                  onClick={runAnalyseDeep}
+                  disabled={analyseLoading}
+                  className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                >
+                  <Sparkles size={14} />
+                  {analyseLoading ? 'Analyse en cours (5-15s)…' : 'Analyser avec IA'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setReplyOpen((v) => !v)}
                 disabled={!detail}
-                className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px]"
+                className={
+                  'px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] ' +
+                  (detail && !detailAnalyse
+                    ? 'bg-white text-navy border border-navy'
+                    : 'bg-navy text-white')
+                }
               >
                 ↩ Répondre
               </button>
-              <button
-                type="button"
-                onClick={createIntervention}
-                disabled={!detail}
-                className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-              >
-                <ClipboardList size={14} />
-                Créer une intervention
-              </button>
-              <button
-                type="button"
-                onClick={() => detail && applyBulkActionForOne(detail.id, 'archive')}
-                disabled={bulkLoading || !detail}
-                className="bg-[#A17244] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-              >
-                <Archive size={14} />
-                Archiver
-              </button>
-              {/* Lu/non-lu, Important, Corbeille (Mails V2 P1) — mêmes
-                  actions unitaires que le survol de liste. La corbeille
-                  ferme le volet (le mail quitte la vue courante). */}
-              {!inTrash && detail && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, detailUnread ? 'read' : 'unread')}
-                    disabled={bulkLoading}
-                    className="bg-white text-navy border border-navy px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    {detailUnread ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-                    {detailUnread ? 'Marquer lu' : 'Marquer non lu'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, 'important')}
-                    disabled={bulkLoading || detailImportant}
-                    className="bg-amber-light text-[#8A5A1A] border border-[#E8C896] px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    <Star size={14} />
-                    {detailImportant ? 'Important ✓' : 'Important'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, 'trash')}
-                    disabled={bulkLoading}
-                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    <Trash2 size={14} />
-                    Corbeille
-                  </button>
-                </>
-              )}
-              {/* Actions trash spécifiques au mail courant */}
-              {inTrash && detail && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => applyBulkActionForOne(detail.id, 'restore')}
-                    disabled={bulkLoading}
-                    className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold dark:bg-[rgba(255,255,255,.06)] min-h-[44px]"
-                  >
-                    ↺ Restaurer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDelete({ ids: [detail.id] })}
-                    disabled={bulkLoading}
-                    className="bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px] inline-flex items-center gap-1.5"
-                  >
-                    <Trash2 size={14} />
-                    Supprimer définitivement
-                  </button>
-                </>
-              )}
               {detail && (
-                <a
-                  href={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center min-h-[44px] dark:bg-[rgba(255,255,255,.06)]"
-                >
-                  ↗ Voir dans Gmail
-                </a>
+                <DetailMoreMenu
+                  inTrash={inTrash}
+                  unread={detailUnread}
+                  important={detailImportant}
+                  disabled={bulkLoading}
+                  gmailUrl={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
+                  onCreateIntervention={createIntervention}
+                  onAction={(a) => applyBulkActionForOne(detail.id, a)}
+                  onRequestPermanentDelete={() => setConfirmDelete({ ids: [detail.id] })}
+                />
               )}
             </div>
 
@@ -1080,16 +1312,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             )}
 
-            {/* Analyse IA unifiée (Mails V2 P1) : MailAnalyseActions est
-                l'unique entrée d'analyse — bouton « Analyser avec IA »
-                (POST analyse-deep) si pas encore analysé, sinon actions
-                1-clic (brouillon syndic / confirmer occupant / event
-                Calendar). Le détail vit dans FicheDossierCard (P3 U2). */}
-            {detail && (
+            {/* Actions IA 1-clic (brouillon syndic / confirmer occupant /
+                event Calendar). L'entrée d'analyse « Analyser avec IA » vit
+                désormais dans la barre du volet (ergo2) : MailAnalyseActions
+                n'est rendu que quand une analyse existe. Le détail vit dans
+                FicheDossierCard (P3 U2). */}
+            {detail && detailAnalyse && (
               <div ref={analyseActionsRef}>
                 <MailAnalyseActions
                   threadId={detail.thread_id}
-                  analyse={analyses.get(detail.thread_id) ?? null}
+                  analyse={detailAnalyse}
                   onAnalyseRefresh={refreshAnalyse}
                 />
               </div>
@@ -1314,6 +1546,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           </>
         )}
       </main>
+      </div>
     </div>
   );
 
@@ -1337,20 +1570,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         return;
       }
       if (action === 'archive' || action === 'trash' || action === 'restore' || action === 'delete-permanent') {
-        setMails((arr) => arr.filter((m) => m.id !== id));
+        patchMails((arr) => arr.filter((m) => m.id !== id));
         if (selectedId === id) setSelectedId(null);
       } else if (action === 'read' || action === 'unread') {
         const unread = action === 'unread';
         const patchLabels = (ids: string[]) => unread
           ? (ids.includes('UNREAD') ? ids : [...ids, 'UNREAD'])
           : ids.filter((l) => l !== 'UNREAD');
-        setMails((arr) => arr.map((m) => m.id === id
+        patchMails((arr) => arr.map((m) => m.id === id
           ? { ...m, unread, label_ids: patchLabels(m.label_ids) }
           : m));
         setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
       } else if (action === 'important') {
         const patchLabels = (ids: string[]) => ids.includes('IMPORTANT') ? ids : [...ids, 'IMPORTANT'];
-        setMails((arr) => arr.map((m) => m.id === id ? { ...m, label_ids: patchLabels(m.label_ids) } : m));
+        patchMails((arr) => arr.map((m) => m.id === id ? { ...m, label_ids: patchLabels(m.label_ids) } : m));
         setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
       }
       window.dispatchEvent(new Event('foxo:mails-updated'));
@@ -1617,6 +1850,179 @@ function AttachToDossierButton({
               <div className="px-2 py-1.5 text-[11px] text-ink-muted italic">Aucun dossier trouvé.</div>
             )}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Ferme un menu déroulant au clic/toucher extérieur et à Échap. Partagé
+// par le menu « Filtres » (vues secondaires) et le menu « ⋯ » du volet.
+function useCloseOnOutside(
+  ref: React.RefObject<HTMLDivElement | null>,
+  open: boolean,
+  onClose: () => void,
+) {
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent | TouchEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [ref, open, onClose]);
+}
+
+// Menu « Filtres » — regroupe les vues secondaires (Demandes, Occupants,
+// Archivés, Système, Corbeille). Quand une vue du menu est active, le
+// bouton affiche son nom et le contrôle segmenté est désélectionné.
+function FilterMenu({
+  active, onSelect,
+}: {
+  active: FilterMode | null;
+  onSelect: (f: FilterMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useCloseOnOutside(ref, open, () => setOpen(false));
+  const activeLabel = active ? MENU_VIEWS.find(([f]) => f === active)?.[1] ?? null : null;
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className={
+          'h-9 px-2.5 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 ' +
+          (activeLabel
+            ? 'bg-navy text-white border-navy'
+            : 'bg-white text-ink-mid border-sand-border hover:bg-sand-hover')
+        }
+      >
+        {activeLabel ? `Filtres : ${activeLabel}` : 'Filtres'}
+        <ChevronDown size={12} aria-hidden />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full left-0 mt-1 z-30 min-w-[180px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden"
+        >
+          {MENU_VIEWS.map(([f, label, Icon]) => (
+            <button
+              key={f}
+              type="button"
+              role="menuitem"
+              onClick={() => { onSelect(f); setOpen(false); }}
+              className={
+                'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover min-h-[40px] ' +
+                (active === f ? 'text-navy bg-navy-pale' : 'text-ink')
+              }
+            >
+              {Icon && <Icon size={14} aria-hidden />}
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Menu « ⋯ » du volet (ergo2) : regroupe toutes les actions unitaires du
+// mail ouvert déplacées hors de la barre (aucune supprimée). Ouverture au
+// clic, fermeture au clic extérieur et à Échap — même mécanique que le
+// menu « Filtres ».
+function DetailMoreMenu({
+  inTrash, unread, important, disabled, gmailUrl,
+  onCreateIntervention, onAction, onRequestPermanentDelete,
+}: {
+  inTrash: boolean;
+  unread: boolean;
+  important: boolean;
+  disabled: boolean;
+  gmailUrl: string;
+  onCreateIntervention: () => void;
+  onAction: (a: BulkAction) => void;
+  onRequestPermanentDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useCloseOnOutside(ref, open, () => setOpen(false));
+  const itemClass = 'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover disabled:opacity-40 min-h-[44px] ';
+  function run(fn: () => void) { setOpen(false); fn(); }
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Plus d'actions"
+        title="Plus d'actions"
+        className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-bold hover:bg-sand-hover min-h-[44px] inline-flex items-center"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full right-0 mt-1 z-30 min-w-[230px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden"
+        >
+          {!inTrash ? (
+            <>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onCreateIntervention)} className={itemClass + 'text-ink'}>
+                <ClipboardList size={14} aria-hidden />
+                Créer une intervention
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('archive'))} className={itemClass + 'text-ink'}>
+                <Archive size={14} aria-hidden />
+                Archiver
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction(unread ? 'read' : 'unread'))} className={itemClass + 'text-ink'}>
+                {unread ? <CheckCircle2 size={14} aria-hidden /> : <Circle size={14} aria-hidden />}
+                {unread ? 'Marquer lu' : 'Marquer non lu'}
+              </button>
+              <button type="button" role="menuitem" disabled={disabled || important} onClick={() => run(() => onAction('important'))} className={itemClass + 'text-ink'}>
+                <Star size={14} aria-hidden />
+                {important ? 'Important ✓' : 'Marquer important'}
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('trash'))} className={itemClass + 'text-terra'}>
+                <Trash2 size={14} aria-hidden />
+                Corbeille
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('restore'))} className={itemClass + 'text-ink'}>
+                <Undo2 size={14} aria-hidden />
+                Restaurer
+              </button>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onRequestPermanentDelete)} className={itemClass + 'text-terra'}>
+                <Trash2 size={14} aria-hidden />
+                Supprimer définitivement
+              </button>
+            </>
+          )}
+          <a
+            role="menuitem"
+            href={gmailUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className={itemClass + 'text-ink border-t border-sand-border'}
+          >
+            ↗ Voir dans Gmail
+          </a>
         </div>
       )}
     </div>

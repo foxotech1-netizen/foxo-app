@@ -158,7 +158,9 @@ const S = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 3,
-    padding: '4px 12px',
+    // Padding horizontal resserré (12 → 6) : 6 items (dont « Mails »)
+    // doivent tenir sur un écran de 360 px sans tronquer les libellés.
+    padding: '4px 6px',
     color: active ? 'var(--color-cream)' : 'rgba(253, 251, 247, 0.65)',
     textDecoration: 'none',
     fontSize: 10,
@@ -174,6 +176,22 @@ const S = {
     opacity: active ? 1 : 0.7,
     transition: 'opacity .15s',
   }),
+  // Pastille compteur superposée sur un item de la bottom nav
+  // (À valider, Mails).
+  bottomNavBadge: {
+    position: 'absolute' as const,
+    top: 6,
+    right: '50%',
+    transform: 'translateX(8px)',
+    background: 'var(--color-amber-foxo)',
+    color: 'var(--color-cream)',
+    borderRadius: 20,
+    fontSize: 9,
+    fontWeight: 600,
+    padding: '0 5px',
+    minWidth: 16,
+    textAlign: 'center' as const,
+  },
 }
 
 // ─── Composant ─────────────────────────────────────────────────────────────────
@@ -254,15 +272,17 @@ export default function Sidebar({
     return pathname.startsWith(href)
   }
 
-  // ── Mobile bottom nav — 5 items fixes ──────────────────────────────────
+  // ── Mobile bottom nav — 6 items fixes ──────────────────────────────────
   // Item "Menu" (qui pointait vers /admin/home, retiré Sprint 1) supprimé.
   // L'accès aux pages secondaires (clients, comptabilité, …) se fait via
-  // /admin/hub depuis le sélecteur de portail.
+  // /admin/hub depuis le sélecteur de portail. « Mails » ajouté (ergo2) :
+  // même icône/libellé que l'entrée desktop, badge non-lus partagé.
   const BOTTOM_NAV: NavItem[] = [
     { href: '/admin',               Icon: BarChart3,      label: 'Tableau'       },
     { href: '/admin/interventions', Icon: ClipboardList,  label: 'Interventions' },
     { href: '/admin/validation',    Icon: ClipboardCheck, label: 'À valider'     },
     { href: '/admin/planning',      Icon: Calendar,       label: 'Planning'      },
+    { href: '/admin/mails',         Icon: Mail,           label: 'Mails'         },
     { href: '/admin/assistant',     Icon: Sparkles,       label: 'Assistant'     },
   ]
 
@@ -405,20 +425,10 @@ export default function Sidebar({
             <span style={S.bottomNavIcon(active)}><item.Icon size={18} aria-hidden /></span>
             <span>{item.label}</span>
             {item.href === '/admin/validation' && validationCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: 6,
-                right: '50%',
-                transform: 'translateX(8px)',
-                background: 'var(--color-amber-foxo)',
-                color: 'var(--color-cream)',
-                borderRadius: 20,
-                fontSize: 9,
-                fontWeight: 600,
-                padding: '0 5px',
-                minWidth: 16,
-                textAlign: 'center',
-              }}>{validationCount}</span>
+              <span style={S.bottomNavBadge}>{validationCount}</span>
+            )}
+            {item.href === '/admin/mails' && unreadMails > 0 && (
+              <span style={S.bottomNavBadge}>{unreadMails}</span>
             )}
           </Link>
           )
