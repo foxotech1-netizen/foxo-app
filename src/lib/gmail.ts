@@ -5,6 +5,7 @@
 
 import { getValidAccessToken } from '@/lib/google-auth';
 import { PLATFORM_MAIL_DOMAIN } from '@/lib/constants/vendor';
+import { appendSignatureToText, appendSignatureToHtml } from '@/lib/email/signature';
 
 const API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -699,7 +700,9 @@ export async function sendMailReply(args: {
 
   const subject = /^re:\s*/i.test(origSubject) ? origSubject : `Re: ${origSubject}`;
   const references = origReferences ? `${origReferences} ${origMessageId}` : origMessageId;
-  const bodyNormalized = args.body.replace(/\r?\n/g, '\r\n');
+  // Signature société (texte) appendée si le corps n'en porte pas déjà
+  // une (garde hasSignature — l'admin peut avoir signé à la main).
+  const bodyNormalized = appendSignatureToText(args.body).replace(/\r?\n/g, '\r\n');
 
   const subjectEncoded = /^[\x20-\x7E]*$/.test(subject)
     ? subject
@@ -808,6 +811,11 @@ export async function sendEmail(args: {
   if (!auth) return { ok: false, error: 'Google non connecté.' };
 
   const from = args.from ?? 'FoxO <info@foxo.be>';
+  // Signature société appendée aux corps qui n'en portent pas (garde
+  // hasSignature — les transactionnels déjà signés, ex. facturation avec
+  // footer info@foxo.be, passent inchangés).
+  const htmlBody = appendSignatureToHtml(args.html);
+  const textBody = args.text ? appendSignatureToText(args.text) : undefined;
 
   // Encode RFC 2047 pour les en-têtes contenant des accents (Subject, From).
   const encodeHeader = (v: string): string =>
@@ -816,7 +824,7 @@ export async function sendEmail(args: {
       : `=?UTF-8?B?${Buffer.from(v, 'utf-8').toString('base64')}?=`;
 
   function altPart(boundary: string): string {
-    if (args.text) {
+    if (textBody) {
       return [
         `Content-Type: multipart/alternative; boundary="${boundary}"`,
         ``,
@@ -824,13 +832,13 @@ export async function sendEmail(args: {
         `Content-Type: text/plain; charset="UTF-8"`,
         `Content-Transfer-Encoding: 8bit`,
         ``,
-        args.text,
+        textBody,
         ``,
         `--${boundary}`,
         `Content-Type: text/html; charset="UTF-8"`,
         `Content-Transfer-Encoding: 8bit`,
         ``,
-        args.html,
+        htmlBody,
         ``,
         `--${boundary}--`,
       ].join('\r\n');
@@ -839,7 +847,7 @@ export async function sendEmail(args: {
       `Content-Type: text/html; charset="UTF-8"`,
       `Content-Transfer-Encoding: 8bit`,
       ``,
-      args.html,
+      htmlBody,
     ].join('\r\n');
   }
 
@@ -885,7 +893,7 @@ export async function sendEmail(args: {
     }
     parts.push(`--${outerBoundary}--`, ``);
     mime = parts.join('\r\n');
-  } else if (args.text) {
+  } else if (textBody) {
     const boundary = `=_FoxO_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     mime = [...headers, altPart(boundary), ``].join('\r\n');
   } else {
@@ -894,7 +902,7 @@ export async function sendEmail(args: {
       `Content-Type: text/html; charset="UTF-8"`,
       `Content-Transfer-Encoding: 8bit`,
       ``,
-      args.html,
+      htmlBody,
     ].join('\r\n');
   }
 
