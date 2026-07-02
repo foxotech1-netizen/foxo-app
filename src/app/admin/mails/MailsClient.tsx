@@ -85,16 +85,24 @@ function senderEmail(from: string): string {
   return (m ? m[1] : from).trim();
 }
 
+// Normalisation pour l'étage 1 de la recherche : minuscules + diacritiques
+// retirés (NFD) des deux côtés — « côté » matche « cote » et inversement.
+function normalizeSearch(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 export function MailsClient({ initialConnected }: { initialConnected: boolean }) {
   const router = useRouter();
   const [mails, setMails] = useState<MailListItem[]>([]);
   const [loading, setLoading] = useState(initialConnected);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  // Recherche serveur (Mails V2 P1) : la saisie est debouncée 400 ms puis
-  // relayée telle quelle à GET /api/admin/mails?search=… qui la combine à
-  // la query Gmail de l'onglet actif. Champ vidé → retour au comportement
-  // normal de l'onglet (debouncedQuery '').
+  // Recherche à deux étages (ergo2) :
+  //  - étage 1, instantané : filtre client par sous-chaîne (insensible
+  //    casse/accents) sur expéditeur/sujet/extrait des mails chargés ;
+  //  - étage 2, debouncé 400 ms : recherche Gmail serveur (mots entiers)
+  //    combinée à la vue active ; résultats fusionnés (dédup par id,
+  //    tri date desc) avec l'étage 1 à leur arrivée.
   const [debouncedQuery, setDebouncedQuery] = useState('');
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query.trim()), 400);
@@ -161,9 +169,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     if (id) setSelectedId(id);
   }, []);
 
-  // Charge la liste — déclenché au mount + quand filter/activeLabel/refreshTick changent.
-  // `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare. `cache: 'no-store'`
-  // ajoute une ceinture côté fetch.
+  // Charge la page 1 de la vue, SANS la recherche (l'étage 2 vit dans
+  // l'effet suivant) — au mount + quand filter/activeLabel/refreshTick
+  // changent. `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare.
+  // `cache: 'no-store'` ajoute une ceinture côté fetch.
   useEffect(() => {
     if (!initialConnected) return;
     let mounted = true;
@@ -174,7 +183,6 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     // entièrement côté serveur ('tous' = défaut serveur).
     params.set('filter', filter);
     if (activeLabel) params.set('label', activeLabel);
-    if (debouncedQuery) params.set('search', debouncedQuery);
     fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
@@ -186,7 +194,47 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [initialConnected, filter, activeLabel, refreshTick, debouncedQuery]);
+  }, [initialConnected, filter, activeLabel, refreshTick]);
+
+  // Étage 2 de la recherche : résultats Gmail (mots entiers) pour la vue
+  // active. `q` mémorise la requête à laquelle les items correspondent :
+  // la fusion n'a lieu que si q === saisie courante (jamais de résultats
+  // périmés pendant la frappe) — et « recherche en cours » se dérive de
+  // ce décalage, sans setState synchrone dans l'effet.
+  const [searchRes, setSearchRes] = useState<{
+    q: string; items: MailListItem[]; nextPageToken: string | null;
+  } | null>(null);
+  const searchPending = Boolean(debouncedQuery) && searchRes?.q !== debouncedQuery;
+  useEffect(() => {
+    if (!initialConnected || !debouncedQuery) return;
+    let mounted = true;
+    const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
+    params.set('filter', filter);
+    if (activeLabel) params.set('label', activeLabel);
+    params.set('search', debouncedQuery);
+    fetch(`/api/admin/mails?${params}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!mounted) return;
+        // Échec discret : l'étage 1 reste affiché ; items vides = « pas de
+        // résultat Gmail » (le message d'état vide reste honnête).
+        setSearchRes({
+          q: debouncedQuery,
+          items: data.ok ? (data.mails ?? []) : [],
+          nextPageToken: data.ok ? (data.next_page_token ?? null) : null,
+        });
+      })
+      .catch(() => { if (mounted) setSearchRes({ q: debouncedQuery, items: [], nextPageToken: null }); });
+    return () => { mounted = false; };
+  }, [initialConnected, debouncedQuery, filter, activeLabel, refreshTick]);
+
+  // Applique une même transformation à la liste de base ET aux résultats
+  // de l'étage 2 — les updates optimistes (lu, archive, libellés…) restent
+  // cohérents quelle que soit la provenance de la ligne affichée.
+  const patchMails = (fn: (arr: MailListItem[]) => MailListItem[]) => {
+    setMails(fn);
+    setSearchRes((prev) => (prev ? { ...prev, items: fn(prev.items) } : prev));
+  };
 
   // Charge les analyses Claude pour tous les thread_id visibles. Évite
   // d'attendre le clic d'un mail pour savoir s'il a déjà été analysé
@@ -283,7 +331,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (!mounted) return;
         if (data.ok) {
           setDetail(data.mail);
-          setMails((arr) => arr.map((m) => m.id === selectedId
+          patchMails((arr) => arr.map((m) => m.id === selectedId
             ? { ...m, unread: false, label_ids: m.label_ids.filter((l) => l !== 'UNREAD') }
             : m));
           window.dispatchEvent(new Event('foxo:mails-updated'));
@@ -296,10 +344,26 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     return () => { mounted = false; };
   }, [selectedId]);
 
-  // La recherche texte est désormais serveur (query Gmail) — seul le
-  // filtre catégorie reste client (croisement avec la Map analyses).
+  // Liste affichée. Sans recherche : la liste de base telle quelle.
+  // Recherche active : étage 1 (sous-chaîne normalisée sur expéditeur/
+  // sujet/extrait des mails chargés, instantané sur `query`) + étage 2
+  // (résultats Gmail, seulement s'ils correspondent à la saisie courante),
+  // dédupliqués par id et triés par date décroissante.
+  const displayedMails = useMemo(() => {
+    const needle = normalizeSearch(query.trim());
+    if (!needle) return mails;
+    const local = mails.filter((m) =>
+      normalizeSearch(`${m.from} ${m.subject} ${m.snippet}`).includes(needle));
+    if (!searchRes || searchRes.q !== query.trim()) return local;
+    const seen = new Set(local.map((m) => m.id));
+    return [...local, ...searchRes.items.filter((m) => !seen.has(m.id))]
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [mails, searchRes, query]);
+
+  // Filtre catégorie (client, croisement avec la Map analyses) — appliqué
+  // après la fusion de recherche.
   const filtered = useMemo(() => {
-    return mails.filter((m) => {
+    return displayedMails.filter((m) => {
       if (categoryFilter !== 'toutes') {
         const analyse = analyses.get(m.thread_id);
         // Pas d'analyse → pas de classification → exclu du filtre métier.
@@ -309,7 +373,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       }
       return true;
     });
-  }, [mails, categoryFilter, analyses]);
+  }, [displayedMails, categoryFilter, analyses]);
 
   const labelById = useMemo(() => {
     const m = new Map<string, GmailLabel>();
@@ -365,7 +429,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       // Notifie la Sidebar — re-fetch debounced (cf. components/Sidebar.tsx).
       window.dispatchEvent(new Event('foxo:mails-updated'));
       // Update optimiste
-      setMails((arr) => {
+      patchMails((arr) => {
         if (action === 'archive' || action === 'trash' || action === 'delete-permanent') {
           // Le mail disparaît de la vue actuelle
           return arr.filter((m) => !selectedIds.has(m.id));
@@ -439,7 +503,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (args.removeId) next = next.filter((id) => id !== args.removeId);
         return { ...d, label_ids: next };
       });
-      setMails((arr) => arr.map((m) => {
+      patchMails((arr) => arr.map((m) => {
         if (m.id !== detail.id) return m;
         let next = m.label_ids.slice();
         if (args.addId && !next.includes(args.addId)) next = [...next, args.addId];
@@ -560,7 +624,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         return;
       }
       window.dispatchEvent(new Event('foxo:mails-updated'));
-      setMails((arr) => arr.filter((m) => !ids.includes(m.id)));
+      patchMails((arr) => arr.filter((m) => !ids.includes(m.id)));
       setSelectedIds(new Set());
       if (selectedId && ids.includes(selectedId)) setSelectedId(null);
       setFeedback({ kind: 'ok', msg: `${ids.length} mail(s) supprimé(s) définitivement` });
@@ -608,7 +672,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // État lu/important du mail ouvert — dérivé de la ligne de liste si
   // présente (source la plus fraîche), sinon des labels du détail
   // (cas deep-link ?id= hors onglet courant). Aucun état ajouté.
-  const selectedListItem = selectedId ? mails.find((m) => m.id === selectedId) ?? null : null;
+  const selectedListItem = selectedId ? displayedMails.find((m) => m.id === selectedId) ?? null : null;
   const detailUnread = selectedListItem
     ? selectedListItem.unread
     : (detail?.label_ids.includes('UNREAD') ?? false);
@@ -900,39 +964,48 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             </div>
           )}
           {filtered.length === 0 && !loading && !error && (
-            debouncedQuery ? (
-              /* État vide spécifique à la recherche (diagnostic PR #135,
-                 câblage vérifié intact) : Gmail cherche des mots entiers,
-                 dans le périmètre de la vue active (À traiter / Non lus =
-                 non-lus uniquement). Sans ce contexte, « Aucun mail. »
-                 laissait croire à une recherche cassée. */
-              <div className="text-[13px] text-ink-muted text-center py-10 px-4">
-                <div className="font-semibold text-ink-mid">
-                  Aucun résultat pour «&nbsp;{debouncedQuery}&nbsp;» dans cette vue
+            query.trim() ? (
+              searchPending ? (
+                /* Étage 1 sans résultat, étage 2 pas encore arrivé : pas de
+                   « aucun résultat » définitif prématuré. */
+                <div className="text-[12px] text-ink-muted text-center py-10">
+                  Recherche dans la boîte Gmail…
                 </div>
-                <div className="text-[11px] mt-1">
-                  Gmail cherche des mots entiers, uniquement dans les mails de la vue active
-                  {(filter === 'a_traiter' || filter === 'non_lus') ? ' (ici : non lus seulement)' : ''}.
-                </div>
-                <div className="mt-3 flex items-center justify-center gap-4">
-                  {filter !== 'tous' && (
+              ) : (
+                /* État vide de la recherche deux étages : les fragments de
+                   mots ne matchent que les mails chargés (étage 1) ; la
+                   boîte complète est interrogée via Gmail par mots entiers,
+                   dans le périmètre de la vue active (étage 2). */
+                <div className="text-[13px] text-ink-muted text-center py-10 px-4">
+                  <div className="font-semibold text-ink-mid">
+                    Aucun résultat pour «&nbsp;{query.trim()}&nbsp;» dans cette vue
+                  </div>
+                  <div className="text-[11px] mt-1">
+                    Les fragments de mots ne sont cherchés que dans les {mails.length} mails
+                    chargés ; la boîte complète est interrogée via Gmail par mots entiers,
+                    dans la vue active
+                    {(filter === 'a_traiter' || filter === 'non_lus') ? ' (ici : non lus seulement)' : ''}.
+                  </div>
+                  <div className="mt-3 flex items-center justify-center gap-4">
+                    {filter !== 'tous' && (
+                      <button
+                        type="button"
+                        onClick={() => setFilter('tous')}
+                        className="text-[12px] font-bold text-navy underline"
+                      >
+                        Chercher dans « Tous »
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setFilter('tous')}
-                      className="text-[12px] font-bold text-navy underline"
+                      onClick={() => setQuery('')}
+                      className="text-[12px] font-bold text-ink-muted underline"
                     >
-                      Chercher dans « Tous »
+                      Effacer la recherche
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setQuery('')}
-                    className="text-[12px] font-bold text-ink-muted underline"
-                  >
-                    Effacer la recherche
-                  </button>
+                  </div>
                 </div>
-              </div>
+              )
             ) : (
               <div className="text-[13px] text-ink-muted text-center py-12">
                 {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
@@ -1417,20 +1490,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         return;
       }
       if (action === 'archive' || action === 'trash' || action === 'restore' || action === 'delete-permanent') {
-        setMails((arr) => arr.filter((m) => m.id !== id));
+        patchMails((arr) => arr.filter((m) => m.id !== id));
         if (selectedId === id) setSelectedId(null);
       } else if (action === 'read' || action === 'unread') {
         const unread = action === 'unread';
         const patchLabels = (ids: string[]) => unread
           ? (ids.includes('UNREAD') ? ids : [...ids, 'UNREAD'])
           : ids.filter((l) => l !== 'UNREAD');
-        setMails((arr) => arr.map((m) => m.id === id
+        patchMails((arr) => arr.map((m) => m.id === id
           ? { ...m, unread, label_ids: patchLabels(m.label_ids) }
           : m));
         setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
       } else if (action === 'important') {
         const patchLabels = (ids: string[]) => ids.includes('IMPORTANT') ? ids : [...ids, 'IMPORTANT'];
-        setMails((arr) => arr.map((m) => m.id === id ? { ...m, label_ids: patchLabels(m.label_ids) } : m));
+        patchMails((arr) => arr.map((m) => m.id === id ? { ...m, label_ids: patchLabels(m.label_ids) } : m));
         setDetail((d) => d && d.id === id ? { ...d, label_ids: patchLabels(d.label_ids) } : d);
       }
       window.dispatchEvent(new Event('foxo:mails-updated'));
