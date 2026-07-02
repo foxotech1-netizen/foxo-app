@@ -169,6 +169,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     if (id) setSelectedId(id);
   }, []);
 
+  // Pagination « Charger plus » (ergo2) — token de page suivante de la
+  // liste de base (celui de la recherche vit dans searchRes).
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Charge la page 1 de la vue, SANS la recherche (l'étage 2 vit dans
   // l'effet suivant) — au mount + quand filter/activeLabel/refreshTick
   // changent. `t=Date.now()` casse tout cache navigateur/Vercel/Cloudflare.
@@ -189,12 +194,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         if (!mounted) return;
         if (!data.ok) { setError(data.error ?? 'Erreur'); return; }
         setMails(data.mails ?? []);
+        setNextPageToken(data.next_page_token ?? null);
         setSelectedIds(new Set());
       })
       .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Erreur'))
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };
-  }, [initialConnected, filter, activeLabel, refreshTick]);
+    // categoryFilter volontairement en dépendance : changer de catégorie
+    // réinitialise la liste et la pagination (page 1 propre — ergo2 pt 7).
+  }, [initialConnected, filter, activeLabel, refreshTick, categoryFilter]);
 
   // Étage 2 de la recherche : résultats Gmail (mots entiers) pour la vue
   // active. `q` mémorise la requête à laquelle les items correspondent :
@@ -226,7 +234,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       })
       .catch(() => { if (mounted) setSearchRes({ q: debouncedQuery, items: [], nextPageToken: null }); });
     return () => { mounted = false; };
-  }, [initialConnected, debouncedQuery, filter, activeLabel, refreshTick]);
+    // categoryFilter volontairement en dépendance : même règle de reset de
+    // pagination que la liste de base (page 1 propre — ergo2 pt 7).
+  }, [initialConnected, debouncedQuery, filter, activeLabel, refreshTick, categoryFilter]);
 
   // Applique une même transformation à la liste de base ET aux résultats
   // de l'étage 2 — les updates optimistes (lu, archive, libellés…) restent
@@ -235,6 +245,52 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     setMails(fn);
     setSearchRes((prev) => (prev ? { ...prev, items: fn(prev.items) } : prev));
   };
+
+  // Page suivante du contexte actif — liste de base OU résultats Gmail de
+  // la recherche — ajoutée en fin de liste, dédupliquée par id (jamais
+  // deux fois la même ligne).
+  async function loadMore() {
+    const searchActive = Boolean(debouncedQuery) && searchRes?.q === debouncedQuery;
+    const token = searchActive ? searchRes?.nextPageToken : nextPageToken;
+    if (!token || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams({ limit: '50', t: String(Date.now()) });
+      params.set('filter', filter);
+      if (activeLabel) params.set('label', activeLabel);
+      if (searchActive) params.set('search', debouncedQuery);
+      params.set('pageToken', token);
+      const r = await fetch(`/api/admin/mails?${params}`, { cache: 'no-store' });
+      const data = await r.json();
+      if (!data.ok) {
+        setFeedback({ kind: 'err', msg: data.error ?? 'Chargement de la page suivante échoué.' });
+        return;
+      }
+      const pageMails: MailListItem[] = data.mails ?? [];
+      const nextTok: string | null = data.next_page_token ?? null;
+      const appendDedup = (arr: MailListItem[]) => {
+        const seen = new Set(arr.map((m) => m.id));
+        return [...arr, ...pageMails.filter((m) => !seen.has(m.id))];
+      };
+      if (searchActive) {
+        setSearchRes((prev) => (prev && prev.q === debouncedQuery
+          ? { ...prev, items: appendDedup(prev.items), nextPageToken: nextTok }
+          : prev));
+      } else {
+        setMails(appendDedup);
+        setNextPageToken(nextTok);
+      }
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+  // Bouton visible seulement si Gmail annonce une page suivante pour le
+  // contexte affiché (recherche stabilisée ou liste de base).
+  const canLoadMore = query.trim()
+    ? Boolean(searchRes && searchRes.q === query.trim() && searchRes.nextPageToken)
+    : Boolean(nextPageToken);
 
   // Charge les analyses Claude pour tous les thread_id visibles. Évite
   // d'attendre le clic d'un mail pour savoir s'il a déjà été analysé
@@ -1116,6 +1172,30 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               </div>
             );
           })}
+          {/* Pied de liste (ergo2) : indicateur étage 2, compteur, et
+              pagination « Charger plus » quand Gmail annonce une page
+              suivante pour le contexte actif. L'ajout se fait en fin de
+              liste — le scroll ne saute pas. */}
+          {!loading && !error && filtered.length > 0 && (
+            <div className="px-3 py-3 space-y-2 text-center">
+              {searchPending && (
+                <div className="text-[11px] text-ink-muted">Recherche Gmail en cours…</div>
+              )}
+              <div className="text-[11px] text-ink-muted tabular-nums">
+                {filtered.length} mail{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
+              </div>
+              {canLoadMore && (
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="w-full px-3 py-2 rounded-lg text-[12px] font-bold bg-white text-ink-mid border border-sand-border hover:bg-sand-hover disabled:opacity-50 min-h-[40px]"
+                >
+                  {loadingMore ? 'Chargement…' : 'Charger plus de mails'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
       </aside>
