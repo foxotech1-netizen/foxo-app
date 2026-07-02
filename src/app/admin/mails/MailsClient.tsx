@@ -128,6 +128,16 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   const [labels, setLabels] = useState<GmailLabel[]>([]);
   const [labelsLoading, setLabelsLoading] = useState(initialConnected);
   const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  // Bloc Libellés repliable (ergo2 mobile). null = pas encore touché par
+  // l'utilisateur → défaut piloté en CSS pur (replié < 768 px, déplié
+  // au-delà via hidden md:block) : aucun flash au premier paint, aucun
+  // mismatch d'hydratation. Après un clic, le choix explicite prime.
+  const [labelsOpen, setLabelsOpen] = useState<boolean | null>(null);
+  const labelsBodyClass = labelsOpen === null ? 'hidden md:block' : labelsOpen ? '' : 'hidden';
+  const toggleLabels = () => setLabelsOpen((prev) => prev === null
+    // 1er clic : l'état effectif vient du viewport (même seuil que md:).
+    ? !window.matchMedia('(min-width: 768px)').matches
+    : !prev);
 
   // Analyses Claude (T5 → mails_analyses). Map thread_id → MailAnalyse.
   // Chargée en batch après le mount des mails (1 requête pour tous les
@@ -690,34 +700,38 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               onSelect={setFilter}
             />
           </div>
-          {/* Filtre par catégorie métier (classification canonique U4). */}
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
-            aria-label="Filtrer par catégorie"
-            className={
-              'w-full px-2 py-1.5 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
-              (categoryFilter !== 'toutes'
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink-mid border-sand-border')
-            }
-          >
-            <option value="toutes">Toutes les catégories</option>
-            {MAIL_CLASSIFICATIONS.map((c) => (
-              <option key={c} value={c}>
-                {CLASSIFICATION_LABEL_FR[c]}
-              </option>
-            ))}
-          </select>
-          <button
-            ref={refreshRef}
-            type="button"
-            onClick={() => setRefreshTick((t) => t + 1)}
-            className="w-full text-[11px] text-ink-muted hover:text-navy underline"
-            disabled={loading}
-          >
-            {loading ? 'Chargement…' : '↻ Actualiser'}
-          </button>
+          {/* Filtre par catégorie métier (classification canonique U4) +
+              Actualiser : une seule ligne sur mobile (< md), empilés
+              comme avant sur desktop (apparence inchangée). */}
+          <div className="flex items-center gap-2 md:flex-col md:items-stretch">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+              aria-label="Filtrer par catégorie"
+              className={
+                'w-full min-w-0 px-2 py-1.5 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
+                (categoryFilter !== 'toutes'
+                  ? 'bg-navy text-white border-navy'
+                  : 'bg-white text-ink-mid border-sand-border')
+              }
+            >
+              <option value="toutes">Toutes les catégories</option>
+              {MAIL_CLASSIFICATIONS.map((c) => (
+                <option key={c} value={c}>
+                  {CLASSIFICATION_LABEL_FR[c]}
+                </option>
+              ))}
+            </select>
+            <button
+              ref={refreshRef}
+              type="button"
+              onClick={() => setRefreshTick((t) => t + 1)}
+              className="flex-shrink-0 whitespace-nowrap md:w-full text-[11px] text-ink-muted hover:text-navy underline"
+              disabled={loading}
+            >
+              {loading ? 'Chargement…' : '↻ Actualiser'}
+            </button>
+          </div>
         </div>
 
         {/* Barre d'actions — sticky top-0 quand mails sélectionnés.
@@ -737,21 +751,39 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           />
         )}
 
-        {/* Section Libellés */}
+        {/* Section Libellés — repliable (ergo2 mobile) : l'en-tête replie/
+            déplie la liste ET le bouton « + Nouveau libellé ». */}
         <div className="p-3 border-b border-sand-border flex-shrink-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+            <button
+              type="button"
+              onClick={toggleLabels}
+              aria-expanded={labelsOpen ?? undefined}
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-ink-muted hover:text-navy min-h-[24px]"
+            >
               Libellés{inboxUnread > 0 ? ` · ${inboxUnread} non lus` : ''}
-            </span>
+              <span aria-hidden>
+                {labelsOpen === null ? (
+                  <>
+                    <span className="md:hidden">▸</span>
+                    <span className="hidden md:inline">▾</span>
+                  </>
+                ) : (labelsOpen ? '▾' : '▸')}
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => setCreateLabelOpen(true)}
-              className="text-[10px] font-bold text-navy hover:underline"
+              className={
+                'text-[10px] font-bold text-navy hover:underline ' +
+                (labelsOpen === null ? 'hidden md:inline' : labelsOpen ? '' : 'hidden')
+              }
             >
               + Nouveau libellé
             </button>
           </div>
 
+          <div className={labelsBodyClass}>
           {activeLabel && (
             <button
               type="button"
@@ -822,6 +854,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               })}
             </ul>
           )}
+          </div>
         </div>
 
         {/* Header sélection */}
