@@ -8,6 +8,7 @@
 import { fmtDateTime } from '@/lib/format';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmailResend } from '@/lib/email/resend';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 import { getEmailForDoc } from '@/lib/notifications';
 import type {
   Acp,
@@ -92,8 +93,7 @@ function buildHtml(args: {
         <div style="margin-top:22px">
           <a href="https://admin.foxo.be" style="display:inline-block;background:#1B3A6B;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">Voir dans l'admin</a>
         </div>
-        <div style="height:1px;background:#DDD8CC;margin:22px 0 14px"></div>
-        <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique</p>
+        ${SIGNATURE_HTML}
       </td></tr>
     </table>
   </td></tr>

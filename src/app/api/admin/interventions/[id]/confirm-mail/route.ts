@@ -6,6 +6,7 @@ import { isAdminUser } from "@/lib/auth/server";
 import { sendEmailResend } from '@/lib/email/resend';
 import { getEmailForDoc } from '@/lib/notifications';
 import type { Acp, Intervention, Organisation, ParticulierContact, Utilisateur } from '@/lib/types/database';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -44,8 +45,7 @@ function buildHtml(args: {
           <p style="font-size:13px;color:#6B6558;line-height:1.6;margin:0 0 16px">
             Notre équipe vous contactera la veille pour confirmer l'horaire. Si vous devez reporter, répondez simplement à ce mail.
           </p>
-          <div style="height:1px;background:#DDD8CC;margin:24px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique</p>
+          ${SIGNATURE_HTML}
         </td></tr>
       </table>
     </td></tr>

@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import { sendEmailResend } from '@/lib/email/resend';
 import type { Delegue, Organisation } from '@/lib/types/database';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -43,8 +44,7 @@ function buildHtml(args: {
           <p style="font-size:12px;color:#A09A8E;line-height:1.6;margin:20px 0 0">
             Si vous n'attendiez pas cet accès, vous pouvez ignorer cet email.
           </p>
-          <div style="height:1px;background:#DDD8CC;margin:24px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique</p>
+          ${SIGNATURE_HTML}
         </td></tr>
       </table>
     </td></tr>

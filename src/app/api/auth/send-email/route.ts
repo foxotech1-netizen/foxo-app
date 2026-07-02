@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendEmailResend } from '@/lib/email/resend';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 // Auth Hook Supabase — Send Email (Standard Webhooks)
 // Configuration : Supabase Dashboard → Authentication → Hooks → Send Email Hook
@@ -55,8 +56,7 @@ function buildHtml(token: string, action: HookPayload['email_data']['email_actio
           <p style="font-size:14px;color:#6B6558;line-height:1.6;margin:0 0 16px">Voici votre code de connexion :</p>
           <div style="font-size:32px;font-weight:800;letter-spacing:.4em;text-align:center;background:#EBF2FB;color:#1B3A6B;padding:20px;border-radius:12px;font-family:'DM Mono',monospace">${token}</div>
           <p style="font-size:13px;color:#6B6558;line-height:1.6;margin:20px 0 0">Ce code expire dans <strong>1 heure</strong>. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-          <div style="height:1px;background:#DDD8CC;margin:24px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique</p>
+          ${SIGNATURE_HTML}
         </td></tr>
       </table>
     </td></tr>

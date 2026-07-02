@@ -1,4 +1,5 @@
 import { sendEmailResend, type SendResult } from '@/lib/email/resend';
+import { SIGNATURE_HTML } from '@/lib/email/signature';
 
 export type SendRapportArgs = {
   to: string;
@@ -30,8 +31,8 @@ function buildHtml(args: SendRapportArgs): string {
             Vous pouvez également retrouver le détail dans votre portail syndic :
             <a href="https://portal.foxo.be" style="color:#1B3A6B">portal.foxo.be</a>.
           </p>
-          <div style="height:1px;background:#DDD8CC;margin:20px 0"></div>
-          <p style="font-size:11px;color:#A09A8E;line-height:1.6;margin:0">Fox Group SRL — Détection de fuites non destructive — Belgique<br>noreply@send.foxo.be</p>
+          ${SIGNATURE_HTML}
+          <p style="font-size:10px;color:#A09A8E;line-height:1.6;margin:8px 0 0">noreply@send.foxo.be</p>
         </td></tr>
       </table>
     </td></tr>
