@@ -616,3 +616,54 @@ export async function resolveInterventionFolderByName(
   // 2) Repli : RAPPORTS/{ref ...} (arborescence sans niveau année)
   return findByRefPrefix(root);
 }
+
+// ─── Lecture seule : listing récursif d'une arborescence ──────────────────
+//
+// Variante « profonde » de listFolderFiles : liste tous les fichiers
+// (non-dossiers) d'un dossier Drive en descendant dans ses sous-dossiers
+// (arborescence année/mois typique d'un fonds documentaire). Compose
+// listFolderFiles sans en modifier le comportement. Best-effort : une
+// branche en erreur est ignorée (log console) sans interrompre la collecte ;
+// seule une erreur sur le dossier racine fait échouer l'appel. Le budget
+// maxFiles est global ; il sert aussi de cap par sous-dossier (budget
+// restant), ce qui est sans effet pratique tant que le fonds reste sous
+// le budget. Utilisé par l'ingestion « Assistant terrain ».
+
+export async function listFolderFilesDeep(
+  folderId: string,
+  opts?: { maxDepth?: number; maxFiles?: number },
+): Promise<DriveListResult> {
+  const maxDepth = opts?.maxDepth ?? 5;
+  const maxFiles = opts?.maxFiles ?? 5000;
+
+  const root = await listFolderFiles(folderId, maxFiles);
+  if (!root.ok) return root;
+
+  const files: DriveListedFile[] = [];
+  const queue: Array<{ id: string; depth: number }> = [];
+
+  const collect = (items: DriveListedFile[], depth: number) => {
+    for (const f of items) {
+      if (f.isFolder) {
+        if (depth + 1 <= maxDepth) queue.push({ id: f.id, depth: depth + 1 });
+      } else if (files.length < maxFiles) {
+        files.push(f);
+      }
+    }
+  };
+
+  collect(root.files, 0);
+
+  while (queue.length > 0 && files.length < maxFiles) {
+    const next = queue.shift();
+    if (!next) break;
+    const res = await listFolderFiles(next.id, maxFiles - files.length);
+    if (!res.ok) {
+      console.error('[drive] listFolderFilesDeep: sous-dossier ignoré —', res.error);
+      continue;
+    }
+    collect(res.files, next.depth);
+  }
+
+  return { ok: true, files };
+}
