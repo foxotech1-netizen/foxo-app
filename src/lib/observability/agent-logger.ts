@@ -42,7 +42,9 @@ export type AgentName =
   // Briefing quotidien du Tableau de bord (chantier Briefing IA)
   | "briefing"
   // Synthèse « L'essentiel » de la couverture du rapport PDF (chantier Rapport PDF)
-  | "synthese_essentiel";
+  | "synthese_essentiel"
+  // Extraction des cas historiques en fiches normalisées (chantier Assistant terrain)
+  | "extraction_cas";
 
 export type AgentKind = "canonical" | "utility";
 
