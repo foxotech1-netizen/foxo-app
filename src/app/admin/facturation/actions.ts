@@ -1248,6 +1248,7 @@ export async function buildComptableCsvForRange(from: string, to: string): Promi
   const { data, error } = await supabase
     .from('factures')
     .select('*')
+    .is('deleted_at', null)
     .gte('date_emission', from)
     .lte('date_emission', to)
     .order('numero', { ascending: true });

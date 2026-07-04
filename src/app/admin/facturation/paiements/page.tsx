@@ -12,6 +12,7 @@ export default async function PaiementsPage() {
   const { data, error } = await supabase
     .from('factures')
     .select('id, numero, client_nom, client_syndic, reference, montant_ttc, date_emission, date_echeance, date_paiement, statut, sent_at')
+    .is('deleted_at', null)
     .order('date_emission', { ascending: false, nullsFirst: false })
     .limit(500);
 
