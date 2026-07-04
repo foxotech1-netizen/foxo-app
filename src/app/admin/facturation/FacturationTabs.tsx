@@ -14,6 +14,7 @@ import {
   BarChart3,
   ShoppingCart,
   Truck,
+  LayoutDashboard,
 } from 'lucide-react';
 
 interface Tab {
@@ -23,6 +24,7 @@ interface Tab {
   exact?: boolean;     // si true, n'active que sur match exact (sinon prefix)
 }
 const TABS: readonly Tab[] = [
+  { href: '/admin/facturation/dashboard',    icon: LayoutDashboard, label: 'Tableau de bord'  },
   { href: '/admin/facturation',              icon: FileText,        label: 'Factures',         exact: true },
   { href: '/admin/facturation/devis',        icon: ClipboardList,   label: 'Devis'            },
   { href: '/admin/facturation/notes-credit', icon: FileEdit,        label: 'Notes de crédit'  },
