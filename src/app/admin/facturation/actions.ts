@@ -699,11 +699,11 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   return { ok: true };
 }
 
-// Soft delete : pose deleted_at = now(). Strictement réservé aux brouillons
-// (factures, devis et avoirs) — l'UI ne propose la suppression que pour ce
-// statut. Pour annuler un document émis, utiliser le statut 'annulee' via
-// un autre flux (rule métier "avoir 100% → facture annulee", action manuelle
-// depuis la fiche, etc.). Conserve l'historique en base.
+// Soft delete : pose deleted_at = now(). Ouvert à TOUT statut (demande
+// utilisateur — fausse manip, doublon volontaire) ; l'UI affiche pour les
+// pièces émises le conseil de préférer « Annuler » (statut annulée, numéro
+// tracé dans la séquence). Conserve l'historique en base ; le numéro d'une
+// pièce émise supprimée laisse un trou assumé dans la séquence.
 export async function deleteFacture(id: string): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
@@ -711,9 +711,6 @@ export async function deleteFacture(id: string): Promise<ActionResult> {
 
   const { data: f } = await supabase.from('factures').select('statut, type').eq('id', id).maybeSingle();
   if (!f) return { ok: false, error: 'Document introuvable.' };
-  if (f.statut !== 'brouillon') {
-    return { ok: false, error: 'Seuls les brouillons peuvent être supprimés.' };
-  }
 
   // Une facture ne doit pas avoir d'avoirs attachés (intégrité comptable
   // — la DB a `on delete restrict`, mais avec soft delete on s'en assure

@@ -144,7 +144,9 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
   function confirmTitle(s: ConfirmState | null): string {
     if (!s) return '';
     switch (s.kind) {
-      case 'delete':  return `Supprimer le brouillon ${s.devis.numero} ?`;
+      case 'delete':  return s.devis.statut === 'brouillon'
+        ? `Supprimer le brouillon ${s.devis.numero} ?`
+        : `Supprimer ${s.devis.numero} ?`;
       case 'revert':  return `Remettre ${s.devis.numero} en brouillon ?`;
       case 'accept':  return `Marquer ${s.devis.numero} comme accepté ?`;
       case 'refuse':  return `Marquer ${s.devis.numero} comme refusé ?`;
@@ -156,7 +158,9 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
     if (!s) return '';
     switch (s.kind) {
       case 'delete':
-        return 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).';
+        return s.devis.statut === 'brouillon'
+          ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+          : 'La pièce sera supprimée (soft delete : conservée en historique mais masquée). Conseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.';
       case 'revert':
         return 'Le devis repassera en brouillon. La date d\'envoi sera effacée.';
       case 'accept':
@@ -297,7 +301,6 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
                           icon: Trash2,
                           label: 'Supprimer',
                           onClick: () => setConfirmState({ kind: 'delete', devis: d }),
-                          hidden: d.statut !== 'brouillon',
                           destructive: true,
                         },
                       ]}

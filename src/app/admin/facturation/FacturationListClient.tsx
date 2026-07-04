@@ -498,7 +498,6 @@ export function FacturationListClient({
                             icon: Trash2,
                             label: 'Supprimer',
                             onClick: () => setConfirmState({ kind: 'delete', facture: f }),
-                            hidden: f.statut !== 'brouillon',
                             destructive: true,
                           },
                         ]}
@@ -597,14 +596,18 @@ export function FacturationListClient({
         open={confirmState !== null}
         title={
           confirmState?.kind === 'delete'
-            ? `Supprimer le brouillon ${confirmState.facture.numero} ?`
+            ? (confirmState.facture.statut === 'brouillon'
+                ? `Supprimer le brouillon ${confirmState.facture.numero} ?`
+                : `Supprimer ${confirmState.facture.numero} ?`)
             : confirmState?.kind === 'revert'
             ? `Remettre ${confirmState?.facture.numero} en brouillon ?`
             : ''
         }
         message={
           confirmState?.kind === 'delete'
-            ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+            ? (confirmState.facture.statut === 'brouillon'
+                ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+                : 'La pièce sera supprimée (soft delete : conservée en historique mais masquée). Conseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.')
             : confirmState?.kind === 'revert'
             ? 'La facture repassera en brouillon. La date d\'envoi sera effacée — tu pourras la rééditer puis la renvoyer.'
             : ''

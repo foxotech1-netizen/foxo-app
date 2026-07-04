@@ -185,7 +185,6 @@ export function NotesCreditListClient({
                           icon: Trash2,
                           label: 'Supprimer',
                           onClick: () => setConfirmState({ kind: 'delete', avoir: a }),
-                          hidden: a.statut !== 'brouillon',
                           destructive: true,
                         },
                       ]}
@@ -202,14 +201,18 @@ export function NotesCreditListClient({
         open={confirmState !== null}
         title={
           confirmState?.kind === 'delete'
-            ? `Supprimer le brouillon ${confirmState.avoir.numero} ?`
+            ? (confirmState.avoir.statut === 'brouillon'
+                ? `Supprimer le brouillon ${confirmState.avoir.numero} ?`
+                : `Supprimer ${confirmState.avoir.numero} ?`)
             : confirmState?.kind === 'revert'
             ? `Remettre ${confirmState?.avoir.numero} en brouillon ?`
             : ''
         }
         message={
           confirmState?.kind === 'delete'
-            ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+            ? (confirmState.avoir.statut === 'brouillon'
+                ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+                : 'La pièce sera supprimée (soft delete : conservée en historique mais masquée). Conseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.')
             : confirmState?.kind === 'revert'
             ? 'L\'avoir repassera en brouillon. La date d\'envoi sera effacée.'
             : ''
