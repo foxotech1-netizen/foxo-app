@@ -1,13 +1,19 @@
 'use client';
 
 // Aperçu rapide d'un document de facturation depuis les listes : grande
-// modale (fermable Échap / clic dehors) qui embarque le PDF via la route
-// existante /api/admin/facture/[id] (servie en Content-Disposition inline —
-// embarquable telle quelle, aucun nouveau générateur).
+// modale (fermable Échap / clic dehors) qui embarque le PDF de la route
+// existante /api/admin/facture/[id].
+//
+// Le site pose X-Frame-Options: DENY globalement (next.config.ts) — même en
+// same-origin, une iframe pointant directement sur la route est bloquée.
+// Contournement PROPRE sans toucher aux en-têtes de sécurité : on fetch le
+// PDF côté client → blob → URL.createObjectURL comme src de l'iframe (un
+// blob: URL ne porte pas les en-têtes anti-framing de la réponse d'origine).
+// L'ObjectURL est révoqué à la fermeture.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { X, ExternalLink, Download } from 'lucide-react';
+import { X, ExternalLink, Download, Loader2 } from 'lucide-react';
 
 export function DocPreviewModal({
   open,
@@ -19,11 +25,15 @@ export function DocPreviewModal({
   open: boolean;
   onClose: () => void;
   title: string;
-  /** URL du PDF (route existante, inline). */
+  /** URL du PDF (route existante). */
   pdfUrl: string;
   /** Chemin de la fiche détail (« Ouvrir la fiche »). */
   fichePath: string;
 }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -32,6 +42,37 @@ export function DocPreviewModal({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // Fetch → blob à l'ouverture ; révocation de l'ObjectURL à la fermeture.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    let url: string | null = null;
+    setLoading(true);
+    setError(null);
+    setBlobUrl(null);
+    (async () => {
+      try {
+        const res = await fetch(pdfUrl);
+        if (!res.ok) {
+          const j = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(j?.error ?? `HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setBlobUrl(url);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Erreur de chargement du PDF.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [open, pdfUrl]);
 
   if (!open) return null;
 
@@ -73,11 +114,31 @@ export function DocPreviewModal({
             </button>
           </div>
         </header>
-        <iframe
-          src={pdfUrl}
-          title={`PDF ${title}`}
-          className="flex-1 w-full bg-white"
-        />
+        {loading && (
+          <div className="flex-1 flex items-center justify-center gap-2 text-[13px] text-ink-mid font-semibold">
+            <Loader2 size={16} className="animate-spin" aria-hidden /> Chargement du PDF…
+          </div>
+        )}
+        {!loading && error && (
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center space-y-2 max-w-[420px]">
+              <p className="text-[13px] font-bold text-terra">
+                Impossible d&apos;afficher l&apos;aperçu.
+              </p>
+              <p className="text-[12px] text-ink-mid">{error}</p>
+              <p className="text-[12px] text-ink-muted">
+                Utilise « Ouvrir la fiche » ou « Télécharger » ci-dessus.
+              </p>
+            </div>
+          </div>
+        )}
+        {!loading && !error && blobUrl && (
+          <iframe
+            src={blobUrl}
+            title={`PDF ${title}`}
+            className="flex-1 w-full bg-white"
+          />
+        )}
       </div>
     </div>
   );
