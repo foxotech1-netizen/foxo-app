@@ -97,6 +97,45 @@ export function buildDocumentEmailDefaults(args: {
   return { to, subject, intro };
 }
 
+// ─── Relances de paiement (niveaux 1-3, ton croissant) ──────────────────
+// Templates volontairement simples — aucun texte juridique au-delà des
+// intitulés convenus (le niveau 3 annonce la mise en demeure, sans plus).
+
+export type NiveauRelance = 1 | 2 | 3;
+
+export function buildRelanceEmail(args: {
+  facture: Facture;
+  niveau: NiveauRelance;
+  joursRetard: number;
+}): { subject: string; intro: string } {
+  const { facture, niveau, joursRetard } = args;
+  const montant = (facture.montant_ttc ?? 0).toLocaleString('fr-BE', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+  const echeanceFr = facture.date_echeance ? fmtDateBE(facture.date_echeance) : null;
+  const bba = facture.reference_structuree
+    ? ` en mentionnant la communication structurée ${facture.reference_structuree}`
+    : '';
+
+  switch (niveau) {
+    case 1:
+      return {
+        subject: `Rappel — facture ${facture.numero}`,
+        intro: `Sauf erreur de notre part, la facture ${facture.numero} d'un montant de ${montant} € TTC${echeanceFr ? `, échue le ${echeanceFr}` : ''} (${joursRetard} jours de retard), reste en attente de règlement.\n\nMerci de procéder au paiement${bba}. Si votre règlement s'est croisé avec ce message, veuillez ne pas en tenir compte.\n\nVous trouverez la facture en pièce jointe.`,
+      };
+    case 2:
+      return {
+        subject: `Deuxième rappel — facture ${facture.numero}`,
+        intro: `Malgré notre précédent rappel, la facture ${facture.numero} d'un montant de ${montant} € TTC${echeanceFr ? `, échue le ${echeanceFr}` : ''} (${joursRetard} jours de retard), demeure impayée.\n\nNous vous demandons de régulariser la situation sans délai${bba}.\n\nVous trouverez la facture en pièce jointe.`,
+      };
+    case 3:
+      return {
+        subject: `Dernier rappel avant mise en demeure — facture ${facture.numero}`,
+        intro: `Malgré nos rappels successifs, la facture ${facture.numero} d'un montant de ${montant} € TTC${echeanceFr ? `, échue le ${echeanceFr}` : ''} (${joursRetard} jours de retard), reste impayée.\n\nSans paiement de votre part sous huitaine, nous nous verrons contraints de procéder à une mise en demeure formelle.\n\nMerci de régulariser immédiatement${bba}. Vous trouverez la facture en pièce jointe.`,
+      };
+  }
+}
+
 // ─── Template HTML du mail ───────────────────────────────────────────────
 
 function escapeHtml(s: string): string {
