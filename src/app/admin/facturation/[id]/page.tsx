@@ -8,6 +8,7 @@ import { FactureActions } from './FactureActions';
 import { PeppolActions } from '../PeppolActions';
 import { SendByEmailButton } from '../SendByEmailButton';
 import { PaymentRefBadge } from './PaymentRefBadge';
+import { RelancesPauseBadge } from '../rappels/RelancesAutoBlock';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 import { isStorecoveEnabled } from '@/lib/facturation/storecove';
 
@@ -83,8 +84,9 @@ export default async function EditFacturePage({
             Statut : <strong className="capitalize">{facture.statut}</strong>
             {facture.date_paiement && ` · Payée le ${new Date(facture.date_paiement).toLocaleDateString('fr-BE')}`}
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-3">
             <PaymentRefBadge reference={facture.reference_structuree} />
+            <RelancesPauseBadge factureId={facture.id} paused={Boolean(facture.relances_pause)} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
