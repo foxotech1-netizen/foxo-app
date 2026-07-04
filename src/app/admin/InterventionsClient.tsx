@@ -1477,7 +1477,7 @@ export function InterventionsClient({
                       key={iv.id}
                       onClick={() => openDrawer(iv.id)}
                       className={`cursor-pointer border-b border-[var(--color-sand-mid)] transition-colors ${
-                        sel ? 'bg-[var(--color-navy-pale)]' : 'bg-[var(--color-cream)] hover:bg-[var(--color-sand-hover)]'
+                        sel ? 'bg-[var(--color-navy-pale)]' : 'row-hover bg-[var(--color-cream)]'
                       }`}
                     >
                       <td className="px-3.5 py-2.5">

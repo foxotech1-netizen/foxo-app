@@ -446,3 +446,31 @@ textarea::placeholder {
 .fx-no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================================
+   Retour au clic (press feedback) — chantier interaction
+   Le survol (hover) reste géré plus haut : couleurs/ombres,
+   volontairement SANS transform. Ici, uniquement :active
+   (l'instant du clic/tap) → léger enfoncement + assombrissement,
+   sur tout élément cliquable. Assombrissement via brightness()
+   pour rester neutre quelle que soit la couleur du bouton.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  :where(button, [role='button']):active:not(:disabled):not([aria-disabled='true']) {
+    transform: translateY(1px) scale(0.98);
+  }
+  .fxs-card-hover:active,
+  .premium-card:active {
+    transform: translateY(1px) scale(0.995);
+    box-shadow: var(--shadow-card);
+  }
+}
+:where(button, [role='button']):active:not(:disabled):not([aria-disabled='true']) {
+  filter: brightness(0.96);
+}
+:where(a[href], [role='link']):active {
+  filter: brightness(0.92);
+}
+.row-hover:active {
+  background: var(--color-sand-mid);
+}
