@@ -186,7 +186,7 @@ export async function createInterventionCold(
 
   // 6. Occupants via safeInsertOccupants (best-effort). type_occupant repris
   //    du formulaire (SlotOccupant.type_occupant), défaut 'occupant' ; conf
-  //    forcé 'en_attente' (type OccupantInsertRow). Pas de token, pas d'insert direct.
+  //    repris du formulaire (défaut 'en_attente'). Pas de token, pas d'insert direct.
   const occInput = input.occupants ?? [];
   const occRows: OccupantInsertRow[] = occInput
     .filter((o) => o.appartement || o.nom || o.prenom || o.email || o.telephone)
@@ -198,7 +198,7 @@ export async function createInterventionCold(
       nom: o.nom || null,
       email: o.email || null,
       telephone: o.telephone || null,
-      conf: 'en_attente',
+      conf: o.conf ?? 'en_attente',
       contact_preference: o.contact_preference ?? 'email',
       instructions: o.instructions ?? '',
       type_occupant: o.type_occupant ?? 'occupant',
