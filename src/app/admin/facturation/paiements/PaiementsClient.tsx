@@ -3,9 +3,9 @@
 import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Download, FolderOpen, Hourglass, ThumbsUp, CheckCircle2 } from 'lucide-react';
+import { Download, FolderOpen, Hourglass, ThumbsUp, CheckCircle2, Undo2 } from 'lucide-react';
 import type { Facture } from '@/lib/types/database';
-import { importBeobankCsv } from '../actions';
+import { importBeobankCsv, setFactureStatut } from '../actions';
 
 type FactureLite = Pick<Facture, 'id' | 'numero' | 'client_nom' | 'client_syndic' | 'reference' | 'montant_ttc' | 'date_emission' | 'date_echeance' | 'date_paiement' | 'statut' | 'sent_at'>;
 
@@ -36,6 +36,19 @@ export function PaiementsClient({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const csvFileRef = useRef<HTMLInputElement>(null);
+
+  // Retire un paiement enregistré par erreur : la facture repasse
+  // « envoyée » et sa date de paiement est effacée (setFactureStatut).
+  function retirerPaiement(f: FactureLite) {
+    if (!confirm(`Retirer le paiement de ${f.numero} ?\n\nLa facture repassera « envoyée » et la date de paiement sera effacée.`)) return;
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await setFactureStatut(f.id, 'envoyee');
+      if (!res.ok) { setFeedback({ kind: 'err', msg: res.error }); return; }
+      setFeedback({ kind: 'ok', msg: `Paiement retiré — ${f.numero} repasse en attente.` });
+      router.refresh();
+    });
+  }
 
   function handleCsvUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -134,7 +147,7 @@ export function PaiementsClient({
             Aucun paiement enregistré pour l&apos;instant.
           </div>
         ) : (
-          <FactureTable rows={recentes} todayIso={todayIso} showPaiement />
+          <FactureTable rows={recentes} todayIso={todayIso} showPaiement onRetirer={retirerPaiement} retirerPending={pending} />
         )}
       </section>
     </div>
@@ -142,12 +155,14 @@ export function PaiementsClient({
 }
 
 function FactureTable({
-  rows, todayIso, showRetard, showPaiement,
+  rows, todayIso, showRetard, showPaiement, onRetirer, retirerPending,
 }: {
   rows: FactureLite[];
   todayIso: string;
   showRetard?: boolean;
   showPaiement?: boolean;
+  onRetirer?: (f: FactureLite) => void;
+  retirerPending?: boolean;
 }) {
   return (
     <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
@@ -160,6 +175,7 @@ function FactureTable({
                 ...(showRetard ? ['Échéance', 'Retard'] : []),
                 ...(showPaiement ? ['Payée le'] : []),
                 'TTC',
+                ...(onRetirer ? [''] : []),
               ].map((h) => (
                 <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
                   {h}
@@ -210,6 +226,19 @@ function FactureTable({
                   <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap dark:text-white">
                     {fmtMoney(f.montant_ttc)}
                   </td>
+                  {onRetirer && (
+                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => onRetirer(f)}
+                        disabled={retirerPending}
+                        title="Retirer le paiement — la facture repasse « envoyée », la date de paiement est effacée."
+                        className="text-[11px] font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <Undo2 size={12} aria-hidden /> Retirer
+                      </button>
+                    </td>
+                  )}
                 </tr>
               );
             })}
