@@ -9,6 +9,12 @@
  * Interrupteur : parametres.ingestion_cas_terrain ('true'/'false') —
  * démarrage, pause et arrêt se font en SQL, sans toucher Vercel ni GitHub.
  * Dossier source : parametres.ingestion_cas_terrain_folder_id.
+ * Plafond budgétaire : parametres.ingestion_cas_terrain_max (nb de fiches
+ * max en base ; vide ou 0 = illimité) — arrêt automatique, même si
+ * l'interrupteur reste sur 'true'.
+ * Périmètre d'années : parametres.ingestion_cas_terrain_annees (CSV,
+ * ex. '2023,2024,2025' ; vide = toutes) — filtre sur le début du nom de
+ * fichier, conformément à la convention de nommage du fonds.
  *
  * Quand plus rien ne reste à traiter, le job se marque 'skipped' (aucun
  * appel modèle) : le workflow peut continuer à sonner sans coût.
@@ -76,8 +82,46 @@ export async function POST(request: Request) {
         };
       }
 
+      // Plafond budgétaire : parametres.ingestion_cas_terrain_max (nombre de
+      // fiches). Atteint → 'skipped' sans lister Drive ni appeler le modèle.
+      // Vide, absent ou 0 → pas de plafond. Le pilote démarre à 200.
+      const { data: maxRow } = await admin
+        .from('parametres')
+        .select('valeur')
+        .eq('cle', 'ingestion_cas_terrain_max')
+        .maybeSingle();
+      const maxFiches = Number.parseInt((maxRow?.valeur ?? '').trim(), 10);
+      if (Number.isFinite(maxFiches) && maxFiches > 0) {
+        const { count, error: countError } = await admin
+          .from('cas_terrain')
+          .select('*', { count: 'exact', head: true });
+        if (countError) {
+          throw new Error(`Comptage cas_terrain : ${countError.message}`);
+        }
+        if ((count ?? 0) >= maxFiches) {
+          return {
+            output: {
+              kind: 'skipped' as const,
+              reason: `plafond atteint (${count ?? 0}/${maxFiches} fiches)`,
+            },
+            result: { reason: 'plafond atteint', fiches: count ?? 0, plafond: maxFiches },
+            status: 'skipped' as const,
+          };
+        }
+      }
+
+      const { data: anneesRow } = await admin
+        .from('parametres')
+        .select('valeur')
+        .eq('cle', 'ingestion_cas_terrain_annees')
+        .maybeSingle();
+      const allowedYears = String(anneesRow?.valeur ?? '')
+        .split(',')
+        .map((y: string) => y.trim())
+        .filter(Boolean);
+
       // runIngestBatch throw → laisse remonter, le wrapper logue 'failed'.
-      const result = await runIngestBatch(folderId);
+      const result = await runIngestBatch(folderId, { allowedYears });
 
       // Fonds épuisé : lot vide, rien tenté → 'skipped' (lisibilité
       // automation_jobs : la fin de chantier se voit d'un coup d'œil).

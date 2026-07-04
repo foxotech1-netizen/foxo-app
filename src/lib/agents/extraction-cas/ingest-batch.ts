@@ -44,7 +44,7 @@ export type IngestBatchResult = {
   remaining: number;
   /** PDF écartés définitivement (tentatives >= MAX_TENTATIVES). */
   setAside: number;
-  /** Total de PDF vus dans le dossier Drive. */
+  /** Total de PDF dans le périmètre (après filtre d'années éventuel). */
   totalPdf: number;
   /** Coût cumulé de CE passage, en centimes d'euro. */
   costEurCents: number;
@@ -80,14 +80,26 @@ async function fetchAllColumn(
   return out;
 }
 
-export async function runIngestBatch(folderId: string): Promise<IngestBatchResult> {
+export async function runIngestBatch(
+  folderId: string,
+  opts?: { allowedYears?: string[] },
+): Promise<IngestBatchResult> {
   const admin = createAdminClient();
   const startedAt = Date.now();
 
   // 1) Inventaire Drive (récursif, sous-dossiers année/mois inclus).
   const listing = await listFolderFilesDeep(folderId, { maxFiles: MAX_LISTING_FILES });
   if (!listing.ok) throw new Error(`Listing Drive échoué : ${listing.error}`);
-  const pdfs = listing.files.filter((f) => f.mimeType === 'application/pdf');
+  const allPdfs = listing.files.filter((f) => f.mimeType === 'application/pdf');
+
+  // Filtre d'années (pilote) : par convention de nommage du fonds, le nom
+  // d'un rapport COMMENCE par son année (« 2023-045 … »). Liste vide ou
+  // absente = aucun filtre. Un PDF hors périmètre n'est ni traité ni compté.
+  const years = (opts?.allowedYears ?? []).map((y) => y.trim()).filter(Boolean);
+  const pdfs =
+    years.length === 0
+      ? allPdfs
+      : allPdfs.filter((f) => years.some((y) => f.name.trim().startsWith(y)));
 
   // 2) État d'avancement : fiches déjà en base + échecs consignés.
   const done = await fetchAllColumn(admin, 'cas_terrain', 'source_ref');
@@ -106,7 +118,18 @@ export async function runIngestBatch(folderId: string): Promise<IngestBatchResul
     (f) => !done.has(f.id) && tentativesOf(f.id) >= MAX_TENTATIVES,
   ).length;
 
-  // 3) Traitement du lot.
+  // 3) Traitement du lot — mélange de Fisher-Yates d'abord : chaque passage
+  // pioche AU HASARD dans le périmètre, donc les fiches du pilote mixent
+  // naturellement les années au lieu de vider les dossiers dans l'ordre.
+  for (let i = candidates.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = candidates[i];
+    const b = candidates[j];
+    if (a && b) {
+      candidates[i] = b;
+      candidates[j] = a;
+    }
+  }
   const batch = candidates.slice(0, BATCH_SIZE);
   const details: IngestBatchResult['details'] = [];
   let processed = 0;
