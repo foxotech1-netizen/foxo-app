@@ -131,6 +131,7 @@ export function ParametresClient({
   const [pontoEnabled, setPontoEnabled] = useState(initial.ponto_enabled === 'true');
   const [pontoApiKey, setPontoApiKey] = useState(initial.ponto_api_key ?? '');
   const [storecoveEnabled, setStorecoveEnabled] = useState(initial.storecove_enabled === 'true');
+  const [captureAlias, setCaptureAlias] = useState(initial.capture_alias_email ?? '');
 
   // SMS
   const [smsMode, setSmsMode] = useState(initial.sms_mode ?? 'manuel');
@@ -1013,6 +1014,25 @@ export function ParametresClient({
           </Section>
 
           <BaremeKmSection initial={baremeKm} />
+
+          <Section
+            title="Capture de dépenses"
+            desc="Alias email vers lequel transférer les factures fournisseurs. La relève est STRICTEMENT manuelle (bouton « Relever la boîte » dans Achats) — aucun automatisme."
+          >
+            <Row
+              label="Alias de capture"
+              hint="Transférez vos factures fournisseurs à cette adresse, puis utilisez « Relever la boîte » dans Achats."
+            >
+              <input
+                type="email"
+                value={captureAlias}
+                onChange={(e) => setCaptureAlias(e.target.value)}
+                placeholder="achats@foxo.be"
+                className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+              />
+              <SaveBtn pending={pending} onClick={() => save('capture_alias_email', captureAlias.trim())} />
+            </Row>
+          </Section>
         </section>
 
         {/* ─── OPÉRATIONNEL ────────────────────────────────────────── */}

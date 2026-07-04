@@ -9,6 +9,13 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from '@/lib/auth/server';
 import { normalizeTva } from '@/lib/agents/extraction-achat';
+import { listInboxMails, getMailDetail, downloadGmailAttachment } from '@/lib/gmail';
+import {
+  processerPieceCapturee,
+  CAPTURE_ALLOWED_MIME,
+  CAPTURE_MAX_IMAGE_BYTES,
+  CAPTURE_MAX_PDF_BYTES,
+} from '@/lib/facturation/capture';
 import type {
   FactureAchat,
   Fournisseur,
@@ -350,6 +357,122 @@ export async function deleteFournisseur(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin/facturation/fournisseurs');
   return { ok: true };
+}
+
+// ─── Relève de la boîte de capture (STRICTEMENT manuelle — aucun cron) ────
+
+// Plafond de nouvelles pièces traitées par relève : chaque pièce coûte un
+// appel modèle (~10-50 s) — on reste sous le budget temps de l'action.
+// Relancer la relève traite la suite (déduplication par source_message_id).
+const MAX_PIECES_PAR_RELEVE = 5;
+
+export interface ReleveResult {
+  messages_vus: number;
+  pieces_importees: number;
+  doublons: number;
+  erreurs: number;
+  /** true si le plafond par relève a été atteint — relancer pour continuer. */
+  limite_atteinte: boolean;
+}
+
+// Relève l'alias de capture (parametres.capture_alias_email) : recherche
+// Gmail `to:<alias> has:attachment newer_than:60d`, importe chaque pièce
+// jointe PDF/image via processerPieceCapturee (canal 'email'). Déclenchée
+// UNIQUEMENT par le clic admin — jamais par un cron.
+export async function releverBoiteCapture(): Promise<ActionResult<ReleveResult>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const admin = createAdminClient();
+  const { data: param } = await admin
+    .from('parametres')
+    .select('valeur')
+    .eq('cle', 'capture_alias_email')
+    .maybeSingle();
+  const alias = (param?.valeur ?? '').trim().toLowerCase();
+  if (!alias) {
+    return {
+      ok: false,
+      error: 'Alias de capture non configuré — renseigne « capture_alias_email » dans Paramètres → Capture de dépenses.',
+    };
+  }
+
+  const search = await listInboxMails({
+    q: `to:${alias} has:attachment newer_than:60d`,
+    limit: 50,
+  });
+  if (!search.ok) return { ok: false, error: `Recherche Gmail : ${search.error}` };
+
+  let piecesImportees = 0;
+  let doublons = 0;
+  let erreurs = 0;
+  let limiteAtteinte = false;
+
+  for (const mail of search.mails) {
+    if (limiteAtteinte) break;
+    // Détail (format=full) pour obtenir les attachment_id.
+    const detail = await getMailDetail(mail.id);
+    if (!detail.ok) { erreurs++; continue; }
+
+    for (const att of detail.mail.attachments) {
+      if (limiteAtteinte) break;
+      if (!att.attachment_id) continue;
+      if (!CAPTURE_ALLOWED_MIME.has(att.mime_type)) continue;
+      const maxBytes = att.mime_type === 'application/pdf'
+        ? CAPTURE_MAX_PDF_BYTES
+        : CAPTURE_MAX_IMAGE_BYTES;
+      if (att.size > maxBytes) { erreurs++; continue; }
+
+      // Déduplication : pièce déjà importée lors d'une relève précédente.
+      const { data: existing } = await admin
+        .from('pieces_capturees')
+        .select('id')
+        .eq('source_message_id', mail.id)
+        .eq('nom_fichier', att.filename)
+        .limit(1)
+        .maybeSingle();
+      if (existing) continue;
+
+      // Best-effort PAR PIÈCE : un échec n'arrête pas la relève.
+      try {
+        const dataUrlSafe = await downloadGmailAttachment(mail.id, att.attachment_id);
+        if (!dataUrlSafe) { erreurs++; continue; }
+        // Gmail renvoie du base64 URL-safe → base64 standard pour le pipeline.
+        const base64 = Buffer.from(dataUrlSafe, 'base64url').toString('base64');
+
+        const res = await processerPieceCapturee({
+          base64,
+          mimeType: att.mime_type,
+          nomFichier: att.filename,
+          canal: 'email',
+          sourceEmail: detail.mail.from,
+          sourceMessageId: mail.id,
+          creePar: user?.email ?? 'admin',
+        });
+        if (!res.ok) { erreurs++; continue; }
+        piecesImportees++;
+        if (res.doublon) doublons++;
+        if (piecesImportees >= MAX_PIECES_PAR_RELEVE) limiteAtteinte = true;
+      } catch {
+        erreurs++;
+      }
+    }
+  }
+
+  revalidatePath('/admin/facturation/achats');
+  return {
+    ok: true,
+    data: {
+      messages_vus: search.mails.length,
+      pieces_importees: piecesImportees,
+      doublons,
+      erreurs,
+      limite_atteinte: limiteAtteinte,
+    },
+  };
 }
 
 // ─── Règles de mapping (enseigne → catégorie comptable) ──────────────────

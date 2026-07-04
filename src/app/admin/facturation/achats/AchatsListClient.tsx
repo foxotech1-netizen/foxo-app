@@ -6,9 +6,9 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { Inbox, Plus, SlidersHorizontal, Upload, X } from 'lucide-react';
 import type { FactureAchat, StatutFactureAchat } from '@/lib/types/database';
-import { createFactureAchatManuelle } from './actions';
+import { createFactureAchatManuelle, releverBoiteCapture } from './actions';
 
 export type FactureAchatRow = FactureAchat & {
   intervention_ref: string | null;
@@ -61,14 +61,50 @@ export function DoublonBadge() {
   );
 }
 
-export function AchatsListClient({ initial }: { initial: FactureAchatRow[] }) {
+export function AchatsListClient({
+  initial,
+  captureAlias = '',
+}: {
+  initial: FactureAchatRow[];
+  /** Alias email de capture (parametres) — vide = relève désactivée. */
+  captureAlias?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [chip, setChip] = useState<StatutChip>('tous');
   const [showUpload, setShowUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [releve, setReleve] = useState(false);
+  const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleReleve() {
+    setToast(null);
+    setReleve(true);
+    void (async () => {
+      try {
+        const res = await releverBoiteCapture();
+        if (!res.ok) {
+          setToast({ kind: 'err', msg: res.error });
+          return;
+        }
+        const d = res.data!;
+        setToast({
+          kind: 'ok',
+          msg: `Relève terminée : ${d.messages_vus} message(s) vu(s), ${d.pieces_importees} pièce(s) importée(s)`
+            + `${d.doublons > 0 ? `, ${d.doublons} doublon(s) suspecté(s)` : ''}`
+            + `${d.erreurs > 0 ? `, ${d.erreurs} erreur(s)` : ''}`
+            + `${d.limite_atteinte ? ' — plafond atteint, relance pour continuer.' : '.'}`,
+        });
+        router.refresh();
+      } catch (e) {
+        setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur relève.' });
+      } finally {
+        setReleve(false);
+      }
+    })();
+  }
 
   const filtered = useMemo(
     () => (chip === 'tous' ? initial : initial.filter((f) => f.statut === chip)),
@@ -142,6 +178,18 @@ export function AchatsListClient({ initial }: { initial: FactureAchatRow[] }) {
           </Link>
           <button
             type="button"
+            onClick={handleReleve}
+            disabled={releve || !captureAlias}
+            title={captureAlias
+              ? `Recherche les factures transférées à ${captureAlias} (60 derniers jours) et les importe.`
+              : 'Alias de capture non configuré — renseigne-le dans Paramètres → Capture de dépenses.'}
+            className="bg-white text-navy border border-navy-light px-3.5 py-2 rounded-lg text-[12px] font-bold hover:bg-navy-pale inline-flex items-center gap-1.5 min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Inbox size={14} aria-hidden className={releve ? 'animate-pulse' : undefined} />
+            {releve ? 'Relève en cours…' : 'Relever la boîte de capture'}
+          </button>
+          <button
+            type="button"
             onClick={() => { setShowUpload(true); setUploadError(null); }}
             className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
           >
@@ -149,6 +197,19 @@ export function AchatsListClient({ initial }: { initial: FactureAchatRow[] }) {
           </button>
         </div>
       </div>
+
+      {toast && (
+        <div
+          className={
+            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+            (toast.kind === 'ok'
+              ? 'bg-ok-light border-ok-mid text-ok'
+              : 'bg-terra-light border-terra-mid text-terra')
+          }
+        >
+          {toast.msg}
+        </div>
+      )}
 
       {uploadError && !showUpload && (
         <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
