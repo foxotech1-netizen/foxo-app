@@ -352,6 +352,92 @@ export async function deleteFournisseur(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
+// ─── Règles de mapping (enseigne → catégorie comptable) ──────────────────
+
+export interface RegleMappingInput {
+  id?: string;
+  motif: string;
+  categorie_comptable?: string | null;
+  taux_deductibilite?: number | null;
+  priorite?: number;
+  actif?: boolean;
+}
+
+export async function saveRegleMapping(
+  input: RegleMappingInput,
+): Promise<ActionResult<{ id: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  if (!input.motif?.trim()) return { ok: false, error: 'Motif requis.' };
+  const taux = input.taux_deductibilite;
+  if (taux != null && (!Number.isFinite(taux) || taux < 0 || taux > 100)) {
+    return { ok: false, error: 'Déductibilité invalide (0-100).' };
+  }
+
+  const admin = createAdminClient();
+  const payload = {
+    motif: input.motif.trim(),
+    categorie_comptable: input.categorie_comptable?.trim() || null,
+    taux_deductibilite: taux ?? null,
+    priorite: input.priorite ?? 100,
+    actif: input.actif ?? true,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (input.id) {
+    const { data, error } = await admin
+      .from('regles_mapping')
+      .update(payload)
+      .eq('id', input.id)
+      .select('id')
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: 'Règle introuvable.' };
+    revalidatePath('/admin/facturation/achats/regles');
+    return { ok: true, data: { id: data.id as string } };
+  }
+
+  const { data: societe } = await admin
+    .from('societes')
+    .select('id')
+    .eq('actif', true)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const { data, error } = await admin
+    .from('regles_mapping')
+    .insert({ ...payload, societe_id: (societe?.id as string | undefined) ?? null, apprise: false, occurrences: 1 })
+    .select('id')
+    .single();
+  if (error || !data) return { ok: false, error: error?.message ?? 'Erreur création.' };
+  revalidatePath('/admin/facturation/achats/regles');
+  return { ok: true, data: { id: data.id as string } };
+}
+
+export async function setRegleMappingActif(id: string, actif: boolean): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('regles_mapping')
+    .update({ actif, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/admin/facturation/achats/regles');
+  return { ok: true };
+}
+
+// Suppression DÉFINITIVE (les règles n'ont pas d'historique légal).
+export async function deleteRegleMapping(id: string): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+  const admin = createAdminClient();
+  const { error } = await admin.from('regles_mapping').delete().eq('id', id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath('/admin/facturation/achats/regles');
+  return { ok: true };
+}
+
 // Crée la fiche fournisseur depuis les données extraites d'une facture
 // d'achat (nom + TVA) et lie la facture — le « 1 clic » du détail achat.
 export async function creerFournisseurDepuisAchat(

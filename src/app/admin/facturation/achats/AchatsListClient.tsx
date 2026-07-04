@@ -6,7 +6,7 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Plus, Upload, X } from 'lucide-react';
+import { Plus, SlidersHorizontal, Upload, X } from 'lucide-react';
 import type { FactureAchat, StatutFactureAchat } from '@/lib/types/database';
 import { createFactureAchatManuelle } from './actions';
 
@@ -133,13 +133,21 @@ export function AchatsListClient({ initial }: { initial: FactureAchatRow[] }) {
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => { setShowUpload(true); setUploadError(null); }}
-          className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
-        >
-          <Plus size={14} aria-hidden /> Ajouter une facture
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/facturation/achats/regles"
+            className="bg-white text-navy border border-navy-light px-3.5 py-2 rounded-lg text-[12px] font-bold hover:bg-navy-pale inline-flex items-center gap-1.5 min-h-[40px]"
+          >
+            <SlidersHorizontal size={14} aria-hidden /> Règles de mapping
+          </Link>
+          <button
+            type="button"
+            onClick={() => { setShowUpload(true); setUploadError(null); }}
+            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
+          >
+            <Plus size={14} aria-hidden /> Ajouter une facture
+          </button>
+        </div>
       </div>
 
       {uploadError && !showUpload && (
