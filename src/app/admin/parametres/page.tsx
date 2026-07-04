@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { BaremeKm, Parametre } from '@/lib/types/database';
 import { isStorecoveConfigured } from '@/lib/facturation/storecove';
+import { isOdooConfigured } from '@/lib/facturation/odoo';
 import { ParametresClient } from './ParametresClient';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,7 @@ export default async function ParametresPage() {
         <ParametresClient
           initial={map}
           storecoveConfigured={isStorecoveConfigured()}
+          odooConfigured={isOdooConfigured()}
           baremeKm={baremeKm}
         />
       </div>

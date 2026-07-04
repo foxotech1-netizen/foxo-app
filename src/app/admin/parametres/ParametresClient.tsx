@@ -114,12 +114,15 @@ const ALL_IDS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.id));
 export function ParametresClient({
   initial,
   storecoveConfigured = false,
+  odooConfigured = false,
   baremeKm = [],
 }: {
   initial: Record<string, string>;
   // Présence des clés Storecove côté serveur (env) — booléen calculé côté
   // serveur, les valeurs ne transitent jamais vers le client.
   storecoveConfigured?: boolean;
+  // Présence des clés Odoo côté serveur (env) — même règle.
+  odooConfigured?: boolean;
   // Taux kilométriques (table bareme_km) — gérés dans leur section dédiée.
   baremeKm?: BaremeKm[];
 }) {
@@ -131,6 +134,7 @@ export function ParametresClient({
   const [pontoEnabled, setPontoEnabled] = useState(initial.ponto_enabled === 'true');
   const [pontoApiKey, setPontoApiKey] = useState(initial.ponto_api_key ?? '');
   const [storecoveEnabled, setStorecoveEnabled] = useState(initial.storecove_enabled === 'true');
+  const [odooEnabled, setOdooEnabled] = useState(initial.odoo_sync_enabled === 'true');
   const [captureAlias, setCaptureAlias] = useState(initial.capture_alias_email ?? '');
 
   // SMS
@@ -1009,6 +1013,46 @@ export function ParametresClient({
             {storecoveEnabled && !storecoveConfigured && (
               <p className="text-[11px] text-terra font-semibold">
                 Interrupteur activé mais clés serveur absentes : l&apos;envoi Peppol restera refusé tant que les variables ne sont pas configurées dans Vercel.
+              </p>
+            )}
+          </Section>
+
+          <Section
+            title="Synchronisation Odoo"
+            desc="Pousse les factures (ventes, avoirs, achats) vers Odoo en account.move, avec analytique par dossier. Les clés API sont des variables serveur (Vercel) — l'interrupteur n'a d'effet que si elles sont présentes."
+          >
+            <Row
+              label="Activer la synchronisation Odoo"
+              hint="Tant que c'est désactivé, aucun appel réseau vers Odoo n'est effectué."
+            >
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={odooEnabled}
+                  onChange={(e) => setOdooEnabled(e.target.checked)}
+                  className="accent-[#1B3A6B]"
+                />
+                {odooEnabled ? 'Activé' : 'Désactivé'}
+              </label>
+              <SaveBtn pending={pending} onClick={() => save('odoo_sync_enabled', odooEnabled ? 'true' : 'false')} />
+            </Row>
+            <Row
+              label="Clés Odoo (serveur)"
+              hint="ODOO_URL + ODOO_DB + ODOO_USER + ODOO_API_KEY, configurées dans les variables d'environnement Vercel."
+            >
+              {odooConfigured ? (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-ok-light border border-ok-mid text-ok">
+                  Présentes
+                </span>
+              ) : (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra">
+                  Absentes
+                </span>
+              )}
+            </Row>
+            {odooEnabled && !odooConfigured && (
+              <p className="text-[11px] text-terra font-semibold">
+                Interrupteur activé mais clés serveur absentes : le push Odoo restera refusé tant que les variables ne sont pas configurées dans Vercel.
               </p>
             )}
           </Section>

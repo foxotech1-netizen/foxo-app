@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { FactureAchat, Fournisseur, RegleMapping } from '@/lib/types/database';
 import { AchatDetailClient } from './AchatDetailClient';
+import { OdooActions } from '../../OdooActions';
+import { isOdooEnabled } from '@/lib/facturation/odoo';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +51,7 @@ export default async function AchatDetailPage({
       .maybeSingle();
     interventionRef = (iv?.ref as string | null) ?? null;
   }
+  const odooEnabled = await isOdooEnabled();
 
   return (
     <>
@@ -63,12 +66,24 @@ export default async function AchatDetailPage({
             {achat.fournisseur_nom ?? 'Fournisseur inconnu'} · source {achat.source}
           </div>
         </div>
-        <Link
-          href="/admin/facturation/achats"
-          className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
-        >
-          ← Retour à la liste
-        </Link>
+        <div className="flex flex-wrap gap-2 items-center">
+          <OdooActions
+            id={achat.id}
+            kind="achat"
+            label={`la facture d'achat ${achat.numero_piece ?? achat.fournisseur_nom ?? ''}`}
+            odooMoveId={achat.odoo_move_id}
+            odooPushedAt={achat.odoo_pushed_at}
+            odooEnabled={odooEnabled}
+            pushable={achat.statut === 'a_payer' || achat.statut === 'payee'}
+            disabledReason="Valide d'abord la facture (statut à payer ou payée)."
+          />
+          <Link
+            href="/admin/facturation/achats"
+            className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
+          >
+            ← Retour à la liste
+          </Link>
+        </div>
       </div>
       <AchatDetailClient
         achat={achat}

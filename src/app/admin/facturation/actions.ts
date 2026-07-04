@@ -29,6 +29,7 @@ import {
   genererNumeroProvisoire,
 } from '@/lib/facturation/numerotation';
 import { sendViaPeppol } from '@/lib/facturation/storecove';
+import { pushFactureVente } from '@/lib/facturation/odoo';
 import { sendEmail } from '@/lib/gmail';
 import {
   buildDocumentEmailDefaults,
@@ -1067,6 +1068,24 @@ export async function sendFactureViaPeppol(
   revalidatePath('/admin/facturation');
   revalidatePath('/admin/facturation/notes-credit');
   return { ok: true, data: { documentId: res.documentId } };
+}
+
+// ─── Odoo ─────────────────────────────────────────────────────────────────
+
+// Wrapper Server Action du connecteur Odoo (ventes + avoirs) — garde admin
+// puis best-effort (pushFactureVente ne throw jamais).
+export async function pushFactureVersOdoo(
+  id: string,
+): Promise<ActionResult<{ moveId: number }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const res = await pushFactureVente(id);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
+  return { ok: true, data: { moveId: res.moveId } };
 }
 
 // ─── Recherche intervention pour pré-remplissage ─────────────────────────

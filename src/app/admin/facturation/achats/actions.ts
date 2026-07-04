@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from '@/lib/auth/server';
 import { normalizeTva } from '@/lib/agents/extraction-achat';
+import { pushFactureAchat } from '@/lib/facturation/odoo';
 import { listInboxMails, getMailDetail, downloadGmailAttachment } from '@/lib/gmail';
 import {
   processerPieceCapturee,
@@ -357,6 +358,24 @@ export async function deleteFournisseur(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin/facturation/fournisseurs');
   return { ok: true };
+}
+
+// ─── Odoo ─────────────────────────────────────────────────────────────────
+
+// Wrapper Server Action du connecteur Odoo (achats) — garde admin puis
+// best-effort (pushFactureAchat ne throw jamais).
+export async function pushAchatVersOdoo(
+  id: string,
+): Promise<ActionResult<{ moveId: number }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const res = await pushFactureAchat(id);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  revalidatePath('/admin/facturation/achats');
+  revalidatePath(`/admin/facturation/achats/${id}`);
+  return { ok: true, data: { moveId: res.moveId } };
 }
 
 // ─── Relève de la boîte de capture (STRICTEMENT manuelle — aucun cron) ────

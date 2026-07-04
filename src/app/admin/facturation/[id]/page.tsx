@@ -11,6 +11,8 @@ import { PaymentRefBadge } from './PaymentRefBadge';
 import { RelancesPauseBadge } from '../rappels/RelancesAutoBlock';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 import { isStorecoveEnabled } from '@/lib/facturation/storecove';
+import { isOdooEnabled } from '@/lib/facturation/odoo';
+import { OdooActions } from '../OdooActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,6 +73,8 @@ export default async function EditFacturePage({
   }
   const emailDefaults = buildDocumentEmailDefaults({ facture, clientEmailFactures });
   const peppolEnabled = await isStorecoveEnabled();
+  const odooEnabled = await isOdooEnabled();
+  const emitted = facture.statut !== 'brouillon' && !facture.numero.startsWith('BR-');
 
   return (
     <>
@@ -92,6 +96,16 @@ export default async function EditFacturePage({
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={facture} defaults={emailDefaults} />
           <PeppolActions facture={facture} peppolEnabled={peppolEnabled} />
+          <OdooActions
+            id={facture.id}
+            kind="vente"
+            label={`la facture ${facture.numero}`}
+            odooMoveId={facture.odoo_move_id}
+            odooPushedAt={facture.odoo_pushed_at}
+            odooEnabled={odooEnabled}
+            pushable={emitted}
+            disabledReason="Disponible après émission de la facture."
+          />
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"
