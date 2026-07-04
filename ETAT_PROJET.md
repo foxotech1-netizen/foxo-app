@@ -1,3 +1,35 @@
+# État du projet FoxO — snapshot 2026-07-04 (Assistant terrain — étapes 1-3 CLOSES + validation prod)
+
+- **Date du recap** : 2026-07-04
+- **HEAD git** : bc3b345 (merge PR #139)
+- **Branche** : main, aligné origin/main. Production via Vercel.
+- ⚠️ Invariant inchangé : **CRONS MAILS TOUJOURS FERMÉS** (chantier Mails V2).
+
+## Chantier Assistant terrain (réf : NOTE_CONCEPTION v0.3, PLAN_CHANTIER v0.1) — étapes 1-3 CLOSES, validées en prod
+
+Objectif : ~2000 rapports PDF (Drive) → base de connaissances anonymisée (fiches 7 blocs, table `cas_terrain`) → copilote de diagnostic pour techniciens.
+
+- **Étape 1 (SQL)** : table `cas_terrain` (7 blocs jsonb, `source_ref` UNIQUE = idempotence, `symptome_resume` pour futur embedding, confiance par bloc, `a_relire`, RLS FORCE lecture admin) + contrainte `agent_logs.agent_name` étendue à `extraction_cas`. Fichier : `db/migrations/2026-07-02_cas_terrain_et_agent_extraction.sql`. Appliquée en prod.
+- **Étape 2 (PR #137)** : `listFolderFilesDeep(folderId,{maxDepth,maxFiles})` en fin de `src/lib/google-drive.ts` (compose le `listFolderFiles` existant du chantier photo).
+- **Étape 3 (PR #138)** : agent `src/lib/agents/extraction-cas/index.ts` (394 l.) — prompt 7 blocs, anonymisation RGPD stricte, référentiel 11 techniques, « couleur traceur = TEXTE jamais photo », « ne rien inventer → null + confiance basse » ; PDF envoyé ENTIER en bloc document base64 ; modèle `claude-sonnet-4-6` ; `runAgent` utilitaire `extraction_cas` ; `a_relire` calculé code (conf_min < 0.55) ; `downloadDrivePdfBase64` (alt=media, 30 Mo max). Route admin GET|POST `/api/admin/cas-terrain/extract-test` (paramètres `drive_file_id` + `persist`, défaut persist=false).
+- **Fix (PR #139, merge bc3b345)** : `maxDuration` de la route extract-test porté de 60 à 300 s — un 504 Vercel observé en prod (extractions réelles ~50-52 s, trop proche de l'ancien plafond).
+
+**Validation prod (2026-07-04, PDF réel 1,7 Mo, rapport 2020 « partiel » avec techniques barrées)** :
+- 2 extractions (sans puis avec `persist=1`) : fiche fidèle, aucune invention (`test_confirmation: null`, statut `presumee`), techniques barrées correctement interprétées, anonymisation OK, scores honnêtes (conf_min 0.45-0.5), `a_relire: true` déclenché. Écriture en base confirmée (`persisted: true` + SELECT).
+- Coût : 8 ct/rapport, ~50 s/rapport → budget ~160-200 € et ~28 h de traitement cumulé pour les 2000 (le runner étape 4 travaillera par lots).
+- **Dossier Drive des ~2000 PDF partagé au compte plateforme (Lecteur). folderId : `1QU5E5vUJHrbT-pz1V3m-13SqV5f_JOk3`.**
+
+## Suite du chantier (dans l'ordre)
+1. **Étape 4 — runner d'ingestion batch** (prérequis tous levés : folderId partagé, route validée, idempotence en place).
+2. Étape 5 — pgvector + embedding de `symptome_resume` (fournisseur d'embeddings à trancher).
+3. Étape 6 — playbook distillé. 4. Étape 7 — greffe copilote dans l'assistant technicien (modes dominants : confirmation + panne d'idée ; garde-fous : honnêteté, aucune invention). Étape 8 (formation) plus tard, même socle.
+
+## Rappels
+- Preview Vercel = MÊME base que la prod ; `cas_terrain` est hors dossiers ; tests liés aux dossiers → sandbox 2026-000.
+- Checks Netlify rouges sur PR = bruit connu, non bloquant. Jamais de squash. `tsc --noEmit` vert avant tout push.
+
+---
+
 # État du projet FoxO — snapshot 2026-07-02 (Mails V2 — ergonomie passe 2 CLOSE, PR #135)
 
 - **Date du recap** : 2026-07-02
