@@ -1,0 +1,37 @@
+# Réveil-matin du runner d'ingestion « Assistant terrain » (étape 4).
+# Le plan Vercel Hobby limite les crons natifs à 1/jour → GitHub Actions
+# (gratuit sur repo public) sonne la route toutes les 5 minutes ; la route
+# décide seule de travailler ou non (interrupteur parametres.ingestion_cas_terrain).
+# À DÉSACTIVER (onglet Actions → workflow → ⋯ → Disable) une fois le fonds
+# de ~2000 PDF entièrement ingéré.
+
+name: Ingestion cas terrain
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+# Jamais deux passages simultanés (un lot peut durer ~5 min) : le suivant
+# attend, sans annuler celui en cours.
+concurrency:
+  group: ingest-cas-terrain
+  cancel-in-progress: false
+
+jobs:
+  appel-cron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Appeler la route d'ingestion
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          http_code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            --max-time 330 \
+            "https://admin.foxo.be/api/cron/ingest-cas-terrain")
+          echo "HTTP ${http_code}"
+          cat /tmp/resp.json || true
+          echo ""
+          test "${http_code}" = "200"
