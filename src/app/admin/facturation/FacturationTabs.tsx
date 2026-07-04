@@ -15,6 +15,7 @@ import {
   ShoppingCart,
   Truck,
   LayoutDashboard,
+  FileUp,
 } from 'lucide-react';
 
 interface Tab {
@@ -35,6 +36,7 @@ const TABS: readonly Tab[] = [
   { href: '/admin/facturation/export',       icon: BarChart3,       label: 'Export comptable' },
   { href: '/admin/facturation/achats',       icon: ShoppingCart,    label: 'Achats'           },
   { href: '/admin/facturation/fournisseurs', icon: Truck,           label: 'Fournisseurs'     },
+  { href: '/admin/facturation/import',       icon: FileUp,          label: 'Import Odoo'      },
 ];
 
 // Sous-navigation horizontale du module facturation. Affichée comme bandeau
