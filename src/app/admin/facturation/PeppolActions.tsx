@@ -98,11 +98,17 @@ export function PeppolActions({
         </span>
       )}
       {facture.peppol_status === 'erreur' && (
-        <span
-          className="text-[11px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra"
-          title="Voir le détail de l'erreur dans les notes internes du document."
-        >
-          Peppol : erreur
+        <span className="inline-flex flex-col gap-0.5 max-w-[260px]">
+          <span className="text-[11px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra self-start">
+            Peppol : erreur
+          </span>
+          {facture.peppol_last_error && (
+            <span className="text-[10px] text-ink-muted leading-snug" title={facture.peppol_last_error}>
+              {facture.peppol_last_error.length > 120
+                ? `${facture.peppol_last_error.slice(0, 120)}…`
+                : facture.peppol_last_error}
+            </span>
+          )}
         </span>
       )}
     </div>

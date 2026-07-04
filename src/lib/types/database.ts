@@ -486,6 +486,8 @@ export interface Facture {
   peppol_status: string | null;
   peppol_document_id: string | null;
   peppol_sent_at: string | null;
+  // Dernier message d'échec Peppol (colonne interne — jamais sur le PDF).
+  peppol_last_error: string | null;
   odoo_move_id: string | null;
   odoo_pushed_at: string | null;
   created_at: string;

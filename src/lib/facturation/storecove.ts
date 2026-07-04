@@ -9,7 +9,8 @@
 //
 // Pattern best-effort maison : sendViaPeppol ne throw jamais — elle renvoie
 // { ok, error? } et consigne l'issue sur la facture (peppol_status,
-// peppol_document_id, peppol_sent_at ; message d'erreur en note interne).
+// peppol_document_id, peppol_sent_at ; message d'erreur horodaté dans la
+// colonne interne peppol_last_error — jamais dans notes, qui sort sur le PDF).
 //
 // ── Hypothèses sur le payload Storecove (API v2, à vérifier au branchement
 // réel — https://www.storecove.com/docs/) :
@@ -103,12 +104,12 @@ export async function sendViaPeppol(factureId: string): Promise<PeppolSendResult
 
   // ── Envoi Storecove (best-effort : l'échec est consigné, jamais throw) ─
   const markError = async (message: string): Promise<PeppolSendResult> => {
-    const note = `[Peppol ${new Date().toISOString().slice(0, 10)}] Échec : ${message}`.slice(0, 500);
+    const note = `[${new Date().toISOString()}] ${message}`.slice(0, 500);
     await admin
       .from('factures')
       .update({
         peppol_status: 'erreur',
-        notes: facture.notes ? `${facture.notes}\n${note}` : note,
+        peppol_last_error: note,
         updated_at: new Date().toISOString(),
       })
       .eq('id', facture.id);
@@ -152,6 +153,7 @@ export async function sendViaPeppol(factureId: string): Promise<PeppolSendResult
         peppol_status: 'envoyee',
         peppol_document_id: documentId || null,
         peppol_sent_at: new Date().toISOString(),
+        peppol_last_error: null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', facture.id);
