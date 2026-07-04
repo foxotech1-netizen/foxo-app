@@ -284,7 +284,11 @@ export function FactureFoxoPdf({ facture, qrDataUrl, logoSrc, avoirs }: FactureF
     devis:   'Devis',
     avoir:   'Note de crédit',
   } as const;
-  const docTitle = titleByType[docType];
+  // Facture d'acompte : seul le titre du document change, aucune autre
+  // modification de mise en page.
+  const docTitle = docType === 'facture' && facture.is_acompte
+    ? "FACTURE D'ACOMPTE"
+    : titleByType[docType];
   // Numéro labellé : "N° de facture" / "N° de devis" / "N° d'avoir"
   const numLabelByType = {
     facture: 'N° de facture',

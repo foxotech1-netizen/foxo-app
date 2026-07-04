@@ -2,9 +2,9 @@
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { FileText, Mail, CheckCircle2, Undo2, FileEdit, Trash2 } from 'lucide-react';
+import { FileText, Mail, CheckCircle2, Undo2, FileEdit, Trash2, XCircle } from 'lucide-react';
 import { RowMenu } from '@/components/RowMenu';
-import { setFactureStatut, deleteFacture, createAvoirFromFacture } from '../actions';
+import { setFactureStatut, deleteFacture, createAvoirFromFacture, revertToBrouillon } from '../actions';
 import type { Facture } from '@/lib/types/database';
 
 export function FactureActions({ facture }: { facture: Facture }) {
@@ -52,9 +52,14 @@ export function FactureActions({ facture }: { facture: Facture }) {
           },
           {
             icon: Undo2,
-            label: 'Repasser en brouillon',
-            onClick: () => call(() => setFactureStatut(facture.id, 'brouillon')),
-            hidden: facture.statut === 'brouillon' || facture.statut === 'payee',
+            label: 'Remettre en brouillon',
+            onClick: () => {
+              if (!confirm(`Remettre ${facture.numero} en brouillon ?\n\nLa pièce redevient modifiable et CONSERVE son numéro ${facture.numero}. Si elle a déjà été transmise au client, préférez une note de crédit.`)) return;
+              call(() => revertToBrouillon(facture.id), 'Pièce remise en brouillon.');
+            },
+            // Statuts éligibles uniquement : envoyée / en retard (payée →
+            // retirer d'abord le paiement ; annulée → non concerné).
+            hidden: facture.statut !== 'envoyee' && facture.statut !== 'en_retard',
             disabled: pending,
           },
           {
@@ -77,17 +82,37 @@ export function FactureActions({ facture }: { facture: Facture }) {
             },
           },
           {
+            icon: XCircle,
+            label: 'Annuler la facture',
+            disabled: pending,
+            // Annulation = statut 'annulee' (le numéro reste tracé dans la
+            // séquence) — réservée aux pièces émises non déjà annulées.
+            hidden: facture.statut === 'brouillon' || facture.statut === 'annulee',
+            onClick: () => {
+              if (!confirm(`Annuler la facture ${facture.numero} ?\n\nElle passe au statut « annulée » — le numéro reste tracé dans la séquence.`)) return;
+              call(() => setFactureStatut(facture.id, 'annulee'), 'Facture annulée.');
+            },
+          },
+          {
             icon: Trash2,
-            label: facture.statut === 'brouillon' ? 'Supprimer' : 'Annuler la facture',
+            label: 'Supprimer',
             destructive: true,
             disabled: pending,
             onClick: () => {
               const isDraft = facture.statut === 'brouillon';
               const msg = isDraft
-                ? `Supprimer définitivement le brouillon ${facture.numero} ?`
-                : `Annuler la facture ${facture.numero} ?`;
+                ? `Supprimer le brouillon ${facture.numero} ?`
+                : `Supprimer ${facture.numero} ?\n\nConseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.\n\nLa suppression reste possible.`;
               if (!confirm(msg)) return;
-              call(() => deleteFacture(facture.id), isDraft ? 'Brouillon supprimé.' : 'Facture annulée.');
+              startTransition(async () => {
+                const res = await deleteFacture(facture.id);
+                if (!res.ok) {
+                  alert(res.error);
+                  return;
+                }
+                router.push('/admin/facturation');
+                router.refresh();
+              });
             },
           },
         ]}

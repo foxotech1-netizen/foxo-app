@@ -12,6 +12,9 @@ import {
   Bell,
   Package,
   BarChart3,
+  ShoppingCart,
+  Truck,
+  LayoutDashboard,
 } from 'lucide-react';
 
 interface Tab {
@@ -21,6 +24,7 @@ interface Tab {
   exact?: boolean;     // si true, n'active que sur match exact (sinon prefix)
 }
 const TABS: readonly Tab[] = [
+  { href: '/admin/facturation/dashboard',    icon: LayoutDashboard, label: 'Tableau de bord'  },
   { href: '/admin/facturation',              icon: FileText,        label: 'Factures',         exact: true },
   { href: '/admin/facturation/devis',        icon: ClipboardList,   label: 'Devis'            },
   { href: '/admin/facturation/notes-credit', icon: FileEdit,        label: 'Notes de crédit'  },
@@ -29,6 +33,8 @@ const TABS: readonly Tab[] = [
   { href: '/admin/facturation/rappels',      icon: Bell,            label: 'Rappels'          },
   { href: '/admin/articles',                 icon: Package,         label: 'Catalogue'        },
   { href: '/admin/facturation/export',       icon: BarChart3,       label: 'Export comptable' },
+  { href: '/admin/facturation/achats',       icon: ShoppingCart,    label: 'Achats'           },
+  { href: '/admin/facturation/fournisseurs', icon: Truck,           label: 'Fournisseurs'     },
 ];
 
 // Sous-navigation horizontale du module facturation. Affichée comme bandeau

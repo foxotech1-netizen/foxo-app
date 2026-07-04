@@ -10,7 +10,9 @@ import {
   loadInterventionForFacture,
   searchClients,
   saveClient,
+  getAcomptesForIntervention,
   type FactureInput,
+  type AcompteLight,
 } from './actions';
 import { generateBBA } from '@/lib/facturation/bba';
 import { computeInvoiceTotals } from '@/lib/facturation/remises';
@@ -77,8 +79,12 @@ export function FactureEditor({
   // Mode : liée à une intervention vs hors intervention
   const [linked, setLinked] = useState<boolean>(initial?.intervention_id != null);
 
-  // Identification
-  const [numero, setNumero] = useState<string>(initial?.numero ?? initialNumero);
+  // Identification. Le numéro n'est PLUS éditable : provisoire (BR-…) tant
+  // que brouillon, définitif attribué par la base à l'émission.
+  const numero = initial?.numero ?? initialNumero;
+  const numeroProvisoire = numero.startsWith('BR-');
+  const docType = initial?.type ?? mode;
+  const isBrouillon = !initial || initial.statut === 'brouillon';
   const [dateEmission, setDateEmission] = useState<string>(initial?.date_emission ?? todayISO());
   const [dateEcheance, setDateEcheance] = useState<string>(
     initial?.date_echeance ?? plusDaysISO(todayISO(), 15),
@@ -126,6 +132,12 @@ export function FactureEditor({
   // TVA
   const [tvaPct, setTvaPct] = useState<number>(initial?.tva_pct ?? 21);
 
+  // Facture d'acompte (type facture uniquement, modifiable tant que brouillon)
+  const [isAcompte, setIsAcompte] = useState<boolean>(initial?.is_acompte ?? false);
+
+  // Acomptes déductibles sur la facture finale (même intervention, non annulés)
+  const [acomptesDisponibles, setAcomptesDisponibles] = useState<AcompteLight[]>([]);
+
   // Devis : durée de validité (jours). Default 30.
   const [validiteJours, setValiditeJours] = useState<number>(
     initial?.validite_jours ?? 30,
@@ -170,6 +182,18 @@ export function FactureEditor({
     }, 280);
     return () => clearTimeout(t);
   }, [clientQuery, clientId]);
+
+  // Charge les acomptes liés à l'intervention (pour le bouton « Déduire les
+  // acomptes » sur la facture finale).
+  useEffect(() => {
+    if (docType !== 'facture' || !interventionId) return;
+    let cancelled = false;
+    (async () => {
+      const res = await getAcomptesForIntervention(interventionId, initial?.id);
+      if (!cancelled) setAcomptesDisponibles(res.ok ? (res.data ?? []) : []);
+    })();
+    return () => { cancelled = true; };
+  }, [interventionId, docType, initial?.id]);
 
   // Visibilité des dropdowns dérivée de la query — évite de reset l'état
   // depuis le useEffect (interdit par react-hooks/set-state-in-effect en
@@ -299,7 +323,29 @@ export function FactureEditor({
     }),
     [lignes, tvaPct, remiseGlobaleValeur, remiseGlobaleType],
   );
-  const bbaPreview = useMemo(() => generateBBA(numero || 'FV0000-000'), [numero]);
+  // BBA calculée sur le numéro définitif uniquement — pour un brouillon à
+  // numéro provisoire, elle sera générée à l'émission.
+  const bbaPreview = useMemo(
+    () => (numeroProvisoire ? null : generateBBA(numero || 'FV0000-000')),
+    [numero, numeroProvisoire],
+  );
+
+  // Ajoute une ligne négative par acompte non encore déduit (même taux TVA,
+  // HTVA négatif). L'admin peut retirer la ligne comme n'importe quelle ligne.
+  function deduireAcomptes() {
+    setLignes((arr) => {
+      const dejaDeduits = new Set(arr.map((l) => l.description));
+      const nouvelles: FactureLigne[] = acomptesDisponibles
+        .filter((a) => !dejaDeduits.has(`Acompte déjà facturé — ${a.numero}`))
+        .map((a) => ({
+          description: `Acompte déjà facturé — ${a.numero}`,
+          quantite: 1,
+          prix_unitaire: -Math.abs(Number(a.montant_ht ?? 0)),
+          tva_pct: Number(a.tva_pct ?? tvaPct),
+        }));
+      return nouvelles.length > 0 ? [...arr, ...nouvelles] : arr;
+    });
+  }
 
   function buildInput(statut?: StatutFacture): FactureInput {
     return {
@@ -320,6 +366,7 @@ export function FactureEditor({
       remise_globale_type: Number(remiseGlobaleValeur ?? 0) > 0 ? remiseGlobaleType : null,
       remise_globale_description: Number(remiseGlobaleValeur ?? 0) > 0 ? (remiseGlobaleDescription || null) : null,
       tva_pct: tvaPct,
+      is_acompte: docType === 'facture' ? isAcompte : undefined,
       notes: notes || null,
       remarques: remarques || null,
       conditions_paiement: conditionsPaiement,
@@ -465,7 +512,18 @@ export function FactureEditor({
           Identification
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Field label="N° de facture *" value={numero} onChange={setNumero} placeholder="FV2026-100" mono />
+          <div>
+            <Label>N° de facture</Label>
+            {numeroProvisoire ? (
+              <div className="text-[12px] font-semibold text-ink-mid bg-sand-mid border border-sand-border rounded-lg px-3 py-2.5">
+                Brouillon — numéro attribué à l&apos;émission
+              </div>
+            ) : (
+              <div className="font-mono text-[13px] font-bold text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5 dark:text-white">
+                {numero}
+              </div>
+            )}
+          </div>
           <Field label="Date de facturation *" type="date" value={dateEmission} onChange={(v) => {
             setDateEmission(v);
             setDateEcheance(plusDaysISO(v, 15));
@@ -475,11 +533,29 @@ export function FactureEditor({
           <Field label="Conditions de paiement" value={conditionsPaiement} onChange={setConditionsPaiement} placeholder="15 jours" />
           <div>
             <Label>Communication structurée (auto)</Label>
-            <div className="font-mono text-[13px] text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5 dark:text-white">
-              {bbaPreview}
-            </div>
+            {bbaPreview ? (
+              <div className="font-mono text-[13px] text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5 dark:text-white">
+                {bbaPreview}
+              </div>
+            ) : (
+              <div className="text-[12px] text-ink-muted bg-sand-mid border border-sand-border rounded-lg px-3 py-2.5">
+                Générée à l&apos;émission
+              </div>
+            )}
           </div>
         </div>
+        {docType === 'facture' && isBrouillon && (
+          <label className="mt-3 flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isAcompte}
+              onChange={(e) => setIsAcompte(e.target.checked)}
+              className="accent-[#1B3A6B]"
+            />
+            <span className="font-semibold">Facture d&apos;acompte</span>
+            <span className="text-ink-muted">— sera déduite sur la facture finale de l&apos;intervention</span>
+          </label>
+        )}
       </div>
 
       {/* Client */}
@@ -714,13 +790,25 @@ export function FactureEditor({
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => addLigne()}
-          className="mt-2 bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-sand-hover"
-        >
-          + Ligne libre
-        </button>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => addLigne()}
+            className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-sand-hover"
+          >
+            + Ligne libre
+          </button>
+          {docType === 'facture' && !isAcompte && linked && interventionId && acomptesDisponibles.length > 0 && (
+            <button
+              type="button"
+              onClick={deduireAcomptes}
+              className="bg-navy-pale text-navy border border-navy-light px-3 py-1.5 rounded-md text-[11px] font-semibold hover:opacity-90 dark:text-white"
+              title={acomptesDisponibles.map((a) => a.numero).join(', ')}
+            >
+              Déduire les acomptes ({acomptesDisponibles.length})
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Détails intervention (optionnel) */}

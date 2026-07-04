@@ -23,6 +23,8 @@ import {
   type CalendarWatchStatus,
 } from './actions';
 import { SocieteSection } from './SocieteSection';
+import { BaremeKmSection } from './BaremeKmSection';
+import type { BaremeKm } from '@/lib/types/database';
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'jamais';
@@ -109,7 +111,21 @@ const ALL_IDS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.id));
 //  ParametresClient
 // ───────────────────────────────────────────────────────────────────────────
 
-export function ParametresClient({ initial }: { initial: Record<string, string> }) {
+export function ParametresClient({
+  initial,
+  storecoveConfigured = false,
+  odooConfigured = false,
+  baremeKm = [],
+}: {
+  initial: Record<string, string>;
+  // Présence des clés Storecove côté serveur (env) — booléen calculé côté
+  // serveur, les valeurs ne transitent jamais vers le client.
+  storecoveConfigured?: boolean;
+  // Présence des clés Odoo côté serveur (env) — même règle.
+  odooConfigured?: boolean;
+  // Taux kilométriques (table bareme_km) — gérés dans leur section dédiée.
+  baremeKm?: BaremeKm[];
+}) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
@@ -117,6 +133,9 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [paymentTerms, setPaymentTerms] = useState(initial.payment_terms_days ?? '15');
   const [pontoEnabled, setPontoEnabled] = useState(initial.ponto_enabled === 'true');
   const [pontoApiKey, setPontoApiKey] = useState(initial.ponto_api_key ?? '');
+  const [storecoveEnabled, setStorecoveEnabled] = useState(initial.storecove_enabled === 'true');
+  const [odooEnabled, setOdooEnabled] = useState(initial.odoo_sync_enabled === 'true');
+  const [captureAlias, setCaptureAlias] = useState(initial.capture_alias_email ?? '');
 
   // SMS
   const [smsMode, setSmsMode] = useState(initial.sms_mode ?? 'manuel');
@@ -956,6 +975,107 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             <p className="text-[11px] text-ink-muted italic">
               Le branchement effectif est dans <code>src/lib/ponto.ts</code> (TODO connectPonto, syncTransactions). Quand les credentials seront disponibles, la sync s&apos;activera automatiquement.
             </p>
+          </Section>
+
+          <Section
+            title="Facturation électronique (Peppol)"
+            desc="Transmission des factures et notes de crédit au format UBL via le point d'accès Storecove. Les clés API sont des variables serveur (Vercel) — l'interrupteur ci-dessous n'a d'effet que si elles sont présentes."
+          >
+            <Row
+              label="Activer l'envoi Peppol"
+              hint="Tant que c'est désactivé, aucun appel réseau vers Storecove n'est effectué."
+            >
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={storecoveEnabled}
+                  onChange={(e) => setStorecoveEnabled(e.target.checked)}
+                  className="accent-[#1B3A6B]"
+                />
+                {storecoveEnabled ? 'Activé' : 'Désactivé'}
+              </label>
+              <SaveBtn pending={pending} onClick={() => save('storecove_enabled', storecoveEnabled ? 'true' : 'false')} />
+            </Row>
+            <Row
+              label="Clés Storecove (serveur)"
+              hint="STORECOVE_API_KEY + STORECOVE_LEGAL_ENTITY_ID, configurées dans les variables d'environnement Vercel."
+            >
+              {storecoveConfigured ? (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-ok-light border border-ok-mid text-ok">
+                  Présentes
+                </span>
+              ) : (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra">
+                  Absentes
+                </span>
+              )}
+            </Row>
+            {storecoveEnabled && !storecoveConfigured && (
+              <p className="text-[11px] text-terra font-semibold">
+                Interrupteur activé mais clés serveur absentes : l&apos;envoi Peppol restera refusé tant que les variables ne sont pas configurées dans Vercel.
+              </p>
+            )}
+          </Section>
+
+          <Section
+            title="Synchronisation Odoo"
+            desc="Pousse les factures (ventes, avoirs, achats) vers Odoo en account.move, avec analytique par dossier. Les clés API sont des variables serveur (Vercel) — l'interrupteur n'a d'effet que si elles sont présentes."
+          >
+            <Row
+              label="Activer la synchronisation Odoo"
+              hint="Tant que c'est désactivé, aucun appel réseau vers Odoo n'est effectué."
+            >
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={odooEnabled}
+                  onChange={(e) => setOdooEnabled(e.target.checked)}
+                  className="accent-[#1B3A6B]"
+                />
+                {odooEnabled ? 'Activé' : 'Désactivé'}
+              </label>
+              <SaveBtn pending={pending} onClick={() => save('odoo_sync_enabled', odooEnabled ? 'true' : 'false')} />
+            </Row>
+            <Row
+              label="Clés Odoo (serveur)"
+              hint="ODOO_URL + ODOO_DB + ODOO_USER + ODOO_API_KEY, configurées dans les variables d'environnement Vercel."
+            >
+              {odooConfigured ? (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-ok-light border border-ok-mid text-ok">
+                  Présentes
+                </span>
+              ) : (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra">
+                  Absentes
+                </span>
+              )}
+            </Row>
+            {odooEnabled && !odooConfigured && (
+              <p className="text-[11px] text-terra font-semibold">
+                Interrupteur activé mais clés serveur absentes : le push Odoo restera refusé tant que les variables ne sont pas configurées dans Vercel.
+              </p>
+            )}
+          </Section>
+
+          <BaremeKmSection initial={baremeKm} />
+
+          <Section
+            title="Capture de dépenses"
+            desc="Alias email vers lequel transférer les factures fournisseurs. La relève est STRICTEMENT manuelle (bouton « Relever la boîte » dans Achats) — aucun automatisme."
+          >
+            <Row
+              label="Alias de capture"
+              hint="Transférez vos factures fournisseurs à cette adresse, puis utilisez « Relever la boîte » dans Achats."
+            >
+              <input
+                type="email"
+                value={captureAlias}
+                onChange={(e) => setCaptureAlias(e.target.value)}
+                placeholder="achats@foxo.be"
+                className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+              />
+              <SaveBtn pending={pending} onClick={() => save('capture_alias_email', captureAlias.trim())} />
+            </Row>
           </Section>
         </section>
 

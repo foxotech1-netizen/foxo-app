@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Pencil, Trash2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import type { Article } from '@/lib/types/database';
 import { saveArticle, deleteArticle, type ArticleInput } from '../facturation/actions';
-import { RowMenu } from '@/components/RowMenu';
 
 function fmtMoney(n: number): string {
   return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -101,6 +100,26 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
     });
   }
 
+  // Toggle actif en 1 clic depuis la liste (sans ouvrir la modale).
+  function handleToggleActif(a: Article & { prix_ttc: number }) {
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await saveArticle({
+        id: a.id,
+        code: a.code ?? '',
+        description: a.description,
+        prix_ttc: a.prix_ttc,
+        tva_pct: Number(a.tva_pct ?? 21),
+        actif: !a.actif,
+      });
+      if (!res.ok) setFeedback({ kind: 'err', msg: res.error });
+      else {
+        setFeedback({ kind: 'ok', msg: `Article ${a.code ?? ''} ${a.actif ? 'désactivé' : 'réactivé'}.` });
+        router.refresh();
+      }
+    });
+  }
+
   return (
     <div className="space-y-4 max-w-[860px]">
       {/* Actions globales */}
@@ -184,29 +203,37 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                     {fmtMoney(Number(a.prix_htva))}
                   </td>
                   <td className="px-3.5 py-2.5">
-                    <span className={
-                      'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ' +
-                      (a.actif
-                        ? 'bg-ok-light text-ok dark:text-white'
-                        : 'bg-sand-mid text-ink-mid')
-                    }>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActif(a)}
+                      disabled={pending}
+                      title={a.actif ? 'Cliquer pour désactiver (disparaît des sélecteurs de lignes).' : 'Cliquer pour réactiver.'}
+                      className={
+                        'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold cursor-pointer hover:opacity-75 disabled:opacity-50 ' +
+                        (a.actif
+                          ? 'bg-ok-light text-ok dark:text-white'
+                          : 'bg-sand-mid text-ink-mid')
+                      }
+                    >
                       {a.actif ? 'Actif' : 'Inactif'}
-                    </span>
+                    </button>
                   </td>
-                  <td className="px-3.5 py-2.5 whitespace-nowrap">
-                    <RowMenu
-                      direction="up"
-                      items={[
-                        { icon: Pencil, label: 'Modifier', onClick: () => setEditing(a) },
-                        {
-                          icon: Trash2,
-                          label: 'Supprimer',
-                          destructive: true,
-                          disabled: pending,
-                          onClick: () => handleDelete(a.id),
-                        },
-                      ]}
-                    />
+                  <td className="px-3.5 py-2.5 whitespace-nowrap text-right">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(a)}
+                      className="text-[11px] font-semibold text-navy hover:underline inline-flex items-center gap-1 mr-3"
+                    >
+                      <Pencil size={12} aria-hidden /> Modifier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(a.id)}
+                      disabled={pending}
+                      className="text-[11px] font-semibold text-terra hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Trash2 size={12} aria-hidden /> Supprimer
+                    </button>
                   </td>
                 </tr>
               ))}

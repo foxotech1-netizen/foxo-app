@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Facture, StatutFacture } from '@/lib/types/database';
 import { RappelsClient } from './RappelsClient';
+import { RelancesAutoBlock } from './RelancesAutoBlock';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,7 @@ export default async function RappelsPage() {
     supabase
       .from('factures')
       .select('id, numero, client_nom, client_syndic, reference, montant_ttc, date_echeance, statut, rappel_envoye_at, rappel_count')
+      .is('deleted_at', null)
       .order('date_echeance', { ascending: true, nullsFirst: false })
       .limit(500),
   ]);
@@ -63,6 +65,8 @@ export default async function RappelsPage() {
           Configure les rappels automatiques et envoie des rappels manuels
         </div>
       </div>
+
+      <RelancesAutoBlock />
 
       <div>
         <RappelsClient

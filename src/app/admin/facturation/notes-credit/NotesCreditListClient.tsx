@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
-import { Pencil, FileText, Undo2, Trash2 } from 'lucide-react';
+import { Pencil, FileText, Undo2, Trash2, Eye } from 'lucide-react';
+import { DocPreviewModal } from '../DocPreviewModal';
 import type { Facture, StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -47,6 +48,7 @@ export function NotesCreditListClient({
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [preview, setPreview] = useState<Facture | null>(null);
 
   const [avoirsList, setAvoirsList] = useState<Facture[]>(initial);
   const [lastInit, setLastInit] = useState(initial);
@@ -144,8 +146,22 @@ export function NotesCreditListClient({
               return (
                 <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-mono text-xs font-bold text-terra">
+                    <button
+                      type="button"
+                      onClick={() => setPreview(a)}
+                      title="Aperçu rapide du PDF"
+                      className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                    >
+                      <Eye size={14} aria-hidden />
+                    </button>
                     <Link href={`/admin/facturation/notes-credit/${a.id}`} className="hover:underline">
-                      {a.numero}
+                      {a.numero.startsWith('BR-') ? (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+                          Brouillon
+                        </span>
+                      ) : (
+                        a.numero
+                      )}
                     </Link>
                   </td>
                   <td className="px-3.5 py-3 text-[12px]">
@@ -179,7 +195,6 @@ export function NotesCreditListClient({
                           icon: Trash2,
                           label: 'Supprimer',
                           onClick: () => setConfirmState({ kind: 'delete', avoir: a }),
-                          hidden: a.statut !== 'brouillon',
                           destructive: true,
                         },
                       ]}
@@ -192,18 +207,30 @@ export function NotesCreditListClient({
         </table>
       </div>
 
+      <DocPreviewModal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={`Note de crédit ${preview?.numero ?? ''}`}
+        pdfUrl={`/api/admin/facture/${preview?.id}`}
+        fichePath={`/admin/facturation/notes-credit/${preview?.id}`}
+      />
+
       <ConfirmDialog
         open={confirmState !== null}
         title={
           confirmState?.kind === 'delete'
-            ? `Supprimer le brouillon ${confirmState.avoir.numero} ?`
+            ? (confirmState.avoir.statut === 'brouillon'
+                ? `Supprimer le brouillon ${confirmState.avoir.numero} ?`
+                : `Supprimer ${confirmState.avoir.numero} ?`)
             : confirmState?.kind === 'revert'
             ? `Remettre ${confirmState?.avoir.numero} en brouillon ?`
             : ''
         }
         message={
           confirmState?.kind === 'delete'
-            ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+            ? (confirmState.avoir.statut === 'brouillon'
+                ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+                : 'La pièce sera supprimée (soft delete : conservée en historique mais masquée). Conseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.')
             : confirmState?.kind === 'revert'
             ? 'L\'avoir repassera en brouillon. La date d\'envoi sera effacée.'
             : ''

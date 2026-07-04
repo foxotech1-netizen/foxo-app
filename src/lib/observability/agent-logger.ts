@@ -44,7 +44,9 @@ export type AgentName =
   // Synthèse « L'essentiel » de la couverture du rapport PDF (chantier Rapport PDF)
   | "synthese_essentiel"
   // Extraction des cas historiques en fiches normalisées (chantier Assistant terrain)
-  | "extraction_cas";
+  | "extraction_cas"
+  // Extraction des factures fournisseurs (chantier Facturation v2, bloc D)
+  | "extraction_achat";
 
 export type AgentKind = "canonical" | "utility";
 

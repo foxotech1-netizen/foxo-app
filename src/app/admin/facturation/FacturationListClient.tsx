@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, X, XCircle, FileEdit, Pencil, FileText, Trash2, Undo2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, XCircle, FileEdit, Pencil, FileText, Trash2, Undo2, Eye } from 'lucide-react';
+import { DocPreviewModal } from './DocPreviewModal';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -73,6 +74,27 @@ function fmtMoney(n: number | null | undefined): string {
   return v.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
+// Numéro provisoire (BR-…, brouillon pas encore émis) → badge discret ;
+// numéro définitif → affiché tel quel. Le tri des listes reste inchangé.
+function NumeroLabel({ numero }: { numero: string }) {
+  if (numero.startsWith('BR-')) {
+    return (
+      <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+        Brouillon
+      </span>
+    );
+  }
+  return <>{numero}</>;
+}
+
+function AcompteBadge() {
+  return (
+    <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-navy bg-navy-pale border border-navy-light rounded px-1.5 py-0.5 dark:text-white">
+      Acompte
+    </span>
+  );
+}
+
 function thisMonthRange(): { from: string; to: string } {
   const now = new Date();
   const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -102,6 +124,7 @@ export function FacturationListClient({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [preview, setPreview] = useState<Facture | null>(null);
 
   // Recherche debouncée — searchInput pilote le champ contrôlé,
   // debouncedQuery est ce qui filtre réellement (300ms).
@@ -394,12 +417,23 @@ export function FacturationListClient({
                 filtered.map((f) => (
                   <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setPreview(f)}
+                        title="Aperçu rapide du PDF"
+                        className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                      >
+                        <Eye size={14} aria-hidden />
+                      </button>
                       <Link
                         href={`/admin/facturation/${f.id}`}
                         className="font-mono text-xs font-bold text-navy hover:underline"
                       >
-                        {f.numero}
+                        <NumeroLabel numero={f.numero} />
                       </Link>
+                      {f.is_acompte && (
+                        <span className="ml-1.5"><AcompteBadge /></span>
+                      )}
                     </td>
                     <td className="px-3.5 py-2.5">
                       <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
@@ -474,7 +508,6 @@ export function FacturationListClient({
                             icon: Trash2,
                             label: 'Supprimer',
                             onClick: () => setConfirmState({ kind: 'delete', facture: f }),
-                            hidden: f.statut !== 'brouillon',
                             destructive: true,
                           },
                         ]}
@@ -507,8 +540,9 @@ export function FacturationListClient({
                 className="block bg-cream rounded-xl border border-sand-border p-3 hover:bg-sand-hover transition-colors"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-mono text-[12px] font-bold text-navy">
-                    {f.numero}
+                  <span className="font-mono text-[12px] font-bold text-navy inline-flex items-center gap-1.5">
+                    <NumeroLabel numero={f.numero} />
+                    {f.is_acompte && <AcompteBadge />}
                   </span>
                   <StatutBadge statut={f.statut} />
                 </div>
@@ -568,18 +602,30 @@ export function FacturationListClient({
         )}
       </div>
 
+      <DocPreviewModal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={`Facture ${preview?.numero ?? ''}`}
+        pdfUrl={`/api/admin/facture/${preview?.id}`}
+        fichePath={`/admin/facturation/${preview?.id}`}
+      />
+
       <ConfirmDialog
         open={confirmState !== null}
         title={
           confirmState?.kind === 'delete'
-            ? `Supprimer le brouillon ${confirmState.facture.numero} ?`
+            ? (confirmState.facture.statut === 'brouillon'
+                ? `Supprimer le brouillon ${confirmState.facture.numero} ?`
+                : `Supprimer ${confirmState.facture.numero} ?`)
             : confirmState?.kind === 'revert'
             ? `Remettre ${confirmState?.facture.numero} en brouillon ?`
             : ''
         }
         message={
           confirmState?.kind === 'delete'
-            ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+            ? (confirmState.facture.statut === 'brouillon'
+                ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+                : 'La pièce sera supprimée (soft delete : conservée en historique mais masquée). Conseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.')
             : confirmState?.kind === 'revert'
             ? 'La facture repassera en brouillon. La date d\'envoi sera effacée — tu pourras la rééditer puis la renvoyer.'
             : ''

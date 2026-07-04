@@ -5,9 +5,14 @@ import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
 import { FactureActions } from './FactureActions';
+import { PeppolActions } from '../PeppolActions';
 import { SendByEmailButton } from '../SendByEmailButton';
 import { PaymentRefBadge } from './PaymentRefBadge';
+import { RelancesPauseBadge } from '../rappels/RelancesAutoBlock';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
+import { isStorecoveEnabled } from '@/lib/facturation/storecove';
+import { isOdooEnabled } from '@/lib/facturation/odoo';
+import { OdooActions } from '../OdooActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +72,9 @@ export default async function EditFacturePage({
     clientEmailFactures = (c?.email_factures as string | null | undefined) ?? null;
   }
   const emailDefaults = buildDocumentEmailDefaults({ facture, clientEmailFactures });
+  const peppolEnabled = await isStorecoveEnabled();
+  const odooEnabled = await isOdooEnabled();
+  const emitted = facture.statut !== 'brouillon' && !facture.numero.startsWith('BR-');
 
   return (
     <>
@@ -80,12 +88,24 @@ export default async function EditFacturePage({
             Statut : <strong className="capitalize">{facture.statut}</strong>
             {facture.date_paiement && ` · Payée le ${new Date(facture.date_paiement).toLocaleDateString('fr-BE')}`}
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex flex-wrap items-center gap-3">
             <PaymentRefBadge reference={facture.reference_structuree} />
+            <RelancesPauseBadge factureId={facture.id} paused={Boolean(facture.relances_pause)} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={facture} defaults={emailDefaults} />
+          <PeppolActions facture={facture} peppolEnabled={peppolEnabled} />
+          <OdooActions
+            id={facture.id}
+            kind="vente"
+            label={`la facture ${facture.numero}`}
+            odooMoveId={facture.odoo_move_id}
+            odooPushedAt={facture.odoo_pushed_at}
+            odooEnabled={odooEnabled}
+            pushable={emitted}
+            disabledReason="Disponible après émission de la facture."
+          />
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"

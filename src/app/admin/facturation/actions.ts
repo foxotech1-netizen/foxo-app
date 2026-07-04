@@ -23,6 +23,13 @@ import type {
   TypeFacture,
 } from '@/lib/types/database';
 import { validateRemise } from '@/lib/facturation/remises';
+import {
+  attribuerNumeroDefinitif,
+  estProvisoire,
+  genererNumeroProvisoire,
+} from '@/lib/facturation/numerotation';
+import { sendViaPeppol } from '@/lib/facturation/storecove';
+import { pushFactureVente } from '@/lib/facturation/odoo';
 import { sendEmail } from '@/lib/gmail';
 import {
   buildDocumentEmailDefaults,
@@ -44,20 +51,7 @@ async function assertAdmin(): Promise<{ ok: true } | { ok: false; error: string 
   return { ok: true };
 }
 
-// ─── Helpers numéro / dates ──────────────────────────────────────────────
-
-const NUMERO_PREFIX_BY_TYPE: Record<TypeFacture, string> = {
-  facture: 'FV',
-  devis:   'DEV',
-  avoir:   'NC',
-};
-// Compteur de départ par type (1 pour devis et avoirs, 100 pour les
-// factures pour préserver le pattern historique de la prod).
-const NUMERO_START_BY_TYPE: Record<TypeFacture, number> = {
-  facture: 100,
-  devis:   1,
-  avoir:   1,
-};
+// ─── Helpers dates ────────────────────────────────────────────────────────
 
 function fmtIsoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -70,37 +64,6 @@ function plusDays(iso: string, days: number): string {
   return fmtIsoDate(dt);
 }
 
-// Calcule le prochain numéro <PREFIX>{YYYY}-{NNN} basé sur le max existant
-// pour l'année et le type donnés. Permet la modification manuelle ensuite.
-//   facture → FV2026-NNN (compte démarre à 100)
-//   devis   → DEV2026-NNN
-//   avoir   → NC2026-NNN
-export async function generateNextNumero(
-  type: TypeFacture = 'facture',
-): Promise<ActionResult<{ numero: string }>> {
-  const guard = await assertAdmin();
-  if (!guard.ok) return guard;
-
-  const year = new Date().getFullYear();
-  const prefix = NUMERO_PREFIX_BY_TYPE[type];
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('factures')
-    .select('numero')
-    .eq('type', type)
-    .like('numero', `${prefix}${year}-%`)
-    .order('numero', { ascending: false })
-    .limit(1);
-  if (error) return { ok: false, error: error.message };
-
-  let next = NUMERO_START_BY_TYPE[type];
-  if (data && data.length > 0) {
-    const m = data[0].numero.match(/-(\d+)$/);
-    if (m) next = parseInt(m[1], 10) + 1;
-  }
-  return { ok: true, data: { numero: `${prefix}${year}-${String(next).padStart(3, '0')}` } };
-}
-
 // ─── CRUD ─────────────────────────────────────────────────────────────────
 
 export interface FactureInput {
@@ -108,7 +71,12 @@ export interface FactureInput {
   // Type de document (par défaut 'facture' — rétro-compat des appelants
   // existants). Détermine le préfixe de numéro et certains champs.
   type?: TypeFacture;
+  /** Ignoré : le numéro n'est plus contrôlé par le client. À la création la
+   * pièce reçoit un provisoire BR-… ; le définitif est attribué par la base
+   * à l'émission et n'est plus jamais modifié. */
   numero: string;
+  /** Facture d'acompte (type 'facture' uniquement, modifiable en brouillon). */
+  is_acompte?: boolean;
   intervention_id: string | null;
   organisation_id: string | null;
   client_id: string | null;
@@ -144,7 +112,6 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
 
-  if (!input.numero?.trim()) return { ok: false, error: 'Numéro de facture requis.' };
   if (!Array.isArray(input.lignes) || input.lignes.length === 0) {
     return { ok: false, error: 'Ajoute au moins une ligne de prestation.' };
   }
@@ -152,7 +119,9 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     const l = input.lignes[i];
     if (!l.description?.trim()) return { ok: false, error: 'Chaque ligne doit avoir une description.' };
     if (!Number.isFinite(l.quantite) || l.quantite <= 0) return { ok: false, error: 'Quantité invalide.' };
-    if (!Number.isFinite(l.prix_unitaire) || l.prix_unitaire < 0) return { ok: false, error: 'Prix invalide.' };
+    // Prix négatif autorisé : lignes de déduction d'acompte sur la facture
+    // finale (« Acompte déjà facturé — FV… »).
+    if (!Number.isFinite(l.prix_unitaire)) return { ok: false, error: 'Prix invalide.' };
 
     // Validation de la remise ligne (description obligatoire si > 0,
     // pct dans [0,100], fixe ≤ montant brut de la ligne).
@@ -212,14 +181,8 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
       };
     }
   }
-  // BBA (communication structurée) : pertinent pour les factures et
-  // les avoirs (paiement à recevoir/restituer). Pour les devis, pas
-  // de paiement → pas de BBA.
-  const referenceStructuree = docType === 'devis' ? null : generateBBA(input.numero);
-
   const payload = {
     type: docType,
-    numero: input.numero.trim(),
     intervention_id: input.intervention_id,
     organisation_id: input.organisation_id,
     client_id: input.client_id,
@@ -242,10 +205,10 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     remarques: input.remarques,
     conditions_paiement: input.conditions_paiement,
     reference: input.reference,
-    reference_structuree: referenceStructuree,
     statut: input.statut ?? 'brouillon',
     date_emission: input.date_emission,
     date_echeance: input.date_echeance,
+    is_acompte: docType === 'facture' ? Boolean(input.is_acompte ?? false) : false,
     facture_origine_id: docType === 'avoir' ? (input.facture_origine_id ?? null) : null,
     validite_jours: docType === 'devis' ? (input.validite_jours ?? 30) : null,
     updated_at: new Date().toISOString(),
@@ -253,6 +216,8 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
 
   const supabase = await createClient();
   if (input.id) {
+    // Le numéro (provisoire ou définitif) et la BBA ne sont JAMAIS modifiés
+    // par un update : le définitif est attribué une seule fois à l'émission.
     const { data, error } = await supabase
       .from('factures')
       .update(payload)
@@ -264,15 +229,14 @@ export async function saveFacture(input: FactureInput): Promise<ActionResult<{ i
     revalidatePath('/admin/facturation');
     return { ok: true, data: { id: data.id, numero: data.numero } };
   } else {
+    // Création : numéro provisoire opaque. Le numéro définitif (et sa BBA)
+    // sera attribué par la base au moment de l'émission.
     const { data, error } = await supabase
       .from('factures')
-      .insert(payload)
+      .insert({ ...payload, numero: genererNumeroProvisoire(), reference_structuree: null })
       .select('id, numero')
       .maybeSingle();
-    if (error) {
-      if (error.code === '23505') return { ok: false, error: 'Ce numéro de facture existe déjà.' };
-      return { ok: false, error: error.message };
-    }
+    if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: 'Erreur création.' };
     revalidatePath('/admin/facturation');
     return { ok: true, data: { id: data.id, numero: data.numero } };
@@ -355,6 +319,55 @@ export async function getFactureAvoirsSummary(
   };
 }
 
+// ─── Acomptes ─────────────────────────────────────────────────────────────
+
+export interface AcompteLight {
+  id: string;
+  numero: string;
+  montant_ht: number;
+  tva_pct: number;
+  statut: StatutFacture;
+}
+
+// Liste les factures d'acompte NON annulées liées à une intervention —
+// sert au bouton « Déduire les acomptes » de la facture finale. Exclut la
+// facture en cours d'édition ainsi que les brouillons : un acompte non émis
+// n'a pas de numéro définitif et n'est pas « déjà facturé ».
+export async function getAcomptesForIntervention(
+  interventionId: string,
+  excludeFactureId?: string,
+): Promise<ActionResult<AcompteLight[]>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  let q = supabase
+    .from('factures')
+    .select('id, numero, montant_ht, tva_pct, statut')
+    .eq('type', 'facture')
+    .eq('is_acompte', true)
+    .eq('intervention_id', interventionId)
+    .neq('statut', 'annulee')
+    .neq('statut', 'brouillon')
+    .is('deleted_at', null)
+    .order('numero', { ascending: true });
+  if (excludeFactureId) q = q.neq('id', excludeFactureId);
+
+  const { data, error } = await q;
+  if (error) return { ok: false, error: error.message };
+  const rows = (data ?? []) as Array<{ id: string; numero: string; montant_ht: number | null; tva_pct: number; statut: StatutFacture }>;
+  return {
+    ok: true,
+    data: rows.map((r) => ({
+      id: r.id,
+      numero: r.numero,
+      montant_ht: Number(r.montant_ht ?? 0),
+      tva_pct: Number(r.tva_pct ?? 21),
+      statut: r.statut,
+    })),
+  };
+}
+
 // ─── Avoirs (notes de crédit) ────────────────────────────────────────────
 
 // Crée un avoir (brouillon) à partir d'une facture existante. Pré-remplit
@@ -398,16 +411,15 @@ export async function createAvoirFromFacture(
     quantite: cloneFull ? -Math.abs(Number(l.quantite ?? 0)) : 0,
   }));
 
-  const numeroRes = await generateNextNumero('avoir');
-  if (!numeroRes.ok) return numeroRes;
-  const numero = numeroRes.data!.numero;
+  // Numéro provisoire — le définitif (et sa BBA) est attribué à l'émission.
+  const numero = genererNumeroProvisoire();
 
   const today = fmtIsoDate(new Date());
   const totals = computeFactureTotals(lignesAvoir, facture.tva_pct, {
     valeur: facture.remise_globale_valeur ?? 0,
     type: facture.remise_globale_type,
   });
-  const referenceStructuree = generateBBA(numero);
+  const referenceStructuree = null;
 
   const payload = {
     type: 'avoir' as TypeFacture,
@@ -487,16 +499,15 @@ export async function convertDevisToFacture(
     }
   }
 
-  const numeroRes = await generateNextNumero('facture');
-  if (!numeroRes.ok) return numeroRes;
-  const numero = numeroRes.data!.numero;
+  // Numéro provisoire — le définitif (et sa BBA) est attribué à l'émission.
+  const numero = genererNumeroProvisoire();
 
   const today = fmtIsoDate(new Date());
   const totals = computeFactureTotals(devis.lignes ?? [], devis.tva_pct, {
     valeur: devis.remise_globale_valeur ?? 0,
     type: devis.remise_globale_type,
   });
-  const referenceStructuree = generateBBA(numero);
+  const referenceStructuree = null;
 
   // Calcule l'échéance depuis conditions_paiement (par défaut 15 jours)
   const echeanceMatch = (devis.conditions_paiement ?? '').match(/(\d+)/);
@@ -573,7 +584,7 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   // l'émission d'un avoir contre le plafond.
   const { data: docBefore } = await supabase
     .from('factures')
-    .select('id, type, facture_origine_id, montant_ttc')
+    .select('id, type, numero, date_emission, facture_origine_id, montant_ttc')
     .eq('id', id)
     .maybeSingle();
   if (!docBefore) return { ok: false, error: 'Document introuvable.' };
@@ -598,6 +609,23 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
 
   const patch: Record<string, unknown> = { statut, updated_at: new Date().toISOString() };
   if (statut === 'envoyee') patch.sent_at = new Date().toISOString();
+
+  // Émission d'un brouillon à numéro provisoire : la base attribue le numéro
+  // définitif (RPC atomique) — une fois posé, il ne bouge plus jamais, même
+  // si une étape ultérieure (upload, email) échoue : pas de trou de séquence.
+  if (statut === 'envoyee' && estProvisoire(docBefore.numero)) {
+    const docType = (docBefore.type ?? 'facture') as TypeFacture;
+    let numeroDefinitif: string;
+    try {
+      numeroDefinitif = await attribuerNumeroDefinitif(docType);
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : 'Attribution du numéro impossible.' };
+    }
+    patch.numero = numeroDefinitif;
+    // BBA recalculée sur le numéro définitif (pas de BBA pour les devis).
+    if (docType !== 'devis') patch.reference_structuree = generateBBA(numeroDefinitif);
+    if (!docBefore.date_emission) patch.date_emission = fmtIsoDate(new Date());
+  }
   if (statut === 'payee') patch.date_paiement = datePaiement ?? fmtIsoDate(new Date());
   if (statut !== 'payee') patch.date_paiement = null;
 
@@ -671,11 +699,11 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
   return { ok: true };
 }
 
-// Soft delete : pose deleted_at = now(). Strictement réservé aux brouillons
-// (factures, devis et avoirs) — l'UI ne propose la suppression que pour ce
-// statut. Pour annuler un document émis, utiliser le statut 'annulee' via
-// un autre flux (rule métier "avoir 100% → facture annulee", action manuelle
-// depuis la fiche, etc.). Conserve l'historique en base.
+// Soft delete : pose deleted_at = now(). Ouvert à TOUT statut (demande
+// utilisateur — fausse manip, doublon volontaire) ; l'UI affiche pour les
+// pièces émises le conseil de préférer « Annuler » (statut annulée, numéro
+// tracé dans la séquence). Conserve l'historique en base ; le numéro d'une
+// pièce émise supprimée laisse un trou assumé dans la séquence.
 export async function deleteFacture(id: string): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
@@ -683,9 +711,6 @@ export async function deleteFacture(id: string): Promise<ActionResult> {
 
   const { data: f } = await supabase.from('factures').select('statut, type').eq('id', id).maybeSingle();
   if (!f) return { ok: false, error: 'Document introuvable.' };
-  if (f.statut !== 'brouillon') {
-    return { ok: false, error: 'Seuls les brouillons peuvent être supprimés.' };
-  }
 
   // Une facture ne doit pas avoir d'avoirs attachés (intégrité comptable
   // — la DB a `on delete restrict`, mais avec soft delete on s'en assure
@@ -713,11 +738,11 @@ export async function deleteFacture(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-// Remet un document du statut 'envoyee' au statut 'brouillon'. Sert à
-// corriger une émission prématurée (facture, devis ou avoir). Efface
-// sent_at et date_paiement pour rester cohérent. Refuse les transitions
-// depuis tout autre statut (payee, annulee, accepte/refuse/expire d'un
-// devis — pour ceux-là, un nouveau document est attendu).
+// Remet un document émis ('envoyee' ou 'en_retard') au statut 'brouillon'.
+// Le numéro définitif et la BBA sont CONSERVÉS (jamais recalculés) : la
+// ré-émission ne repasse pas par l'attribution (estProvisoire = false).
+// Efface sent_at et date_paiement pour rester cohérent. Refuse les autres
+// statuts : payee → « Retirer le paiement » d'abord ; annulee → non concerné.
 export async function revertToBrouillon(id: string): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
@@ -725,8 +750,11 @@ export async function revertToBrouillon(id: string): Promise<ActionResult> {
 
   const { data: f } = await supabase.from('factures').select('statut').eq('id', id).maybeSingle();
   if (!f) return { ok: false, error: 'Document introuvable.' };
-  if (f.statut !== 'envoyee') {
-    return { ok: false, error: 'Seul un document envoyé peut être remis en brouillon.' };
+  if (f.statut !== 'envoyee' && f.statut !== 'en_retard') {
+    if (f.statut === 'payee') {
+      return { ok: false, error: 'Facture payée — retire d\'abord le paiement (page Paiements) avant de remettre en brouillon.' };
+    }
+    return { ok: false, error: 'Seul un document émis (envoyé / en retard) peut être remis en brouillon.' };
   }
 
   const { error } = await supabase
@@ -768,7 +796,7 @@ export async function sendDocumentEmail(
   if (!guard.ok) return guard;
 
   const to = input.to.trim();
-  const subject = input.subject.trim();
+  let subject = input.subject.trim();
   if (!to) return { ok: false, error: 'Destinataire vide.' };
   // Validation email basique (Gmail rejettera de toute façon, mais message clair)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
@@ -806,6 +834,42 @@ export async function sendDocumentEmail(
         ok: false,
         error: `Émission impossible : le total des avoirs émis dépasserait le montant de la facture (${newTotal.toFixed(2)} € > ${summary.data!.factureTtc.toFixed(2)} €).`,
       };
+    }
+  }
+
+  // ── Attribution du numéro définitif (AVANT toute génération/envoi) ────
+  // Persistée immédiatement : si l'envoi email échoue ensuite, le numéro
+  // reste attribué (comportement voulu — pas de trou de séquence).
+  if (estProvisoire(facture.numero)) {
+    let numeroDefinitif: string;
+    try {
+      numeroDefinitif = await attribuerNumeroDefinitif(facture.type ?? 'facture');
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : 'Attribution du numéro impossible.' };
+    }
+    const patchNumero: Record<string, unknown> = {
+      numero: numeroDefinitif,
+      updated_at: new Date().toISOString(),
+    };
+    if ((facture.type ?? 'facture') !== 'devis') {
+      patchNumero.reference_structuree = generateBBA(numeroDefinitif);
+    }
+    if (!facture.date_emission) patchNumero.date_emission = fmtIsoDate(new Date());
+    const { error: numErr } = await supabase
+      .from('factures')
+      .update(patchNumero)
+      .eq('id', facture.id);
+    if (numErr) return { ok: false, error: `Attribution du numéro : ${numErr.message}` };
+    // Répercute sur l'objet en mémoire : PDF, QR, BBA, nom de fichier et
+    // sujet du mail (pré-rempli côté client avec le provisoire) doivent
+    // porter le numéro définitif.
+    subject = subject.split(facture.numero).join(numeroDefinitif);
+    facture.numero = numeroDefinitif;
+    if (patchNumero.reference_structuree) {
+      facture.reference_structuree = patchNumero.reference_structuree as string;
+    }
+    if (patchNumero.date_emission) {
+      facture.date_emission = patchNumero.date_emission as string;
     }
   }
 
@@ -988,6 +1052,42 @@ export async function setDevisStatut(
   return { ok: true };
 }
 
+// ─── Peppol (Storecove) ──────────────────────────────────────────────────
+
+// Wrapper Server Action du module storecove — garde admin puis best-effort
+// (sendViaPeppol ne throw jamais et consigne l'issue sur la facture).
+export async function sendFactureViaPeppol(
+  id: string,
+): Promise<ActionResult<{ documentId: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const res = await sendViaPeppol(id);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
+  return { ok: true, data: { documentId: res.documentId } };
+}
+
+// ─── Odoo ─────────────────────────────────────────────────────────────────
+
+// Wrapper Server Action du connecteur Odoo (ventes + avoirs) — garde admin
+// puis best-effort (pushFactureVente ne throw jamais).
+export async function pushFactureVersOdoo(
+  id: string,
+): Promise<ActionResult<{ moveId: number }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const res = await pushFactureVente(id);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
+  return { ok: true, data: { moveId: res.moveId } };
+}
+
 // ─── Recherche intervention pour pré-remplissage ─────────────────────────
 
 export async function searchInterventionsForFacture(query: string): Promise<ActionResult<Array<{ id: string; ref: string | null; acp_nom: string | null; syndic_nom: string | null; syndic_email: string | null; syndic_bce: string | null; syndic_adresse: string | null }>>> {
@@ -1151,6 +1251,7 @@ export async function buildComptableCsvForRange(from: string, to: string): Promi
   const { data, error } = await supabase
     .from('factures')
     .select('*')
+    .is('deleted_at', null)
     .gte('date_emission', from)
     .lte('date_emission', to)
     .order('numero', { ascending: true });

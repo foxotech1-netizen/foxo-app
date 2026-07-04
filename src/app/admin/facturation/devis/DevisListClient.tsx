@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Pencil, FileText, ArrowRight, CheckCircle2, XCircle, Undo2, Trash2 } from 'lucide-react';
+import { Pencil, FileText, ArrowRight, CheckCircle2, XCircle, Undo2, Trash2, Eye } from 'lucide-react';
+import { DocPreviewModal } from '../DocPreviewModal';
 import type { Facture, StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -58,6 +59,7 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [preview, setPreview] = useState<Facture | null>(null);
 
   const [devisList, setDevisList] = useState<Facture[]>(initial);
   const [lastInit, setLastInit] = useState(initial);
@@ -144,7 +146,9 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
   function confirmTitle(s: ConfirmState | null): string {
     if (!s) return '';
     switch (s.kind) {
-      case 'delete':  return `Supprimer le brouillon ${s.devis.numero} ?`;
+      case 'delete':  return s.devis.statut === 'brouillon'
+        ? `Supprimer le brouillon ${s.devis.numero} ?`
+        : `Supprimer ${s.devis.numero} ?`;
       case 'revert':  return `Remettre ${s.devis.numero} en brouillon ?`;
       case 'accept':  return `Marquer ${s.devis.numero} comme accepté ?`;
       case 'refuse':  return `Marquer ${s.devis.numero} comme refusé ?`;
@@ -156,7 +160,9 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
     if (!s) return '';
     switch (s.kind) {
       case 'delete':
-        return 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).';
+        return s.devis.statut === 'brouillon'
+          ? 'Le brouillon sera supprimé (soft delete : conservé en historique mais masqué).'
+          : 'La pièce sera supprimée (soft delete : conservée en historique mais masquée). Conseil : pour une pièce émise, préférez « Annuler » (statut annulée) — le numéro reste tracé dans la séquence.';
       case 'revert':
         return 'Le devis repassera en brouillon. La date d\'envoi sera effacée.';
       case 'accept':
@@ -234,8 +240,22 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
               return (
                 <tr key={d.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-mono text-xs font-bold text-navy">
+                    <button
+                      type="button"
+                      onClick={() => setPreview(d)}
+                      title="Aperçu rapide du PDF"
+                      className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                    >
+                      <Eye size={14} aria-hidden />
+                    </button>
                     <Link href={`/admin/facturation/devis/${d.id}`} className="hover:underline">
-                      {d.numero}
+                      {d.numero.startsWith('BR-') ? (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+                          Brouillon
+                        </span>
+                      ) : (
+                        d.numero
+                      )}
                     </Link>
                   </td>
                   <td className="px-3.5 py-3 text-[12px]">{d.client_nom ?? '—'}</td>
@@ -291,7 +311,6 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
                           icon: Trash2,
                           label: 'Supprimer',
                           onClick: () => setConfirmState({ kind: 'delete', devis: d }),
-                          hidden: d.statut !== 'brouillon',
                           destructive: true,
                         },
                       ]}
@@ -303,6 +322,14 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
           </tbody>
         </table>
       </div>
+
+      <DocPreviewModal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={`Devis ${preview?.numero ?? ''}`}
+        pdfUrl={`/api/admin/facture/${preview?.id}`}
+        fichePath={`/admin/facturation/devis/${preview?.id}`}
+      />
 
       <ConfirmDialog
         open={confirmState !== null}

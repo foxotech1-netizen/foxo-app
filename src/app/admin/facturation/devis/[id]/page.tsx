@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../../FactureEditor';
 import { SendByEmailButton } from '../../SendByEmailButton';
+import { RevertToBrouillonButton } from '../../RevertToBrouillonButton';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,7 @@ export default async function EditDevisPage({
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={devis} defaults={emailDefaults} />
+          <RevertToBrouillonButton facture={devis} />
           <Link href="/admin/facturation/devis" className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>
