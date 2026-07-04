@@ -6,9 +6,10 @@
 import { useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Inbox, Plus, SlidersHorizontal, Upload, X } from 'lucide-react';
+import { Inbox, Plus, SlidersHorizontal, Trash2, Upload, X } from 'lucide-react';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import type { FactureAchat, StatutFactureAchat } from '@/lib/types/database';
-import { createFactureAchatManuelle, releverBoiteCapture } from './actions';
+import { createFactureAchatManuelle, deleteFactureAchat, releverBoiteCapture } from './actions';
 
 export type FactureAchatRow = FactureAchat & {
   intervention_ref: string | null;
@@ -77,7 +78,20 @@ export function AchatsListClient({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [releve, setReleve] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  const [toDelete, setToDelete] = useState<FactureAchatRow | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleDelete() {
+    if (!toDelete) return;
+    setToast(null);
+    startTransition(async () => {
+      const res = await deleteFactureAchat(toDelete.id);
+      setToDelete(null);
+      if (!res.ok) { setToast({ kind: 'err', msg: res.error }); return; }
+      setToast({ kind: 'ok', msg: 'Facture d\'achat supprimée (justificatif conservé sur Drive).' });
+      router.refresh();
+    });
+  }
 
   function handleReleve() {
     setToast(null);
@@ -243,6 +257,7 @@ export function AchatsListClient({
                 <th className="px-3.5 py-2.5 font-bold">Dossier</th>
                 <th className="px-3.5 py-2.5 font-bold">Statut</th>
                 <th className="px-3.5 py-2.5 font-bold">Confiance</th>
+                <th className="px-3.5 py-2.5 font-bold text-right"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -269,6 +284,17 @@ export function AchatsListClient({
                       </span>
                     </td>
                     <td className="px-3.5 py-2.5"><ConfianceDot value={f.ia_confiance_min} /></td>
+                    <td className="px-3.5 py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setToDelete(f)}
+                        disabled={pending}
+                        title="Supprimer cette facture d'achat (le justificatif reste sur Drive)."
+                        className="text-ink-muted hover:text-terra p-1 disabled:opacity-50"
+                      >
+                        <Trash2 size={14} aria-hidden />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -276,6 +302,22 @@ export function AchatsListClient({
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={toDelete !== null}
+        title={`Supprimer la facture d'achat ${toDelete?.fournisseur_nom ?? toDelete?.numero_piece ?? ''} ?`}
+        message={
+          'Le justificatif reste archivé sur Drive.'
+          + (toDelete?.statut === 'payee'
+            ? ' ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.'
+            : '')
+        }
+        confirmLabel="Supprimer"
+        destructive
+        pending={pending}
+        onConfirm={handleDelete}
+        onCancel={() => setToDelete(null)}
+      />
 
       {/* Modale d'upload */}
       {showUpload && (

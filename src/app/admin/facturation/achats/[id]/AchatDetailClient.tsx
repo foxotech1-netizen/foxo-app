@@ -7,14 +7,15 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Check, XCircle, CreditCard, UserPlus } from 'lucide-react';
-import type { FactureAchat, Fournisseur } from '@/lib/types/database';
+import { ExternalLink, Check, XCircle, CreditCard, UserPlus, Trash2, Calculator, Plus } from 'lucide-react';
+import type { FactureAchat, FactureAchatLigne, Fournisseur } from '@/lib/types/database';
 import {
   saveFactureAchat,
   validerFactureAchat,
   rejeterFactureAchat,
   marquerAchatPayee,
   creerFournisseurDepuisAchat,
+  deleteFactureAchat,
 } from '../actions';
 import { STATUT_ACHAT_INFO, ConfianceDot, DoublonBadge } from '../AchatsListClient';
 
@@ -55,6 +56,8 @@ export function AchatDetailClient({
   const [deductibilite, setDeductibilite] = useState<string>(String(achat.taux_deductibilite ?? 100));
   const [moyenPaiement, setMoyenPaiement] = useState(achat.moyen_paiement ?? '');
   const [noteAdmin, setNoteAdmin] = useState(achat.note_admin ?? '');
+  const [lignes, setLignesState] = useState<FactureAchatLigne[]>(achat.lignes ?? []);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Dossier lié (autocomplete /api/admin/interventions/search)
   const [interventionId, setInterventionId] = useState<string | null>(achat.intervention_id);
@@ -100,6 +103,7 @@ export function AchatDetailClient({
     };
     return {
       id: achat.id,
+      lignes,
       fournisseur_id: fournisseurId,
       fournisseur_nom: fournisseurNom || null,
       numero_piece: numeroPiece || null,
@@ -127,6 +131,52 @@ export function AchatDetailClient({
         if (!r2.ok) { setFeedback({ kind: 'err', msg: r2.error ?? 'Erreur.' }); return; }
       }
       setFeedback({ kind: 'ok', msg: after ? 'Action effectuée.' : 'Enregistré.' });
+      router.refresh();
+    });
+  }
+
+  // ── Lignes éditables ────────────────────────────────────────────────────
+  function updateLigne(i: number, patch: Partial<FactureAchatLigne>) {
+    setLignesState((arr) => arr.map((l, idx) => {
+      if (idx !== i) return l;
+      const next = { ...l, ...patch };
+      // Montant recalculé qté × prix quand on touche l'un des deux —
+      // mais il reste éditable à la main (patch.montant prioritaire).
+      if (patch.montant === undefined && (patch.quantite !== undefined || patch.prix_unitaire !== undefined)) {
+        const q = Number(next.quantite);
+        const p = Number(next.prix_unitaire);
+        if (Number.isFinite(q) && Number.isFinite(p)) {
+          next.montant = Math.round(q * p * 100) / 100;
+        }
+      }
+      return next;
+    }));
+  }
+  function addLigne() {
+    setLignesState((arr) => [...arr, { description: '', quantite: 1, prix_unitaire: null, montant: null }]);
+  }
+  function removeLigne(i: number) {
+    setLignesState((arr) => arr.filter((_, idx) => idx !== i));
+  }
+  // Volontaire uniquement : les totaux extraits de la facture réelle restent
+  // la source de vérité, pas de recalcul automatique.
+  function recalculerTotaux() {
+    const ht = Math.round(lignes.reduce((s, l) => s + (Number(l.montant) || 0), 0) * 100) / 100;
+    const taux = Number(tauxTva.replace(',', '.'));
+    setMontantHt(String(ht));
+    if (Number.isFinite(taux) && taux >= 0) {
+      const tva = Math.round(ht * taux) / 100;
+      setMontantTva(String(tva));
+      setMontantTtc(String(Math.round((ht + tva) * 100) / 100));
+    }
+  }
+
+  function handleDelete() {
+    setFeedback(null);
+    startTransition(async () => {
+      const res = await deleteFactureAchat(achat.id);
+      if (!res.ok) { setFeedback({ kind: 'err', msg: res.error }); setShowDeleteConfirm(false); return; }
+      router.push('/admin/facturation/achats');
       router.refresh();
     });
   }
@@ -267,23 +317,83 @@ export function AchatDetailClient({
             <input value={tauxTva} onChange={(e) => setTauxTva(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} font-mono`} />
           </ConfField>
         </div>
-        {achat.lignes.length > 0 && (
-          <div className="border-t border-sand-border pt-2">
-            <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1.5">
-              Lignes extraites (lecture seule)
+        <div className="border-t border-sand-border pt-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+              Lignes
             </div>
-            <ul className="text-[11px] text-ink-mid space-y-0.5">
-              {achat.lignes.map((l, i) => (
-                <li key={i} className="flex justify-between gap-2">
-                  <span className="truncate">{l.description}</span>
-                  <span className="font-mono whitespace-nowrap">
-                    {l.montant != null ? `${l.montant.toFixed(2)} €` : '—'}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {editable && (
+              <button
+                type="button"
+                onClick={recalculerTotaux}
+                title="Remplace HT/TVA/TTC par la somme des lignes × taux — les totaux extraits de la facture réelle restent la référence, ce recalcul est volontaire."
+                className="text-[10px] font-semibold text-ink-mid hover:text-navy inline-flex items-center gap-1"
+              >
+                <Calculator size={11} aria-hidden /> Recalculer les totaux depuis les lignes
+              </button>
+            )}
           </div>
-        )}
+          {lignes.length === 0 && (
+            <p className="text-[11px] text-ink-muted italic">Aucune ligne.</p>
+          )}
+          {lignes.map((l, i) => (
+            <div key={i} className="grid grid-cols-[1fr_64px_84px_92px_auto] gap-1.5 items-center">
+              <input
+                value={l.description}
+                onChange={(e) => updateLigne(i, { description: e.target.value })}
+                disabled={!editable}
+                placeholder="Description"
+                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+              />
+              <input
+                value={l.quantite ?? ''}
+                onChange={(e) => updateLigne(i, { quantite: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })}
+                disabled={!editable}
+                inputMode="decimal"
+                placeholder="Qté"
+                title="Quantité"
+                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] font-mono bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+              />
+              <input
+                value={l.prix_unitaire ?? ''}
+                onChange={(e) => updateLigne(i, { prix_unitaire: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })}
+                disabled={!editable}
+                inputMode="decimal"
+                placeholder="P.U."
+                title="Prix unitaire"
+                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] font-mono bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+              />
+              <input
+                value={l.montant ?? ''}
+                onChange={(e) => updateLigne(i, { montant: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })}
+                disabled={!editable}
+                inputMode="decimal"
+                placeholder="Montant"
+                title="Montant de la ligne (recalculé qté × prix, éditable)"
+                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] font-mono bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+              />
+              {editable ? (
+                <button
+                  type="button"
+                  onClick={() => removeLigne(i)}
+                  title="Retirer la ligne"
+                  className="text-terra hover:opacity-70 p-1"
+                >
+                  <XCircle size={14} aria-hidden />
+                </button>
+              ) : <span />}
+            </div>
+          ))}
+          {editable && (
+            <button
+              type="button"
+              onClick={addLigne}
+              className="bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded-md text-[11px] font-semibold hover:bg-sand-hover inline-flex items-center gap-1"
+            >
+              <Plus size={12} aria-hidden /> Ligne
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Comptabilité + dossier */}
@@ -439,7 +549,52 @@ export function AchatDetailClient({
             {achat.moyen_paiement ? ` (${achat.moyen_paiement})` : ''}.
           </div>
         )}
+        <button
+          type="button"
+          onClick={() => setShowDeleteConfirm(true)}
+          disabled={pending}
+          className="ml-auto bg-white text-terra border border-terra-mid px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+        >
+          <Trash2 size={14} aria-hidden /> Supprimer
+        </button>
       </div>
+
+      {/* Modale de confirmation de suppression */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-cream rounded-2xl border border-sand-border p-5 w-full max-w-[420px] space-y-3">
+            <h2 className="text-[14px] font-bold text-ink">
+              Supprimer cette facture d&apos;achat ?
+            </h2>
+            <p className="text-[12px] text-ink-mid">
+              Le justificatif reste archivé sur Drive.
+            </p>
+            {achat.statut === 'payee' && (
+              <p className="text-[12px] font-semibold text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2">
+                ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.
+              </p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={pending}
+                className="bg-terra text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] flex-1"
+              >
+                {pending ? '…' : 'Supprimer'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={pending}
+                className="bg-white text-ink-mid border border-sand-border px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-sand-hover disabled:opacity-50 min-h-[44px]"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

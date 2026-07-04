@@ -19,6 +19,7 @@ import {
 } from '@/lib/facturation/capture';
 import type {
   FactureAchat,
+  FactureAchatLigne,
   Fournisseur,
   RegleMapping,
 } from '@/lib/types/database';
@@ -53,6 +54,8 @@ export interface FactureAchatInput {
   montant_tva: number | null;
   montant_ttc: number | null;
   taux_tva: number | null;
+  /** Lignes éditables — undefined = ne pas toucher aux lignes existantes. */
+  lignes?: FactureAchatLigne[];
   categorie_comptable: string | null;
   taux_deductibilite: number | null;
   intervention_id: string | null;
@@ -63,6 +66,20 @@ export interface FactureAchatInput {
 export async function saveFactureAchat(input: FactureAchatInput): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
+
+  // Lignes : normalisées si fournies (description requise), sinon intactes.
+  const lignesPatch = input.lignes !== undefined
+    ? {
+        lignes: input.lignes
+          .map((l) => ({
+            description: (l.description ?? '').trim(),
+            quantite: Number.isFinite(Number(l.quantite)) ? Number(l.quantite) : null,
+            prix_unitaire: Number.isFinite(Number(l.prix_unitaire)) ? Number(l.prix_unitaire) : null,
+            montant: Number.isFinite(Number(l.montant)) ? Number(l.montant) : null,
+          }))
+          .filter((l) => l.description.length > 0),
+      }
+    : {};
 
   const admin = createAdminClient();
   const { data, error } = await admin
@@ -77,6 +94,7 @@ export async function saveFactureAchat(input: FactureAchatInput): Promise<Action
       montant_tva: input.montant_tva,
       montant_ttc: input.montant_ttc,
       taux_tva: input.taux_tva,
+      ...lignesPatch,
       categorie_comptable: input.categorie_comptable?.trim() || null,
       taux_deductibilite: input.taux_deductibilite ?? 100,
       intervention_id: input.intervention_id,
@@ -219,6 +237,41 @@ export async function validerFactureAchat(id: string): Promise<ActionResult> {
 
   revalidatePath('/admin/facturation/achats');
   revalidatePath(`/admin/facturation/achats/${id}`);
+  return { ok: true };
+}
+
+// Suppression SOFT (deleted_at) — le justificatif reste archivé sur Drive.
+// La pièce capturée liée passe 'rejetee' avec note : la déduplication de la
+// relève email continue de l'ignorer (voulu — pas de réimport fantôme).
+export async function deleteFactureAchat(id: string): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('factures_achat')
+    .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('deleted_at', null)
+    .select('id, piece_capturee_id')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Facture d\'achat introuvable (ou déjà supprimée).' };
+
+  const pieceId = data.piece_capturee_id as string | null;
+  if (pieceId) {
+    const dateFr = new Date().toLocaleDateString('fr-BE');
+    await admin
+      .from('pieces_capturees')
+      .update({
+        statut: 'rejetee',
+        note: `Achat supprimé le ${dateFr}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', pieceId);
+  }
+
+  revalidatePath('/admin/facturation/achats');
   return { ok: true };
 }
 
