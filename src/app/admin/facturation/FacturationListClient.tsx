@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, ChevronUp, X, XCircle, FileEdit, Pencil, FileText, Trash2, Undo2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, X, XCircle, FileEdit, Pencil, FileText, Trash2, Undo2, Eye } from 'lucide-react';
+import { DocPreviewModal } from './DocPreviewModal';
 import { STATUT_FACTURE_INFO, type Facture, type StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -123,6 +124,7 @@ export function FacturationListClient({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [preview, setPreview] = useState<Facture | null>(null);
 
   // Recherche debouncée — searchInput pilote le champ contrôlé,
   // debouncedQuery est ce qui filtre réellement (300ms).
@@ -415,6 +417,14 @@ export function FacturationListClient({
                 filtered.map((f) => (
                   <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
                     <td className="px-3.5 py-2.5 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setPreview(f)}
+                        title="Aperçu rapide du PDF"
+                        className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                      >
+                        <Eye size={14} aria-hidden />
+                      </button>
                       <Link
                         href={`/admin/facturation/${f.id}`}
                         className="font-mono text-xs font-bold text-navy hover:underline"
@@ -591,6 +601,14 @@ export function FacturationListClient({
           })
         )}
       </div>
+
+      <DocPreviewModal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={`Facture ${preview?.numero ?? ''}`}
+        pdfUrl={`/api/admin/facture/${preview?.id}`}
+        fichePath={`/admin/facturation/${preview?.id}`}
+      />
 
       <ConfirmDialog
         open={confirmState !== null}

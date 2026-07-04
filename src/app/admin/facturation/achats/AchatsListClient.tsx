@@ -3,10 +3,10 @@
 // Liste des factures d'achat : filtres statut (chips), badges doublon +
 // pastille de confiance IA, modale d'upload (capture) et saisie manuelle.
 
-import { useMemo, useRef, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Inbox, Plus, SlidersHorizontal, Trash2, Upload, X } from 'lucide-react';
+import { ExternalLink, Eye, Inbox, Plus, SlidersHorizontal, Trash2, Upload, X } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import type { FactureAchat, StatutFactureAchat } from '@/lib/types/database';
 import { createFactureAchatManuelle, deleteFactureAchat, releverBoiteCapture } from './actions';
@@ -79,7 +79,18 @@ export function AchatsListClient({
   const [releve, setReleve] = useState(false);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [toDelete, setToDelete] = useState<FactureAchatRow | null>(null);
+  const [preview, setPreview] = useState<FactureAchatRow | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Fermeture de l'aperçu à Échap.
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreview(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [preview]);
 
   function handleDelete() {
     if (!toDelete) return;
@@ -266,6 +277,14 @@ export function AchatsListClient({
                 return (
                   <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
                     <td className="px-3.5 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setPreview(f)}
+                        title="Aperçu rapide"
+                        className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                      >
+                        <Eye size={14} aria-hidden />
+                      </button>
                       <Link href={`/admin/facturation/achats/${f.id}`} className="text-xs font-bold text-navy hover:underline">
                         {f.fournisseur_fiche_nom ?? f.fournisseur_nom ?? <span className="italic text-ink-muted">Sans fournisseur</span>}
                       </Link>
@@ -300,6 +319,97 @@ export function AchatsListClient({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Aperçu rapide d'un achat : champs clés + justificatif Drive */}
+      {preview && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setPreview(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Aperçu facture d'achat"
+        >
+          <div
+            className="bg-cream rounded-2xl border border-sand-border w-full max-w-[860px] h-[85vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-sand-border flex-shrink-0">
+              <div className="text-[13px] font-bold text-ink truncate">
+                Achat — {preview.fournisseur_fiche_nom ?? preview.fournisseur_nom ?? 'Sans fournisseur'}
+                {preview.numero_piece ? ` · ${preview.numero_piece}` : ''}
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/admin/facturation/achats/${preview.id}`}
+                  className="bg-navy text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-90 inline-flex items-center gap-1"
+                >
+                  <ExternalLink size={12} aria-hidden /> Ouvrir la fiche
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setPreview(null)}
+                  className="text-ink-muted hover:text-ink p-1"
+                  aria-label="Fermer"
+                >
+                  <X size={16} aria-hidden />
+                </button>
+              </div>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${STATUT_ACHAT_INFO[preview.statut].cls}`}>
+                  {STATUT_ACHAT_INFO[preview.statut].label}
+                </span>
+                {preview.doublon_de_id && <DoublonBadge />}
+                <ConfianceDot value={preview.ia_confiance_min} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[12px]">
+                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">Date</span><span className="font-mono">{fmtDate(preview.date_facture)}</span></div>
+                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">Échéance</span><span className="font-mono">{fmtDate(preview.date_echeance)}</span></div>
+                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">HT</span><span className="font-mono">{fmtMoney(preview.montant_ht)}</span></div>
+                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">TTC</span><span className="font-mono font-bold">{fmtMoney(preview.montant_ttc)}</span></div>
+              </div>
+              {preview.lignes.length > 0 && (
+                <div className="bg-white border border-sand-border rounded-lg p-2.5">
+                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">Lignes</div>
+                  <ul className="text-[11px] text-ink-mid space-y-0.5">
+                    {preview.lignes.map((l, i) => (
+                      <li key={i} className="flex justify-between gap-2">
+                        <span className="truncate">{l.description}</span>
+                        <span className="font-mono whitespace-nowrap">{l.montant != null ? fmtMoney(l.montant) : '—'}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {preview.justificatif_drive_id ? (
+                <div className="space-y-1.5">
+                  {/* Embed Drive best-effort — si l'iframe ne charge pas
+                      (droits, réseau), le lien direct reste juste dessous. */}
+                  <iframe
+                    src={`https://drive.google.com/file/d/${preview.justificatif_drive_id}/preview`}
+                    title="Justificatif Drive"
+                    className="w-full h-[45vh] bg-white border border-sand-border rounded-lg"
+                    allow="autoplay"
+                  />
+                  {preview.justificatif_url && (
+                    <a
+                      href={preview.justificatif_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-navy font-semibold underline hover:no-underline inline-flex items-center gap-1"
+                    >
+                      <ExternalLink size={12} aria-hidden /> Ouvrir le justificatif dans Drive
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[11px] text-ink-muted italic">Aucun justificatif (saisie manuelle).</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

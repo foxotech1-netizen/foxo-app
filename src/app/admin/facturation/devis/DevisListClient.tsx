@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Pencil, FileText, ArrowRight, CheckCircle2, XCircle, Undo2, Trash2 } from 'lucide-react';
+import { Pencil, FileText, ArrowRight, CheckCircle2, XCircle, Undo2, Trash2, Eye } from 'lucide-react';
+import { DocPreviewModal } from '../DocPreviewModal';
 import type { Facture, StatutFacture } from '@/lib/types/database';
 import { RowMenu } from '@/components/RowMenu';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -58,6 +59,7 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
   const [query, setQuery] = useState('');
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [preview, setPreview] = useState<Facture | null>(null);
 
   const [devisList, setDevisList] = useState<Facture[]>(initial);
   const [lastInit, setLastInit] = useState(initial);
@@ -238,6 +240,14 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
               return (
                 <tr key={d.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-mono text-xs font-bold text-navy">
+                    <button
+                      type="button"
+                      onClick={() => setPreview(d)}
+                      title="Aperçu rapide du PDF"
+                      className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                    >
+                      <Eye size={14} aria-hidden />
+                    </button>
                     <Link href={`/admin/facturation/devis/${d.id}`} className="hover:underline">
                       {d.numero.startsWith('BR-') ? (
                         <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
@@ -312,6 +322,14 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
           </tbody>
         </table>
       </div>
+
+      <DocPreviewModal
+        open={preview !== null}
+        onClose={() => setPreview(null)}
+        title={`Devis ${preview?.numero ?? ''}`}
+        pdfUrl={`/api/admin/facture/${preview?.id}`}
+        fichePath={`/admin/facturation/devis/${preview?.id}`}
+      />
 
       <ConfirmDialog
         open={confirmState !== null}
