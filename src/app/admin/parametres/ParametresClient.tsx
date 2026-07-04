@@ -109,7 +109,15 @@ const ALL_IDS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.id));
 //  ParametresClient
 // ───────────────────────────────────────────────────────────────────────────
 
-export function ParametresClient({ initial }: { initial: Record<string, string> }) {
+export function ParametresClient({
+  initial,
+  storecoveConfigured = false,
+}: {
+  initial: Record<string, string>;
+  // Présence des clés Storecove côté serveur (env) — booléen calculé côté
+  // serveur, les valeurs ne transitent jamais vers le client.
+  storecoveConfigured?: boolean;
+}) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
@@ -117,6 +125,7 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
   const [paymentTerms, setPaymentTerms] = useState(initial.payment_terms_days ?? '15');
   const [pontoEnabled, setPontoEnabled] = useState(initial.ponto_enabled === 'true');
   const [pontoApiKey, setPontoApiKey] = useState(initial.ponto_api_key ?? '');
+  const [storecoveEnabled, setStorecoveEnabled] = useState(initial.storecove_enabled === 'true');
 
   // SMS
   const [smsMode, setSmsMode] = useState(initial.sms_mode ?? 'manuel');
@@ -956,6 +965,46 @@ export function ParametresClient({ initial }: { initial: Record<string, string> 
             <p className="text-[11px] text-ink-muted italic">
               Le branchement effectif est dans <code>src/lib/ponto.ts</code> (TODO connectPonto, syncTransactions). Quand les credentials seront disponibles, la sync s&apos;activera automatiquement.
             </p>
+          </Section>
+
+          <Section
+            title="Facturation électronique (Peppol)"
+            desc="Transmission des factures et notes de crédit au format UBL via le point d'accès Storecove. Les clés API sont des variables serveur (Vercel) — l'interrupteur ci-dessous n'a d'effet que si elles sont présentes."
+          >
+            <Row
+              label="Activer l'envoi Peppol"
+              hint="Tant que c'est désactivé, aucun appel réseau vers Storecove n'est effectué."
+            >
+              <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={storecoveEnabled}
+                  onChange={(e) => setStorecoveEnabled(e.target.checked)}
+                  className="accent-[#1B3A6B]"
+                />
+                {storecoveEnabled ? 'Activé' : 'Désactivé'}
+              </label>
+              <SaveBtn pending={pending} onClick={() => save('storecove_enabled', storecoveEnabled ? 'true' : 'false')} />
+            </Row>
+            <Row
+              label="Clés Storecove (serveur)"
+              hint="STORECOVE_API_KEY + STORECOVE_LEGAL_ENTITY_ID, configurées dans les variables d'environnement Vercel."
+            >
+              {storecoveConfigured ? (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-ok-light border border-ok-mid text-ok">
+                  Présentes
+                </span>
+              ) : (
+                <span className="text-[12px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra">
+                  Absentes
+                </span>
+              )}
+            </Row>
+            {storecoveEnabled && !storecoveConfigured && (
+              <p className="text-[11px] text-terra font-semibold">
+                Interrupteur activé mais clés serveur absentes : l&apos;envoi Peppol restera refusé tant que les variables ne sont pas configurées dans Vercel.
+              </p>
+            )}
           </Section>
         </section>
 

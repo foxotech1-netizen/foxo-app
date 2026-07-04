@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { Parametre } from '@/lib/types/database';
+import { isStorecoveConfigured } from '@/lib/facturation/storecove';
 import { ParametresClient } from './ParametresClient';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,7 @@ export default async function ParametresPage() {
       </div>
 
       <div id="parametres-scroll">
-        <ParametresClient initial={map} />
+        <ParametresClient initial={map} storecoveConfigured={isStorecoveConfigured()} />
       </div>
     </>
   );

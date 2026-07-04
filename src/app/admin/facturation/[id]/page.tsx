@@ -5,9 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import type { Article, Facture } from '@/lib/types/database';
 import { FactureEditor } from '../FactureEditor';
 import { FactureActions } from './FactureActions';
+import { PeppolActions } from '../PeppolActions';
 import { SendByEmailButton } from '../SendByEmailButton';
 import { PaymentRefBadge } from './PaymentRefBadge';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
+import { isStorecoveEnabled } from '@/lib/facturation/storecove';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +69,7 @@ export default async function EditFacturePage({
     clientEmailFactures = (c?.email_factures as string | null | undefined) ?? null;
   }
   const emailDefaults = buildDocumentEmailDefaults({ facture, clientEmailFactures });
+  const peppolEnabled = await isStorecoveEnabled();
 
   return (
     <>
@@ -86,6 +89,7 @@ export default async function EditFacturePage({
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={facture} defaults={emailDefaults} />
+          <PeppolActions facture={facture} peppolEnabled={peppolEnabled} />
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"

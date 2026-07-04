@@ -28,6 +28,7 @@ import {
   estProvisoire,
   genererNumeroProvisoire,
 } from '@/lib/facturation/numerotation';
+import { sendViaPeppol } from '@/lib/facturation/storecove';
 import { sendEmail } from '@/lib/gmail';
 import {
   buildDocumentEmailDefaults,
@@ -1048,6 +1049,24 @@ export async function setDevisStatut(
 
   revalidatePath('/admin/facturation/devis');
   return { ok: true };
+}
+
+// ─── Peppol (Storecove) ──────────────────────────────────────────────────
+
+// Wrapper Server Action du module storecove — garde admin puis best-effort
+// (sendViaPeppol ne throw jamais et consigne l'issue sur la facture).
+export async function sendFactureViaPeppol(
+  id: string,
+): Promise<ActionResult<{ documentId: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const res = await sendViaPeppol(id);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  revalidatePath('/admin/facturation');
+  revalidatePath('/admin/facturation/notes-credit');
+  return { ok: true, data: { documentId: res.documentId } };
 }
 
 // ─── Recherche intervention pour pré-remplissage ─────────────────────────
