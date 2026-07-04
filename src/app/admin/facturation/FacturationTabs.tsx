@@ -12,6 +12,8 @@ import {
   Bell,
   Package,
   BarChart3,
+  ShoppingCart,
+  Truck,
 } from 'lucide-react';
 
 interface Tab {
@@ -29,6 +31,8 @@ const TABS: readonly Tab[] = [
   { href: '/admin/facturation/rappels',      icon: Bell,            label: 'Rappels'          },
   { href: '/admin/articles',                 icon: Package,         label: 'Catalogue'        },
   { href: '/admin/facturation/export',       icon: BarChart3,       label: 'Export comptable' },
+  { href: '/admin/facturation/achats',       icon: ShoppingCart,    label: 'Achats'           },
+  { href: '/admin/facturation/fournisseurs', icon: Truck,           label: 'Fournisseurs'     },
 ];
 
 // Sous-navigation horizontale du module facturation. Affichée comme bandeau
