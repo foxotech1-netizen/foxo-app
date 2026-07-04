@@ -26,9 +26,10 @@ import {
 } from '@/lib/agents/extraction-cas';
 
 export const dynamic = 'force-dynamic';
-// Téléchargement Drive + lecture d'un PDF ~10 pages par le modèle : marge
-// alignée sur les autres routes IA du projet.
-export const maxDuration = 60;
+// Téléchargement Drive + lecture PDF complet par le modèle : le premier test
+// réel a pris ~50 s et un second appel a dépassé 60 s (504 Vercel). Plafond
+// porté au maximum standard (300 s) pour absorber la variance.
+export const maxDuration = 300;
 
 async function runExtractTest(driveFileId: string, persist: boolean): Promise<NextResponse> {
   const supabase = await createClient();
