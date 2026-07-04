@@ -239,6 +239,11 @@ export function NoteFraisDrawer({
               <Field label="Date de la dépense" value={fmtDate(note.date_depense)} mono />
 
               <div className="bg-sand rounded-lg p-3 space-y-1">
+                {note.km_distance != null && note.km_taux_applique != null && (
+                  <div className="text-[11px] font-semibold text-ink-mid pb-1 border-b border-sand-border mb-1">
+                    Indemnité kilométrique : <span className="font-mono">{Number(note.km_distance).toLocaleString('fr-BE')} km × {Number(note.km_taux_applique).toFixed(4)} €/km</span>
+                  </div>
+                )}
                 <Money label="HTVA" value={note.montant_htva} />
                 <Money label={`TVA (${note.taux_tva}%)`} value={note.montant_ttc - note.montant_htva} />
                 <div className="border-t border-sand-border pt-1 mt-1">

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import type { Parametre } from '@/lib/types/database';
+import type { BaremeKm, Parametre } from '@/lib/types/database';
 import { isStorecoveConfigured } from '@/lib/facturation/storecove';
 import { ParametresClient } from './ParametresClient';
 
@@ -11,10 +11,14 @@ export const maxDuration = 60;
 
 export default async function ParametresPage() {
   const supabase = await createClient();
-  const { data } = await supabase.from('parametres').select('*');
+  const [{ data }, baremeRes] = await Promise.all([
+    supabase.from('parametres').select('*'),
+    supabase.from('bareme_km').select('*').order('date_debut', { ascending: false }),
+  ]);
   const params = (data ?? []) as Parametre[];
   const map: Record<string, string> = {};
   for (const p of params) map[p.cle] = p.valeur ?? '';
+  const baremeKm = (baremeRes.data ?? []) as BaremeKm[];
 
   return (
     <>
@@ -29,7 +33,11 @@ export default async function ParametresPage() {
       </div>
 
       <div id="parametres-scroll">
-        <ParametresClient initial={map} storecoveConfigured={isStorecoveConfigured()} />
+        <ParametresClient
+          initial={map}
+          storecoveConfigured={isStorecoveConfigured()}
+          baremeKm={baremeKm}
+        />
       </div>
     </>
   );

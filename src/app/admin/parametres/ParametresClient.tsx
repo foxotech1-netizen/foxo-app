@@ -23,6 +23,8 @@ import {
   type CalendarWatchStatus,
 } from './actions';
 import { SocieteSection } from './SocieteSection';
+import { BaremeKmSection } from './BaremeKmSection';
+import type { BaremeKm } from '@/lib/types/database';
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'jamais';
@@ -112,11 +114,14 @@ const ALL_IDS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.id));
 export function ParametresClient({
   initial,
   storecoveConfigured = false,
+  baremeKm = [],
 }: {
   initial: Record<string, string>;
   // Présence des clés Storecove côté serveur (env) — booléen calculé côté
   // serveur, les valeurs ne transitent jamais vers le client.
   storecoveConfigured?: boolean;
+  // Taux kilométriques (table bareme_km) — gérés dans leur section dédiée.
+  baremeKm?: BaremeKm[];
 }) {
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
@@ -1006,6 +1011,8 @@ export function ParametresClient({
               </p>
             )}
           </Section>
+
+          <BaremeKmSection initial={baremeKm} />
         </section>
 
         {/* ─── OPÉRATIONNEL ────────────────────────────────────────── */}

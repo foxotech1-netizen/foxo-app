@@ -725,6 +725,23 @@ export interface NoteFrais {
   note_admin: string | null;
   approved_at: string | null;
   approved_by: string | null;
+  // Facturation v2 (migration 2026-07-04_facturation_v2_socle.sql).
+  societe_id: string | null;
+  piece_capturee_id: string | null;
+  // Indemnité kilométrique : distance saisie + taux du barème appliqué
+  // au jour de la dépense (montant = km × taux, calculé côté serveur).
+  km_distance: number | null;
+  km_taux_applique: number | null;
+}
+
+// Barème kilométrique (taux SPF, paramétrable — aucun taux en dur).
+export interface BaremeKm {
+  id: string;
+  created_at: string;
+  societe_id: string | null;
+  date_debut: string;
+  taux_eur_km: number;
+  actif: boolean;
 }
 
 // ─── Observabilité IA ─────────────────────────────────────────────────────

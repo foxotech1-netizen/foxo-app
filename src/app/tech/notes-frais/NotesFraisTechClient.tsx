@@ -62,6 +62,10 @@ interface FormState {
   fournisseur: string;
   montant_ttc: string; // string pour gérer la saisie progressive
   description: string;
+  // Indemnité kilométrique (catégorie transport) : la distance remplace le
+  // montant — le serveur calcule montant = km × taux du jour (barème SPF).
+  indemnite_km: boolean;
+  km_distance: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -71,6 +75,8 @@ const EMPTY_FORM: FormState = {
   fournisseur: '',
   montant_ttc: '',
   description: '',
+  indemnite_km: false,
+  km_distance: '',
 };
 
 export function NotesFraisTechClient({
@@ -122,18 +128,33 @@ export function NotesFraisTechClient({
       setFeedback({ kind: 'err', msg: 'Le titre est requis.' });
       return;
     }
-    const ttc = Number(form.montant_ttc.replace(',', '.'));
-    if (!Number.isFinite(ttc) || ttc <= 0) {
-      setFeedback({ kind: 'err', msg: 'Le montant TTC doit être > 0.' });
-      return;
+
+    const useKm = form.categorie === 'transport' && form.indemnite_km;
+    let montantPayload: Record<string, unknown>;
+    if (useKm) {
+      // Indemnité km : on n'envoie QUE la distance — le montant est
+      // calculé côté serveur (barème du jour de la dépense).
+      const km = Number(form.km_distance.replace(',', '.'));
+      if (!Number.isFinite(km) || km <= 0) {
+        setFeedback({ kind: 'err', msg: 'La distance (km) doit être > 0.' });
+        return;
+      }
+      montantPayload = { km_distance: km };
+    } else {
+      const ttc = Number(form.montant_ttc.replace(',', '.'));
+      if (!Number.isFinite(ttc) || ttc <= 0) {
+        setFeedback({ kind: 'err', msg: 'Le montant TTC doit être > 0.' });
+        return;
+      }
+      // Calcul auto htva (taux fixé à 21 %, simplification — l'admin peut
+      // ajuster ensuite). Arrondi à 2 décimales pour rester aligné avec
+      // la précision DB.
+      const taux_tva = 21;
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+      const montant_ttc = round2(ttc);
+      const montant_htva = round2(montant_ttc / 1.21);
+      montantPayload = { montant_htva, taux_tva, montant_ttc };
     }
-    // Calcul auto htva (taux fixé à 21 %, simplification — l'admin peut
-    // ajuster ensuite). Arrondi à 2 décimales pour rester aligné avec
-    // la précision DB.
-    const taux_tva = 21;
-    const round2 = (n: number) => Math.round(n * 100) / 100;
-    const montant_ttc = round2(ttc);
-    const montant_htva = round2(montant_ttc / 1.21);
 
     setSubmitting(true);
     try {
@@ -143,9 +164,7 @@ export function NotesFraisTechClient({
         body: JSON.stringify({
           titre: form.titre.trim(),
           categorie: form.categorie,
-          montant_htva,
-          taux_tva,
-          montant_ttc,
+          ...montantPayload,
           fournisseur: form.fournisseur.trim() || undefined,
           date_depense: form.date_depense,
           description: form.description.trim() || undefined,
@@ -290,18 +309,46 @@ export function NotesFraisTechClient({
             />
           </FormField>
 
-          <FormField label="Montant TTC (€) — TVA 21 % calculée auto">
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              min="0"
-              value={form.montant_ttc}
-              onChange={(e) => setForm((f) => ({ ...f, montant_ttc: e.target.value }))}
-              placeholder="0,00"
-              className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] font-mono bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
-            />
-          </FormField>
+          {form.categorie === 'transport' && (
+            <label className="flex items-center gap-2.5 text-[14px] text-[var(--color-ink)] cursor-pointer min-h-[44px] px-1">
+              <input
+                type="checkbox"
+                checked={form.indemnite_km}
+                onChange={(e) => setForm((f) => ({ ...f, indemnite_km: e.target.checked }))}
+                className="w-5 h-5 accent-[#1B3A6B]"
+              />
+              <span className="font-medium">Indemnité kilométrique</span>
+              <span className="text-[12px] text-[var(--color-ink-mid)]">(montant = km × taux SPF)</span>
+            </label>
+          )}
+
+          {form.categorie === 'transport' && form.indemnite_km ? (
+            <FormField label="Distance (km) — montant calculé par le serveur">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                min="0"
+                value={form.km_distance}
+                onChange={(e) => setForm((f) => ({ ...f, km_distance: e.target.value }))}
+                placeholder="0"
+                className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] font-mono bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
+              />
+            </FormField>
+          ) : (
+            <FormField label="Montant TTC (€) — TVA 21 % calculée auto">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                value={form.montant_ttc}
+                onChange={(e) => setForm((f) => ({ ...f, montant_ttc: e.target.value }))}
+                placeholder="0,00"
+                className="w-full px-3.5 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] font-mono bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--accent-tech)] min-h-[44px]"
+              />
+            </FormField>
+          )}
 
           <FormField label="Description (optionnel)">
             <textarea

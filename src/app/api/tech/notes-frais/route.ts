@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser, canAccessTechSpace } from "@/lib/auth/server";
+import { getTauxKm } from '@/lib/facturation/bareme';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
 
 export const dynamic = 'force-dynamic';
@@ -81,26 +82,59 @@ export async function POST(request: Request) {
 
   const titre = typeof body.titre === 'string' ? body.titre.trim() : '';
   const categorie = typeof body.categorie === 'string' ? body.categorie : '';
-  const montant_htva = typeof body.montant_htva === 'number' ? body.montant_htva : Number(body.montant_htva);
-  const taux_tva = typeof body.taux_tva === 'number' ? body.taux_tva : Number(body.taux_tva);
-  const montant_ttc = typeof body.montant_ttc === 'number' ? body.montant_ttc : Number(body.montant_ttc);
+  let montant_htva = typeof body.montant_htva === 'number' ? body.montant_htva : Number(body.montant_htva);
+  let taux_tva = typeof body.taux_tva === 'number' ? body.taux_tva : Number(body.taux_tva);
+  let montant_ttc = typeof body.montant_ttc === 'number' ? body.montant_ttc : Number(body.montant_ttc);
   const date_depense = typeof body.date_depense === 'string' ? body.date_depense : '';
+  // Indemnité kilométrique : le client envoie UNIQUEMENT la distance —
+  // le montant est TOUJOURS calculé côté serveur (jamais confiance au client).
+  const kmDistance =
+    body.km_distance === undefined || body.km_distance === null
+      ? null
+      : typeof body.km_distance === 'number' ? body.km_distance : Number(body.km_distance);
 
   if (!titre) return NextResponse.json({ ok: false, error: 'Titre requis.' }, { status: 400 });
   if (!ALLOWED_CATEGORIES.has(categorie as CategorieNoteFrais)) {
     return NextResponse.json({ ok: false, error: 'Catégorie invalide.' }, { status: 400 });
   }
-  if (!Number.isFinite(montant_htva) || montant_htva < 0) {
-    return NextResponse.json({ ok: false, error: 'Montant HTVA invalide.' }, { status: 400 });
-  }
-  if (!Number.isFinite(montant_ttc) || montant_ttc <= 0) {
-    return NextResponse.json({ ok: false, error: 'Montant TTC invalide.' }, { status: 400 });
-  }
-  if (!Number.isFinite(taux_tva) || taux_tva < 0 || taux_tva > 100) {
-    return NextResponse.json({ ok: false, error: 'Taux TVA invalide.' }, { status: 400 });
-  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date_depense)) {
     return NextResponse.json({ ok: false, error: 'date_depense doit être YYYY-MM-DD.' }, { status: 400 });
+  }
+
+  let kmTauxApplique: number | null = null;
+  if (kmDistance != null) {
+    if (categorie !== 'transport') {
+      return NextResponse.json({ ok: false, error: 'L\'indemnité kilométrique est réservée à la catégorie Transport.' }, { status: 400 });
+    }
+    if (!Number.isFinite(kmDistance) || kmDistance <= 0 || kmDistance > 5000) {
+      return NextResponse.json({ ok: false, error: 'Distance (km) invalide.' }, { status: 400 });
+    }
+    const bareme = await getTauxKm(date_depense);
+    if (!bareme) {
+      return NextResponse.json(
+        { ok: false, error: 'Barème kilométrique non configuré — contactez l\'admin. En attendant, désactivez l\'indemnité km et saisissez le montant manuellement.' },
+        { status: 400 },
+      );
+    }
+    // Indemnité forfaitaire : pas de TVA (HTVA = TTC = km × taux).
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    kmTauxApplique = Number(bareme.taux_eur_km);
+    montant_ttc = round2(kmDistance * kmTauxApplique);
+    montant_htva = montant_ttc;
+    taux_tva = 0;
+    if (montant_ttc <= 0) {
+      return NextResponse.json({ ok: false, error: 'Montant kilométrique calculé nul — vérifie la distance.' }, { status: 400 });
+    }
+  } else {
+    if (!Number.isFinite(montant_htva) || montant_htva < 0) {
+      return NextResponse.json({ ok: false, error: 'Montant HTVA invalide.' }, { status: 400 });
+    }
+    if (!Number.isFinite(montant_ttc) || montant_ttc <= 0) {
+      return NextResponse.json({ ok: false, error: 'Montant TTC invalide.' }, { status: 400 });
+    }
+    if (!Number.isFinite(taux_tva) || taux_tva < 0 || taux_tva > 100) {
+      return NextResponse.json({ ok: false, error: 'Taux TVA invalide.' }, { status: 400 });
+    }
   }
 
   const admin = createAdminClient();
@@ -129,6 +163,8 @@ export async function POST(request: Request) {
     description:     typeof body.description === 'string' && body.description ? body.description : null,
     intervention_id: typeof body.intervention_id === 'string' && body.intervention_id ? body.intervention_id : null,
     photo_url:       typeof body.photo_url === 'string' && body.photo_url ? body.photo_url : null,
+    km_distance:     kmDistance,
+    km_taux_applique: kmTauxApplique,
   };
 
   const { data, error } = await admin
