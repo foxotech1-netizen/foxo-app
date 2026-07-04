@@ -1,9 +1,17 @@
-# Réveil-matin du runner d'ingestion « Assistant terrain » (étape 4).
-# Le plan Vercel Hobby limite les crons natifs à 1/jour → GitHub Actions
-# (gratuit sur repo public) sonne la route toutes les 5 minutes ; la route
-# décide seule de travailler ou non (interrupteur parametres.ingestion_cas_terrain).
-# À DÉSACTIVER (onglet Actions → workflow → ⋯ → Disable) une fois le fonds
-# de ~2000 PDF entièrement ingéré.
+# Runner d'ingestion « Assistant terrain » (étape 4) — mode RAFALE.
+#
+# Le plan Vercel Hobby plafonne chaque appel à 300 s (≈ 5-6 fiches max par
+# passage) et le plan GitHub Hobby ne déclenche le cron qu'~1×/heure. Pour
+# tenir un débit élevé sans dépasser ces deux limites, CHAQUE exécution de ce
+# workflow appelle la route EN BOUCLE : petit lot (tient sous 300 s), on
+# attend la réponse, on rappelle, tant qu'il reste des fiches à traiter.
+# La boucle s'arrête d'elle-même quand la route répond "skipped" (interrupteur
+# off, plafond atteint, ou fonds épuisé). Le déclenchement horaire de GitHub
+# relance donc une rafale complète ; un « Run workflow » manuel en lance une
+# immédiatement.
+#
+# À DÉSACTIVER (onglet Actions → ce workflow → ⋯ → Disable) une fois le
+# pilote de 200 fiches atteint.
 
 name: Ingestion cas terrain
 
@@ -12,26 +20,58 @@ on:
     - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
-# Jamais deux passages simultanés (un lot peut durer ~5 min) : le suivant
-# attend, sans annuler celui en cours.
+# Jamais deux rafales simultanées : la suivante attend la fin de l'actuelle.
 concurrency:
   group: ingest-cas-terrain
   cancel-in-progress: false
 
 jobs:
-  appel-cron:
+  rafale:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 55
     steps:
-      - name: Appeler la route d'ingestion
+      - name: Ingestion en rafale (boucle jusqu'à skipped/plafond)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          http_code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            --max-time 330 \
-            "https://admin.foxo.be/api/cron/ingest-cas-terrain")
-          echo "HTTP ${http_code}"
-          cat /tmp/resp.json || true
-          echo ""
-          test "${http_code}" = "200"
+          set -u
+          URL="https://admin.foxo.be/api/cron/ingest-cas-terrain"
+          # Marge de sécurité : on arrête d'initier de nouveaux passages après
+          # ~48 min pour laisser le dernier finir avant le timeout de 55 min.
+          DEADLINE=$(( $(date +%s) + 2880 ))
+          i=0
+          while :; do
+            i=$((i+1))
+            code=$(curl -sS -o /tmp/resp.json -w "%{http_code}" -X POST \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              --max-time 330 \
+              "${URL}") || code="000"
+            echo "── passage #${i} → HTTP ${code}"
+            cat /tmp/resp.json 2>/dev/null || true
+            echo ""
+
+            # Erreur HTTP : on sort en échec (visible en rouge dans Actions).
+            if [ "${code}" != "200" ]; then
+              echo "Arrêt : réponse HTTP ${code}"
+              exit 1
+            fi
+
+            # Fin de rafale : la route signale qu'il n'y a plus rien à faire
+            # (interrupteur off, plafond atteint, ou fonds épuisé).
+            if grep -q '"skipped":true' /tmp/resp.json 2>/dev/null; then
+              echo "Arrêt : la route a répondu skipped (rien à traiter)."
+              break
+            fi
+
+            # Garde temps : on ne démarre pas un passage qui risquerait de
+            # dépasser le timeout du job.
+            now=$(date +%s)
+            if [ "${now}" -ge "${DEADLINE}" ]; then
+              echo "Arrêt : deadline de rafale atteinte, le prochain cron reprendra."
+              break
+            fi
+
+            # Petite pause entre passages (soulage l'API et Vercel).
+            sleep 3
+          done
+          echo "Rafale terminée après ${i} passage(s)."

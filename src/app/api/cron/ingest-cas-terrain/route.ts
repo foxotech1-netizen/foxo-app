@@ -15,6 +15,8 @@
  * Périmètre d'années : parametres.ingestion_cas_terrain_annees (CSV,
  * ex. '2023,2024,2025' ; vide = toutes) — filtre sur le début du nom de
  * fichier, conformément à la convention de nommage du fonds.
+ * Taille de lot : parametres.ingestion_cas_terrain_batch (nb de fiches par
+ * passage ; défaut 3, borné 1..12 côté runner pour tenir sous maxDuration).
  *
  * Quand plus rien ne reste à traiter, le job se marque 'skipped' (aucun
  * appel modèle) : le workflow peut continuer à sonner sans coût.
@@ -120,8 +122,16 @@ export async function POST(request: Request) {
         .map((y: string) => y.trim())
         .filter(Boolean);
 
+      const { data: batchRow } = await admin
+        .from('parametres')
+        .select('valeur')
+        .eq('cle', 'ingestion_cas_terrain_batch')
+        .maybeSingle();
+      const parsedBatch = Number.parseInt((batchRow?.valeur ?? '').trim(), 10);
+      const batchSize = Number.isFinite(parsedBatch) && parsedBatch > 0 ? parsedBatch : undefined;
+
       // runIngestBatch throw → laisse remonter, le wrapper logue 'failed'.
-      const result = await runIngestBatch(folderId, { allowedYears });
+      const result = await runIngestBatch(folderId, { allowedYears, batchSize });
 
       // Fonds épuisé : lot vide, rien tenté → 'skipped' (lisibilité
       // automation_jobs : la fin de chantier se voit d'un coup d'œil).
