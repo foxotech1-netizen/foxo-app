@@ -738,11 +738,11 @@ export async function deleteFacture(id: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-// Remet un document du statut 'envoyee' au statut 'brouillon'. Sert à
-// corriger une émission prématurée (facture, devis ou avoir). Efface
-// sent_at et date_paiement pour rester cohérent. Refuse les transitions
-// depuis tout autre statut (payee, annulee, accepte/refuse/expire d'un
-// devis — pour ceux-là, un nouveau document est attendu).
+// Remet un document émis ('envoyee' ou 'en_retard') au statut 'brouillon'.
+// Le numéro définitif et la BBA sont CONSERVÉS (jamais recalculés) : la
+// ré-émission ne repasse pas par l'attribution (estProvisoire = false).
+// Efface sent_at et date_paiement pour rester cohérent. Refuse les autres
+// statuts : payee → « Retirer le paiement » d'abord ; annulee → non concerné.
 export async function revertToBrouillon(id: string): Promise<ActionResult> {
   const guard = await assertAdmin();
   if (!guard.ok) return guard;
@@ -750,8 +750,11 @@ export async function revertToBrouillon(id: string): Promise<ActionResult> {
 
   const { data: f } = await supabase.from('factures').select('statut').eq('id', id).maybeSingle();
   if (!f) return { ok: false, error: 'Document introuvable.' };
-  if (f.statut !== 'envoyee') {
-    return { ok: false, error: 'Seul un document envoyé peut être remis en brouillon.' };
+  if (f.statut !== 'envoyee' && f.statut !== 'en_retard') {
+    if (f.statut === 'payee') {
+      return { ok: false, error: 'Facture payée — retire d\'abord le paiement (page Paiements) avant de remettre en brouillon.' };
+    }
+    return { ok: false, error: 'Seul un document émis (envoyé / en retard) peut être remis en brouillon.' };
   }
 
   const { error } = await supabase

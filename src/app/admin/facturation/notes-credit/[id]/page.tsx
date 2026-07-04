@@ -6,6 +6,7 @@ import { FactureEditor } from '../../FactureEditor';
 import { SendByEmailButton } from '../../SendByEmailButton';
 import { PeppolActions } from '../../PeppolActions';
 import { OdooActions } from '../../OdooActions';
+import { RevertToBrouillonButton } from '../../RevertToBrouillonButton';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 import { isStorecoveEnabled } from '@/lib/facturation/storecove';
 import { isOdooEnabled } from '@/lib/facturation/odoo';
@@ -87,6 +88,7 @@ export default async function EditAvoirPage({
             pushable={avoirEmis}
             disabledReason="Disponible après émission de la note de crédit."
           />
+          <RevertToBrouillonButton facture={avoir} />
           <Link href="/admin/facturation/notes-credit" className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>

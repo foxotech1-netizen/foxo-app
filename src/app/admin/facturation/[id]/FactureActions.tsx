@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileText, Mail, CheckCircle2, Undo2, FileEdit, Trash2, XCircle } from 'lucide-react';
 import { RowMenu } from '@/components/RowMenu';
-import { setFactureStatut, deleteFacture, createAvoirFromFacture } from '../actions';
+import { setFactureStatut, deleteFacture, createAvoirFromFacture, revertToBrouillon } from '../actions';
 import type { Facture } from '@/lib/types/database';
 
 export function FactureActions({ facture }: { facture: Facture }) {
@@ -52,9 +52,14 @@ export function FactureActions({ facture }: { facture: Facture }) {
           },
           {
             icon: Undo2,
-            label: 'Repasser en brouillon',
-            onClick: () => call(() => setFactureStatut(facture.id, 'brouillon')),
-            hidden: facture.statut === 'brouillon' || facture.statut === 'payee',
+            label: 'Remettre en brouillon',
+            onClick: () => {
+              if (!confirm(`Remettre ${facture.numero} en brouillon ?\n\nLa pièce redevient modifiable et CONSERVE son numéro ${facture.numero}. Si elle a déjà été transmise au client, préférez une note de crédit.`)) return;
+              call(() => revertToBrouillon(facture.id), 'Pièce remise en brouillon.');
+            },
+            // Statuts éligibles uniquement : envoyée / en retard (payée →
+            // retirer d'abord le paiement ; annulée → non concerné).
+            hidden: facture.statut !== 'envoyee' && facture.statut !== 'en_retard',
             disabled: pending,
           },
           {
