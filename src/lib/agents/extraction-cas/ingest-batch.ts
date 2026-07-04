@@ -82,7 +82,7 @@ async function fetchAllColumn(
 
 export async function runIngestBatch(
   folderId: string,
-  opts?: { allowedYears?: string[] },
+  opts?: { allowedYears?: string[]; batchSize?: number },
 ): Promise<IngestBatchResult> {
   const admin = createAdminClient();
   const startedAt = Date.now();
@@ -130,7 +130,9 @@ export async function runIngestBatch(
       candidates[j] = a;
     }
   }
-  const batch = candidates.slice(0, BATCH_SIZE);
+  const wanted = opts?.batchSize ?? BATCH_SIZE;
+  const effectiveBatch = Math.max(1, Math.min(12, wanted));
+  const batch = candidates.slice(0, effectiveBatch);
   const details: IngestBatchResult['details'] = [];
   let processed = 0;
   let failed = 0;
