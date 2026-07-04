@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Send, CheckCircle2, XCircle, Banknote, RefreshCw, X, Search, Trash2, type LucideIcon } from 'lucide-react';
+import { Send, CheckCircle2, XCircle, Banknote, RefreshCw, X, Search, Trash2, Pencil, type LucideIcon } from 'lucide-react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
-import { deleteNoteFrais, updateStatutNoteFrais } from './actions';
+import { deleteNoteFrais, updateStatutNoteFrais, updateNoteFraisAdmin } from './actions';
 
 const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
   carburant:      'Carburant',
@@ -88,7 +88,51 @@ export function NoteFraisDrawer({
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [noteAdmin, setNoteAdmin] = useState(note.note_admin ?? '');
 
+  // Édition admin des champs de la note (catégorie, montants, date…).
+  const [editing, setEditing] = useState(false);
+  const [eCategorie, setECategorie] = useState<CategorieNoteFrais>(note.categorie);
+  const [eFournisseur, setEFournisseur] = useState(note.fournisseur ?? '');
+  const [eDate, setEDate] = useState(note.date_depense);
+  const [eHtva, setEHtva] = useState(String(note.montant_htva));
+  const [eTaux, setETaux] = useState(String(note.taux_tva));
+  const [eTtc, setETtc] = useState(String(note.montant_ttc));
+  const [eDescription, setEDescription] = useState(note.description ?? '');
+
   const badge = STATUT_BADGE[note.statut];
+
+  async function saveEdition() {
+    const num = (s: string) => Number(s.replace(',', '.'));
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const res = await updateNoteFraisAdmin(note.id, {
+        categorie: eCategorie,
+        fournisseur: eFournisseur || null,
+        date_depense: eDate,
+        montant_htva: num(eHtva),
+        taux_tva: num(eTaux),
+        montant_ttc: num(eTtc),
+        description: eDescription || null,
+      });
+      if (!res.ok) { setFeedback({ kind: 'err', msg: res.error }); return; }
+      onUpdate?.({
+        categorie: res.data.categorie,
+        fournisseur: res.data.fournisseur,
+        date_depense: res.data.date_depense,
+        montant_htva: res.data.montant_htva,
+        taux_tva: res.data.taux_tva,
+        montant_ttc: res.data.montant_ttc,
+        description: res.data.description,
+      });
+      setEditing(false);
+      setFeedback({ kind: 'ok', msg: 'Note mise à jour.' });
+      router.refresh();
+    } catch (e) {
+      setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function transitionStatut(to: StatutNoteFrais) {
     setSaving(true);
@@ -221,15 +265,89 @@ export function NoteFraisDrawer({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {tab === 'infos' && (
-            <>
+          {tab === 'infos' && editing && (
+            <div className="space-y-3">
+              <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+                Édition admin
+              </div>
               <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
-                  Catégorie
+                <label className="text-xs font-semibold text-ink-mid block mb-1">Catégorie</label>
+                <select
+                  value={eCategorie}
+                  onChange={(e) => setECategorie(e.target.value as CategorieNoteFrais)}
+                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+                >
+                  {(Object.keys(CATEGORIE_LABEL) as CategorieNoteFrais[]).map((c) => (
+                    <option key={c} value={c}>{CATEGORIE_LABEL[c]}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-ink-mid block mb-1">Fournisseur</label>
+                  <input value={eFournisseur} onChange={(e) => setEFournisseur(e.target.value)} className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white" />
                 </div>
-                <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-sand-mid text-ink-mid">
-                  {CATEGORIE_LABEL[note.categorie]}
-                </span>
+                <div>
+                  <label className="text-xs font-semibold text-ink-mid block mb-1">Date</label>
+                  <input type="date" value={eDate} onChange={(e) => setEDate(e.target.value)} className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-ink-mid block mb-1">HTVA (€)</label>
+                  <input value={eHtva} onChange={(e) => setEHtva(e.target.value)} inputMode="decimal" className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] font-mono bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink-mid block mb-1">TVA (%)</label>
+                  <input value={eTaux} onChange={(e) => setETaux(e.target.value)} inputMode="decimal" className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] font-mono bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-ink-mid block mb-1">TTC (€)</label>
+                  <input value={eTtc} onChange={(e) => setETtc(e.target.value)} inputMode="decimal" className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] font-mono bg-white" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-ink-mid block mb-1">Description</label>
+                <textarea value={eDescription} onChange={(e) => setEDescription(e.target.value)} rows={2} className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white resize-y" />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={saveEdition}
+                  disabled={saving}
+                  className="bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50 flex-1"
+                >
+                  {saving ? '…' : 'Enregistrer'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-bold hover:bg-sand-hover disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+          {tab === 'infos' && !editing && (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
+                    Catégorie
+                  </div>
+                  <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-sand-mid text-ink-mid">
+                    {CATEGORIE_LABEL[note.categorie]}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="text-[11px] font-semibold text-navy hover:underline inline-flex items-center gap-1"
+                >
+                  <Pencil size={12} aria-hidden /> Modifier
+                </button>
               </div>
 
               {note.fournisseur && (
