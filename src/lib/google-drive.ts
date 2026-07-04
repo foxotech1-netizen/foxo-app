@@ -340,6 +340,35 @@ export async function uploadFacture(args: {
   return { ok: true, file_id: f.id, web_view_link: f.webViewLink ?? '' };
 }
 
+// Justificatifs des factures d'achat (chantier Facturation v2) :
+// FACTURES/Achats/<année>/<filename>. Choix : le flux notes-frais uploade
+// en réalité vers Supabase Storage (bucket public) — pour les achats on
+// reste dans l'arborescence Drive du module facturation (même racine que
+// uploadFacture), avec un sous-dossier dédié « Achats » par année.
+export async function uploadAchat(args: {
+  filename: string;
+  bytes: Uint8Array;
+  mimeType: string;
+  date?: Date;
+}): Promise<DriveUploadResult> {
+  const root = getDriveFoldersSafe().facturesFolderId;
+  if (!root) return { ok: false, error: 'GOOGLE_DRIVE_FACTURES_FOLDER_ID manquant.' };
+  const auth = await getValidAccessToken();
+  if (!auth) return { ok: false, error: 'Google non connecté.' };
+  const verify = await verifyDriveFolder(root);
+  if (!verify.ok) return { ok: false, error: verify.error ?? 'Dossier FACTURES inaccessible.' };
+
+  const achatsF = await ensureFolder(auth.access_token, root, 'Achats');
+  if (!achatsF) return { ok: false, error: 'Dossier Achats introuvable.' };
+  const year = (args.date ?? new Date()).getFullYear();
+  const yearF = await ensureFolder(auth.access_token, achatsF.id, String(year));
+  if (!yearF) return { ok: false, error: 'Dossier année introuvable.' };
+
+  const f = await uploadMultipart(auth.access_token, yearF.id, args.filename, args.bytes, args.mimeType);
+  if (!f) return { ok: false, error: 'Échec upload justificatif.' };
+  return { ok: true, file_id: f.id, web_view_link: f.webViewLink ?? '' };
+}
+
 // Retour granulaire : statut par dossier (rapports + factures) avec
 // nom du dossier si accessible, ou erreur explicite (404 / 403 / autre).
 export interface TestDriveResult {

@@ -494,6 +494,116 @@ export interface Facture {
   updated_at: string;
 }
 
+// ─── Achats (chantier Facturation v2 — migration 2026-07-04_facturation_v2_socle.sql) ───
+
+export type StatutFactureAchat = 'a_valider' | 'a_payer' | 'payee' | 'rejetee';
+export type SourceFactureAchat = 'upload' | 'photo' | 'email' | 'peppol' | 'manuel';
+
+export interface Fournisseur {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  societe_id: string | null;
+  nom: string;
+  tva: string | null;
+  peppol_id: string | null;
+  email: string | null;
+  telephone: string | null;
+  iban: string | null;
+  adresse: string | null;
+  conditions_paiement_jours: number | null;
+  categorie_comptable_defaut: string | null;
+  notes: string | null;
+  actif: boolean;
+}
+
+export interface FactureAchatLigne {
+  description: string;
+  quantite: number | null;
+  prix_unitaire: number | null;
+  montant: number | null;
+}
+
+export interface FactureAchat {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  societe_id: string | null;
+  fournisseur_id: string | null;
+  // Dénormalisé : nom capturé avant création éventuelle de la fiche.
+  fournisseur_nom: string | null;
+  // N° de facture du fournisseur.
+  numero_piece: string | null;
+  date_facture: string | null;
+  date_echeance: string | null;
+  devise: string;
+  montant_ht: number | null;
+  montant_tva: number | null;
+  montant_ttc: number | null;
+  taux_tva: number | null;
+  lignes: FactureAchatLigne[];
+  categorie_comptable: string | null;
+  taux_deductibilite: number | null;
+  intervention_id: string | null;
+  source: SourceFactureAchat;
+  justificatif_drive_id: string | null;
+  justificatif_url: string | null;
+  ia_raw: Record<string, unknown> | null;
+  ia_confiances: Record<string, number> | null;
+  ia_confiance_min: number | null;
+  doublon_de_id: string | null;
+  statut: StatutFactureAchat;
+  date_paiement: string | null;
+  moyen_paiement: string | null;
+  odoo_move_id: string | null;
+  odoo_pushed_at: string | null;
+  note_admin: string | null;
+  piece_capturee_id: string | null;
+}
+
+export interface PieceCapturee {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  societe_id: string | null;
+  canal: 'upload' | 'photo' | 'email' | 'peppol';
+  source_email: string | null;
+  nom_fichier: string | null;
+  mime_type: string | null;
+  drive_file_id: string | null;
+  drive_url: string | null;
+  type_detecte: 'ticket' | 'facture_achat' | 'facture_vente' | 'autre' | null;
+  statut: 'recue' | 'en_extraction' | 'extraite' | 'validee' | 'rejetee' | 'doublon';
+  extraction: Record<string, unknown> | null;
+  confiances: Record<string, number> | null;
+  confiance_min: number | null;
+  cible_table: string | null;
+  cible_id: string | null;
+  doublon_de_id: string | null;
+  cree_par: string | null;
+  note: string | null;
+}
+
+export interface RegleMapping {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  societe_id: string | null;
+  // Motif matché (insensible à la casse) contre le nom du fournisseur.
+  motif: string;
+  categorie: string | null;
+  categorie_comptable: string | null;
+  taux_deductibilite: number | null;
+  priorite: number;
+  // true si créée par apprentissage (validation admin), false si manuelle.
+  apprise: boolean;
+  occurrences: number;
+  actif: boolean;
+}
+
 export interface Article {
   id: string;
   code: string | null;
