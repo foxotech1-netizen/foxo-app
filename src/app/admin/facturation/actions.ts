@@ -1070,6 +1070,43 @@ export async function sendFactureViaPeppol(
   return { ok: true, data: { documentId: res.documentId } };
 }
 
+// ─── Lien facture ↔ dossier ───────────────────────────────────────────────
+
+// Rattache (ou détache : interventionId = null) une facture à un dossier.
+// Disponible à TOUT statut — sert notamment à raccrocher l'historique
+// importé d'Odoo quand les dossiers 2026 seront encodés (rentabilité par
+// dossier). Ne modifie QUE intervention_id.
+export async function setFactureIntervention(
+  factureId: string,
+  interventionId: string | null,
+): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const supabase = await createClient();
+  if (interventionId) {
+    const { data: iv } = await supabase
+      .from('interventions')
+      .select('id')
+      .eq('id', interventionId)
+      .maybeSingle();
+    if (!iv) return { ok: false, error: 'Dossier introuvable.' };
+  }
+
+  const { data, error } = await supabase
+    .from('factures')
+    .update({ intervention_id: interventionId, updated_at: new Date().toISOString() })
+    .eq('id', factureId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Facture introuvable.' };
+
+  revalidatePath('/admin/facturation');
+  revalidatePath(`/admin/facturation/${factureId}`);
+  return { ok: true };
+}
+
 // ─── Odoo ─────────────────────────────────────────────────────────────────
 
 // Wrapper Server Action du connecteur Odoo (ventes + avoirs) — garde admin

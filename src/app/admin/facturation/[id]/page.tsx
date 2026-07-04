@@ -8,6 +8,7 @@ import { FactureActions } from './FactureActions';
 import { PeppolActions } from '../PeppolActions';
 import { SendByEmailButton } from '../SendByEmailButton';
 import { PaymentRefBadge } from './PaymentRefBadge';
+import { LierDossierButton } from './LierDossierButton';
 import { RelancesPauseBadge } from '../rappels/RelancesAutoBlock';
 import { buildDocumentEmailDefaults } from '@/lib/facturation/email-defaults';
 import { isStorecoveEnabled } from '@/lib/facturation/storecove';
@@ -76,6 +77,17 @@ export default async function EditFacturePage({
   const odooEnabled = await isOdooEnabled();
   const emitted = facture.statut !== 'brouillon' && !facture.numero.startsWith('BR-');
 
+  // Réf. du dossier lié (bouton « Lier à un dossier », dispo à tout statut).
+  let interventionRef: string | null = null;
+  if (facture.intervention_id) {
+    const { data: iv } = await supabase
+      .from('interventions')
+      .select('ref')
+      .eq('id', facture.intervention_id)
+      .maybeSingle();
+    interventionRef = (iv?.ref as string | null) ?? null;
+  }
+
   return (
     <>
       <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
@@ -94,6 +106,11 @@ export default async function EditFacturePage({
           </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
+          <LierDossierButton
+            factureId={facture.id}
+            interventionId={facture.intervention_id}
+            interventionRef={interventionRef}
+          />
           <SendByEmailButton facture={facture} defaults={emailDefaults} />
           <PeppolActions facture={facture} peppolEnabled={peppolEnabled} />
           <OdooActions
