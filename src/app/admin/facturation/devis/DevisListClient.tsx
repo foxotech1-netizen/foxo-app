@@ -235,7 +235,13 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
                 <tr key={d.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-mono text-xs font-bold text-navy">
                     <Link href={`/admin/facturation/devis/${d.id}`} className="hover:underline">
-                      {d.numero}
+                      {d.numero.startsWith('BR-') ? (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+                          Brouillon
+                        </span>
+                      ) : (
+                        d.numero
+                      )}
                     </Link>
                   </td>
                   <td className="px-3.5 py-3 text-[12px]">{d.client_nom ?? '—'}</td>

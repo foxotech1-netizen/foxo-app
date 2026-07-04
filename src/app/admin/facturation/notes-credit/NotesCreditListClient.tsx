@@ -145,7 +145,13 @@ export function NotesCreditListClient({
                 <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3 font-mono text-xs font-bold text-terra">
                     <Link href={`/admin/facturation/notes-credit/${a.id}`} className="hover:underline">
-                      {a.numero}
+                      {a.numero.startsWith('BR-') ? (
+                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+                          Brouillon
+                        </span>
+                      ) : (
+                        a.numero
+                      )}
                     </Link>
                   </td>
                   <td className="px-3.5 py-3 text-[12px]">

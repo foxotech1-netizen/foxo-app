@@ -478,6 +478,16 @@ export interface Facture {
   // les brouillons supprimés depuis la liste. Les listings filtrent
   // toujours `deleted_at IS NULL`.
   deleted_at: string | null;
+  // Facturation v2 (cf. 2026-07-04_facturation_v2_socle.sql).
+  // Facture d'acompte — déduite ensuite sur la facture finale de l'intervention.
+  is_acompte: boolean | null;
+  // Relances automatiques suspendues pour cette facture.
+  relances_pause: boolean | null;
+  peppol_status: string | null;
+  peppol_document_id: string | null;
+  peppol_sent_at: string | null;
+  odoo_move_id: string | null;
+  odoo_pushed_at: string | null;
   created_at: string;
   updated_at: string;
 }

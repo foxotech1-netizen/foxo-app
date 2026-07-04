@@ -73,6 +73,27 @@ function fmtMoney(n: number | null | undefined): string {
   return v.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 }
 
+// Numéro provisoire (BR-…, brouillon pas encore émis) → badge discret ;
+// numéro définitif → affiché tel quel. Le tri des listes reste inchangé.
+function NumeroLabel({ numero }: { numero: string }) {
+  if (numero.startsWith('BR-')) {
+    return (
+      <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+        Brouillon
+      </span>
+    );
+  }
+  return <>{numero}</>;
+}
+
+function AcompteBadge() {
+  return (
+    <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-navy bg-navy-pale border border-navy-light rounded px-1.5 py-0.5 dark:text-white">
+      Acompte
+    </span>
+  );
+}
+
 function thisMonthRange(): { from: string; to: string } {
   const now = new Date();
   const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
@@ -398,8 +419,11 @@ export function FacturationListClient({
                         href={`/admin/facturation/${f.id}`}
                         className="font-mono text-xs font-bold text-navy hover:underline"
                       >
-                        {f.numero}
+                        <NumeroLabel numero={f.numero} />
                       </Link>
+                      {f.is_acompte && (
+                        <span className="ml-1.5"><AcompteBadge /></span>
+                      )}
                     </td>
                     <td className="px-3.5 py-2.5">
                       <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
@@ -507,8 +531,9 @@ export function FacturationListClient({
                 className="block bg-cream rounded-xl border border-sand-border p-3 hover:bg-sand-hover transition-colors"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-mono text-[12px] font-bold text-navy">
-                    {f.numero}
+                  <span className="font-mono text-[12px] font-bold text-navy inline-flex items-center gap-1.5">
+                    <NumeroLabel numero={f.numero} />
+                    {f.is_acompte && <AcompteBadge />}
                   </span>
                   <StatutBadge statut={f.statut} />
                 </div>
