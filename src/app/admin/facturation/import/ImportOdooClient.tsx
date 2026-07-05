@@ -43,28 +43,43 @@ export function ImportOdooClient({
     if (fileRef.current) fileRef.current.value = '';
   }
 
-  function handleFile(file: File) {
+  // Excel (.xlsx/.xls) → CSV en mémoire (séparateur ';', valeurs contenant ';'
+  // échappées par SheetJS), pour rester compatible avec le parseur serveur
+  // inchangé. CSV / texte → lecture texte directe. SheetJS est importé
+  // dynamiquement : le classeur n'alourdit pas le bundle initial de la page.
+  async function fileToCsv(file: File): Promise<string> {
+    const ext = file.name.toLowerCase().split('.').pop() ?? '';
+    if (ext === 'xlsx' || ext === 'xls') {
+      const buf = await file.arrayBuffer();
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(buf, { type: 'array' });
+      const first = wb.SheetNames[0];
+      if (!first) throw new Error('Classeur Excel vide (aucune feuille).');
+      return XLSX.utils.sheet_to_csv(wb.Sheets[first], { FS: ';' });
+    }
+    return await file.text();
+  }
+
+  async function handleFile(file: File) {
     setError(null);
     setRapport(null);
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onerror = () => setError('Lecture du fichier impossible.');
-    reader.onload = () => {
-      const text = String(reader.result ?? '');
+    setPhase('dryrun');
+    try {
+      const text = await fileToCsv(file);
       setCsvText(text);
-      setPhase('dryrun');
-      void (async () => {
-        const res = await importOdoo(kind, text, false);
-        if (!res.ok) {
-          setError(res.error);
-          setPhase('idle');
-          return;
-        }
-        setRapport(res.data!);
+      const res = await importOdoo(kind, text, false);
+      if (!res.ok) {
+        setError(res.error);
         setPhase('idle');
-      })();
-    };
-    reader.readAsText(file);
+        return;
+      }
+      setRapport(res.data!);
+      setPhase('idle');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Lecture du fichier impossible.');
+      setPhase('idle');
+    }
   }
 
   function handleCommit() {
@@ -95,11 +110,11 @@ export function ImportOdooClient({
       <input
         ref={fileRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
         disabled={busy}
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) handleFile(f);
+          if (f) void handleFile(f);
         }}
         className="w-full text-[12px] file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-white file:text-[12px] file:font-bold file:cursor-pointer"
       />
