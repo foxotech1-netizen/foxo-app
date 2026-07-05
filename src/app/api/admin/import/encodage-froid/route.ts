@@ -38,7 +38,7 @@ export const maxDuration = 60;
 // RÈGLE GLOBALE : les référentiels (ACP, syndics) existent déjà en base.
 // L'import ne crée JAMAIS ni ACP ni organisation — résolution seule,
 // introuvable/ambigu = rejet de la ligne. Seul enrichissement autorisé :
-// organisations.bce si NULL en base et présent dans le fichier (jamais
+// acps.bce (BCE de la copropriété — liste Regimo) si NULL en base (jamais
 // d'écrasement, jamais en dryRun).
 //
 // dryRun=true : validation + résolutions + checks doublons — AUCUNE écriture.
@@ -54,7 +54,7 @@ interface ResultatLigne {
 }
 
 interface SyndicRow { id: string; nom: string; bce: string | null }
-interface AcpRow { id: string; nom: string; adresse: string | null; syndic_id_ref: string | null }
+interface AcpRow { id: string; nom: string; adresse: string | null; syndic_id_ref: string | null; bce: string | null }
 
 // ─── Résolutions référentiels (lecture seule, matching normalisé) ───────────
 
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
   // 2. Référentiels chargés UNE fois par appel (tables petites).
   const [synRes, acpRes] = await Promise.all([
     admin.from('organisations').select('id, nom, bce').eq('type', 'syndic'),
-    admin.from('acps').select('id, nom, adresse, syndic_id_ref'),
+    admin.from('acps').select('id, nom, adresse, syndic_id_ref, bce'),
   ]);
   if (synRes.error) {
     return NextResponse.json({ ok: false, error: `Lecture syndics : ${synRes.error.message}` }, { status: 500 });
@@ -254,17 +254,6 @@ export async function POST(request: Request) {
       if (!res.ok) return rejet(res.raison);
       syndic = res.item;
       if (!res.exact) notes.push(`syndic « ${l.syndic.trim()} » → ${syndic.nom}`);
-      // Enrichissement UNIQUE autorisé : BCE si NULL en base (jamais en dryRun).
-      const bce = l.bce.trim();
-      if (bce && !syndic.bce) {
-        if (dryRun) {
-          notes.push(`BCE ${bce} à compléter sur la fiche syndic`);
-        } else {
-          const { error } = await admin.from('organisations').update({ bce }).eq('id', syndic.id);
-          if (error) notes.push(`BCE non écrit : ${error.message}`);
-          else { syndic.bce = bce; notes.push(`BCE ${bce} complété sur la fiche syndic`); }
-        }
-      }
     }
 
     // 4. ACP — résolution seule (matching tolérant). JAMAIS de création.
@@ -274,6 +263,18 @@ export async function POST(request: Request) {
       if (!res.ok) return rejet(res.raison);
       acp = res.item;
       if (!res.exact) notes.push(`ACP « ${l.acp.trim()} » → ${acp.nom}`);
+      // Enrichissement UNIQUE autorisé : BCE de la copropriété si NULL en base
+      // (le BCE du fichier = liste Regimo des ACP ; jamais en dryRun, jamais d'écrasement).
+      const bce = l.bce.trim();
+      if (bce && !acp.bce) {
+        if (dryRun) {
+          notes.push(`BCE ${bce} à compléter sur la fiche ACP`);
+        } else {
+          const { error } = await admin.from('acps').update({ bce }).eq('id', acp.id);
+          if (error) notes.push(`BCE non écrit : ${error.message}`);
+          else { acp.bce = bce; notes.push(`BCE ${bce} complété sur la fiche ACP`); }
+        }
+      }
     } else if (syndic) {
       // Un syndic sans ACP ne peut pas passer par la branche syndic de
       // createInterventionCold (acp_id requis) : donnée à corriger.
@@ -352,10 +353,19 @@ export async function POST(request: Request) {
       };
     }
     const rapportDrive = l.rapport_drive.trim();
+    const typeBrut = l.type.trim();
+    const descParts: string[] = [];
+    if (typeBrut && normalise(typeBrut) !== normalise(typeSafe)) {
+      // Libellé métier du fichier hors enum plateforme : conservé en clair.
+      descParts.push(`Type historique : ${typeBrut}`);
+    }
     if (rapportDrive) {
       // createInterventionCold a créé la ligne SANS description : on pose le
       // lien historique (append trivial — description était null).
-      complement.description = `Rapport historique (Drive) : ${rapportDrive}`;
+      descParts.push(`Rapport historique (Drive) : ${rapportDrive}`);
+    }
+    if (descParts.length > 0) {
+      complement.description = descParts.join('\n');
     }
     if (Object.keys(complement).length > 0) {
       const { error } = await admin
