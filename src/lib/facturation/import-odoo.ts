@@ -230,7 +230,11 @@ export function deriverTauxTva(ht: number, ttc: number): number {
 
 // ─── Mapping ventes / achats ────────────────────────────────────────────────
 
-const STATUTS_POSTES = new Set(['posted', 'comptabilise', 'comptabilisee']);
+// Statuts définitifs importés (règle métier tranchée par le client) :
+// « Comptabilisé » ET « Envoyé ». « Brouillon » / « draft » restent exclus.
+const STATUTS_POSTES = new Set([
+  'posted', 'comptabilise', 'comptabilisee', 'envoye', 'envoyee', 'sent',
+]);
 const PAIEMENT_PAYE = ['paye', 'payee', 'paid', 'in_payment', 'in payment'];
 
 function normalise(s: string): string {
