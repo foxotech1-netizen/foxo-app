@@ -14,7 +14,7 @@ import {
   BarChart3, Bell, Calendar, Wrench, Sparkles,
   Handshake, Building2, Scale, Search, Hammer,
   User, BookOpen, Mail, Lock, Settings, Inbox,
-  Activity, ClipboardCheck, ClipboardList,
+  Activity, ClipboardCheck, ClipboardList, FileUp,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -43,6 +43,7 @@ const NAV_GESTION: NavItem[] = [
   // dédiée). Le label "Comptabilité" reflète mieux le périmètre actuel
   // (factures + devis + avoirs + paiements + rappels + export comptable).
   { href: '/admin/comptabilite', Icon: BookOpen, label: 'Comptabilité'  },
+  { href: '/admin/import',       Icon: FileUp,   label: 'Import'        },
   { href: '/admin/mails',        Icon: Mail,     label: 'Mails'         },
   { href: '/admin/utilisateurs', Icon: Lock,     label: 'Utilisateurs'  },
   { href: '/admin/parametres',   Icon: Settings, label: 'Paramètres'    },
