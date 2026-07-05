@@ -882,6 +882,18 @@ export function InterventionsClient({
     } catch { /* noop */ }
   }
 
+  async function confirmOccupantManuel(occId: string) {
+    setOccupantSaving(true);
+    try {
+      const r = await fetch(`/api/admin/occupants/manage/${occId}/confirm`, { method: 'POST' });
+      const data = await r.json();
+      if (!data.ok) { alert(data.error ?? 'Échec de la confirmation.'); return; }
+      await refreshOccupants();
+    } finally {
+      setOccupantSaving(false);
+    }
+  }
+
   async function acceptCounterProposal(occ: DrawerOccupant) {
     if (!selected) return;
     if (!occ.proposed_creneau_debut) return;
@@ -2416,6 +2428,16 @@ export function InterventionsClient({
                                     title="Reprogrammer l'intervention sur le créneau proposé par l'occupant"
                                   >
                                     <CheckCircle2 size={12} />Accepter la proposition
+                                  </button>
+                                )}
+                                {o.conf !== 'confirme' && o.conf !== 'decline' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => confirmOccupantManuel(o.id)}
+                                    className="text-[10px] bg-ok text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
+                                    title="Marquer cet occupant comme confirmé (confirmation reçue par SMS ou appel)"
+                                  >
+                                    <CheckCircle2 size={12} />Marquer confirmé
                                   </button>
                                 )}
                                 <button
