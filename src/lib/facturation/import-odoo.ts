@@ -410,3 +410,102 @@ export function mapAchat(row: Record<string, string>): MapResult<AchatImport> {
     },
   };
 }
+
+// ─── Diagnostic (anti « 0 sans explication ») ───────────────────────────────
+
+export interface ImportDiagnostic {
+  /** Phrase résumant la cause dominante du rejet total (bandeau rouge). */
+  diagnostic: string;
+  /** Colonnes canoniques essentielles non détectées (bandeau ambre). */
+  colonnesManquantes: string[];
+}
+
+/**
+ * Explique pourquoi 100 % des lignes de données (hors regroupement) ont été
+ * écartées. À n'appeler que dans ce cas (chemin froid). Caractérise la cause
+ * dominante : colonne de statut absente, statut non importé (avec la liste des
+ * valeurs vues), hors période, date illisible, ou aucune donnée.
+ */
+export function diagnostiquer(rows: Record<string, string>[]): ImportDiagnostic {
+  if (rows.length === 0) {
+    return { diagnostic: 'Aucune donnée exploitable dans le fichier.', colonnesManquantes: [] };
+  }
+  const headers = Object.keys(rows[0]);
+  const has = (pred: (k: string) => boolean) => headers.some(pred);
+
+  const colStatutValidation =
+    has((k) => ['statut', 'status', 'state', 'etat'].includes(k))
+    || has((k) => (k.includes('statut') || k.includes('status') || k.includes('etat'))
+      && !k.includes('peppol') && !k.includes('paiement') && !k.includes('payment'));
+  const colStatutPaiement = has((k) => k.includes('paiement') || k.includes('payment'));
+  const colNumero = has((k) => ['numero', 'number'].includes(k));
+  const colDate = has((k) => k.includes('date de facturation') || k.includes('invoice date'));
+  const colTotal = has((k) => k === 'total');
+
+  const colonnesManquantes: string[] = [];
+  if (!colNumero) colonnesManquantes.push('Numéro');
+  if (!colDate) colonnesManquantes.push('Date de facturation');
+  if (!colTotal) colonnesManquantes.push('Total');
+  if (!colStatutValidation && !colStatutPaiement) colonnesManquantes.push('Statut');
+
+  // Caractérisation des lignes de données (hors regroupement).
+  let dataLines = 0;
+  let statutInconnu = 0;
+  let horsPeriode = 0;
+  let dateIllisible = 0;
+  const statutsVus = new Set<string>();
+  for (const row of rows) {
+    const l = resoudreColonnes(row);
+    if (estLigneRegroupement(l)) continue;
+    if (!l.numero.trim()) continue;
+    dataLines += 1;
+    const st = l.statut.trim();
+    if (st) statutsVus.add(st);
+    if (!STATUTS_POSTES.has(normalise(l.statut))) { statutInconnu += 1; continue; }
+    const d = parseDateOdoo(l.date_emission);
+    if (!d) { dateIllisible += 1; continue; }
+    if (d < DEBUT_PERIODE) horsPeriode += 1;
+  }
+
+  if (dataLines === 0) {
+    return {
+      diagnostic: 'Aucune ligne de données exploitable (uniquement des sous-totaux de regroupement, ou fichier sans pièces).',
+      colonnesManquantes,
+    };
+  }
+
+  if (!colStatutValidation && !colStatutPaiement) {
+    return {
+      diagnostic: 'Colonne de statut introuvable dans l\'export. Colonnes attendues : « Statut » ou « Statut en cours de paiement ». Ré-exporte depuis Odoo en incluant la colonne de statut.',
+      colonnesManquantes,
+    };
+  }
+  if (statutInconnu === dataLines) {
+    const liste = [...statutsVus].slice(0, 8).map((v) => `« ${v || '—'} »`).join(', ') || '—';
+    return {
+      diagnostic: `Aucune pièce n'a un statut importé. Seuls « Comptabilisé » et « Envoyé » sont repris. Valeurs de statut rencontrées : ${liste}.`,
+      colonnesManquantes,
+    };
+  }
+  if (horsPeriode === dataLines) {
+    return {
+      diagnostic: 'Toutes les pièces sont hors période (émises avant le 01/01/2026).',
+      colonnesManquantes,
+    };
+  }
+  if (dateIllisible === dataLines) {
+    return {
+      diagnostic: 'La date de facturation est illisible sur toutes les lignes (formats acceptés : JJ/MM/AAAA ou AAAA-MM-JJ).',
+      colonnesManquantes,
+    };
+  }
+
+  const parts: string[] = [];
+  if (statutInconnu) parts.push(`${statutInconnu} au statut non importé`);
+  if (horsPeriode) parts.push(`${horsPeriode} hors période`);
+  if (dateIllisible) parts.push(`${dateIllisible} à date illisible`);
+  return {
+    diagnostic: `Toutes les lignes ont été écartées (${parts.join(', ') || 'causes diverses'}).`,
+    colonnesManquantes,
+  };
+}

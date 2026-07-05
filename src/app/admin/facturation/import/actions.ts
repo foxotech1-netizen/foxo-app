@@ -22,6 +22,7 @@ import {
   parseOdooCsv,
   mapVente,
   mapAchat,
+  diagnostiquer,
   type VenteImport,
   type AchatImport,
 } from '@/lib/facturation/import-odoo';
@@ -62,8 +63,25 @@ export interface ImportRapport {
   regroupements: number;
   collisions: string[];
   erreurs: string[];
+  /** Cause dominante quand 100 % des lignes de données sont écartées. */
+  diagnostic?: string;
+  /** Colonnes canoniques essentielles non détectées (bandeau ambre). */
+  colonnesManquantes?: string[];
   /** Compteur réel d'insertions (commit=true uniquement). */
   inserees?: number;
+}
+
+// 100 % des lignes de données (hors regroupement) écartées → diagnostic.
+function appliquerDiagnostic(
+  rapport: ImportRapport,
+  rows: Record<string, string>[],
+  piecesCount: number,
+): void {
+  const dataLines = rapport.lignes_lues - rapport.regroupements;
+  if (piecesCount > 0 || dataLines <= 0) return;
+  const d = diagnostiquer(rows);
+  rapport.diagnostic = d.diagnostic;
+  if (d.colonnesManquantes.length > 0) rapport.colonnesManquantes = d.colonnesManquantes;
 }
 
 // « Nom proche » — même logique que capture.ts (helper privé là-bas, dupliqué
@@ -190,6 +208,7 @@ async function importVentes(
     collisions,
     erreurs: [],
   };
+  appliquerDiagnostic(rapport, rows, pieces.length);
 
   if (!commit) return rapport;
 
@@ -285,6 +304,7 @@ async function importAchats(
     collisions: [],
     erreurs: [],
   };
+  appliquerDiagnostic(rapport, rows, pieces.length);
 
   if (!commit) return rapport;
 
