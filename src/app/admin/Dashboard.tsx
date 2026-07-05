@@ -571,6 +571,30 @@ function RecentResponsesCard({
   onOpenIntervention: (id: string) => void;
   nowMs: number;
 }) {
+  const router = useRouter();
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  async function ackResponse(occupantId: string) {
+    // Optimiste : on retire tout de suite la ligne de l'écran.
+    setDismissed((prev) => new Set(prev).add(occupantId));
+    try {
+      const res = await fetch(`/api/admin/occupants/manage/${occupantId}/ack-response`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('ack failed');
+      // Re-synchronise les données serveur (carte + pastille sidebar).
+      router.refresh();
+    } catch {
+      // Échec : on remet la ligne et on prévient.
+      setDismissed((prev) => {
+        const next = new Set(prev);
+        next.delete(occupantId);
+        return next;
+      });
+      alert('La réponse n’a pas pu être retirée. Réessaie dans un instant.');
+    }
+  }
+
   function relativeTime(iso: string): string {
     const minutes = Math.floor((nowMs - new Date(iso).getTime()) / 60_000);
     if (minutes < 1) return 'à l\'instant';
@@ -593,53 +617,71 @@ function RecentResponsesCard({
     return { Icon: null, label: 'En attente', cls: 'bg-sand-mid text-ink-mid border-sand-border' };
   }
 
+  // Lignes déjà acquittées ("vu") dans cette session : retirées de l'affichage.
+  // Après router.refresh(), les données serveur ne les renverront plus.
+  const visible = responses.filter((r) => !dismissed.has(r.occupant_id));
+  if (visible.length === 0) return null;
+
   return (
     <section>
       <h3 className="section-label mb-2 flex items-center gap-1.5">
         <Inbox size={14} aria-hidden /> Réponses occupants reçues (&lt; 48 h)
         <span className="ml-2 inline-block px-2 py-0.5 bg-terra text-white rounded-full text-[10px] font-extrabold">
-          {responses.length}
+          {visible.length}
         </span>
       </h3>
       <div
         className="border rounded-2xl divide-y divide-sand-mid overflow-hidden"
         style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
       >
-        {responses.slice(0, 8).map((r) => {
+        {visible.slice(0, 8).map((r) => {
           const tag = reponseLabel(r);
           const fullName = [r.prenom, r.nom].filter(Boolean).join(' ') || 'Occupant';
           return (
-            <button
+            <div
               key={r.occupant_id}
-              type="button"
-              onClick={() => onOpenIntervention(r.intervention_id)}
-              className="w-full text-left px-4 py-2.5 hover:bg-sand-hover flex items-center gap-3"
+              className="px-4 py-2.5 hover:bg-sand-hover flex items-center gap-2"
             >
-              <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap inline-flex items-center gap-1 ' + tag.cls}>
-                {tag.Icon && <tag.Icon size={11} aria-hidden />}
-                {tag.label}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-ink truncate">
-                  {fullName}
-                  {r.appartement && (
-                    <span className="text-ink-mid font-normal ml-1.5">apt. {r.appartement}</span>
-                  )}
-                </div>
-                <div className="text-[11px] text-ink-muted truncate">
-                  <span className="font-mono text-navy">{r.iv_ref ?? '?'}</span>
-                  {r.iv_acp_nom && <span> · {r.iv_acp_nom}</span>}
-                </div>
-              </div>
-              <span className="text-[10px] text-ink-muted whitespace-nowrap">
-                {relativeTime(r.confirmed_at)}
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => onOpenIntervention(r.intervention_id)}
+                className="flex-1 min-w-0 text-left flex items-center gap-3"
+              >
+                <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap inline-flex items-center gap-1 ' + tag.cls}>
+                  {tag.Icon && <tag.Icon size={11} aria-hidden />}
+                  {tag.label}
+                </span>
+                <span className="flex-1 min-w-0 block">
+                  <span className="block text-[13px] font-semibold text-ink truncate">
+                    {fullName}
+                    {r.appartement && (
+                      <span className="text-ink-mid font-normal ml-1.5">apt. {r.appartement}</span>
+                    )}
+                  </span>
+                  <span className="block text-[11px] text-ink-muted truncate">
+                    <span className="font-mono text-navy">{r.iv_ref ?? '?'}</span>
+                    {r.iv_acp_nom && <span> · {r.iv_acp_nom}</span>}
+                  </span>
+                </span>
+                <span className="text-[10px] text-ink-muted whitespace-nowrap">
+                  {relativeTime(r.confirmed_at)}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => ackResponse(r.occupant_id)}
+                title="Marquer comme vu"
+                aria-label="Marquer comme vu"
+                className="shrink-0 p-1.5 rounded-full text-ink-muted hover:text-ink hover:bg-sand-mid transition-colors"
+              >
+                <X size={14} aria-hidden />
+              </button>
+            </div>
           );
         })}
-        {responses.length > 8 && (
+        {visible.length > 8 && (
           <div className="px-4 py-2 text-[11px] text-ink-muted italic text-center">
-            +{responses.length - 8} autres réponses récentes — utilise le filtre Tableau de bord pour les voir.
+            +{visible.length - 8} autres réponses récentes — utilise le filtre Tableau de bord pour les voir.
           </div>
         )}
       </div>

@@ -303,6 +303,7 @@ export interface Occupant {
   proposed_creneau_debut: string | null;
   proposed_creneau_fin: string | null;
   response_note: string | null;
+  reponse_vue_at: string | null;
 }
 
 export interface OccupantResponseLog {
