@@ -459,7 +459,10 @@ export function diagnostiquer(rows: Record<string, string>[]): ImportDiagnostic 
     if (estLigneRegroupement(l)) continue;
     if (!l.numero.trim()) continue;
     dataLines += 1;
-    const st = l.statut.trim();
+    // Valeur de statut à afficher : le statut de validation s'il est renseigné,
+    // sinon la valeur de la colonne de paiement (cas « Payé »/« En retard » :
+    // aucune colonne de validation, on montre au moins ce que l'export porte).
+    const st = l.statut.trim() || l.statut_paiement.trim();
     if (st) statutsVus.add(st);
     if (!STATUTS_POSTES.has(normalise(l.statut))) { statutInconnu += 1; continue; }
     const d = parseDateOdoo(l.date_emission);
