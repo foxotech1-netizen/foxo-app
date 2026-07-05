@@ -1764,7 +1764,7 @@ export type OccupantInsertRow = {
   nom: string | null;
   email: string | null;
   telephone: string | null;
-  conf: 'en_attente';
+  conf: 'en_attente' | 'confirme' | 'decline'; // élargi : l'encodage à froid peut marquer un occupant confirmé (le cron passe toujours 'en_attente')
   contact_preference: 'email' | 'sms' | 'whatsapp' | 'both';
   instructions: string;
   type_occupant: CronOccupantType;
