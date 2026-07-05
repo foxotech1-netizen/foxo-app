@@ -108,11 +108,35 @@ export interface LigneOdoo {
   statut: string;
 }
 
+/** Valeurs de statut de DOCUMENT (par opposition à un statut de paiement).
+ *  Sert au fallback de récupération quand le statut de validation a été rangé
+ *  par Odoo dans la colonne « Statut en cours de paiement ». normalise() gère
+ *  accents/casse. */
+const STATUT_DOC_TOKENS = [
+  'comptabilise', 'comptabilisee', 'envoye', 'envoyee', 'sent',
+  'brouillon', 'draft', 'posted',
+];
+function estStatutDocument(v: string): boolean {
+  const n = normalise(v);
+  if (!n) return false;
+  return STATUT_DOC_TOKENS.some((t) => n === t || n.includes(t));
+}
+
 /**
  * Projette une ligne clé/valeur (en-têtes normalisés) vers les champs
- * canoniques. Le mapping est tolérant aux variantes FR/EN d'Odoo ; `statut`
- * est matché en EXACT ('statut'/'status'/'state') pour ne pas avaler
- * `statut de paiement` / `payment status`.
+ * canoniques. Le mapping est tolérant aux variantes FR/EN d'Odoo.
+ *
+ * Colonne de statut de VALIDATION — trois passes (cf. exports réels) :
+ *   1. en-tête EXACT 'statut'/'status'/'state'/'etat' ;
+ *   2. à défaut, en-tête GÉNÉRIQUE contenant 'statut'/'status'/'etat' mais NI
+ *      'peppol' (colonne « Statut PEPPOL ») NI 'paiement'/'payment' (colonne
+ *      « Statut de paiement ») ;
+ *   3. FALLBACK : certains exports rangent le statut de document
+ *      ('Comptabilisé'/'Envoyé') dans la colonne « Statut en cours de
+ *      paiement ». Si aucune colonne de validation n'a été trouvée par 1 & 2
+ *      ET que la colonne de paiement porte une valeur de type document, on la
+ *      consomme comme statut de validation ; le paiement devient alors inconnu
+ *      (→ statut FoxO 'envoyee' par défaut côté mapping).
  */
 export function resoudreColonnes(row: Record<string, string>): LigneOdoo {
   const keys = Object.keys(row);
@@ -121,6 +145,26 @@ export function resoudreColonnes(row: Record<string, string>): LigneOdoo {
   const contient = (...frags: string[]) =>
     keys.find((k) => frags.some((f) => k.includes(f))) ?? null;
   const val = (k: string | null) => (k ? row[k] ?? '' : '');
+
+  const colPaiement = contient('paiement', 'payment');
+
+  // Passes 1 & 2 : colonne de validation par en-tête.
+  let colStatut = exact('statut', 'status', 'state', 'etat');
+  if (!colStatut) {
+    colStatut = keys.find((k) =>
+      (k.includes('statut') || k.includes('status') || k.includes('etat'))
+      && !k.includes('peppol')
+      && !k.includes('paiement') && !k.includes('payment'),
+    ) ?? null;
+  }
+
+  let statut = val(colStatut);
+  let statutPaiement = val(colPaiement);
+  // Passe 3 : fallback de récupération sur la colonne de paiement.
+  if (!colStatut && colPaiement && estStatutDocument(statutPaiement)) {
+    statut = statutPaiement;
+    statutPaiement = '';
+  }
 
   return {
     numero: val(exact('numero', 'number')),
@@ -131,8 +175,8 @@ export function resoudreColonnes(row: Record<string, string>): LigneOdoo {
     reference: val(exact('reference')),
     ht: val(contient('hors taxes', 'untaxed')),
     ttc: val(exact('total')),
-    statut_paiement: val(contient('paiement', 'payment')),
-    statut: val(exact('statut', 'status', 'state')),
+    statut_paiement: statutPaiement,
+    statut,
   };
 }
 
