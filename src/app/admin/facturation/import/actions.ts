@@ -58,6 +58,8 @@ export interface ImportRapport {
   apercu: ImportApercuLigne[];
   doublons: number;
   ignorees: Array<{ numero: string; raison: string }>;
+  /** Sous-totaux de regroupement Odoo écartés (comptés à part des rejets). */
+  regroupements: number;
   collisions: string[];
   erreurs: string[];
   /** Compteur réel d'insertions (commit=true uniquement). */
@@ -133,9 +135,11 @@ async function importVentes(
 
   const ignorees: Array<{ numero: string; raison: string }> = [];
   const pieces: VenteImport[] = [];
+  let regroupements = 0;
   for (const row of rows) {
     const res = mapVente(row);
     if (res.ok) pieces.push(res.piece);
+    else if (res.regroupement) regroupements += 1;
     else ignorees.push({ numero: res.numero, raison: res.raison });
   }
 
@@ -182,6 +186,7 @@ async function importVentes(
     })),
     doublons,
     ignorees,
+    regroupements,
     collisions,
     erreurs: [],
   };
@@ -238,9 +243,11 @@ async function importAchats(
 
   const ignorees: Array<{ numero: string; raison: string }> = [];
   const pieces: AchatImport[] = [];
+  let regroupements = 0;
   for (const row of rows) {
     const res = mapAchat(row);
     if (res.ok) pieces.push(res.piece);
+    else if (res.regroupement) regroupements += 1;
     else ignorees.push({ numero: res.numero, raison: res.raison });
   }
 
@@ -274,6 +281,7 @@ async function importAchats(
     })),
     doublons,
     ignorees,
+    regroupements,
     collisions: [],
     erreurs: [],
   };

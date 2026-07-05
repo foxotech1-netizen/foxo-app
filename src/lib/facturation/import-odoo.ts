@@ -291,9 +291,32 @@ export interface AchatImport {
 
 export type MapResult<T> =
   | { ok: true; piece: T }
-  | { ok: false; numero: string; raison: string };
+  | { ok: false; numero: string; raison: string; regroupement?: boolean };
 
 const DEBUT_PERIODE = '2026-01-01';
+
+// Raison dédiée aux lignes de sous-total de regroupement Odoo (comptées à part,
+// jamais mêlées aux rejets pour statut / période).
+export const RAISON_REGROUPEMENT = 'ligne de regroupement Odoo (ignorée)';
+
+// Sous-total de regroupement Odoo : « 2026 (80) », « T2 2026 (34) »,
+// « S1 2026 (12) »… (préfixe optionnel type/trimestre, année, effectif).
+const RE_REGROUPEMENT = /^\s*([A-Za-z]?\d{1,4}\s+)?\d{4}\s*\(\d+\)\s*$/;
+
+/**
+ * Détecte une ligne de regroupement (sous-total) : soit son « numéro » matche
+ * le motif de libellé de regroupement Odoo, soit c'est une ligne à numéro seul
+ * (partenaire vide, date vide, total non exploitable comme pièce).
+ */
+export function estLigneRegroupement(l: LigneOdoo): boolean {
+  const numero = l.numero.trim();
+  if (!numero) return false;
+  if (RE_REGROUPEMENT.test(numero)) return true;
+  const partenaireVide = !l.partenaire.trim();
+  const dateVide = !l.date_emission.trim();
+  const totalInexploitable = parseMontant(l.ttc) == null;
+  return partenaireVide && dateVide && totalInexploitable;
+}
 
 // Filtres communs ventes/achats. null = ligne valide.
 function filtreCommun(l: LigneOdoo): { numero: string; raison: string } | null {
@@ -315,6 +338,9 @@ function filtreCommun(l: LigneOdoo): { numero: string; raison: string } | null {
 
 export function mapVente(row: Record<string, string>): MapResult<VenteImport> {
   const l = resoudreColonnes(row);
+  if (estLigneRegroupement(l)) {
+    return { ok: false, numero: l.numero.trim() || '(sous-total)', raison: RAISON_REGROUPEMENT, regroupement: true };
+  }
   const rejet = filtreCommun(l);
   if (rejet) return { ok: false, ...rejet };
 
@@ -355,6 +381,9 @@ export function mapVente(row: Record<string, string>): MapResult<VenteImport> {
 
 export function mapAchat(row: Record<string, string>): MapResult<AchatImport> {
   const l = resoudreColonnes(row);
+  if (estLigneRegroupement(l)) {
+    return { ok: false, numero: l.numero.trim() || '(sous-total)', raison: RAISON_REGROUPEMENT, regroupement: true };
+  }
   const rejet = filtreCommun(l);
   if (rejet) return { ok: false, ...rejet };
 
