@@ -83,7 +83,7 @@ export async function POST(
         type: 'occupant_confirme',
         message: 'Occupant confirmé manuellement (SMS / appel)',
         payload: { occupant_id, source: 'manuel' },
-        created_by: user.id,
+        created_by: user.email ?? 'admin',
       });
     if (tlErr) console.warn('[occupant confirm manuel] timeline insert ignoré:', tlErr.message);
   } catch (e) {
