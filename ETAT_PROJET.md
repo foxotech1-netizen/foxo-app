@@ -1,3 +1,28 @@
+# État du projet FoxO — snapshot 2026-07-05 (soir) — Import encodage à froid LIVRÉ (PR #149) + historique 2026 complet en prod (base Odoo)
+
+ÉTAT GIT : main = 00c9138 (merge PR #149, branche feat/import-encodage-froid supprimée). 5 commits applicatifs : 8a83923 (dep SheetJS), ed1383a (lib import), 75dcf2d (route), 3ddaeaa (page /admin/import), 00b42a6 (fix BCE→ACP + libellé type conservé). Vérifier le git log live en début de session.
+
+CHANTIER LIVRÉ — Import encodage à froid :
+- Page /admin/import : upload XLSX (SheetJS), aperçu, validation à blanc OBLIGATOIRE avant import, envoi par paquets de 20, journal par ligne (OK/doublon/rejet) + export CSV des rejets.
+- Route POST /api/admin/import/encodage-froid : garde admin, dryRun par défaut, idempotence (réf. puis jour+adresse), résolution stricte ACP/syndic (JAMAIS de création de référentiel par l'import), création via createInterventionCold (silencieuse : zéro mail/Calendar/Drive/token). Enrichissement UNIQUE : acps.bce si NULL (le BCE du fichier = BCE de la copropriété, liste Regimo — JAMAIS organisations.bce, bug corrigé par 00b42a6). Libellé de type hors enum conservé en description (« Type historique : ... »).
+
+DONNÉES (exécuté en PROD le 05/07/2026) :
+- Purge SQL complète des interventions 2026 en 2 vagues (152 dossiers + 3 fossiles TEST-COLD*), seul 2026-000 (bac à sable) conservé. Patron défensif : sms_logs, factures v1, creneaux_disponibles (détachés + statut libre), rapports, occupants, puis interventions (reste = CASCADE/SET NULL). ATTENTION SQL Editor Supabase : pas de table temporaire inter-instructions (pooling) — chaque instruction autonome.
+- Ré-import définitif sur BASE ODOO (export « Pièce comptable », fichier FoxO_Encodage_Odoo_2026_v8.xlsx) : 151 dossiers 2026-001 → 2026-151, 0 doublon, 0 rejet. ODOO = source de vérité des numéros et des clients (l'ancienne numérotation Agenda/Drive divergeait — ex. vrai 081 = Rue du Curé ; rapport Drive « 2026-081 Heene » était MAL NOMMÉ → rattaché au dossier 2026-080). 139 rapports Drive liés, 142 heures de RDV, 87 listes d'occupants. Tous statut realisee.
+- Post-151 : RDV de la semaine 7-9/07 volontairement NON encodés (onglet HORS PERIMETRE du v8) — à créer au fil de l'eau via la plateforme, le compteur repart naturellement à 2026-152.
+- Référentiels enrichis : +2 ACP Col-Vert (Square Marie Louise 35 ; Résidence Rue du Curé 25-27) ; +1 organisation type syndic « Syndic non professionnel » (email info@foxo.be = relais manuel, pour ACP autogérées) ; +ACP Legrelle (BCE 0598.746.158, email_factures be1030109019@bill.ifid.be) rattachée à ce syndic, dossiers 2026-098/113 convertis particulier→ACP. BCE Brugmann Ferme Rose 0850.924.580→NON: 0850.209.948 complété via import. 28 dossiers particuliers/sociétés : particulier_contact.nom posé en SQL depuis les clients Odoo (l'import pose « Import Historique » en placeholder).
+- Contraintes schéma découvertes : acps.syndic_id NOT NULL ; organisations.email NOT NULL.
+
+BACKLOG ouvert par ce chantier :
+- 8 résidences encore en mode particulier (nom dans demandeur + adresse) : Calvi, Grand Béguinage, Les Francs, Media Garden, Robiano 69, Roosevelt 12, Sirius, Volral 14 — dès coordonnées/syndic fournis par Foxo, rejouer le patron SQL Legrelle (org si besoin + ACP + UPDATE interventions acp_id/syndic_id + particulier_contact NULL).
+- Types : tout l'historique en Autre (enum = 4 types fuite + Autre) ; libellés réels en description ; requalification possible plus tard via extraction cas_terrain.
+- Question produit Foxo (05/07) : réduire l'encodage manuel des clients PARTICULIERS — chantier à cadrer (pistes : pipeline mails déjà capable d'extraire un particulier à la réouverture des crons ; formulaire public de demande ; création via assistant admin outillé).
+
+INVARIANTS INCHANGÉS : crons mails TOUJOURS fermés (import silencieux : zéro notification sur les 151 dossiers). tsc + hook pre-push verts. Merge commit (jamais squash), branche supprimée. Préversion Vercel = base/Drive/Gmail de PROD (sandbox 2026-000). SQL via Supabase SQL Editor uniquement. dispatch.ts = point d'assemblage unique PDF/DOCX. Repo > doc.
+
+INTENDANCE : ré-uploader ce ETAT_PROJET.md dans la knowledge du projet (même URL raw) après ce commit.
+
+
 # État du projet FoxO — snapshot 2026-07-04 (Assistant terrain — étapes 1-3 CLOSES + validation prod)
 
 - **Date du recap** : 2026-07-04
