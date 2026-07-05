@@ -198,7 +198,7 @@ export default async function AdminPipelinePage() {
   const ivById = new Map(rows.map((r) => [r.id, r]));
   const recentRes = await supabase
     .from('occupants')
-    .select('id, intervention_id, prenom, nom, appartement, conf, confirmed_at, proposed_creneau_debut')
+    .select('id, intervention_id, prenom, nom, appartement, conf, confirmed_at, proposed_creneau_debut, reponse_vue_at')
     .gte('confirmed_at', cutoff48h)
     .order('confirmed_at', { ascending: false })
     .limit(50);
@@ -211,11 +211,15 @@ export default async function AdminPipelinePage() {
     conf: 'confirme' | 'en_attente' | 'decline' | null;
     confirmed_at: string;
     proposed_creneau_debut: string | null;
+    reponse_vue_at: string | null;
   };
   const recentResponses: RecentOccupantResponse[] = ((recentRes.data ?? []) as RecentOccRow[])
     .map((o) => {
       const iv = ivById.get(o.intervention_id);
       if (!iv || iv.statut === 'cloturee' || iv.statut === 'realisee') return null;
+      // Réponse acquittée ("vu") par l'admin : masquée tant qu'aucune réponse
+      // plus récente n'est arrivée (reponse_vue_at >= confirmed_at).
+      if (o.reponse_vue_at && new Date(o.reponse_vue_at).getTime() >= new Date(o.confirmed_at).getTime()) return null;
       return {
         occupant_id: o.id,
         intervention_id: o.intervention_id,

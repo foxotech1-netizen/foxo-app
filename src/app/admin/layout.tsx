@@ -24,13 +24,14 @@ export default async function AdminLayout({
       .from('interventions')
       .select('statut, technicien_id')
       .is('deleted_at', null),
-    // Réponses occupants < 48h. On compte ici la borne basse ; le filtrage
-    // sur le statut intervention (cloturee/realisee exclus) est fait côté
-    // /admin/page.tsx pour la carte. Le badge sidebar peut sur-compter
+    // Réponses occupants < 48h. On compte ici la borne basse (les réponses
+    // acquittées "vu" par l'admin sont exclues, cf. filtre plus bas) ; le
+    // filtrage sur le statut intervention (cloturee/realisee exclus) reste fait
+    // côté /admin/page.tsx pour la carte. Le badge sidebar peut donc sur-compter
     // marginalement, c'est acceptable (vs requête jointe coûteuse).
     supabase
       .from('occupants')
-      .select('id', { count: 'exact', head: true })
+      .select('confirmed_at, reponse_vue_at')
       .gte('confirmed_at', cutoff48h),
     // Compteur de la file de validation (5 sources) — module partagé.
     getValidationTotal(supabase),
@@ -40,7 +41,10 @@ export default async function AdminLayout({
   const alertCount = ivs.filter(
     (i) => i.statut === 'en_suspens' || (i.statut === 'nouvelle' && !i.technicien_id),
   ).length;
-  const recentResponsesCount = recentRespRes.count ?? 0;
+  const recentRespRows = (recentRespRes.data ?? []) as { confirmed_at: string; reponse_vue_at: string | null }[];
+  const recentResponsesCount = recentRespRows.filter(
+    (o) => !(o.reponse_vue_at && new Date(o.reponse_vue_at).getTime() >= new Date(o.confirmed_at).getTime()),
+  ).length;
 
   return (
     <div className="flex min-h-screen">
