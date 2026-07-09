@@ -5,6 +5,7 @@ import type { FactureAchat, Fournisseur, RegleMapping } from '@/lib/types/databa
 import { AchatDetailClient } from './AchatDetailClient';
 import { OdooActions } from '../../OdooActions';
 import { isOdooEnabled } from '@/lib/facturation/odoo';
+import { genererQrPaiementFournisseur } from '@/lib/facturation/achat-paiement';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,23 @@ export default async function AchatDetailPage({
       .maybeSingle();
     interventionRef = (iv?.ref as string | null) ?? null;
   }
+
+  // Fiche fournisseur liée (peut être inactive → hors de la liste ci-dessus) :
+  // sert au contrôle anti-fraude (comparaison IBAN facture vs IBAN fiche).
+  let fournisseurLie: Fournisseur | null = null;
+  if (achat.fournisseur_id) {
+    const { data: f } = await supabase
+      .from('fournisseurs')
+      .select('*')
+      .eq('id', achat.fournisseur_id)
+      .maybeSingle();
+    fournisseurLie = (f as Fournisseur | null) ?? null;
+  }
+
+  // QR EPC de paiement fournisseur (même chemin de rendu que la vente) — null
+  // si l'IBAN est formellement invalide ou le montant TTC ≤ 0.
+  const qrDataUrl = await genererQrPaiementFournisseur(achat);
+
   const odooEnabled = await isOdooEnabled();
 
   return (
@@ -91,6 +109,8 @@ export default async function AchatDetailPage({
         categoriesSuggestions={categoriesSuggestions}
         doublonOriginal={doublonOriginal}
         interventionRef={interventionRef}
+        fournisseurLieIban={fournisseurLie?.iban ?? null}
+        qrDataUrl={qrDataUrl}
       />
     </>
   );
