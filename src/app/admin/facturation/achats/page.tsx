@@ -12,7 +12,7 @@ export default async function AchatsPage() {
   const [{ data, error }, aliasRes] = await Promise.all([
     supabase
       .from('factures_achat')
-      .select('*, intervention:interventions(ref), fournisseur:fournisseurs(nom)')
+      .select('*, intervention:interventions(ref), fournisseur:fournisseurs(nom, iban)')
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(500),
@@ -21,11 +21,15 @@ export default async function AchatsPage() {
   const captureAlias = ((aliasRes.data?.valeur as string | undefined) ?? '').trim();
 
   const rows = ((data ?? []) as unknown as Array<
-    FactureAchat & { intervention: { ref: string | null } | null; fournisseur: { nom: string | null } | null }
+    FactureAchat & {
+      intervention: { ref: string | null } | null;
+      fournisseur: { nom: string | null; iban: string | null } | null;
+    }
   >).map((r): FactureAchatRow => ({
     ...r,
     intervention_ref: r.intervention?.ref ?? null,
     fournisseur_fiche_nom: r.fournisseur?.nom ?? null,
+    fournisseur_fiche_iban: r.fournisseur?.iban ?? null,
   }));
 
   return (

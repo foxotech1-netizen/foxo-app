@@ -4,9 +4,13 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X, Trash2, Pencil } from 'lucide-react';
+import { Plus, X, Trash2, Pencil, ShieldCheck } from 'lucide-react';
 import type { Fournisseur } from '@/lib/types/database';
 import { saveFournisseur, deleteFournisseur, type FournisseurInput } from '../achats/actions';
+
+function fmtVerifDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
 
 const EMPTY: FournisseurInput = {
   nom: '',
@@ -22,7 +26,14 @@ const EMPTY: FournisseurInput = {
   actif: true,
 };
 
-export function FournisseursClient({ initial }: { initial: Fournisseur[] }) {
+export function FournisseursClient({
+  initial,
+  derniereVerifIban = {},
+}: {
+  initial: Fournisseur[];
+  /** fournisseur_id → date ISO de dernière vérification anti-fraude de l'IBAN. */
+  derniereVerifIban?: Record<string, string>;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
@@ -225,7 +236,14 @@ export function FournisseursClient({ initial }: { initial: Fournisseur[] }) {
               <Field label="Email" type="email" value={drawer.email ?? ''} onChange={(v) => setDrawer({ ...drawer, email: v })} />
               <Field label="Téléphone" value={drawer.telephone ?? ''} onChange={(v) => setDrawer({ ...drawer, telephone: v })} />
             </div>
-            <Field label="IBAN" value={drawer.iban ?? ''} onChange={(v) => setDrawer({ ...drawer, iban: v })} placeholder="BE…" mono />
+            <div>
+              <Field label="IBAN" value={drawer.iban ?? ''} onChange={(v) => setDrawer({ ...drawer, iban: v })} placeholder="BE…" mono />
+              {drawer.id && derniereVerifIban[drawer.id] && (
+                <p className="mt-1.5 text-[11px] font-semibold text-ok inline-flex items-center gap-1">
+                  <ShieldCheck size={12} aria-hidden /> IBAN vérifié le {fmtVerifDate(derniereVerifIban[drawer.id])}
+                </p>
+              )}
+            </div>
             <div>
               <label className="text-xs font-semibold text-ink-mid block mb-1.5">Adresse</label>
               <textarea
