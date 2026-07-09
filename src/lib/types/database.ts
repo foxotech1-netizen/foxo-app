@@ -558,6 +558,12 @@ export interface FactureAchat {
   statut: StatutFactureAchat;
   date_paiement: string | null;
   moyen_paiement: string | null;
+  // Paiement fournisseur (QR EPC + contrôle anti-fraude au virement).
+  iban_paiement: string | null;
+  communication: string | null;
+  // Horodatage de la vérification manuelle de l'IBAN par l'admin (fait foi
+  // pour éteindre le bandeau anti-fraude).
+  iban_verifie_at: string | null;
   odoo_move_id: string | null;
   odoo_pushed_at: string | null;
   note_admin: string | null;

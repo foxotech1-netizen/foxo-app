@@ -17,6 +17,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { runAgent } from '@/lib/observability';
+import { normalizeIban, isIbanValid } from '@/lib/facturation/iban';
 
 export const EXTRACTION_ACHAT_MODEL = 'claude-sonnet-4-6';
 
@@ -57,6 +58,11 @@ export interface ExtractionAchat {
   lignes: LigneAchat[];
   categorie_suggeree: string | null;
   moyen_paiement: string | null;
+  // Compte de paiement du fournisseur (pré-remplit le QR EPC / virement).
+  // iban : normalisé (sans espaces, majuscules) — stocké même si mod-97 échoue,
+  // auquel cas confiances.iban est forcé à 0 pour lever l'alerte anti-fraude.
+  iban: string | null;
+  communication: string | null;   // structurée belge +++…+++ ou libre
   confiances: Record<string, number>;
   confiance_min: number;
 }
@@ -95,7 +101,17 @@ RÈGLES ABSOLUES :
    "Assurances", "Véhicule", "Logiciels & abonnements") — null si incertain.
 9. moyen_paiement : uniquement s'il est lisible sur le document (ex. "Bancontact",
    "domiciliation", "virement", "espèces") — null sinon.
-10. Réponds en français.
+10. iban : le compte bancaire du fournisseur, UNIQUEMENT s'il est explicitement
+    écrit sur le document (jamais déduit ni inventé). Normalise-le sans espaces,
+    en MAJUSCULES. Si plusieurs IBAN figurent, prends celui présenté comme le
+    compte de PAIEMENT du fournisseur (ni un IBAN de mandat/domiciliation d'un
+    tiers, ni celui de Fox Group le client). Confiance basse (< 0.4) si ambigu.
+    null si aucun IBAN n'est lisible.
+11. communication : la communication de paiement à reporter sur le virement.
+    Priorité ABSOLUE à la communication structurée belge si elle figure (forme
+    +++123/4567/89012+++, 12 chiffres) — recopie-la telle quelle. Sinon la
+    communication libre ou la référence de paiement mentionnée. null si absente.
+12. Réponds en français.
 
 FORMAT DE SORTIE — un UNIQUE objet JSON strict, sans balisage markdown, sans texte
 avant ou après. Schéma exact :
@@ -118,11 +134,14 @@ avant ou après. Schéma exact :
   ],
   "categorie_suggeree": string | null,
   "moyen_paiement": string | null,
+  "iban": string | null,
+  "communication": string | null,
   "confiances": {
     "fournisseur_nom": 0..1, "fournisseur_tva": 0..1, "numero_piece": 0..1,
     "date_facture": 0..1, "date_echeance": 0..1, "montant_ht": 0..1,
     "montant_tva": 0..1, "montant_ttc": 0..1, "taux_tva": 0..1,
-    "lignes": 0..1, "categorie_suggeree": 0..1, "moyen_paiement": 0..1
+    "lignes": 0..1, "categorie_suggeree": 0..1, "moyen_paiement": 0..1,
+    "iban": 0..1, "communication": 0..1
   }
 }`;
 
@@ -196,6 +215,14 @@ export function normaliseExtractionAchat(raw: Record<string, unknown>): Extracti
     }))
     .filter((l) => l.description.length > 0);
 
+  // IBAN de paiement : normalisé (trim + upper + sans espaces/points). Stocké
+  // tel quel même s'il est formellement invalide, MAIS confiance forcée à 0
+  // (contrôle mod-97) pour que l'admin voie l'alerte au moment de payer.
+  const ibanNorm = normalizeIban(asStringOrNull(raw.iban) ?? '');
+  const iban = ibanNorm.length > 0 ? ibanNorm : null;
+  if (iban && !isIbanValid(iban)) confiances.iban = 0;
+  const communication = asStringOrNull(raw.communication);
+
   const confianceMin = typeDetecte === 'autre'
     ? 0
     : Math.min(...CHAMPS_CRITIQUES.map((c) => clamp01(confiances[c])));
@@ -215,6 +242,8 @@ export function normaliseExtractionAchat(raw: Record<string, unknown>): Extracti
     lignes,
     categorie_suggeree: asStringOrNull(raw.categorie_suggeree),
     moyen_paiement: asStringOrNull(raw.moyen_paiement),
+    iban,
+    communication,
     confiances,
     confiance_min: confianceMin,
   };

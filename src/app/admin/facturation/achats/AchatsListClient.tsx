@@ -6,14 +6,16 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Eye, Inbox, Plus, SlidersHorizontal, Trash2, Upload, X } from 'lucide-react';
+import { ExternalLink, Eye, Inbox, Plus, QrCode, ShieldAlert, ShieldCheck, SlidersHorizontal, Trash2, Upload, X } from 'lucide-react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import type { FactureAchat, StatutFactureAchat } from '@/lib/types/database';
-import { createFactureAchatManuelle, deleteFactureAchat, releverBoiteCapture } from './actions';
+import { createFactureAchatManuelle, deleteFactureAchat, genererQrPaiementAchat, releverBoiteCapture } from './actions';
+import { isIbanValid, normalizeIban, formatIban } from '@/lib/facturation/iban';
 
 export type FactureAchatRow = FactureAchat & {
   intervention_ref: string | null;
   fournisseur_fiche_nom: string | null;
+  fournisseur_fiche_iban: string | null;
 };
 
 type StatutChip = 'tous' | StatutFactureAchat;
@@ -62,6 +64,39 @@ export function DoublonBadge() {
   );
 }
 
+// Pastille discrète « QR » : présente quand l'IBAN de paiement est valide
+// (mod-97) et le montant TTC positif — un QR EPC est alors générable.
+export function QrBadge() {
+  return (
+    <span
+      title="QR de paiement disponible (IBAN valide)"
+      className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-navy-pale border border-navy-light text-navy dark:text-white"
+    >
+      <QrCode size={13} aria-hidden />
+    </span>
+  );
+}
+
+// Un QR est générable si l'IBAN de paiement est formellement valide (mod-97)
+// et le montant TTC strictement positif.
+function qrDisponible(f: FactureAchatRow): boolean {
+  return isIbanValid(f.iban_paiement) && (f.montant_ttc ?? 0) > 0;
+}
+
+// État du contrôle anti-fraude IBAN d'une ligne (aperçu compact) :
+//  verifie  = iban_verifie_at posé (fait foi)
+//  differe  = IBAN facture ≠ IBAN fiche fournisseur (danger)
+//  premier  = pas d'IBAN sur la fiche (1er paiement à vérifier)
+//  conforme = identique à la fiche
+function antiFraudeState(f: FactureAchatRow): 'verifie' | 'differe' | 'premier' | 'conforme' {
+  if (f.iban_verifie_at) return 'verifie';
+  const fiche = f.fournisseur_fiche_iban ? normalizeIban(f.fournisseur_fiche_iban) : null;
+  const pay = f.iban_paiement ? normalizeIban(f.iban_paiement) : null;
+  if (fiche && pay && fiche !== pay) return 'differe';
+  if (!fiche) return 'premier';
+  return 'conforme';
+}
+
 export function AchatsListClient({
   initial,
   captureAlias = '',
@@ -80,6 +115,7 @@ export function AchatsListClient({
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [toDelete, setToDelete] = useState<FactureAchatRow | null>(null);
   const [preview, setPreview] = useState<FactureAchatRow | null>(null);
+  const [previewQr, setPreviewQr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Fermeture de l'aperçu à Échap.
@@ -91,6 +127,25 @@ export function AchatsListClient({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [preview]);
+
+  // QR de paiement de l'aperçu : généré à la demande (même chemin serveur que
+  // la vente) — évite de rendre un QR pour chaque ligne de la liste. Le reset
+  // se fait à l'ouverture (openPreview), pas dans l'effet, pour éviter un
+  // setState synchrone en cascade.
+  useEffect(() => {
+    if (!preview || !qrDisponible(preview)) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await genererQrPaiementAchat(preview.id);
+      if (!cancelled && res.ok) setPreviewQr(res.data!.qrDataUrl);
+    })();
+    return () => { cancelled = true; };
+  }, [preview]);
+
+  function openPreview(f: FactureAchatRow) {
+    setPreviewQr(null);
+    setPreview(f);
+  }
 
   function handleDelete() {
     if (!toDelete) return;
@@ -265,6 +320,7 @@ export function AchatsListClient({
                 <th className="px-3.5 py-2.5 font-bold">Date</th>
                 <th className="px-3.5 py-2.5 font-bold">Échéance</th>
                 <th className="px-3.5 py-2.5 font-bold text-right">TTC</th>
+                <th className="px-3.5 py-2.5 font-bold text-center">QR</th>
                 <th className="px-3.5 py-2.5 font-bold">Dossier</th>
                 <th className="px-3.5 py-2.5 font-bold">Statut</th>
                 <th className="px-3.5 py-2.5 font-bold">Confiance</th>
@@ -279,7 +335,7 @@ export function AchatsListClient({
                     <td className="px-3.5 py-2.5">
                       <button
                         type="button"
-                        onClick={() => setPreview(f)}
+                        onClick={() => openPreview(f)}
                         title="Aperçu rapide"
                         className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
                       >
@@ -296,6 +352,7 @@ export function AchatsListClient({
                     <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDate(f.date_facture)}</td>
                     <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
                     <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold text-right whitespace-nowrap dark:text-white">{fmtMoney(f.montant_ttc)}</td>
+                    <td className="px-3.5 py-2.5 text-center">{qrDisponible(f) ? <QrBadge /> : <span className="text-[10px] text-ink-muted">—</span>}</td>
                     <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid">{f.intervention_ref ?? '—'}</td>
                     <td className="px-3.5 py-2.5">
                       <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${info.cls}`}>
@@ -382,6 +439,74 @@ export function AchatsListClient({
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {/* Paiement fournisseur (compact) : bandeau anti-fraude + IBAN +
+                  montant + communication + QR EPC (généré à la demande). */}
+              {qrDisponible(preview) && (
+                <div className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+                    <QrCode size={12} aria-hidden /> Paiement
+                  </div>
+                  {(() => {
+                    const st = antiFraudeState(preview);
+                    if (st === 'differe') {
+                      return (
+                        <div className="flex items-start gap-1.5 text-[11px] text-terra bg-terra-light border border-terra-mid rounded px-2 py-1.5 font-semibold">
+                          <ShieldAlert size={13} aria-hidden className="flex-shrink-0 mt-0.5" />
+                          <span>
+                            ⚠️ IBAN différent de la fiche fournisseur
+                            (<span className="font-mono">{formatIban(preview.fournisseur_fiche_iban)}</span>) —
+                            fraude au virement possible, vérifiez avant de payer.
+                          </span>
+                        </div>
+                      );
+                    }
+                    if (st === 'premier') {
+                      return (
+                        <div className="flex items-start gap-1.5 text-[11px] text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-2 py-1.5 font-semibold">
+                          <ShieldAlert size={13} aria-hidden className="flex-shrink-0 mt-0.5" />
+                          <span>Premier paiement vers ce fournisseur — vérifiez l&apos;IBAN auprès d&apos;un contact connu.</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-ok bg-ok-light border border-ok-mid rounded px-1.5 py-0.5">
+                        <ShieldCheck size={11} aria-hidden />
+                        {st === 'verifie'
+                          ? `IBAN vérifié le ${fmtDate(preview.iban_verifie_at)}`
+                          : 'IBAN conforme à la fiche'}
+                      </div>
+                    );
+                  })()}
+                  <div className="flex flex-wrap items-center gap-4">
+                    <div className="space-y-1 min-w-0">
+                      <div>
+                        <span className="text-[10px] font-bold text-ink-muted uppercase block">IBAN</span>
+                        <span className="text-[13px] font-mono font-bold text-navy dark:text-white break-all select-all">{formatIban(preview.iban_paiement)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-4">
+                        <div>
+                          <span className="text-[10px] font-bold text-ink-muted uppercase block">Montant</span>
+                          <span className="font-mono font-bold text-[13px] tabular-nums">{fmtMoney(preview.montant_ttc)}</span>
+                        </div>
+                        {preview.communication && (
+                          <div className="min-w-0">
+                            <span className="text-[10px] font-bold text-ink-muted uppercase block">Communication</span>
+                            <span className="font-mono text-[12px] break-all select-all">{preview.communication}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {previewQr && (
+                      <div className="flex flex-col items-center gap-0.5 ml-auto">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={previewQr} alt="QR de paiement EPC (virement SEPA)" width={112} height={112} className="rounded border border-sand-border bg-white" />
+                        <span className="text-[9px] text-ink-muted">App bancaire</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {preview.justificatif_drive_id ? (

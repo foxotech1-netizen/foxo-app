@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from '@/lib/auth/server';
 import { normalizeTva } from '@/lib/agents/extraction-achat';
+import { normalizeIban, isIbanValid } from '@/lib/facturation/iban';
+import { genererQrPaiementFournisseur } from '@/lib/facturation/achat-paiement';
 import { pushFactureAchat } from '@/lib/facturation/odoo';
 import { listInboxMails, getMailDetail, downloadGmailAttachment } from '@/lib/gmail';
 import {
@@ -61,6 +63,10 @@ export interface FactureAchatInput {
   intervention_id: string | null;
   moyen_paiement: string | null;
   note_admin: string | null;
+  /** IBAN de paiement (compte du fournisseur) — normalisé côté action. */
+  iban_paiement?: string | null;
+  /** Communication de paiement (structurée +++…+++ ou libre). */
+  communication?: string | null;
 }
 
 export async function saveFactureAchat(input: FactureAchatInput): Promise<ActionResult> {
@@ -82,6 +88,25 @@ export async function saveFactureAchat(input: FactureAchatInput): Promise<Action
     : {};
 
   const admin = createAdminClient();
+
+  // Paiement : IBAN normalisé + communication. Un changement d'IBAN invalide
+  // une vérification anti-fraude antérieure (iban_verifie_at remis à null pour
+  // que le bandeau d'alerte réapparaisse tant que le nouvel IBAN n'est pas
+  // revérifié). undefined = champs non gérés par l'appelant → intacts.
+  const paiementPatch: Record<string, unknown> = {};
+  if (input.iban_paiement !== undefined || input.communication !== undefined) {
+    const newIban = input.iban_paiement ? (normalizeIban(input.iban_paiement) || null) : null;
+    const { data: cur } = await admin
+      .from('factures_achat')
+      .select('iban_paiement')
+      .eq('id', input.id)
+      .maybeSingle();
+    const oldIban = (cur?.iban_paiement as string | null) ?? null;
+    paiementPatch.iban_paiement = newIban;
+    paiementPatch.communication = input.communication?.trim() || null;
+    if (oldIban !== newIban) paiementPatch.iban_verifie_at = null;
+  }
+
   const { data, error } = await admin
     .from('factures_achat')
     .update({
@@ -95,6 +120,7 @@ export async function saveFactureAchat(input: FactureAchatInput): Promise<Action
       montant_ttc: input.montant_ttc,
       taux_tva: input.taux_tva,
       ...lignesPatch,
+      ...paiementPatch,
       categorie_comptable: input.categorie_comptable?.trim() || null,
       taux_deductibilite: input.taux_deductibilite ?? 100,
       intervention_id: input.intervention_id,
@@ -631,6 +657,84 @@ export async function deleteRegleMapping(id: string): Promise<ActionResult> {
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin/facturation/achats/regles');
   return { ok: true };
+}
+
+// ─── Paiement fournisseur (QR EPC + anti-fraude IBAN) ─────────────────────
+
+// « J'ai vérifié, mettre à jour l'IBAN du fournisseur » : recopie l'IBAN de
+// paiement de la facture sur la fiche fournisseur liée ET horodate la
+// vérification (factures_achat.iban_verifie_at = now). Éteint le bandeau
+// d'alerte anti-fraude. Exige un IBAN valide (mod-97) et une fiche liée.
+export async function verifierIbanFournisseur(achatId: string): Promise<ActionResult> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from('factures_achat')
+    .select('id, fournisseur_id, iban_paiement')
+    .eq('id', achatId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'Facture d\'achat introuvable.' };
+
+  const iban = normalizeIban((row.iban_paiement as string | null) ?? '');
+  if (!iban) return { ok: false, error: 'Aucun IBAN de paiement à enregistrer.' };
+  if (!isIbanValid(iban)) {
+    return { ok: false, error: 'IBAN invalide (contrôle mod-97) — corrigez-le avant de l\'enregistrer sur la fiche.' };
+  }
+  const fournisseurId = row.fournisseur_id as string | null;
+  if (!fournisseurId) {
+    return { ok: false, error: 'Aucune fiche fournisseur liée — créez ou liez d\'abord la fiche.' };
+  }
+
+  const now = new Date().toISOString();
+  const { error: eF } = await admin
+    .from('fournisseurs')
+    .update({ iban, updated_at: now })
+    .eq('id', fournisseurId)
+    .is('deleted_at', null);
+  if (eF) return { ok: false, error: eF.message };
+
+  const { error: eA } = await admin
+    .from('factures_achat')
+    .update({ iban_verifie_at: now, updated_at: now })
+    .eq('id', achatId);
+  if (eA) return { ok: false, error: eA.message };
+
+  revalidatePath(`/admin/facturation/achats/${achatId}`);
+  revalidatePath('/admin/facturation/achats');
+  revalidatePath('/admin/facturation/fournisseurs');
+  return { ok: true };
+}
+
+// Génère à la demande le dataURL du QR EPC de paiement (aperçu liste) —
+// évite de rendre 500 QR au chargement de la liste. Même chemin que la vente.
+export async function genererQrPaiementAchat(
+  id: string,
+): Promise<ActionResult<{ qrDataUrl: string }>> {
+  const guard = await assertAdmin();
+  if (!guard.ok) return guard;
+
+  const admin = createAdminClient();
+  const { data: row } = await admin
+    .from('factures_achat')
+    .select('fournisseur_nom, iban_paiement, montant_ttc, communication')
+    .eq('id', id)
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!row) return { ok: false, error: 'Facture d\'achat introuvable.' };
+
+  const qrDataUrl = await genererQrPaiementFournisseur({
+    fournisseur_nom: (row.fournisseur_nom as string | null) ?? null,
+    iban_paiement: (row.iban_paiement as string | null) ?? null,
+    montant_ttc: (row.montant_ttc as number | null) ?? null,
+    communication: (row.communication as string | null) ?? null,
+  });
+  if (!qrDataUrl) {
+    return { ok: false, error: 'QR indisponible (IBAN invalide ou montant TTC nul).' };
+  }
+  return { ok: true, data: { qrDataUrl } };
 }
 
 // Crée la fiche fournisseur depuis les données extraites d'une facture

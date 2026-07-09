@@ -229,6 +229,8 @@ export async function processerPieceCapturee(args: ProcessPieceArgs): Promise<Pr
       doublon_de_id: doublonDeId,
       statut: 'a_valider',
       moyen_paiement: extraction?.moyen_paiement ?? null,
+      iban_paiement: extraction?.iban ?? null,
+      communication: extraction?.communication ?? null,
       piece_capturee_id: pieceId,
     })
     .select('id')

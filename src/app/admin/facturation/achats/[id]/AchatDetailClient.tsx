@@ -7,7 +7,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Check, XCircle, CreditCard, UserPlus, Trash2, Calculator, Plus } from 'lucide-react';
+import { ExternalLink, Check, XCircle, CreditCard, UserPlus, Trash2, Calculator, Plus, QrCode, ShieldAlert, ShieldCheck } from 'lucide-react';
 import type { FactureAchat, FactureAchatLigne, Fournisseur } from '@/lib/types/database';
 import {
   saveFactureAchat,
@@ -15,9 +15,11 @@ import {
   rejeterFactureAchat,
   marquerAchatPayee,
   creerFournisseurDepuisAchat,
+  verifierIbanFournisseur,
   deleteFactureAchat,
 } from '../actions';
 import { STATUT_ACHAT_INFO, ConfianceDot, DoublonBadge } from '../AchatsListClient';
+import { isIbanValid, normalizeIban, formatIban } from '@/lib/facturation/iban';
 
 interface DossierResult { id: string; ref: string | null; adresse: string | null }
 
@@ -26,18 +28,33 @@ function todayISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function fmtMoney(n: number): string {
+  return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function fmtDateFr(iso: string | null): string {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 export function AchatDetailClient({
   achat,
   fournisseurs,
   categoriesSuggestions,
   doublonOriginal,
   interventionRef,
+  fournisseurLieIban,
+  qrDataUrl,
 }: {
   achat: FactureAchat;
   fournisseurs: Fournisseur[];
   categoriesSuggestions: string[];
   doublonOriginal: { id: string; numero_piece: string | null; fournisseur_nom: string | null } | null;
   interventionRef: string | null;
+  /** IBAN enregistré sur la fiche fournisseur liée (contrôle anti-fraude). */
+  fournisseurLieIban: string | null;
+  /** QR EPC de paiement pré-généré côté serveur (null si non générable). */
+  qrDataUrl: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -55,6 +72,10 @@ export function AchatDetailClient({
   const [categorie, setCategorie] = useState(achat.categorie_comptable ?? '');
   const [deductibilite, setDeductibilite] = useState<string>(String(achat.taux_deductibilite ?? 100));
   const [moyenPaiement, setMoyenPaiement] = useState(achat.moyen_paiement ?? '');
+  // IBAN/communication de paiement — pré-remplis depuis la fiche fournisseur
+  // si la facture n'en porte pas encore (task 3a).
+  const [ibanPaiement, setIbanPaiement] = useState(achat.iban_paiement ?? fournisseurLieIban ?? '');
+  const [communication, setCommunication] = useState(achat.communication ?? '');
   const [noteAdmin, setNoteAdmin] = useState(achat.note_admin ?? '');
   const [lignes, setLignesState] = useState<FactureAchatLigne[]>(achat.lignes ?? []);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -94,6 +115,30 @@ export function AchatDetailClient({
   const editable = achat.statut === 'a_valider' || achat.statut === 'a_payer';
   const statutInfo = STATUT_ACHAT_INFO[achat.statut];
 
+  // ── Paiement fournisseur : dérivés basés sur les données ENREGISTRÉES ──
+  // (l'IBAN affiché « en clair » et le QR reflètent le persisté, pas la saisie
+  //  en cours — d'où le drapeau paiementDirty ci-dessous.)
+  const ibanPersistNorm = achat.iban_paiement ? normalizeIban(achat.iban_paiement) : null;
+  const ibanValide = ibanPersistNorm ? isIbanValid(ibanPersistNorm) : false;
+  const ttcPaiement = achat.montant_ttc ?? 0;
+  const ficheIbanNorm = fournisseurLieIban ? normalizeIban(fournisseurLieIban) : null;
+  const ibanConforme = Boolean(ficheIbanNorm && ibanPersistNorm && ficheIbanNorm === ibanPersistNorm);
+  const ibanDiffere = Boolean(ficheIbanNorm && ibanPersistNorm && ficheIbanNorm !== ibanPersistNorm);
+  const hasFicheLiee = Boolean(achat.fournisseur_id);
+
+  // Saisie non encore enregistrée vs valeurs persistées (IBAN / communication /
+  // montant TTC — les 3 entrées du QR) → invite à ré-enregistrer.
+  const ttcSaisi = (() => {
+    const t = montantTtc.trim().replace(',', '.');
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  })();
+  const paiementDirty =
+    normalizeIban(ibanPaiement) !== (ibanPersistNorm ?? '')
+    || communication.trim() !== (achat.communication ?? '').trim()
+    || ttcSaisi !== (achat.montant_ttc ?? null);
+
   function buildInput() {
     const num = (s: string): number | null => {
       const t = s.trim().replace(',', '.');
@@ -118,6 +163,8 @@ export function AchatDetailClient({
       intervention_id: interventionId,
       moyen_paiement: moyenPaiement || null,
       note_admin: noteAdmin || null,
+      iban_paiement: ibanPaiement.trim() || null,
+      communication: communication.trim() || null,
     };
   }
 
@@ -191,6 +238,22 @@ export function AchatDetailClient({
       if (!res.ok) { setFeedback({ kind: 'err', msg: res.error }); return; }
       setFournisseurId(res.data!.fournisseurId);
       setFeedback({ kind: 'ok', msg: 'Fiche fournisseur créée et liée.' });
+      router.refresh();
+    });
+  }
+
+  // « J'ai vérifié » : enregistre d'abord l'IBAN affiché (s'il a changé), puis
+  // le recopie sur la fiche fournisseur + horodate la vérification anti-fraude.
+  function handleVerifierIban() {
+    setFeedback(null);
+    startTransition(async () => {
+      if (paiementDirty) {
+        const s = await saveFactureAchat(buildInput());
+        if (!s.ok) { setFeedback({ kind: 'err', msg: s.error }); return; }
+      }
+      const res = await verifierIbanFournisseur(achat.id);
+      if (!res.ok) { setFeedback({ kind: 'err', msg: res.error }); return; }
+      setFeedback({ kind: 'ok', msg: 'IBAN enregistré sur la fiche fournisseur et marqué vérifié.' });
       router.refresh();
     });
   }
@@ -394,6 +457,159 @@ export function AchatDetailClient({
             </button>
           )}
         </div>
+      </div>
+
+      {/* Payer ce fournisseur : QR EPC + contrôle anti-fraude IBAN */}
+      <div className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <QrCode size={15} className="text-navy" aria-hidden />
+          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">Payer ce fournisseur</div>
+        </div>
+
+        {/* Saisie IBAN + communication (surlignage confiance IA si &lt; 0.8 :
+            un IBAN invalide mod-97 est marqué confiance 0 → alerte visible). */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <ConfField label="IBAN de paiement" field="iban">
+            <input
+              value={ibanPaiement}
+              onChange={(e) => setIbanPaiement(e.target.value)}
+              disabled={!editable}
+              placeholder="BE.. (compte du fournisseur)"
+              className={`${inputCls} font-mono`}
+            />
+          </ConfField>
+          <ConfField label="Communication" field="communication">
+            <input
+              value={communication}
+              onChange={(e) => setCommunication(e.target.value)}
+              disabled={!editable}
+              placeholder="+++.../...+++ ou libre"
+              className={`${inputCls} font-mono`}
+            />
+          </ConfField>
+        </div>
+
+        {/* État du paiement (basé sur les données ENREGISTRÉES). */}
+        {!ibanPersistNorm ? (
+          <p className="text-[12px] text-ink-mid">
+            Renseignez l&apos;IBAN pour générer le QR de paiement.
+          </p>
+        ) : !ibanValide ? (
+          <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+            IBAN invalide (contrôle mod-97) — corrigez-le pour générer le QR de paiement.
+          </div>
+        ) : ttcPaiement <= 0 ? (
+          <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+            Montant TTC nul ou négatif — renseignez un montant pour générer le QR.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Contrôle anti-fraude — AU-DESSUS du QR. */}
+            {achat.iban_verifie_at ? (
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1">
+                <ShieldCheck size={13} aria-hidden />
+                IBAN vérifié le {fmtDateFr(achat.iban_verifie_at)} — conforme à la fiche fournisseur.
+              </div>
+            ) : ibanDiffere ? (
+              <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2.5 space-y-2">
+                <div className="flex items-start gap-2 text-[12px] text-terra font-semibold">
+                  <ShieldAlert size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
+                  <span>
+                    ⚠️ L&apos;IBAN de cette facture diffère de celui enregistré pour ce fournisseur
+                    (<span className="font-mono">{formatIban(ficheIbanNorm)}</span>). Fraude au virement
+                    possible : vérifiez par téléphone auprès d&apos;un contact connu avant de payer.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleVerifierIban}
+                  disabled={pending}
+                  className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center gap-1.5"
+                >
+                  <ShieldCheck size={14} aria-hidden /> J&apos;ai vérifié, mettre à jour l&apos;IBAN du fournisseur
+                </button>
+              </div>
+            ) : !ficheIbanNorm ? (
+              <div className="bg-amber-light border border-[#E8C896] rounded-lg px-3 py-2.5 space-y-2">
+                <div className="flex items-start gap-2 text-[12px] text-[#8A5A1A] font-semibold">
+                  <ShieldAlert size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
+                  <span>
+                    Premier paiement vers ce fournisseur : vérifiez l&apos;IBAN auprès d&apos;un contact connu.
+                  </span>
+                </div>
+                {hasFicheLiee ? (
+                  <button
+                    type="button"
+                    onClick={handleVerifierIban}
+                    disabled={pending}
+                    className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center gap-1.5"
+                  >
+                    <ShieldCheck size={14} aria-hidden /> J&apos;ai vérifié, mettre à jour l&apos;IBAN du fournisseur
+                  </button>
+                ) : (
+                  <p className="text-[11px] text-[#8A5A1A]">
+                    Liez une fiche fournisseur (ci-dessus) pour enregistrer l&apos;IBAN vérifié.
+                  </p>
+                )}
+              </div>
+            ) : ibanConforme ? (
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1">
+                <ShieldCheck size={13} aria-hidden />
+                IBAN conforme à la fiche fournisseur
+              </div>
+            ) : null}
+
+            {/* Bénéficiaire + IBAN + montant + communication EN CLAIR + QR. */}
+            <div className="bg-white border border-sand-border rounded-xl p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
+              <div className="space-y-2.5">
+                <div>
+                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Bénéficiaire</div>
+                  <div className="text-[15px] font-bold text-ink">{achat.fournisseur_nom ?? 'Fournisseur'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">IBAN</div>
+                  <div className="text-[17px] font-mono font-bold text-navy tracking-wide dark:text-white break-all select-all">
+                    {formatIban(ibanPersistNorm)}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-8 gap-y-2.5">
+                  <div>
+                    <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Montant</div>
+                    <div className="text-[17px] font-mono font-bold text-ink tabular-nums">{fmtMoney(ttcPaiement)}</div>
+                  </div>
+                  {achat.communication && (
+                    <div>
+                      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Communication</div>
+                      <div className="text-[13px] font-mono font-semibold text-ink break-all select-all">{achat.communication}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {qrDataUrl ? (
+                <div className="flex flex-col items-center gap-1 justify-self-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrDataUrl}
+                    alt="QR de paiement EPC (virement SEPA)"
+                    width={168}
+                    height={168}
+                    className="rounded-lg border border-sand-border bg-white"
+                  />
+                  <span className="text-[10px] text-ink-muted">Scannez avec votre app bancaire</span>
+                </div>
+              ) : (
+                <p className="text-[11px] text-ink-muted italic max-w-[160px] text-center justify-self-center">
+                  QR indisponible — utilisez l&apos;IBAN ci-dessus.
+                </p>
+              )}
+            </div>
+            {paiementDirty && (
+              <p className="text-[11px] text-ink-mid italic">
+                Modifications non enregistrées — cliquez « Enregistrer » pour régénérer le QR.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Comptabilité + dossier */}
