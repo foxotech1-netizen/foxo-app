@@ -13,6 +13,9 @@ import {
   CalendarClock,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronsUpDown,
+  ChevronUp,
   ClipboardList,
   FileEdit,
   FileText,
@@ -444,6 +447,63 @@ export function InterventionsClient({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, query, filter, techFilter, statutParam, recentResponsesFilter, recentResponseIvIds, acpIdFilter]);
+
+  // ---- Tri des colonnes du tableau (client-side) ----
+  type SortKey = 'ref' | 'acp' | 'type' | 'syndic' | 'technicien' | 'creneau' | 'statut' | 'updated';
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const COLUMNS: { label: string; key: SortKey | null }[] = [
+    { label: 'Réf.', key: 'ref' },
+    { label: 'ACP', key: 'acp' },
+    { label: 'Type', key: 'type' },
+    { label: 'Syndic', key: 'syndic' },
+    { label: 'Technicien', key: 'technicien' },
+    { label: 'Créneau', key: 'creneau' },
+    { label: 'Statut', key: 'statut' },
+    { label: 'Màj', key: 'updated' },
+    { label: '', key: null },
+  ];
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
+  function sortValue(iv: InterventionRow, key: SortKey): string | number {
+    switch (key) {
+      case 'ref': return iv.ref ?? '';
+      case 'acp': return iv.acp?.nom ?? '';
+      case 'type': return iv.type ?? '';
+      case 'syndic': return iv.syndic?.nom ?? '';
+      case 'technicien':
+        return iv.technicien
+          ? [iv.technicien.nom, iv.technicien.prenom].filter(Boolean).join(' ')
+          : '';
+      case 'creneau': return iv.creneau_debut ? Date.parse(iv.creneau_debut) : 0;
+      case 'statut': {
+        const idx = STATUT_PIPELINE.indexOf(iv.statut);
+        return idx === -1 ? STATUT_PIPELINE.length : idx;
+      }
+      case 'updated': return iv.updated_at ? Date.parse(iv.updated_at) : 0;
+    }
+  }
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const va = sortValue(a, sortKey);
+      const vb = sortValue(b, sortKey);
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'fr', { numeric: true, sensitivity: 'base' }) * dir;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, sortKey, sortDir]);
 
   const techFilterName = useMemo(() => {
     if (!techFilter) return null;
@@ -1467,22 +1527,35 @@ export function InterventionsClient({
           <table className="w-full border-collapse min-w-[700px]">
             <thead>
               <tr className="bg-[var(--color-sand)]">
-                {['Réf.', 'ACP', 'Type', 'Syndic', 'Technicien', 'Créneau', 'Statut', 'Màj', ''].map((h, i) => (
-                  <th key={h || `col-${i}`} className="px-3.5 py-2.5 text-left text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] border-b border-[var(--color-sand-border)] whitespace-nowrap">
-                    {h}
+                {COLUMNS.map((col, i) => (
+                  <th
+                    key={col.label || `col-${i}`}
+                    onClick={col.key ? () => toggleSort(col.key as SortKey) : undefined}
+                    className={`px-3.5 py-2.5 text-left text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] border-b border-[var(--color-sand-border)] whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-[var(--color-navy)]' : ''}`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {col.key && (
+                        sortKey === col.key
+                          ? (sortDir === 'asc'
+                              ? <ChevronUp size={11} className="text-[var(--color-navy)]" />
+                              : <ChevronDown size={11} className="text-[var(--color-navy)]" />)
+                          : <ChevronsUpDown size={11} className="opacity-30" />
+                      )}
+                    </span>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sorted.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-12 text-[var(--color-ink-muted)] text-[13px]">
                     Aucune intervention
                   </td>
                 </tr>
               ) : (
-                filtered.map((iv) => {
+                sorted.map((iv) => {
                   const sel = iv.id === selectedId;
                   return (
                     <tr
@@ -1653,12 +1726,12 @@ export function InterventionsClient({
 
         {/* Cards mobile (< 768px) — version condensée de chaque ligne */}
         <div className="md:hidden space-y-2">
-          {filtered.length === 0 ? (
+          {sorted.length === 0 ? (
             <div className="text-center py-12 text-[var(--color-ink-muted)] text-[13px] fxs-card">
               Aucune intervention
             </div>
           ) : (
-            filtered.map((iv) => {
+            sorted.map((iv) => {
               const sel = iv.id === selectedId;
               const adresse = iv.acp ? [iv.acp.adresse, iv.acp.ville].filter(Boolean).join(', ') : '';
               return (
