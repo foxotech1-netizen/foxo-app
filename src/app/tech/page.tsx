@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Check, Circle, Zap } from 'lucide-react';
+import { ArrowRight, CalendarOff, Check, Circle, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { StatutBadge } from '@/components/StatutBadge';
 import { fmtTime, todayLong, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Organisation } from '@/lib/types/database';
+import { TechTile } from './TechTile';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,36 +109,184 @@ export default async function TechHome() {
 
   const enCoursCount = missions.filter((m) => m.started_at && !m.ended_at).length;
 
+  // Mise en avant : la prochaine mission du jour, sinon la prochaine tout
+  // court. Les listes sont déjà triées par créneau croissant côté requête.
+  const prochaine = aujourdhui[0] ?? aVenir[0] ?? null;
+  const prochaineEstAujourdhui = aujourdhui.length > 0;
+  const prenom = u.prenom?.trim() || null;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Hero — gradient navy FoxO (cohérence avec hero RDV public).
           L'ancien gradient vert tech a été retiré pour aligner l'identité
           principale du portail tech sur la palette navy/sand/cream. Le
           vert --accent-tech reste utilisé en accents secondaires (refs,
           swatches panels, focus inputs, bottom-nav PWA). */}
       <header
-        className="-mx-4 px-6 py-7 mb-1 rounded-b-xl"
+        className="-mx-4 px-6 pt-6 pb-7 rounded-b-xl"
         style={{ background: 'linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)' }}
       >
-        <h1 className="font-sora font-semibold text-[24px] text-[var(--color-cream)] tracking-tight">
-          Bonjour {u.prenom ?? ''}
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--color-cream)]/55">
+          {todayLong()}
+        </p>
+        <h1 className="font-sora font-semibold text-[26px] leading-[1.1] tracking-[-0.02em] text-[var(--color-cream)] mt-2">
+          {prenom ? `Salut ${prenom}` : 'Salut'}
         </h1>
-        <p className="text-[13px] text-[var(--color-cream)]/75 capitalize mt-1">{todayLong()}</p>
-        <p className="text-[13px] text-[var(--color-cream)]/65 mt-2">
-          {aujourdhui.length} mission{aujourdhui.length > 1 ? 's' : ''} aujourd&apos;hui · {aVenir.length} à venir
+        <p className="text-[13px] text-[var(--color-cream)]/70 mt-2 tabular-nums">
+          {aujourdhui.length} mission{aujourdhui.length > 1 ? 's' : ''} aujourd&apos;hui
           {enCoursCount > 0 ? ` · ${enCoursCount} en cours` : ''}
         </p>
       </header>
 
-      <Section title="Aujourd'hui" missions={aujourdhui} empty="Aucune mission programmée aujourd'hui." />
-      <Section title="À venir" missions={aVenir} empty="Pas de mission planifiée dans les 7 jours." />
+      {prochaine ? (
+        <ProchaineMission m={prochaine} aujourdhui={prochaineEstAujourdhui} />
+      ) : (
+        <AucuneMission />
+      )}
+
+      {/* Couche de navigation rapide posée au-dessus des listes : les tuiles
+          d'ancrage font défiler jusqu'aux sections ci-dessous, qui restent la
+          source de vérité fonctionnelle. */}
+      <nav aria-label="Accès rapides">
+        <h2 className="section-label mb-3">Accès rapide</h2>
+        <div className="grid grid-cols-3 justify-items-center gap-x-[10px] gap-y-[18px]">
+          <TechTile
+            href="#missions-jour"
+            label="Aujourd'hui"
+            icon="calendar-check"
+            variant="navy"
+            badge={aujourdhui.length}
+          />
+          <TechTile
+            href="#missions-avenir"
+            label="À venir"
+            icon="calendar-clock"
+            variant="amber"
+            badge={aVenir.length}
+            badgeVariant="amber"
+          />
+          <TechTile href="/tech/assistant" label="Assistant IA" icon="sparkles" variant="tech" />
+          <TechTile href="/tech/historique" label="Historique" icon="clipboard-list" variant="slate" />
+          <TechTile href="/tech/notes-frais" label="Notes de frais" icon="receipt" variant="light" />
+        </div>
+      </nav>
+
+      <Section
+        id="missions-jour"
+        title="Aujourd'hui"
+        missions={aujourdhui}
+        empty="Aucune mission programmée aujourd'hui."
+      />
+      <Section
+        id="missions-avenir"
+        title="À venir"
+        missions={aVenir}
+        empty="Pas de mission planifiée dans les 7 jours."
+      />
     </div>
   );
 }
 
-function Section({ title, missions, empty }: { title: string; missions: Mission[]; empty: string }) {
+/* Carte de tête — la mission à ouvrir maintenant, avec un chemin unique et
+   très large vers la fiche intervention (usage terrain, une main, gants). */
+function ProchaineMission({ m, aujourdhui }: { m: Mission; aujourdhui: boolean }) {
+  const heure = m.creneau_debut ? fmtTime(m.creneau_debut) : null;
+  const jour = !aujourdhui && m.creneau_debut
+    ? new Date(m.creneau_debut).toLocaleDateString('fr-BE', {
+        weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ_BRUSSELS,
+      })
+    : null;
+  const creneau = [jour, heure].filter(Boolean).join(' · ');
+  const adresse = [
+    [m.acp_adresse, m.acp_ville].filter(Boolean).join(', '),
+    m.adresse,
+  ].filter(Boolean).join(' · ');
+
   return (
-    <section>
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-5"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <div className="flex items-center gap-2">
+        <span
+          aria-hidden
+          className="fx-pulse-dot w-[7px] h-[7px] rounded-full shrink-0"
+          style={{ background: 'var(--color-ok)' }}
+        />
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ok)]">
+          Prochaine mission{creneau ? ` · ${creneau}` : ''}
+        </span>
+      </div>
+
+      <h2 className="fxs-title-sm text-[var(--color-ink)] mt-3">
+        {m.ref ?? '—'}
+        {m.type && (
+          <span className="font-normal text-[var(--color-ink-mid)]"> · {m.type}</span>
+        )}
+      </h2>
+
+      {m.priorite === 'urgente' && (
+        <span className="mt-2 text-[11px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2.5 py-1 inline-flex items-center gap-1">
+          <Zap size={11} aria-hidden />URGENT
+        </span>
+      )}
+
+      <p className="text-[14px] font-semibold text-[var(--color-ink)] mt-2">{m.acp_nom ?? '—'}</p>
+      <p className="text-[13px] text-[var(--color-ink-mid)] mt-0.5 leading-relaxed">
+        {adresse || '—'}
+      </p>
+
+      <Link href={`/tech/interventions/${m.id}`} className="fx-btn-3d mt-4">
+        Ouvrir la mission
+        <ArrowRight size={18} aria-hidden />
+      </Link>
+    </section>
+  );
+}
+
+/* Aucune mission sur la fenêtre chargée (aujourd'hui + 7 jours) : on ne
+   laisse pas un trou à la place de la carte de tête. */
+function AucuneMission() {
+  return (
+    <section
+      className="bg-[var(--color-cream)] rounded-xl p-6 text-center"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <span
+        aria-hidden
+        className="mx-auto mb-3 w-11 h-11 rounded-full flex items-center justify-center"
+        style={{ background: 'var(--color-sand-mid)' }}
+      >
+        <CalendarOff size={20} className="text-[var(--color-ink-mid)]" />
+      </span>
+      <h2 className="fxs-title-sm text-[var(--color-ink)]">Aucune mission planifiée</h2>
+      <p className="text-[14px] text-[var(--color-ink-mid)] mt-2 leading-relaxed">
+        Rien n&apos;est programmé pour les 7 prochains jours. Tu peux relire tes
+        interventions passées ou déclarer une note de frais.
+      </p>
+      <div className="flex gap-2 mt-4">
+        <Link
+          href="/tech/historique"
+          className="flex-1 min-h-[44px] flex items-center justify-center rounded-ctl text-[14px] font-semibold text-[var(--color-navy)] bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)]"
+        >
+          Historique
+        </Link>
+        <Link
+          href="/tech/notes-frais"
+          className="flex-1 min-h-[44px] flex items-center justify-center rounded-ctl text-[14px] font-semibold text-[var(--color-navy)] bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)]"
+        >
+          Notes de frais
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function Section({ id, title, missions, empty }: { id: string; title: string; missions: Mission[]; empty: string }) {
+  return (
+    // scroll-mt : la bannière du layout est sticky sur 64px — sans marge de
+    // défilement, l'ancre déposerait le titre de section dessous.
+    <section id={id} className="scroll-mt-20">
       <h2 className="section-label mb-3">
         {title}
       </h2>

@@ -35,6 +35,10 @@
   --color-ink:        #1C1A16;
   --color-ink-mid:    #6B6558;
   --color-ink-muted:  #A09A8E;
+  /* Graphite — bas du dégradé des tuiles « slate ». Descendre jusqu'à
+     --color-ink ferait de la tuile l'élément le plus lourd de l'écran et
+     lui volerait la hiérarchie de la tuile navy (action principale). */
+  --color-graphite:   #3B362E;
 
   /* Marine — accents (logos, boutons primary) */
   --color-navy:       #1B3A6B;
@@ -52,10 +56,16 @@
   --color-terra:       #C4622D;
   --color-terra-light: #F7EDE5;
   --color-terra-mid:   #E8C4AF;
+  /* Terra assombri — fond des pastilles de comptage (badges tuiles tech).
+     --color-terra ne passe qu'à 4.1:1 avec du texte crème sur 11px bold ;
+     cette déclinaison monte à 5.7:1 (AA) sans quitter la famille FoxO. */
+  --color-terra-deep:  #A34D1E;
 
   /* Ambre */
   --color-amber-foxo:  #B8830A;
   --color-amber-light: #FBF3E0;
+  /* Bas du dégradé des tuiles ambre + fond des badges ambre. */
+  --color-amber-deep:  #7E5A06;
 
   /* Succès */
   --color-ok:       #1F6B45;
@@ -67,6 +77,11 @@
      refs missions, swatches panels intervention, focus inputs tech,
      bottom-nav iOS-style. Pas un thème, juste une teinte d'accent. */
   --accent-tech:    #34D399;
+  /* Déclinaisons sombres de l'accent tech, réservées au dégradé des tuiles
+     3D : --accent-tech pur ne tient que 1.9:1 avec une icône blanche. Ces
+     deux bornes gardent l'icône au-dessus de 3:1 sur toute sa hauteur. */
+  --accent-tech-bright: #22A87A;
+  --accent-tech-deep:   #0B5942;
 
   color-scheme: light;
 }
@@ -84,6 +99,7 @@
   --color-ink:        var(--color-ink);
   --color-ink-mid:    var(--color-ink-mid);
   --color-ink-muted:  var(--color-ink-muted);
+  --color-graphite:   var(--color-graphite);
 
   --color-navy:       var(--color-navy);
   --color-navy-dark:  var(--color-navy-dark);
@@ -98,9 +114,11 @@
   --color-terra:       var(--color-terra);
   --color-terra-light: var(--color-terra-light);
   --color-terra-mid:   var(--color-terra-mid);
+  --color-terra-deep:  var(--color-terra-deep);
 
   --color-amber-foxo:  var(--color-amber-foxo);
   --color-amber-light: var(--color-amber-light);
+  --color-amber-deep:  var(--color-amber-deep);
 
   --color-ok:       var(--color-ok);
   --color-ok-light: var(--color-ok-light);
@@ -125,6 +143,34 @@
     0 1px 2px rgba(15, 32, 64, 0.06),
     0 12px 32px rgba(15, 32, 64, 0.18),
     0 0 0 1px rgba(15, 32, 64, 0.06);
+
+  /* ── Relief 3D — accueil du portail technicien (PWA) ───────────────────
+     Registre volontairement plus physique que l'élévation D7 ci-dessus :
+     ces ombres empilent une projection portée ET deux ombres internes
+     (arête haute lumineuse + creux bas) pour donner du volume aux tuiles
+     type « icône iOS ». Réservées à src/app/tech/TechTile.tsx et au bouton
+     principal de l'accueil tech — les surfaces admin restent en shadow-card.
+       tile         : tuile colorée au repos
+       tile-pressed : tuile enfoncée (:active) — le volume s'écrase
+       tile-light   : variante claire (crème/sable) sur fond sable
+       btn-3d       : bouton plein avec socle 3px navy-dark */
+  --shadow-tile:
+    0 8px 16px rgba(28, 27, 24, 0.22),
+    0 3px 6px rgba(28, 27, 24, 0.16),
+    inset 0 2px 2px rgba(255, 255, 255, 0.4),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.22);
+  --shadow-tile-pressed:
+    0 2px 4px rgba(28, 27, 24, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  --shadow-tile-light:
+    0 8px 16px rgba(28, 27, 24, 0.15),
+    0 3px 6px rgba(28, 27, 24, 0.1),
+    inset 0 2px 2px rgba(255, 255, 255, 0.9),
+    inset 0 -3px 5px rgba(28, 27, 24, 0.08);
+  --shadow-btn-3d:
+    0 6px 12px rgba(27, 58, 107, 0.35),
+    0 3px 0 var(--color-navy-dark),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.35);
 
   /* ── Rayons D7 — échelle unique ────────────────────────────────────────
      ctl 8px (boutons, inputs, chips) · card 10px (cartes, panels, menus)
@@ -332,6 +378,206 @@ h1.fxs-page-title > span,
 @keyframes hubFadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TUILES 3D — accueil du portail technicien (PWA mobile).
+   Langage « icône iOS » : carré 68px à grand rayon, dégradé vertical qui
+   sculpte le volume, reflet sur la moitié haute, enfoncement physique au
+   tap. Composant : src/app/tech/TechTile.tsx.
+
+   Les dégradés sont ici (et pas en style inline) pour deux raisons : le
+   :active n'est pas exprimable en style inline, et le design system FoxO
+   interdit les hex en dur dans les composants — toutes les bornes sont
+   des tokens de la palette :root.
+   ───────────────────────────────────────────────────────────────────── */
+.fx-tile-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fx-tile {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Les icônes lucide héritent de currentColor : la couleur se pilote ici,
+     pas via une prop `color` (var() dans un attribut de présentation SVG
+     n'est pas fiable sur tous les moteurs). */
+  color: var(--color-cream);
+  box-shadow: var(--shadow-tile);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+/* Reflet lumineux. Il s'arrête net à 50% : l'icône est centrée, sa moitié
+   basse reste donc sur un fond non délavé, ce qui préserve son contraste
+   sur les variantes claires (ambre, tech). */
+.fx-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 50% 0;
+  border-radius: 22px 22px 0 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+}
+
+/* L'icône passe au-dessus du reflet ; l'ombre portée la détache du fond
+   coloré (et sécurise le ratio sur la borne haute des dégradés). */
+.fx-tile > svg {
+  position: relative;
+  filter: drop-shadow(0 1px 1.5px rgba(28, 27, 24, 0.28));
+}
+
+.fx-tile-navy {
+  background: linear-gradient(
+    180deg,
+    var(--color-navy-mid) 0%,
+    var(--color-navy) 52%,
+    var(--color-navy-dark) 100%
+  );
+}
+.fx-tile-amber {
+  background: linear-gradient(
+    180deg,
+    var(--color-amber-foxo) 0%,
+    var(--color-amber-deep) 100%
+  );
+}
+.fx-tile-tech {
+  background: linear-gradient(
+    180deg,
+    var(--accent-tech-bright) 0%,
+    var(--accent-tech-deep) 100%
+  );
+}
+.fx-tile-slate {
+  background: linear-gradient(
+    180deg,
+    var(--color-ink-mid) 0%,
+    var(--color-graphite) 100%
+  );
+}
+/* Variante claire : icône navy, ombre adoucie, et un liseré sable pour
+   décoller la tuile du fond sable de la page. */
+.fx-tile-light {
+  background: linear-gradient(
+    180deg,
+    var(--color-cream) 0%,
+    var(--color-sand-mid) 100%
+  );
+  color: var(--color-navy);
+  box-shadow: var(--shadow-tile-light), 0 0 0 1px var(--color-sand-border);
+}
+.fx-tile-light > svg {
+  filter: drop-shadow(0 1px 1px rgba(28, 27, 24, 0.12));
+}
+
+.fx-tile-label {
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  text-align: center;
+  color: var(--color-ink);
+}
+
+/* Pastille de comptage — cercle 22px débordant sur l'angle haut-droit,
+   cerné de crème pour se détacher de la tuile comme sur iOS. */
+.fx-tile-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid var(--color-cream);
+  background: var(--color-terra-deep);
+  color: var(--color-cream);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(28, 27, 24, 0.28);
+}
+.fx-tile-badge-amber {
+  background: var(--color-amber-deep);
+}
+
+/* Bouton principal plein — même grammaire de relief que les tuiles :
+   socle 3px navy-dark (dans --shadow-btn-3d) qui disparaît au tap. */
+.fx-btn-3d {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 54px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    var(--color-navy-mid) 0%,
+    var(--color-navy) 55%,
+    var(--color-navy-dark) 100%
+  );
+  color: var(--color-cream);
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  box-shadow: var(--shadow-btn-3d);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fx-btn-3d:active {
+  box-shadow:
+    0 2px 6px rgba(27, 58, 107, 0.3),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.2);
+}
+
+.fx-tile-link:active .fx-tile,
+.fx-tile-link:active .fx-tile-light {
+  box-shadow: var(--shadow-tile-pressed);
+}
+
+/* Enfoncement : uniquement si l'utilisateur ne demande pas moins de
+   mouvement (les changements d'ombre, eux, restent dans tous les cas). */
+@media (prefers-reduced-motion: no-preference) {
+  .fx-tile-link:active .fx-tile {
+    transform: translateY(3px) scale(0.96);
+  }
+  .fx-btn-3d:active {
+    transform: translateY(3px);
+  }
+}
+
+/* Point « live » de la carte Prochaine mission. */
+@keyframes fxPulseDot {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.78); }
+}
+.fx-pulse-dot {
+  animation: fxPulseDot 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-pulse-dot { animation: none; }
 }
 
 /* ── Micro-interactions D7 ────────────────────────────────────────────────
