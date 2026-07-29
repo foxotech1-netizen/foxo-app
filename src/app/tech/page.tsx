@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarOff, Check, Circle, Zap } from 'lucide-react';
+import { ArrowRight, CalendarOff, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { StatutBadge } from '@/components/StatutBadge';
+import { Logo } from '@/components/Logo';
 import { fmtTime, todayLong, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Organisation } from '@/lib/types/database';
 import { TechTile } from './TechTile';
@@ -19,6 +19,20 @@ type Mission = Pick<
   acp_ville: string | null;
   syndic_nom: string | null;
 };
+
+// Identifiant d'affichage dérivé de l'email de connexion : partie locale
+// avant le @, première lettre capitalisée, chiffres finaux détachés par une
+// espace ("tech1" → "Tech 1", "j.dupont" → "J.dupont"). Règle générique —
+// aucun mapping de comptes en dur, tout futur email de technicien passe.
+function techIdFromEmail(email: string | null | undefined): string | null {
+  const local = (email ?? '').split('@')[0]?.trim();
+  if (!local) return null;
+  const m = local.match(/^(.*?)(\d+)$/);
+  const base = m ? m[1] : local;
+  const digits = m ? m[2] : '';
+  const cap = base.charAt(0).toUpperCase() + base.slice(1);
+  return [cap, digits].filter(Boolean).join(' ') || null;
+}
 
 export default async function TechHome() {
   const supabase = await createClient();
@@ -107,34 +121,42 @@ export default async function TechHome() {
     return d >= endOfDay;
   });
 
-  const enCoursCount = missions.filter((m) => m.started_at && !m.ended_at).length;
-
   // Mise en avant : la prochaine mission du jour, sinon la prochaine tout
   // court. Les listes sont déjà triées par créneau croissant côté requête.
   const prochaine = aujourdhui[0] ?? aVenir[0] ?? null;
   const prochaineEstAujourdhui = aujourdhui.length > 0;
-  const prenom = u.prenom?.trim() || null;
+  const techId = techIdFromEmail(user?.email) ?? u.prenom ?? 'Technicien';
 
   return (
-    <div className="space-y-5">
-      {/* Hero — gradient navy FoxO (cohérence avec hero RDV public).
-          L'ancien gradient vert tech a été retiré pour aligner l'identité
-          principale du portail tech sur la palette navy/sand/cream. Le
-          vert --accent-tech reste utilisé en accents secondaires (refs,
-          swatches panels, focus inputs, bottom-nav PWA). */}
-      <header
-        className="-mx-4 px-6 pt-6 pb-7 rounded-b-xl"
-        style={{ background: 'linear-gradient(135deg, var(--color-navy) 0%, var(--color-navy-dark) 100%)' }}
-      >
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[var(--color-cream)]/55">
+    // data-tech-dark : déclare la page nativement sombre — sans cet
+    // attribut, .tech-main l'envelopperait dans la feuille claire
+    // transitoire réservée aux pages pas encore refondues (globals.css).
+    <div data-tech-dark className="space-y-5">
+      {/* En-tête minimaliste centré, posé directement sur le fond marine. */}
+      <header className="text-center pt-3">
+        <Logo size={46} variant="blanc" priority className="mx-auto" />
+        <p
+          className="text-[11px] uppercase tracking-[0.18em] mt-4"
+          style={{ color: 'var(--tech-text-3)' }}
+        >
           {todayLong()}
         </p>
-        <h1 className="font-sora font-semibold text-[26px] leading-[1.1] tracking-[-0.02em] text-[var(--color-cream)] mt-2">
-          {prenom ? `Salut ${prenom}` : 'Salut'}
+        <h1
+          className="font-display font-bold text-[22px] mt-1"
+          style={{ color: 'var(--tech-text-1)' }}
+        >
+          {techId}
         </h1>
-        <p className="text-[13px] text-[var(--color-cream)]/70 mt-2 tabular-nums">
-          {aujourdhui.length} mission{aujourdhui.length > 1 ? 's' : ''} aujourd&apos;hui
-          {enCoursCount > 0 ? ` · ${enCoursCount} en cours` : ''}
+        <div
+          aria-hidden
+          className="mx-auto my-3 h-px w-14"
+          style={{ background: 'var(--tech-line-strong)' }}
+        />
+        <p
+          className="text-[10.5px] uppercase tracking-[0.32em]"
+          style={{ color: 'var(--tech-text-3)' }}
+        >
+          App terrain
         </p>
       </header>
 
@@ -144,45 +166,46 @@ export default async function TechHome() {
         <AucuneMission />
       )}
 
-      {/* Couche de navigation rapide posée au-dessus des listes : les tuiles
-          d'ancrage font défiler jusqu'aux sections ci-dessous, qui restent la
-          source de vérité fonctionnelle. */}
-      <nav aria-label="Accès rapides">
-        <h2 className="section-label mb-3">Accès rapide</h2>
-        <div className="grid grid-cols-3 justify-items-center gap-x-[10px] gap-y-[18px]">
-          <TechTile
-            href="#missions-jour"
-            label="Aujourd'hui"
-            icon="calendar-check"
-            variant="navy"
-            badge={aujourdhui.length}
-          />
-          <TechTile
-            href="#missions-avenir"
-            label="À venir"
-            icon="calendar-clock"
-            variant="amber"
-            badge={aVenir.length}
-            badgeVariant="amber"
-          />
-          <TechTile href="/tech/assistant" label="Assistant IA" icon="sparkles" variant="tech" />
-          <TechTile href="/tech/historique" label="Historique" icon="clipboard-list" variant="slate" />
-          <TechTile href="/tech/notes-frais" label="Notes de frais" icon="receipt" variant="light" />
-        </div>
+      <nav aria-label="Navigation rapide" className="space-y-[11px]">
+        <TechTile
+          href="/tech/missions?vue=jour"
+          label="Aujourd'hui"
+          subtitle="Missions du jour"
+          icon="calendar-check"
+          variant="violet"
+          badge={aujourdhui.length}
+        />
+        <TechTile
+          href="/tech/missions?vue=avenir"
+          label="À venir"
+          subtitle="7 prochains jours"
+          icon="calendar-clock"
+          variant="sky"
+          badge={aVenir.length}
+          badgeVariant="amber"
+        />
+        <TechTile
+          href="/tech/assistant"
+          label="Assistant IA"
+          subtitle="Pose tes questions"
+          icon="sparkles"
+          variant="green"
+        />
+        <TechTile
+          href="/tech/historique"
+          label="Historique"
+          subtitle="Missions terminées"
+          icon="clipboard-list"
+          variant="amber"
+        />
+        <TechTile
+          href="/tech/notes-frais"
+          label="Notes de frais"
+          subtitle="Km & dépenses"
+          icon="receipt"
+          variant="orange"
+        />
       </nav>
-
-      <Section
-        id="missions-jour"
-        title="Aujourd'hui"
-        missions={aujourdhui}
-        empty="Aucune mission programmée aujourd'hui."
-      />
-      <Section
-        id="missions-avenir"
-        title="À venir"
-        missions={aVenir}
-        empty="Pas de mission planifiée dans les 7 jours."
-      />
     </div>
   );
 }
@@ -203,25 +226,30 @@ function ProchaineMission({ m, aujourdhui }: { m: Mission; aujourdhui: boolean }
   ].filter(Boolean).join(' · ');
 
   return (
-    <section
-      className="bg-[var(--color-cream)] rounded-xl p-5"
-      style={{ boxShadow: 'var(--shadow-card)' }}
-    >
+    <section className="tech-glass-card p-5">
       <div className="flex items-center gap-2">
         <span
           aria-hidden
           className="fx-pulse-dot w-[7px] h-[7px] rounded-full shrink-0"
-          style={{ background: 'var(--color-ok)' }}
+          style={{ background: 'var(--accent-tech)' }}
         />
-        <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ok)]">
+        <span
+          className="text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+          style={{ color: 'var(--accent-tech)' }}
+        >
           Prochaine mission{creneau ? ` · ${creneau}` : ''}
         </span>
       </div>
 
-      <h2 className="fxs-title-sm text-[var(--color-ink)] mt-3">
-        {m.ref ?? '—'}
+      <h2
+        className="font-sora font-semibold text-[19px] tracking-[-0.01em] mt-3"
+        style={{ color: 'var(--tech-text-1)' }}
+      >
+        <span style={{ color: 'var(--tech-cta-2)' }}>{m.ref ?? '—'}</span>
         {m.type && (
-          <span className="font-normal text-[var(--color-ink-mid)]"> · {m.type}</span>
+          <span className="font-normal" style={{ color: 'var(--tech-text-2)' }}>
+            {' '}· {m.type}
+          </span>
         )}
       </h2>
 
@@ -231,12 +259,20 @@ function ProchaineMission({ m, aujourdhui }: { m: Mission; aujourdhui: boolean }
         </span>
       )}
 
-      <p className="text-[14px] font-semibold text-[var(--color-ink)] mt-2">{m.acp_nom ?? '—'}</p>
-      <p className="text-[13px] text-[var(--color-ink-mid)] mt-0.5 leading-relaxed">
+      <p
+        className="text-[14px] font-semibold mt-2"
+        style={{ color: 'var(--tech-text-1)' }}
+      >
+        {m.acp_nom ?? '—'}
+      </p>
+      <p
+        className="text-[13px] mt-0.5 leading-relaxed"
+        style={{ color: 'var(--tech-text-2)' }}
+      >
         {adresse || '—'}
       </p>
 
-      <Link href={`/tech/interventions/${m.id}`} className="fx-btn-3d mt-4">
+      <Link href={`/tech/interventions/${m.id}`} className="tech-cta-3d mt-4">
         Ouvrir la mission
         <ArrowRight size={18} aria-hidden />
       </Link>
@@ -248,121 +284,51 @@ function ProchaineMission({ m, aujourdhui }: { m: Mission; aujourdhui: boolean }
    laisse pas un trou à la place de la carte de tête. */
 function AucuneMission() {
   return (
-    <section
-      className="bg-[var(--color-cream)] rounded-xl p-6 text-center"
-      style={{ boxShadow: 'var(--shadow-card)' }}
-    >
+    <section className="tech-glass-card p-6 text-center">
       <span
         aria-hidden
         className="mx-auto mb-3 w-11 h-11 rounded-full flex items-center justify-center"
-        style={{ background: 'var(--color-sand-mid)' }}
+        style={{ background: 'var(--tech-glass-bright)' }}
       >
-        <CalendarOff size={20} className="text-[var(--color-ink-mid)]" />
+        <CalendarOff size={20} style={{ color: 'var(--tech-text-2)' }} />
       </span>
-      <h2 className="fxs-title-sm text-[var(--color-ink)]">Aucune mission planifiée</h2>
-      <p className="text-[14px] text-[var(--color-ink-mid)] mt-2 leading-relaxed">
+      <h2
+        className="font-sora font-semibold text-[20px] tracking-[-0.02em]"
+        style={{ color: 'var(--tech-text-1)' }}
+      >
+        Aucune mission planifiée
+      </h2>
+      <p
+        className="text-[14px] mt-2 leading-relaxed"
+        style={{ color: 'var(--tech-text-2)' }}
+      >
         Rien n&apos;est programmé pour les 7 prochains jours. Tu peux relire tes
         interventions passées ou déclarer une note de frais.
       </p>
       <div className="flex gap-2 mt-4">
         <Link
           href="/tech/historique"
-          className="flex-1 min-h-[44px] flex items-center justify-center rounded-ctl text-[14px] font-semibold text-[var(--color-navy)] bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)]"
+          className="flex-1 min-h-[44px] flex items-center justify-center rounded-[12px] text-[14px] font-semibold"
+          style={{
+            color: 'var(--tech-text-1)',
+            background: 'var(--tech-glass-bright)',
+            border: '1px solid var(--tech-line)',
+          }}
         >
           Historique
         </Link>
         <Link
           href="/tech/notes-frais"
-          className="flex-1 min-h-[44px] flex items-center justify-center rounded-ctl text-[14px] font-semibold text-[var(--color-navy)] bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)]"
+          className="flex-1 min-h-[44px] flex items-center justify-center rounded-[12px] text-[14px] font-semibold"
+          style={{
+            color: 'var(--tech-text-1)',
+            background: 'var(--tech-glass-bright)',
+            border: '1px solid var(--tech-line)',
+          }}
         >
           Notes de frais
         </Link>
       </div>
     </section>
-  );
-}
-
-function Section({ id, title, missions, empty }: { id: string; title: string; missions: Mission[]; empty: string }) {
-  return (
-    // scroll-mt : la bannière du layout est sticky sur 64px — sans marge de
-    // défilement, l'ancre déposerait le titre de section dessous.
-    <section id={id} className="scroll-mt-20">
-      <h2 className="section-label mb-3">
-        {title}
-      </h2>
-      {missions.length === 0 ? (
-        <div
-          className="bg-[var(--color-cream)] rounded-xl p-5"
-          style={{ boxShadow: 'var(--shadow-card)' }}
-        >
-          <p className="text-[14px] text-[var(--color-ink-mid)]">{empty}</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {missions.map((m) => (
-            <MissionCard key={m.id} m={m} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function MissionCard({ m }: { m: Mission }) {
-  const inProgress = Boolean(m.started_at && !m.ended_at);
-  const done = Boolean(m.ended_at);
-  // Split date / heure pour mettre l'heure en accent vert tech (--accent-tech).
-  const dt = m.creneau_debut ? new Date(m.creneau_debut) : null;
-  const time = dt ? fmtTime(m.creneau_debut) : null;
-  const dateLabel = dt
-    ? dt.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ_BRUSSELS })
-    : null;
-  return (
-    <Link
-      href={`/tech/interventions/${m.id}`}
-      className="block bg-[var(--color-cream)] rounded-xl p-4 transition-all active:scale-[0.99] min-h-[44px]"
-      style={{ boxShadow: 'var(--shadow-card)' }}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-sora text-[12px] font-semibold tracking-[0.01em] text-[var(--accent-tech)]">
-            {m.ref ?? '—'}
-          </span>
-          {m.priorite === 'urgente' && (
-            <span className="text-[11px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2.5 py-1 inline-flex items-center gap-1">
-              <Zap size={11} />URGENT
-            </span>
-          )}
-          {inProgress && (
-            <span className="text-[11px] font-semibold text-[var(--color-amber-foxo)] bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded-full px-2.5 py-1 inline-flex items-center gap-1">
-              <Circle size={9} fill="currentColor" />EN COURS
-            </span>
-          )}
-          {done && (
-            <span className="text-[11px] font-semibold text-[var(--color-ok)] bg-[var(--color-ok-light)] border border-[var(--color-ok-mid)] rounded-full px-2.5 py-1 inline-flex items-center gap-1">
-              <Check size={11} />TERMINÉE
-            </span>
-          )}
-        </div>
-        <StatutBadge statut={m.statut} />
-      </div>
-      <div className="font-semibold text-[15px] text-[var(--color-ink)]">{m.acp_nom ?? '—'}</div>
-      <div className="text-[12px] text-[var(--color-ink)] mt-1">
-        {[m.acp_adresse, m.acp_ville].filter(Boolean).join(', ') || '—'}
-        {m.adresse ? <> · <span className="text-[var(--color-ink)] font-semibold">{m.adresse}</span></> : null}
-      </div>
-      <div className="text-[12px] text-[var(--color-ink-mid)] mt-2 flex items-center gap-2 font-mono">
-        {time && (
-          <span className="font-semibold text-[var(--accent-tech)]">{time}</span>
-        )}
-        {time && dateLabel && <span>·</span>}
-        {dateLabel && <span>{dateLabel}</span>}
-        {!time && !dateLabel && <span>—</span>}
-        {m.type && <><span>·</span><span className="font-sans text-[var(--color-ink)]">{m.type}</span></>}
-      </div>
-      {m.syndic_nom && (
-        <div className="text-[12px] text-[var(--color-ink-mid)] mt-1">{m.syndic_nom}</div>
-      )}
-    </Link>
   );
 }
