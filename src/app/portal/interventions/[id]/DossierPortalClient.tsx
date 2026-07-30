@@ -25,6 +25,24 @@ const CONF_KEY: Record<NonNullable<Occupant['conf']>, PortalStringKey> = {
   decline: 'occDeclined',
 };
 
+// Rapport historique (dossiers importés « encodage à froid ») : la description
+// peut contenir une ligne « Rapport historique (Drive) : https://… ». On
+// extrait l'URL pour l'afficher comme lien dans le bloc Rapport, et on retire
+// la ligne du texte affiché — affichage pur, la donnée en base est intacte.
+const HISTORIC_REPORT_RE = /Rapport historique.*?(https?:\/\/\S+)/;
+
+function splitHistoricReport(description: string | null): { text: string | null; url: string | null } {
+  if (!description) return { text: null, url: null };
+  const m = description.match(HISTORIC_REPORT_RE);
+  if (!m) return { text: description, url: null };
+  const text = description
+    .split('\n')
+    .filter((line) => !HISTORIC_REPORT_RE.test(line))
+    .join('\n')
+    .trim();
+  return { text: text || null, url: m[1] };
+}
+
 export function DossierPortalClient({ data }: { data: DossierData }) {
   const v = useVocab();
   const orgType = useOrgType();
@@ -35,6 +53,7 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
   const { intervention: iv, acp, occupants, technicien: tech, isSinistre, hasReport, reportTransmittedAt } = data;
 
   const adresseFull = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ');
+  const { text: descriptionText, url: historicReportUrl } = splitHistoricReport(iv.description);
   const techNom = tech ? [tech.prenom, tech.nom].filter(Boolean).join(' ').trim() : null;
   const confirmedCount = occupants.filter((o) => o.conf === 'confirme').length;
   const appartements = iv.appartements_concernes ?? [];
@@ -237,11 +256,11 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
               <div className="font-semibold text-[13px] mt-0.5">{iv.type}</div>
             </div>
           )}
-          {iv.description && (
+          {descriptionText && (
             <div>
               <Label>{t('initialDescription')}</Label>
               <p className="text-[13px] text-ink-mid mt-0.5 whitespace-pre-wrap leading-relaxed">
-                {iv.description}
+                {descriptionText}
               </p>
             </div>
           )}
@@ -269,26 +288,51 @@ export function DossierPortalClient({ data }: { data: DossierData }) {
         </div>
       </Block>
 
-      {/* Bloc rapport */}
+      {/* Bloc rapport — rapport plateforme et/ou rapport historique (Drive,
+          dossiers importés). Les deux peuvent coexister ; le message « en
+          préparation » ne s'affiche que s'il n'y a ni l'un ni l'autre. */}
       <Block title={t('reportBadge')}>
-        {hasReport ? (
+        {hasReport || historicReportUrl ? (
           <div className="space-y-2">
-            <p className="text-[13px] text-ink-mid">
-              {t('reportIsAvailable')}
-            </p>
-            <DownloadButton
-              href={`/api/rapport/${iv.id}`}
-              filename={`rapport-${iv.ref ?? iv.id}.pdf`}
-              label={t('downloadReport')}
-              icon={FileText}
-            />
-            {iv.statut === 'cloturee' && (
-              <DownloadButton
-                href={`/api/facture/${iv.id}`}
-                filename={`facture-${iv.ref ?? iv.id}.pdf`}
-                label={t('downloadInvoice')}
-                icon={Receipt}
-              />
+            {hasReport && (
+              <>
+                <p className="text-[13px] text-ink-mid">
+                  {t('reportIsAvailable')}
+                </p>
+                <DownloadButton
+                  href={`/api/rapport/${iv.id}`}
+                  filename={`rapport-${iv.ref ?? iv.id}.pdf`}
+                  label={t('downloadReport')}
+                  icon={FileText}
+                />
+                {iv.statut === 'cloturee' && (
+                  <DownloadButton
+                    href={`/api/facture/${iv.id}`}
+                    filename={`facture-${iv.ref ?? iv.id}.pdf`}
+                    label={t('downloadInvoice')}
+                    icon={Receipt}
+                  />
+                )}
+              </>
+            )}
+            {historicReportUrl && (
+              <div>
+                <a
+                  href={historicReportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
+                    inline-flex items-center justify-center gap-2
+                    px-4 py-2.5 rounded-lg text-[13px] font-semibold
+                    border border-[#A17244] text-[#A17244] bg-transparent
+                    hover:bg-[#A17244] hover:text-white
+                    transition-colors
+                  "
+                >
+                  <FileText size={14} />
+                  <span>{t('viewReport')}</span>
+                </a>
+              </div>
             )}
           </div>
         ) : (
