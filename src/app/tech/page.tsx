@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarOff, Zap } from 'lucide-react';
+import { ArrowRight, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { Logo } from '@/components/Logo';
 import { fmtTime, todayLong, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Organisation } from '@/lib/types/database';
 import { TechTile } from './TechTile';
@@ -132,11 +131,12 @@ export default async function TechHome() {
     // attribut, .tech-main l'envelopperait dans la feuille claire
     // transitoire réservée aux pages pas encore refondues (globals.css).
     <div data-tech-dark className="space-y-5">
-      {/* En-tête minimaliste centré, posé directement sur le fond marine. */}
+      {/* En-tête minimaliste centré, posé directement sur le fond marine.
+          Pas de logo ici : la bannière sticky du layout porte déjà le seul
+          logo FoxO de l'écran (retour client iPhone). */}
       <header className="text-center pt-3">
-        <Logo size={46} variant="blanc" priority className="mx-auto" />
         <p
-          className="text-[11px] uppercase tracking-[0.18em] mt-4"
+          className="text-[11px] uppercase tracking-[0.18em]"
           style={{ color: 'var(--tech-text-3)' }}
         >
           {todayLong()}
@@ -163,7 +163,14 @@ export default async function TechHome() {
       {prochaine ? (
         <ProchaineMission m={prochaine} aujourdhui={prochaineEstAujourdhui} />
       ) : (
-        <AucuneMission />
+        // État vide volontairement discret (retour client) : les tuiles et
+        // la bottom nav offrent déjà toutes les actions — pas de carte.
+        <p
+          className="text-center text-[13px] py-5"
+          style={{ color: 'var(--tech-text-3)' }}
+        >
+          Aucune mission planifiée
+        </p>
       )}
 
       <nav aria-label="Navigation rapide" className="space-y-[11px]">
@@ -276,59 +283,6 @@ function ProchaineMission({ m, aujourdhui }: { m: Mission; aujourdhui: boolean }
         Ouvrir la mission
         <ArrowRight size={18} aria-hidden />
       </Link>
-    </section>
-  );
-}
-
-/* Aucune mission sur la fenêtre chargée (aujourd'hui + 7 jours) : on ne
-   laisse pas un trou à la place de la carte de tête. */
-function AucuneMission() {
-  return (
-    <section className="tech-glass-card p-6 text-center">
-      <span
-        aria-hidden
-        className="mx-auto mb-3 w-11 h-11 rounded-full flex items-center justify-center"
-        style={{ background: 'var(--tech-glass-bright)' }}
-      >
-        <CalendarOff size={20} style={{ color: 'var(--tech-text-2)' }} />
-      </span>
-      <h2
-        className="font-sora font-semibold text-[20px] tracking-[-0.02em]"
-        style={{ color: 'var(--tech-text-1)' }}
-      >
-        Aucune mission planifiée
-      </h2>
-      <p
-        className="text-[14px] mt-2 leading-relaxed"
-        style={{ color: 'var(--tech-text-2)' }}
-      >
-        Rien n&apos;est programmé pour les 7 prochains jours. Tu peux relire tes
-        interventions passées ou déclarer une note de frais.
-      </p>
-      <div className="flex gap-2 mt-4">
-        <Link
-          href="/tech/historique"
-          className="flex-1 min-h-[44px] flex items-center justify-center rounded-[12px] text-[14px] font-semibold"
-          style={{
-            color: 'var(--tech-text-1)',
-            background: 'var(--tech-glass-bright)',
-            border: '1px solid var(--tech-line)',
-          }}
-        >
-          Historique
-        </Link>
-        <Link
-          href="/tech/notes-frais"
-          className="flex-1 min-h-[44px] flex items-center justify-center rounded-[12px] text-[14px] font-semibold"
-          style={{
-            color: 'var(--tech-text-1)',
-            background: 'var(--tech-glass-bright)',
-            border: '1px solid var(--tech-line)',
-          }}
-        >
-          Notes de frais
-        </Link>
-      </div>
     </section>
   );
 }
