@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { MapPin, MessageCircle, MessageSquare, Phone, Zap } from 'lucide-react';
+import { MessageCircle, MessageSquare, Phone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
 import type { Acp, Intervention, Occupant, Organisation, Rapport } from '@/lib/types/database';
+import { InterventionShell } from './InterventionShell';
 import { TimerPanel } from './TimerPanel';
 import { PhotosPanel } from './PhotosPanel';
 import { DocumentsPanel } from './DocumentsPanel';
@@ -62,159 +62,110 @@ export default async function TechInterventionPage({
   const photosRes = await getPhotoSignedUrls(iv.id);
   const photos = photosRes.ok ? (photosRes.data ?? []) : [];
 
+  // Données d'en-tête et d'actions rapides de la coquille — uniquement des
+  // valeurs sérialisables dérivées des données DÉJÀ chargées ci-dessus.
+  const occupantPrincipal = occupants.find((o) => o.telephone) ?? occupants[0] ?? null;
+  const adresseAcp = [acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ');
+  const retardPrincipal = occupantPrincipal?.telephone
+    ? buildRetardLinks(occupantPrincipal.telephone, iv)
+    : null;
+  const creneau = iv.creneau_debut
+    ? {
+        time: fmtTime(iv.creneau_debut),
+        dateLabel: new Date(iv.creneau_debut).toLocaleDateString('fr-BE', {
+          weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ_BRUSSELS,
+        }),
+      }
+    : null;
+
   return (
-    <div className="space-y-4">
-      <Link href="/tech" className="inline-flex items-center text-[14px] hover:underline font-medium text-[var(--accent-tech)] min-h-[44px]">
-        ← Mes missions
-      </Link>
-
-      {/* En-tête */}
-      <header
-        className="bg-[var(--color-cream)] rounded-xl p-5"
-        style={{ boxShadow: 'var(--shadow-card)' }}
-      >
-        <div className="flex items-center gap-2 flex-wrap mb-2">
-          <span className="font-sora text-[12px] font-semibold tracking-[0.01em] text-[var(--accent-tech)]">{iv.ref ?? '—'}</span>
-          {iv.priorite === 'urgente' && (
-            <span className="text-[11px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2.5 py-1 inline-flex items-center gap-1">
-              <Zap size={11} />URGENT
-            </span>
-          )}
-        </div>
-        <h1 className="font-sora text-[22px] font-semibold tracking-tight text-[var(--color-ink)]">{acp?.nom ?? '—'}</h1>
-        <div className="text-[13px] text-[var(--color-ink)] mt-1.5">
-          {[acp?.adresse, acp?.code_postal, acp?.ville].filter(Boolean).join(', ') || '—'}
-        </div>
-        {iv.adresse && (
-          <div className="text-[13px] font-semibold mt-1.5 inline-flex items-center gap-1.5 text-[var(--accent-tech)]">
-            <MapPin size={14} />{iv.adresse}
-          </div>
-        )}
-        {iv.creneau_debut && (() => {
-          const d = new Date(iv.creneau_debut);
-          const time = fmtTime(iv.creneau_debut);
-          const dateLabel = d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: TZ_BRUSSELS });
-          return (
-            <div className="text-[12px] text-[var(--color-ink-mid)] mt-2.5 font-mono flex items-center gap-2">
-              <span className="font-semibold text-[var(--accent-tech)]">{time}</span>
-              <span>·</span>
-              <span className="capitalize">{dateLabel}</span>
-            </div>
-          );
-        })()}
-      </header>
-
-      {/* Problème déclaré */}
-      <Block title="Problème déclaré">
-        <strong className="text-[var(--color-ink)] text-[14px]">{iv.type ?? '—'}</strong>
-        {iv.description && (
-          <p className="text-[var(--color-ink)] mt-2 whitespace-pre-wrap text-[14px] leading-relaxed">{iv.description}</p>
-        )}
-      </Block>
-
-      {/* Contact syndic */}
-      {syndic && (
-        <Block title="Demandeur">
-          <div className="flex justify-between items-center gap-2">
-            <div>
-              <div className="font-semibold text-[var(--color-ink)] text-[14px]">{syndic.nom}</div>
-              {syndic.telephone && (
-                <div className="text-[12px] text-[var(--color-ink-mid)] font-mono mt-0.5">{syndic.telephone}</div>
-              )}
-            </div>
-            {syndic.telephone && (
-              <a
-                href={`tel:${syndic.telephone}`}
-                className="bg-[var(--color-navy)] text-[var(--color-cream)] px-4 py-2.5 rounded-md text-[13px] font-semibold hover:bg-[var(--color-navy-dark)] min-h-[44px] inline-flex items-center gap-1.5 transition-colors"
-              >
-                <Phone size={14} />Appeler
-              </a>
-            )}
-          </div>
-        </Block>
-      )}
-
-      {/* Occupants */}
-      {occupants.length > 0 && (
-        <Block title={`Occupants (${occupants.length})`}>
-          <div className="divide-y divide-[var(--color-sand-mid)]">
-            {occupants.map((o) => {
-              const retard = o.telephone ? buildRetardLinks(o.telephone, iv) : null;
-              return (
-                <div key={o.id} className="py-3 first:pt-0 last:pb-0">
-                  <div className="flex justify-between items-center gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-semibold text-[var(--color-ink)]">{o.nom ?? '—'}</div>
-                      <div className="text-[12px] text-[var(--color-ink)] mt-0.5">
-                        Apt. {o.appartement ?? '—'}
-                        {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
-                      </div>
-                    </div>
-                    {o.telephone && (
-                      <a
-                        href={`tel:${o.telephone}`}
-                        className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2.5 rounded-md text-[13px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center min-h-[44px] min-w-[44px] justify-center transition-colors"
-                        aria-label="Appeler"
-                      >
-                        <Phone size={16} />
-                      </a>
-                    )}
-                  </div>
-                  {retard && (
-                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] text-[var(--color-ink-mid)] font-medium">Prévenir d&apos;un retard :</span>
-                      <a
-                        href={retard.smsHref}
-                        className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2 rounded-md text-[12px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center gap-1.5 min-h-[44px] transition-colors"
-                        aria-label="Prévenir l'occupant d'un retard par SMS"
-                      >
-                        <MessageSquare size={14} />SMS
-                      </a>
-                      <a
-                        href={retard.waHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-[var(--color-sand-mid)] text-[var(--accent-tech)] px-3 py-2 rounded-md text-[12px] font-semibold hover:bg-[var(--color-sand-border)] inline-flex items-center gap-1.5 min-h-[44px] transition-colors"
-                        aria-label="Prévenir l'occupant d'un retard par WhatsApp"
-                      >
-                        <MessageCircle size={14} />WhatsApp
-                      </a>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Block>
-      )}
-
-      {/* Timer */}
-      <TimerPanel
-        interventionId={iv.id}
-        startedAt={iv.started_at}
-        endedAt={iv.ended_at}
-        statut={iv.statut}
+    // data-tech-dark : écran nativement sombre — la feuille claire des
+    // sections est gérée par InterventionShell, pas par .tech-main.
+    <div data-tech-dark>
+      <InterventionShell
+        header={{
+          ref: iv.ref,
+          type: iv.type,
+          statut: iv.statut,
+          urgent: iv.priorite === 'urgente',
+          acpNom: acp?.nom ?? null,
+          adresse: adresseAcp || null,
+          adresseComplement: iv.adresse ?? null,
+          creneau,
+          occupant: occupantPrincipal
+            ? {
+                nom: occupantPrincipal.nom,
+                appartement: occupantPrincipal.appartement,
+                telephone: occupantPrincipal.telephone,
+              }
+            : null,
+        }}
+        actions={{
+          tel: occupantPrincipal?.telephone
+            ? `tel:${cleanDialNumber(occupantPrincipal.telephone)}`
+            : null,
+          maps: adresseAcp
+            ? `https://maps.google.com/?q=${encodeURIComponent(adresseAcp)}`
+            : null,
+          sms: retardPrincipal?.smsHref ?? null,
+        }}
+        photoCount={photos.length}
+        timer={
+          <TimerPanel
+            interventionId={iv.id}
+            startedAt={iv.started_at}
+            endedAt={iv.ended_at}
+            statut={iv.statut}
+          />
+        }
+        sections={{
+          photos: (
+            <PhotosPanel
+              interventionId={iv.id}
+              initialPhotos={photos}
+            />
+          ),
+          // Documents du dossier Drive — liste chargée côté client (latence Drive)
+          documents: (
+            <Block title="Documents du dossier">
+              <DocumentsPanel interventionId={iv.id} />
+            </Block>
+          ),
+          observations: (
+            <ObservationsPanel
+              interventionId={iv.id}
+              disabled={iv.statut === 'rapport' || iv.statut === 'cloturee'}
+            />
+          ),
+          rapport: <RapportSlot iv={iv} acp={acp} rapport={rapport} />,
+          notes: (
+            <NotesPanel
+              interventionId={iv.id}
+              initial={iv.notes_tech ?? null}
+            />
+          ),
+          // Paiement sur place — QR EPC virement européen
+          paiement: <PaiementPanel interventionId={iv.id} />,
+        }}
+        details={<DossierDetails iv={iv} syndic={syndic} occupants={occupants} />}
       />
+    </div>
+  );
+}
 
-      {/* Photos */}
-      <PhotosPanel
-        interventionId={iv.id}
-        initialPhotos={photos}
-      />
-
-      {/* Documents du dossier Drive — liste chargée côté client (latence Drive) */}
-      <Block title="Documents du dossier">
-        <DocumentsPanel interventionId={iv.id} />
-      </Block>
-
-      {/* Observations terrain */}
-      <ObservationsPanel
-        interventionId={iv.id}
-        disabled={iv.statut === 'rapport' || iv.statut === 'cloturee'}
-      />
-
-      {/* Rapport */}
-      <RapportPanel
+// Slot rapport isolé pour garder l'appel principal lisible — props du
+// panneau strictement identiques à l'ancien empilement.
+function RapportSlot({
+  iv,
+  acp,
+  rapport,
+}: {
+  iv: Intervention;
+  acp: Acp | null;
+  rapport: Rapport | null;
+}) {
+  return (
+    <RapportPanel
         interventionId={iv.id}
         interventionRef={iv.ref}
         acpNom={acp?.nom ?? null}
@@ -242,15 +193,157 @@ export default async function TechInterventionPage({
         canPublish={Boolean(iv.ended_at)}
         alreadyPublished={iv.statut === 'rapport' || iv.statut === 'cloturee'}
       />
+  );
+}
 
-      {/* Notes internes du technicien */}
-      <NotesPanel
-        interventionId={iv.id}
-        initial={iv.notes_tech ?? null}
-      />
+// "Infos dossier" du hub — reprend le contenu des anciens blocs Problème
+// déclaré / Demandeur / Occupants (aucune donnée perdue par le passage au
+// hub), adapté au verre sombre. Les liens tel/sms/WhatsApp par occupant
+// sont conservés tels quels côté logique (mêmes helpers).
+function DossierDetails({
+  iv,
+  syndic,
+  occupants,
+}: {
+  iv: Intervention;
+  syndic: Pick<Organisation, 'id' | 'nom' | 'telephone'> | null;
+  occupants: Occupant[];
+}) {
+  return (
+    <>
+      <div>
+        <DetailLabel>Problème déclaré</DetailLabel>
+        <strong className="text-[14px]" style={{ color: 'var(--tech-text-1)' }}>
+          {iv.type ?? '—'}
+        </strong>
+        {iv.description && (
+          <p
+            className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed"
+            style={{ color: 'var(--tech-text-2)' }}
+          >
+            {iv.description}
+          </p>
+        )}
+      </div>
 
-      {/* Paiement sur place — QR EPC virement européen */}
-      <PaiementPanel interventionId={iv.id} />
+      {syndic && (
+        <div>
+          <DetailLabel>Demandeur</DetailLabel>
+          <div className="flex justify-between items-center gap-2">
+            <div>
+              <div className="font-semibold text-[14px]" style={{ color: 'var(--tech-text-1)' }}>
+                {syndic.nom}
+              </div>
+              {syndic.telephone && (
+                <div className="text-[12px] font-mono mt-0.5" style={{ color: 'var(--tech-text-2)' }}>
+                  {syndic.telephone}
+                </div>
+              )}
+            </div>
+            {syndic.telephone && (
+              <a
+                href={`tel:${syndic.telephone}`}
+                className="px-4 py-2.5 rounded-[10px] text-[13px] font-semibold min-h-[44px] inline-flex items-center gap-1.5"
+                style={{
+                  background: 'var(--tech-glass-bright)',
+                  border: '1px solid var(--tech-line)',
+                  color: 'var(--tech-text-1)',
+                }}
+              >
+                <Phone size={14} />Appeler
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {occupants.length > 0 && (
+        <div>
+          <DetailLabel>Occupants ({occupants.length})</DetailLabel>
+          <div className="divide-y" style={{ borderColor: 'var(--tech-line)' }}>
+            {occupants.map((o) => {
+              const retard = o.telephone ? buildRetardLinks(o.telephone, iv) : null;
+              return (
+                <div
+                  key={o.id}
+                  className="py-3 first:pt-0 last:pb-0"
+                  style={{ borderColor: 'var(--tech-line)' }}
+                >
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[14px] font-semibold" style={{ color: 'var(--tech-text-1)' }}>
+                        {o.nom ?? '—'}
+                      </div>
+                      <div className="text-[12px] mt-0.5" style={{ color: 'var(--tech-text-2)' }}>
+                        Apt. {o.appartement ?? '—'}
+                        {o.telephone ? <> · <span className="font-mono">{o.telephone}</span></> : null}
+                      </div>
+                    </div>
+                    {o.telephone && (
+                      <a
+                        href={`tel:${o.telephone}`}
+                        className="px-3 py-2.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center min-h-[44px] min-w-[44px] justify-center"
+                        style={{
+                          background: 'var(--tech-glass-bright)',
+                          border: '1px solid var(--tech-line)',
+                          color: 'var(--accent-tech)',
+                        }}
+                        aria-label="Appeler"
+                      >
+                        <Phone size={16} />
+                      </a>
+                    )}
+                  </div>
+                  {retard && (
+                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-medium" style={{ color: 'var(--tech-text-2)' }}>
+                        Prévenir d&apos;un retard :
+                      </span>
+                      <a
+                        href={retard.smsHref}
+                        className="px-3 py-2 rounded-[10px] text-[12px] font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+                        style={{
+                          background: 'var(--tech-glass-bright)',
+                          border: '1px solid var(--tech-line)',
+                          color: 'var(--accent-tech)',
+                        }}
+                        aria-label="Prévenir l'occupant d'un retard par SMS"
+                      >
+                        <MessageSquare size={14} />SMS
+                      </a>
+                      <a
+                        href={retard.waHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 rounded-[10px] text-[12px] font-semibold inline-flex items-center gap-1.5 min-h-[44px]"
+                        style={{
+                          background: 'var(--tech-glass-bright)',
+                          border: '1px solid var(--tech-line)',
+                          color: 'var(--accent-tech)',
+                        }}
+                        aria-label="Prévenir l'occupant d'un retard par WhatsApp"
+                      >
+                        <MessageCircle size={14} />WhatsApp
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function DetailLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="font-sora text-[11px] font-medium uppercase tracking-[0.12em] mb-2"
+      style={{ color: 'var(--tech-text-2)' }}
+    >
+      {children}
     </div>
   );
 }

@@ -67,23 +67,28 @@ export function TimerPanel({
   }
 
   // Détermine la couleur du timer en cours selon la durée écoulée :
-  // amber si > 1h, terra si > 2h, sinon vert tech (alerte visuelle terrain).
+  // amber si > 1h, rouge si > 2h, sinon vert tech (alerte visuelle
+  // terrain). Seuils inchangés — couleurs mappées sur les tokens sombres
+  // (les alertes clair --color-terra/-amber-foxo manquent de contraste
+  // sur le fond marine).
   const timerColor = (() => {
     if (!inProgress || !startedAt) return 'var(--accent-tech)';
     const elapsedMs = Date.now() - new Date(startedAt).getTime();
-    if (elapsedMs > 2 * 3600_000) return 'var(--color-terra)';
-    if (elapsedMs > 3600_000)     return 'var(--color-amber-foxo)';
+    if (elapsedMs > 2 * 3600_000) return 'var(--tech-btn-red-1)';
+    if (elapsedMs > 3600_000)     return 'var(--tech-cta-2)';
     return 'var(--accent-tech)';
   })();
 
+  // Carte verre sombre (thème tech) — la logique start/stop ci-dessus est
+  // strictement identique à la version claire d'origine.
   return (
-    <section
-      className="bg-[var(--color-cream)] rounded-xl p-5"
-      style={{ boxShadow: 'var(--shadow-card)' }}
-    >
+    <section className="tech-glass-card p-5">
       <div className="flex items-center gap-2.5 mb-3">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--accent-tech)]"></span>
-        <div className="font-sora text-[11px] font-medium text-[var(--color-ink-mid)] uppercase tracking-[0.12em]">
+        <div
+          className="font-sora text-[11px] font-medium uppercase tracking-[0.12em]"
+          style={{ color: 'var(--tech-text-2)' }}
+        >
           Suivi temps
         </div>
       </div>
@@ -92,7 +97,7 @@ export function TimerPanel({
         <button
           onClick={onStart}
           disabled={pending}
-          className="w-full bg-[var(--color-ok)] text-[var(--color-cream)] py-4 rounded-xl font-semibold text-[16px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90 min-h-[48px] inline-flex items-center justify-center gap-2"
+          className="tech-cta-3d tech-cta-3d-green text-[16px] disabled:opacity-50"
         >
           {pending ? 'Démarrage…' : <><Play size={18} />Démarrer l&apos;intervention</>}
         </button>
@@ -101,23 +106,29 @@ export function TimerPanel({
       {startedAt && !endedAt && (
         <>
           <div className="text-center mb-4">
-            <div className="font-sora text-[11px] font-medium text-[var(--color-amber-foxo)] uppercase tracking-[0.12em] mb-1.5">
+            <div
+              className="font-sora text-[11px] font-medium uppercase tracking-[0.12em] mb-1.5"
+              style={{ color: 'var(--tech-cta-2)' }}
+            >
               En cours
             </div>
             <div
-              className="font-sora text-[28px] font-semibold font-mono tabular-nums tracking-[-0.02em]"
+              className="font-sora text-[26px] font-semibold tabular-nums tracking-[-0.02em]"
               style={{ color: timerColor }}
             >
               {elapsed}
             </div>
-            <div className="text-[12px] text-[var(--color-ink-mid)] mt-1">
-              Démarré à <span className="font-mono text-[var(--color-ink)]">{fmtTime(startedAt)}</span>
+            <div className="text-[12px] mt-1" style={{ color: 'var(--tech-text-2)' }}>
+              Démarré à{' '}
+              <span className="font-mono" style={{ color: 'var(--tech-text-1)' }}>
+                {fmtTime(startedAt)}
+              </span>
             </div>
           </div>
           <button
             onClick={onEnd}
             disabled={pending}
-            className="w-full bg-[var(--color-terra)] text-[var(--color-cream)] py-4 rounded-xl font-semibold text-[16px] disabled:opacity-50 active:opacity-80 transition-opacity hover:opacity-90 min-h-[48px] inline-flex items-center justify-center gap-2"
+            className="tech-cta-3d tech-cta-3d-red text-[16px] disabled:opacity-50"
           >
             {pending ? 'Clôture…' : <><Square size={18} />Clôturer l&apos;intervention</>}
           </button>
@@ -125,19 +136,33 @@ export function TimerPanel({
       )}
 
       {endedAt && (
-        <div className="bg-[var(--color-ok-light)] border border-[var(--color-ok-mid)] rounded-xl p-4 text-center">
-          <div className="font-sora text-[11px] font-medium text-[var(--color-ok)] uppercase tracking-[0.12em] mb-1.5">
+        <div
+          className="rounded-xl p-4 text-center"
+          style={{
+            background: 'var(--tech-glass-bright)',
+            border: '1px solid var(--tech-line)',
+          }}
+        >
+          <div
+            className="font-sora text-[11px] font-medium uppercase tracking-[0.12em] mb-1.5"
+            style={{ color: 'var(--accent-tech)' }}
+          >
             Terminée
           </div>
-          <div className="font-sora text-[24px] font-semibold text-[var(--color-ok)] font-mono tabular-nums tracking-[-0.02em]">
+          <div
+            className="font-sora text-[26px] font-semibold tabular-nums tracking-[-0.02em]"
+            style={{ color: 'var(--accent-tech)' }}
+          >
             {elapsed}
           </div>
-          <div className="text-[12px] text-[var(--color-ink-mid)] mt-1.5 font-mono">
+          <div className="text-[12px] mt-1.5 font-mono" style={{ color: 'var(--tech-text-2)' }}>
             {startedAt && fmtTime(startedAt)}
             {' — '}
             {fmtTime(endedAt)}
           </div>
-          <div className="text-[12px] text-[var(--color-ink-mid)] mt-2">Statut actuel : {statut}</div>
+          <div className="text-[12px] mt-2" style={{ color: 'var(--tech-text-2)' }}>
+            Statut actuel : {statut}
+          </div>
         </div>
       )}
 
