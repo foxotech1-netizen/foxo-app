@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
 import Sidebar from '@components/Sidebar';
 import { MainContent } from '@components/layout/MainContent';
+import { TopbarSearch } from '@/components/admin/TopbarSearch';
 import { getValidationTotal } from '@/lib/admin/validation-queue';
 
 export default async function AdminLayout({
@@ -54,6 +55,7 @@ export default async function AdminLayout({
           est porté par MainContent, donc cette div extérieure reste un
           simple wrapper. */}
       <div className="flex-1 flex flex-col min-w-0">
+        <TopbarSearch />
         <MainContent className="flex-1">{children}</MainContent>
       </div>
     </div>
