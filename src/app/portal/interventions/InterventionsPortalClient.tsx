@@ -48,6 +48,34 @@ function chipFromStatutParam(s: string | null): ChipId {
   return 'tous';
 }
 
+// Tri par colonne (vue tableau desktop). null = ordre serveur (created_at desc).
+type SortKey = 'ref' | 'acp' | 'adresse' | 'statut' | 'cree';
+type SortState = { key: SortKey; dir: 'asc' | 'desc' } | null;
+
+// Valeur de tri par colonne — null/vide = toujours en fin de liste.
+function sortValue(iv: InterventionPortalItem, key: SortKey): string | number | null {
+  switch (key) {
+    case 'ref': return iv.ref;
+    case 'acp': return iv.acp_nom;
+    case 'adresse': return iv.acp_adresse ?? iv.adresse;
+    case 'statut': return iv.statut;
+    case 'cree': return new Date(iv.created_at).getTime();
+  }
+}
+
+function compareItems(a: InterventionPortalItem, b: InterventionPortalItem, sort: NonNullable<SortState>): number {
+  const va = sortValue(a, sort.key);
+  const vb = sortValue(b, sort.key);
+  // Vides en fin de liste quel que soit le sens du tri.
+  if (va == null && vb == null) return 0;
+  if (va == null) return 1;
+  if (vb == null) return -1;
+  const cmp = typeof va === 'number' && typeof vb === 'number'
+    ? va - vb
+    : String(va).localeCompare(String(vb), 'fr', { numeric: true, sensitivity: 'base' });
+  return sort.dir === 'asc' ? cmp : -cmp;
+}
+
 export function InterventionsPortalClient({
   items,
   initialQuery,
@@ -75,6 +103,12 @@ export function InterventionsPortalClient({
   const [chip, setChip] = useState<ChipId>(chipFromStatutParam(initialStatut));
   const [periode, setPeriode] = useState<PeriodeId>('tout');
   const [acpFilter, setAcpFilter] = useState<string>('tous');
+  const [sort, setSort] = useState<SortState>(null);
+
+  // 1er clic = ascendant, clics suivants = alternance asc/desc.
+  function toggleSort(key: SortKey) {
+    setSort((s) => (s?.key === key && s.dir === 'asc' ? { key, dir: 'desc' } : { key, dir: 'asc' }));
+  }
 
   const activeChip = CHIPS.find((c) => c.id === chip) ?? CHIPS[0];
 
@@ -116,6 +150,13 @@ export function InterventionsPortalClient({
       return haystack.includes(q);
     });
   }, [items, query, activeChip, periode, acpFilter]);
+
+  // Tri client-side sur la liste déjà filtrée. Sans tri actif, l'ordre
+  // serveur (created_at desc) est conservé.
+  const sorted = useMemo(() => {
+    if (!sort) return filtered;
+    return [...filtered].sort((a, b) => compareItems(a, b, sort));
+  }, [filtered, sort]);
 
   const counts = useMemo(() => {
     const out: Record<ChipId, number> = {
@@ -220,11 +261,11 @@ export function InterventionsPortalClient({
 
 
       <div className="md:hidden space-y-2">
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-6 text-center">
             {v.emptyList}
           </p>
-        ) : filtered.map((iv) => (
+        ) : sorted.map((iv) => (
           <Link
             key={iv.id}
             href={`/portal/interventions/${iv.id}`}
@@ -283,32 +324,52 @@ export function InterventionsPortalClient({
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-sand">
-              {[
-                { key: 'ref', node: t('thRef') },
-                { key: 'acp', node: v.acpLabel },
-                { key: 'adresse', node: t('thAddress') },
-                { key: 'statut', node: t('thStatus') },
-                { key: 'cree', node: t('thCreated') },
+              {([
+                { key: 'ref', node: t('thRef'), sortKey: 'ref' },
+                { key: 'acp', node: v.acpLabel, sortKey: 'acp' },
+                { key: 'adresse', node: t('thAddress'), sortKey: 'adresse' },
+                { key: 'statut', node: t('thStatus'), sortKey: 'statut' },
+                { key: 'cree', node: t('thCreated'), sortKey: 'cree' },
                 { key: 'tech', node: t('thTechnician') },
                 { key: 'rapport', node: <FileText size={14} /> },
-              ].map((h) => (
-                <th
-                  key={h.key}
-                  className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
-                >
-                  {h.node}
-                </th>
-              ))}
+              ] as { key: string; node: React.ReactNode; sortKey?: SortKey }[]).map((h) => {
+                const active = h.sortKey != null && sort?.key === h.sortKey;
+                return (
+                  <th
+                    key={h.key}
+                    aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                    className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
+                  >
+                    {h.sortKey ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(h.sortKey!)}
+                        className={
+                          'inline-flex items-center gap-1 uppercase tracking-wider font-bold cursor-pointer hover:text-navy ' +
+                          (active ? 'text-navy' : 'text-ink-muted')
+                        }
+                      >
+                        {h.node}
+                        <span aria-hidden className={'text-[8px] ' + (active ? '' : 'invisible')}>
+                          {active && sort!.dir === 'desc' ? '▼' : '▲'}
+                        </span>
+                      </button>
+                    ) : (
+                      h.node
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {sorted.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
                   {v.emptyList}
                 </td>
               </tr>
-            ) : filtered.map((iv) => (
+            ) : sorted.map((iv) => (
               <tr
                 key={iv.id}
                 className="border-b border-sand-mid hover:bg-sand-hover cursor-pointer"
