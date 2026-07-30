@@ -39,7 +39,7 @@ export type PortalStringKey =
   | 'yourInternalRef' | 'save' | 'saving' | 'refSavedMsg'
   | 'suspensionReason'
   | 'descriptionTitle' | 'interventionType' | 'initialDescription' | 'apartmentsConcerned' | 'aptShort' | 'preciseAddress'
-  | 'reportIsAvailable' | 'downloadReport' | 'downloadInvoice' | 'reportInPreparation'
+  | 'reportIsAvailable' | 'downloadReport' | 'downloadInvoice' | 'reportInPreparation' | 'viewReport'
   | 'requestFollowUpTitle' | 'followUpSentMsg' | 'followUpIntro' | 'requestFollowUpButton' | 'sending' | 'followUpSendError' | 'networkError'
   | 'insuranceInfo' | 'insuranceCompany' | 'claimReference' | 'policyReference' | 'insurerContact' | 'actionRequired'
   | 'occupantsTitle' | 'confirmedSuffix' | 'occConfirmed' | 'occPending' | 'occDeclined'
@@ -84,7 +84,7 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     yourInternalRef: 'Votre référence interne', save: 'Enregistrer', saving: 'Enregistrement…', refSavedMsg: 'Référence enregistrée.',
     suspensionReason: 'Motif de suspension',
     descriptionTitle: 'Description', interventionType: "Type d'intervention", initialDescription: 'Description initiale', apartmentsConcerned: 'Appartement(s) concerné(s)', aptShort: 'Apt.', preciseAddress: 'Adresse précise',
-    reportIsAvailable: "Le rapport d'intervention est disponible.", downloadReport: 'Télécharger le rapport', downloadInvoice: 'Télécharger la facture', reportInPreparation: "Rapport en cours de préparation. Vous serez notifié dès qu'il sera disponible.",
+    reportIsAvailable: "Le rapport d'intervention est disponible.", downloadReport: 'Télécharger le rapport', downloadInvoice: 'Télécharger la facture', reportInPreparation: "Rapport en cours de préparation. Vous serez notifié dès qu'il sera disponible.", viewReport: 'Consulter le rapport',
     requestFollowUpTitle: 'Demander une suite', followUpSentMsg: "Demande envoyée — l'équipe FoxO a été notifiée et vous répondra via la messagerie ci-dessous.", followUpIntro: "Un problème persiste ou vous souhaitez un nouveau passage sur ce dossier ? Envoyez une demande de suite : elle est transmise à l'équipe FoxO et apparaît dans la messagerie ci-dessous.", requestFollowUpButton: 'Demander une suite / révision', sending: 'Envoi…', followUpSendError: "Échec de l'envoi de la demande.", networkError: 'Erreur réseau.',
     insuranceInfo: 'Informations assurance', insuranceCompany: "Compagnie d'assurance", claimReference: 'Référence sinistre', policyReference: 'Référence police', insurerContact: 'Contact assureur', actionRequired: 'Action requise',
     occupantsTitle: 'Occupants', confirmedSuffix: 'confirmé(s)', occConfirmed: 'Confirmé', occPending: 'En attente', occDeclined: 'Décliné',
@@ -124,7 +124,7 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     yourInternalRef: 'Uw interne referentie', save: 'Opslaan', saving: 'Opslaan…', refSavedMsg: 'Referentie opgeslagen.',
     suspensionReason: 'Reden van opschorting',
     descriptionTitle: 'Beschrijving', interventionType: 'Type interventie', initialDescription: 'Oorspronkelijke beschrijving', apartmentsConcerned: 'Betrokken appartement(en)', aptShort: 'App.', preciseAddress: 'Exact adres',
-    reportIsAvailable: 'Het interventierapport is beschikbaar.', downloadReport: 'Rapport downloaden', downloadInvoice: 'Factuur downloaden', reportInPreparation: 'Rapport wordt voorbereid. U wordt verwittigd zodra het beschikbaar is.',
+    reportIsAvailable: 'Het interventierapport is beschikbaar.', downloadReport: 'Rapport downloaden', downloadInvoice: 'Factuur downloaden', reportInPreparation: 'Rapport wordt voorbereid. U wordt verwittigd zodra het beschikbaar is.', viewReport: 'Rapport bekijken',
     requestFollowUpTitle: 'Een vervolg vragen', followUpSentMsg: 'Aanvraag verzonden — het FoxO-team is verwittigd en antwoordt u via de berichten hieronder.', followUpIntro: 'Blijft er een probleem of wenst u een nieuw bezoek voor dit dossier? Stuur een vervolgaanvraag: ze wordt doorgegeven aan het FoxO-team en verschijnt in de berichten hieronder.', requestFollowUpButton: 'Een vervolg / herziening vragen', sending: 'Verzenden…', followUpSendError: 'Verzenden van de aanvraag mislukt.', networkError: 'Netwerkfout.',
     insuranceInfo: 'Verzekeringsgegevens', insuranceCompany: 'Verzekeringsmaatschappij', claimReference: 'Schadereferentie', policyReference: 'Polisreferentie', insurerContact: 'Contact verzekeraar', actionRequired: 'Vereiste actie',
     occupantsTitle: 'Bewoners', confirmedSuffix: 'bevestigd', occConfirmed: 'Bevestigd', occPending: 'In afwachting', occDeclined: 'Geweigerd',
@@ -164,7 +164,7 @@ const STRINGS: Record<Lang, Record<PortalStringKey, string>> = {
     yourInternalRef: 'Your internal reference', save: 'Save', saving: 'Saving…', refSavedMsg: 'Reference saved.',
     suspensionReason: 'Reason for suspension',
     descriptionTitle: 'Description', interventionType: 'Intervention type', initialDescription: 'Initial description', apartmentsConcerned: 'Apartment(s) concerned', aptShort: 'Apt.', preciseAddress: 'Precise address',
-    reportIsAvailable: 'The intervention report is available.', downloadReport: 'Download the report', downloadInvoice: 'Download the invoice', reportInPreparation: 'Report being prepared. You will be notified as soon as it is available.',
+    reportIsAvailable: 'The intervention report is available.', downloadReport: 'Download the report', downloadInvoice: 'Download the invoice', reportInPreparation: 'Report being prepared. You will be notified as soon as it is available.', viewReport: 'View report',
     requestFollowUpTitle: 'Request a follow-up', followUpSentMsg: 'Request sent — the FoxO team has been notified and will reply via the messages below.', followUpIntro: 'Still having an issue or want another visit for this file? Send a follow-up request: it is forwarded to the FoxO team and appears in the messages below.', requestFollowUpButton: 'Request a follow-up / review', sending: 'Sending…', followUpSendError: 'Failed to send the request.', networkError: 'Network error.',
     insuranceInfo: 'Insurance information', insuranceCompany: 'Insurance company', claimReference: 'Claim reference', policyReference: 'Policy reference', insurerContact: 'Insurer contact', actionRequired: 'Action required',
     occupantsTitle: 'Occupants', confirmedSuffix: 'confirmed', occConfirmed: 'Confirmed', occPending: 'Pending', occDeclined: 'Declined',
