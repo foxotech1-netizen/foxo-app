@@ -49,7 +49,7 @@ function chipFromStatutParam(s: string | null): ChipId {
 }
 
 // Tri par colonne (vue tableau desktop). null = ordre serveur (created_at desc).
-type SortKey = 'ref' | 'acp' | 'adresse' | 'statut' | 'cree';
+type SortKey = 'ref' | 'acp' | 'adresse' | 'statut' | 'cree' | 'refInterne';
 type SortState = { key: SortKey; dir: 'asc' | 'desc' } | null;
 
 // Valeur de tri par colonne — null/vide = toujours en fin de liste.
@@ -60,6 +60,7 @@ function sortValue(iv: InterventionPortalItem, key: SortKey): string | number | 
     case 'adresse': return iv.acp_adresse ?? iv.adresse;
     case 'statut': return iv.statut;
     case 'cree': return new Date(iv.created_at).getTime();
+    case 'refInterne': return iv.reference_externe || null;
   }
 }
 
@@ -327,6 +328,9 @@ export function InterventionsPortalClient({
               {([
                 { key: 'ref', node: t('thRef'), sortKey: 'ref' },
                 { key: 'acp', node: v.acpLabel, sortKey: 'acp' },
+                ...(orgType === 'syndic'
+                  ? [{ key: 'refInterne', node: v.referenceLabel, sortKey: 'refInterne' as SortKey }]
+                  : []),
                 { key: 'adresse', node: t('thAddress'), sortKey: 'adresse' },
                 { key: 'statut', node: t('thStatus'), sortKey: 'statut' },
                 { key: 'cree', node: t('thCreated'), sortKey: 'cree' },
@@ -365,7 +369,7 @@ export function InterventionsPortalClient({
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
+                <td colSpan={orgType === 'syndic' ? 8 : 7} className="text-center py-12 text-ink-muted text-[13px]">
                   {v.emptyList}
                 </td>
               </tr>
@@ -386,10 +390,12 @@ export function InterventionsPortalClient({
                   {iv.acp_bce && (
                     <div className="text-[10px] text-ink-muted font-mono mt-0.5">{t('bceLabel')} {iv.acp_bce}</div>
                   )}
-                  {orgType === 'syndic' && iv.reference_externe && (
-                    <div className="text-[10px] text-ink-muted font-mono mt-0.5">{v.referenceLabel} {iv.reference_externe}</div>
-                  )}
                 </td>
+                {orgType === 'syndic' && (
+                  <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                    {iv.reference_externe || <span className="text-ink-muted">—</span>}
+                  </td>
+                )}
                 <td className="px-3.5 py-3 text-[11px] text-ink-mid">
                   {iv.acp_adresse ?? iv.adresse ?? <span className="text-ink-muted">—</span>}
                 </td>
