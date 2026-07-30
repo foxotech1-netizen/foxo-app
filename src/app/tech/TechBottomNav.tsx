@@ -14,7 +14,8 @@ const ITEMS: readonly NavItem[] = [
 
 // Bottom nav PWA — fixe en bas, safe-area inset iOS, min-height 44px par
 // item (touch target Apple HIG). Le layout réserve déjà 90px de padding
-// bottom pour ne pas masquer le contenu.
+// bottom pour ne pas masquer le contenu. Thème sombre portail tech :
+// verre marine flouté (tokens --tech-*), item actif ambre CTA.
 export function TechBottomNav() {
   const pathname = usePathname();
 
@@ -22,8 +23,10 @@ export function TechBottomNav() {
     <nav
       className="fixed bottom-0 left-0 right-0 z-40"
       style={{
-        background: '#FFFFFF',
-        borderTop: '1px solid #E6E2DC',
+        background: 'var(--tech-nav-bg)',
+        borderTop: '1px solid var(--tech-line)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
@@ -38,7 +41,7 @@ export function TechBottomNav() {
               href={item.href}
               className="relative flex-1 flex flex-col items-center justify-center py-2.5 min-h-[58px] gap-0.5"
               style={{
-                color: active ? '#34D399' : '#9A9690',
+                color: active ? 'var(--tech-cta-2)' : 'var(--tech-text-3)',
                 transition: 'color 0.15s ease',
               }}
             >
@@ -46,7 +49,7 @@ export function TechBottomNav() {
                 <span
                   aria-hidden
                   className="absolute top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#34D399' }}
+                  style={{ background: 'var(--tech-cta-2)' }}
                 />
               )}
               <item.Icon size={22} aria-hidden />

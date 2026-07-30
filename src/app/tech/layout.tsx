@@ -5,7 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { roleForUserId } from '@/lib/auth/server';
 import { Logo } from '@/components/Logo';
 import { PWARegister } from '@/components/PWARegister';
-import { MainContentTech } from '@components/layout/MainContentTech';
 import { TechBottomNav } from './TechBottomNav';
 
 export const metadata: Metadata = {
@@ -19,7 +18,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#1B3A6B',
+  // Chrome PWA Android aligné sur le haut du dégradé sombre (--tech-bg-1).
+  // Hex dupliqué à regret : la metadata Next ne peut pas lire une var CSS.
+  themeColor: '#152B4E',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -50,7 +51,11 @@ export default async function TechLayout({
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-sand text-ink">
+    // Thème sombre portail tech : fond marine dégradé plein écran
+    // (.tech-dark-bg, globals.css). Les pages pas encore refondues en
+    // sombre reçoivent automatiquement une feuille claire transitoire via
+    // .tech-main (cf. globals.css) — pas de restyling page par page ici.
+    <div className="min-h-screen flex flex-col tech-dark-bg">
       {/* Bannière logo — gradient navy FoxO fixe (post-migration mono-thème). */}
       <header
         className="px-4 h-16 flex items-center justify-between sticky top-0 z-50 border-b border-[rgba(255,255,255,0.08)]"
@@ -77,7 +82,12 @@ export default async function TechLayout({
           </form>
         </div>
       </header>
-      <MainContentTech>{children}</MainContentTech>
+      {/* Conteneur de page — remplace MainContentTech (fond sable posé en
+          style inline, incompatible avec le thème sombre). Même gabarit :
+          640px centré, padding réservant la TechBottomNav. */}
+      <main className="tech-main mx-auto w-full max-w-[640px] flex-1">
+        {children}
+      </main>
       <TechBottomNav />
       <PWARegister />
     </div>

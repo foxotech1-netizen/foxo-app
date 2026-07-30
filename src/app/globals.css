@@ -52,10 +52,17 @@
   --color-terra:       #C4622D;
   --color-terra-light: #F7EDE5;
   --color-terra-mid:   #E8C4AF;
+  /* Terra assombri — fond des pastilles de comptage (badges tuiles tech).
+     --color-terra ne passe qu'à 4.1:1 avec du texte crème sur 11px bold ;
+     cette déclinaison monte à 5.7:1 (AA) sans quitter la famille FoxO. */
+  --color-terra-deep:  #A34D1E;
 
   /* Ambre */
   --color-amber-foxo:  #B8830A;
   --color-amber-light: #FBF3E0;
+  /* Fond des pastilles de comptage ambre (badges du portail tech) :
+     assez sombre pour tenir AA avec du texte blanc 11px bold. */
+  --color-amber-deep:  #7E5A06;
 
   /* Succès */
   --color-ok:       #1F6B45;
@@ -67,6 +74,47 @@
      refs missions, swatches panels intervention, focus inputs tech,
      bottom-nav iOS-style. Pas un thème, juste une teinte d'accent. */
   --accent-tech:    #34D399;
+
+  /* ── Thème sombre portail technicien ───────────────────────────────────
+     Accueil PWA style "landing FoxO" (app/go.foxo.be) : fond marine
+     dégradé plein écran, cartes verre translucides, carrés d'icônes
+     colorés en relief, CTA ambre 3D. Tokens consommés exclusivement par
+     les classes .tech-* plus bas et par var() dans src/app/tech/* —
+     jamais de hex en dur côté composants. */
+  --tech-bg-1: #152B4E;   /* haut du dégradé de fond */
+  --tech-bg-2: #0F2138;
+  --tech-bg-3: #0C1B31;   /* bas du dégradé de fond */
+
+  --tech-glass:        rgba(255, 255, 255, 0.055);  /* fond carte verre */
+  --tech-glass-bright: rgba(255, 255, 255, 0.10);   /* verre éclairci (:active, puces) */
+  --tech-line:         rgba(255, 255, 255, 0.10);   /* bordures */
+  --tech-line-strong:  rgba(255, 255, 255, 0.22);   /* séparateurs décoratifs */
+
+  --tech-text-1: #FFFFFF;                    /* texte principal */
+  --tech-text-2: rgba(255, 255, 255, 0.72);  /* texte secondaire */
+  --tech-text-3: rgba(255, 255, 255, 0.45);  /* micro-labels décoratifs uniquement
+                                                (≈3.2:1 — sous AA : ne jamais y
+                                                mettre du contenu de travail) */
+
+  --tech-nav-bg: rgba(10, 20, 38, 0.85);     /* bottom-nav (avec backdrop-blur) */
+
+  /* Carrés d'icônes 46px — bornes haute (-1) / basse (-2) des dégradés. */
+  --tech-chip-violet-1: #A99DF8;
+  --tech-chip-violet-2: #6C5CE7;
+  --tech-chip-green-1:  #4BE3AC;
+  --tech-chip-green-2:  #0E9F6E;
+  --tech-chip-amber-1:  #F5C56B;
+  --tech-chip-amber-2:  #C8871E;
+  --tech-chip-orange-1: #F79C6C;
+  --tech-chip-orange-2: #D95F2B;
+  --tech-chip-sky-1:    #7EC9F8;
+  --tech-chip-sky-2:    #2E86C9;
+
+  /* CTA ambre 3D : dégradé 1→2→3, socle 3px (box-shadow 0 3px 0) en -base. */
+  --tech-cta-1:    #FFD98A;
+  --tech-cta-2:    #E8A93B;
+  --tech-cta-3:    #C8871E;
+  --tech-cta-base: #A06B12;
 
   color-scheme: light;
 }
@@ -98,9 +146,11 @@
   --color-terra:       var(--color-terra);
   --color-terra-light: var(--color-terra-light);
   --color-terra-mid:   var(--color-terra-mid);
+  --color-terra-deep:  var(--color-terra-deep);
 
   --color-amber-foxo:  var(--color-amber-foxo);
   --color-amber-light: var(--color-amber-light);
+  --color-amber-deep:  var(--color-amber-deep);
 
   --color-ok:       var(--color-ok);
   --color-ok-light: var(--color-ok-light);
@@ -334,6 +384,199 @@ h1.fxs-page-title > span,
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   THÈME SOMBRE — portail technicien (PWA mobile).
+   Style "landing FoxO" (app/go.foxo.be) : fond marine dégradé plein
+   écran, cartes verre translucides, carrés d'icônes colorés en relief,
+   CTA ambre 3D. Consommé par tech/layout.tsx, TechTile.tsx,
+   TechBottomNav.tsx et les pages tech nativement sombres.
+   Tout hex vit dans les tokens --tech-* de :root, jamais ici en dur
+   (les rgba() noirs/blancs d'ombres et reflets restent locaux : ce sont
+   des effets de lumière, pas des couleurs d'identité).
+   ───────────────────────────────────────────────────────────────────── */
+
+/* Fond du portail — posé par tech/layout.tsx sur le conteneur racine. */
+.tech-dark-bg {
+  background: linear-gradient(
+    170deg,
+    var(--tech-bg-1) 0%,
+    var(--tech-bg-2) 60%,
+    var(--tech-bg-3) 100%
+  );
+  color: var(--color-cream);
+}
+
+/* Conteneur de page du portail tech (remplace MainContentTech, resté sur
+   fond sable inline incompatible avec le thème sombre). Le layout ajoute
+   largeur 640px / centrage / flex-1 en utilitaires. */
+.tech-main {
+  padding: 16px 16px calc(90px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Feuille claire TRANSITOIRE : les pages /tech pas encore refondues en
+   sombre (historique, notes de frais, assistant) posent du contenu
+   ink-sur-clair, illisible directement sur le fond marine. Toute page qui
+   ne se déclare pas nativement sombre (attribut data-tech-dark sur sa
+   racine — cf. tech/page.tsx, tech/missions/page.tsx) est donc enveloppée
+   dans une feuille crème pleine largeur. À SUPPRIMER quand toutes les
+   pages tech seront passées au sombre. */
+.tech-main:not(:has([data-tech-dark])) {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Carte verre — surface de base du thème : translucide, bordée d'un
+   filet clair, arête haute lumineuse (inset) + projection sombre. */
+.tech-glass-card {
+  background: var(--tech-glass);
+  border: 1px solid var(--tech-line);
+  border-radius: 18px;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Carte de navigation horizontale (TechTile) : verre + enfoncement et
+   éclaircissement au tap. min-height 72px = cible tactile terrain. */
+.tech-tile {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-height: 72px;
+  padding: 13px 14px;
+  background: var(--tech-glass);
+  border: 1px solid var(--tech-line);
+  border-radius: 16px;
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  text-decoration: none;
+  transition: transform 0.1s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tech-tile:active {
+  background: var(--tech-glass-bright);
+}
+
+/* Carré d'icône coloré 46px — relief 3D : arête haute claire, creux bas
+   sombre, projection portée. L'icône lucide hérite de currentColor. */
+.tech-chip {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tech-text-1);
+  box-shadow:
+    0 5px 10px rgba(0, 0, 0, 0.32),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.38),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.25);
+}
+.tech-chip > svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+}
+.tech-chip-violet {
+  background: linear-gradient(180deg, var(--tech-chip-violet-1) 0%, var(--tech-chip-violet-2) 100%);
+}
+.tech-chip-green {
+  background: linear-gradient(180deg, var(--tech-chip-green-1) 0%, var(--tech-chip-green-2) 100%);
+}
+.tech-chip-amber {
+  background: linear-gradient(180deg, var(--tech-chip-amber-1) 0%, var(--tech-chip-amber-2) 100%);
+}
+.tech-chip-orange {
+  background: linear-gradient(180deg, var(--tech-chip-orange-1) 0%, var(--tech-chip-orange-2) 100%);
+}
+.tech-chip-sky {
+  background: linear-gradient(180deg, var(--tech-chip-sky-1) 0%, var(--tech-chip-sky-2) 100%);
+}
+
+/* Pastille de comptage — à droite de la carte TechTile. Fonds terra-deep /
+   amber-deep : assez sombres pour tenir AA avec du blanc 11px bold. */
+.tech-badge {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: var(--color-terra-deep);
+  color: var(--tech-text-1);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+.tech-badge-amber {
+  background: var(--color-amber-deep);
+}
+
+/* CTA ambre 3D — socle 3px (--tech-cta-base) écrasé au tap. Texte marine
+   foncé sur ambre : ~8:1. */
+.tech-cta-3d {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 14px;
+  background: linear-gradient(
+    180deg,
+    var(--tech-cta-1) 0%,
+    var(--tech-cta-2) 55%,
+    var(--tech-cta-3) 100%
+  );
+  color: var(--color-navy-deep);
+  font-family: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    0 3px 0 var(--tech-cta-base),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.5);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tech-cta-3d:active {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Enfoncement : uniquement si l'utilisateur ne demande pas moins de
+   mouvement (les changements d'ombre/fond, eux, restent dans tous les cas). */
+@media (prefers-reduced-motion: no-preference) {
+  .tech-tile:active {
+    transform: translateY(2px) scale(0.99);
+  }
+  .tech-cta-3d:active {
+    transform: translateY(3px);
+  }
+}
+
+/* Point « live » de la carte Prochaine mission. */
+@keyframes fxPulseDot {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.78); }
+}
+.fx-pulse-dot {
+  animation: fxPulseDot 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-pulse-dot { animation: none; }
+}
+
 /* ── Micro-interactions D7 ────────────────────────────────────────────────
    Focus clavier : anneau navy uniforme sur les contrôles non textuels
    (les inputs/textarea/select gardent leurs styles de focus propres).
@@ -343,10 +586,15 @@ h1.fxs-page-title > span,
   outline: 2px solid var(--color-navy);
   outline-offset: 2px;
 }
-/* Surfaces navy (sidebar, hubs) : l'anneau navy serait invisible. */
-:where(.foxo-sidebar-desktop, .hub-tile) :focus-visible,
+/* Surfaces navy (sidebar, hubs, portail tech sombre) : l'anneau navy
+   serait invisible. La feuille claire transitoire du portail tech rétablit
+   l'anneau navy pour son contenu clair. */
+:where(.foxo-sidebar-desktop, .hub-tile, .tech-dark-bg) :focus-visible,
 :where(.hub-tile):focus-visible {
   outline-color: var(--color-sky-foxo);
+}
+.tech-main:not(:has([data-tech-dark])) :focus-visible {
+  outline-color: var(--color-navy);
 }
 
 /* Survols : transition homogène ~150ms sur boutons, liens, onglets et
