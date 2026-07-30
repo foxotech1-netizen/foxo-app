@@ -116,6 +116,16 @@
   --tech-cta-3:    #C8871E;
   --tech-cta-base: #A06B12;
 
+  /* Variantes vertes/rouges du CTA 3D (chrono fiche intervention).
+     Dédiées au sombre : --color-ok / --color-terra sont calibrés pour les
+     fonds clairs et manqueraient de contraste avec du texte blanc ici. */
+  --tech-btn-green-1:    #3ECF9A;
+  --tech-btn-green-2:    #12805C;
+  --tech-btn-green-base: #0A5940;
+  --tech-btn-red-1:      #E36A50;
+  --tech-btn-red-2:      #B03A24;
+  --tech-btn-red-base:   #7E2814;
+
   color-scheme: light;
 }
 
@@ -554,6 +564,68 @@ h1.fxs-page-title > span,
     inset 0 1px 1px rgba(255, 255, 255, 0.35);
 }
 
+/* Variantes de couleur du CTA 3D — même géométrie et même enfoncement
+   (le :active de .tech-cta-3d gagne en spécificité et écrase le socle),
+   seuls dégradé/texte/socle changent. Usage : "tech-cta-3d tech-cta-3d-green". */
+.tech-cta-3d-green {
+  background: linear-gradient(180deg, var(--tech-btn-green-1) 0%, var(--tech-btn-green-2) 100%);
+  color: var(--tech-text-1);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    0 3px 0 var(--tech-btn-green-base),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.4);
+}
+.tech-cta-3d-red {
+  background: linear-gradient(180deg, var(--tech-btn-red-1) 0%, var(--tech-btn-red-2) 100%);
+  color: var(--tech-text-1);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.35),
+    0 3px 0 var(--tech-btn-red-base),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Actions rapides de la fiche intervention (Appeler / Itinéraire / Retard) :
+   petits blocs verre égaux en largeur, icône + libellé, enfoncement au tap. */
+.tech-quick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 10px 8px;
+  background: var(--tech-glass);
+  border: 1px solid var(--tech-line);
+  border-radius: 14px;
+  color: var(--tech-text-1);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 0.1s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tech-quick:active {
+  background: var(--tech-glass-bright);
+}
+
+/* Feuille claire des sections de la fiche intervention : les panneaux
+   existants sont stylés pour fond clair — on les pose sur une feuille
+   SABLE (leur fond de page d'origine) plutôt que crème, pour préserver le
+   contraste de leurs cartes crème internes. */
+.tech-sheet {
+  background: var(--color-sand);
+  color: var(--color-ink);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.tech-sheet :focus-visible {
+  outline-color: var(--color-navy);
+}
+
 /* Enfoncement : uniquement si l'utilisateur ne demande pas moins de
    mouvement (les changements d'ombre/fond, eux, restent dans tous les cas). */
 @media (prefers-reduced-motion: no-preference) {
@@ -562,6 +634,9 @@ h1.fxs-page-title > span,
   }
   .tech-cta-3d:active {
     transform: translateY(3px);
+  }
+  .tech-quick:active {
+    transform: translateY(2px) scale(0.98);
   }
 }
 
