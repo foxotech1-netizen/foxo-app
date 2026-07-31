@@ -56,44 +56,66 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// Pré-remplissage optionnel du modal (Mode Appel phase 3 — bouton
+// « Nouveau RDV » de la fiche client). Chaque champ absent retombe sur le
+// défaut historique : sans prop `initial`, comportement strictement inchangé
+// (Planning / page interventions). ACP et syndic sont des OBJETS complets —
+// même contrat qu'une sélection dans l'autocomplete.
+export interface ColdInterventionInitial {
+  demandeurType?: 'syndic' | 'particulier';
+  acp?: Acp | null;
+  organisation?: Organisation | null;
+  adresse?: { rue?: string; cp?: string; ville?: string };
+  occupants?: SlotOccupant[];
+  description?: string;
+  type?: TypeIntervention;
+  priorite?: PrioriteIntervention;
+  particulier?: {
+    prenom?: string; nom?: string; email?: string; tel?: string;
+    rue?: string; cp?: string; ville?: string; bce?: string;
+  };
+}
+
 export function ColdInterventionModal({
   techs,
   onClose,
   onCreated,
+  initial,
 }: {
   techs: Utilisateur[];
   onClose: () => void;
   onCreated: () => void;
+  initial?: ColdInterventionInitial;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [demandeurType, setDemandeurType] = useState<'syndic' | 'particulier'>('syndic');
+  const [demandeurType, setDemandeurType] = useState<'syndic' | 'particulier'>(initial?.demandeurType ?? 'syndic');
 
   // Champs communs / spécifiques cold
   const [ref, setRef] = useState('');
   const [refExterne, setRefExterne] = useState('');
   const [statut, setStatut] = useState<StatutIntervention>('nouvelle');
-  const [type, setType] = useState<TypeIntervention | ''>('');
-  const [description, setDescription] = useState('');
-  const [priorite, setPriorite] = useState<PrioriteIntervention>('normale');
+  const [type, setType] = useState<TypeIntervention | ''>(initial?.type ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [priorite, setPriorite] = useState<PrioriteIntervention>(initial?.priorite ?? 'normale');
   const [datePrevue, setDatePrevue] = useState('');         // datetime-local → creneau_debut
   const [technicienId, setTechnicienId] = useState('');     // '' = aucun
 
   // Syndic — autocompletes
   const [acpQuery, setAcpQuery] = useState('');
   const [acpResults, setAcpResults] = useState<Acp[]>([]);
-  const [selectedAcp, setSelectedAcp] = useState<Acp | null>(null);
+  const [selectedAcp, setSelectedAcp] = useState<Acp | null>(initial?.acp ?? null);
   const [orgQuery, setOrgQuery] = useState('');
   const [orgResults, setOrgResults] = useState<Organisation[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(null);
+  const [selectedOrg, setSelectedOrg] = useState<Organisation | null>(initial?.organisation ?? null);
   // Adresse d'intervention structurée (mode syndic uniquement ; en particulier
   // l'adresse est dérivée du lieu côté action).
-  const [adrRue, setAdrRue] = useState('');
-  const [adrCp, setAdrCp] = useState('');
-  const [adrVille, setAdrVille] = useState('');
+  const [adrRue, setAdrRue] = useState(initial?.adresse?.rue ?? '');
+  const [adrCp, setAdrCp] = useState(initial?.adresse?.cp ?? '');
+  const [adrVille, setAdrVille] = useState(initial?.adresse?.ville ?? '');
   // Occupants partagés (communs aux deux modes, optionnels).
-  const [occupants, setOccupants] = useState<SlotOccupant[]>([]);
+  const [occupants, setOccupants] = useState<SlotOccupant[]>(initial?.occupants ?? []);
   // Création d'ACP à la volée (mode syndic, quand l'immeuble n'est pas listé).
   const [newAcpOpen, setNewAcpOpen] = useState(false);
   const [newAcpNom, setNewAcpNom] = useState('');
@@ -104,14 +126,14 @@ export function ColdInterventionModal({
   const [creatingAcp, setCreatingAcp] = useState(false);
 
   // Particulier — mandant
-  const [pPrenom, setPPrenom] = useState('');
-  const [pNom, setPNom] = useState('');
-  const [pEmail, setPEmail] = useState('');
-  const [pTel, setPTel] = useState('');
-  const [pRue, setPRue] = useState('');
-  const [pCp, setPCp] = useState('');
-  const [pVille, setPVille] = useState('');
-  const [pBce, setPBce] = useState('');
+  const [pPrenom, setPPrenom] = useState(initial?.particulier?.prenom ?? '');
+  const [pNom, setPNom] = useState(initial?.particulier?.nom ?? '');
+  const [pEmail, setPEmail] = useState(initial?.particulier?.email ?? '');
+  const [pTel, setPTel] = useState(initial?.particulier?.tel ?? '');
+  const [pRue, setPRue] = useState(initial?.particulier?.rue ?? '');
+  const [pCp, setPCp] = useState(initial?.particulier?.cp ?? '');
+  const [pVille, setPVille] = useState(initial?.particulier?.ville ?? '');
+  const [pBce, setPBce] = useState(initial?.particulier?.bce ?? '');
   // Lieu intervention
   const [pLieuMeme, setPLieuMeme] = useState(true);
   const [pLieuRue, setPLieuRue] = useState('');
