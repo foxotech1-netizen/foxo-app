@@ -84,7 +84,9 @@ export function ColdInterventionModal({
 }: {
   techs: Utilisateur[];
   onClose: () => void;
-  onCreated: () => void;
+  /** Reçoit l'intervention créée (id + ref) — argument optionnel, les
+   *  appelants historiques qui l'ignorent restent valides. */
+  onCreated: (created?: { intervention_id: string; ref: string }) => void;
   initial?: ColdInterventionInitial;
 }) {
   const [pending, startTransition] = useTransition();
@@ -278,7 +280,7 @@ export function ColdInterventionModal({
               },
       });
       if (!res.ok) { setError(res.error); return; }
-      onCreated();
+      onCreated(res.data ?? undefined);
       onClose();
     });
   }
