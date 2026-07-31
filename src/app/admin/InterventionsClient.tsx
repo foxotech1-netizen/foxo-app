@@ -82,6 +82,7 @@ import { SendSmsModal } from '@/components/SendSmsModal';
 import { MailStepper } from './MailStepper';
 import { MessagesPanel } from '@/components/MessagesPanel';
 import { SkeletonText } from '@/components/ui/Skeleton';
+import { JournalPanel } from '@/components/admin/JournalPanel';
 import { RAPPORT_TECHNIQUES } from '@/lib/rapport/techniques';
 
 const DRAWER_AI_ACTIONS: QuickAction[] = [
@@ -4075,87 +4076,6 @@ function AcpPicker({
 }
 
 // Format date/heure du journal en Europe/Brussels (règle timezone FoxO).
-function fmtJournalDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('fr-BE', {
-      timeZone: 'Europe/Brussels',
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
-
-// JournalPanel — fetch + affiche le journal d'événements (intervention_timeline)
-// du dossier courant, du plus récent au plus ancien. Lecture seule (route GET
-// /api/admin/interventions/[id]/timeline). Distinct de HistoriquePanel (récidive).
-function JournalPanel({ interventionId }: { interventionId: string }) {
-  type TimelineEvent = {
-    id: string;
-    type: string;
-    message: string | null;
-    payload: unknown;
-    created_at: string;
-    created_by: string | null;
-  };
-
-  const [events, setEvents] = useState<TimelineEvent[] | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    queueMicrotask(() => setLoaded(false));
-    fetch(`/api/admin/interventions/${interventionId}/timeline`, { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
-        if (!mounted) return;
-        if (d.ok) setEvents(d.events ?? []);
-        else setError(d.error ?? 'Erreur chargement.');
-        setLoaded(true);
-      })
-      .catch((e) => {
-        if (!mounted) return;
-        setError(e instanceof Error ? e.message : 'Erreur réseau.');
-        setLoaded(true);
-      });
-    return () => { mounted = false; };
-  }, [interventionId]);
-
-  if (!loaded) return <SkeletonText lines={3} />;
-  if (error) {
-    return (
-      <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-md px-3 py-2 font-semibold">
-        {error}
-      </div>
-    );
-  }
-  if (!events) return null;
-
-  return (
-    <Block title={<span className="inline-flex items-center gap-1.5"><CalendarClock size={12} />Journal des événements ({events.length})</span>}>
-      {events.length === 0 ? (
-        <div className="text-[11px] text-ink-muted italic">
-          Aucun événement enregistré pour ce dossier.
-        </div>
-      ) : (
-        <ol className="relative border-l border-sand-mid ml-1 space-y-3">
-          {events.map((ev) => (
-            <li key={ev.id} className="ml-3 relative">
-              <span className="absolute -left-[17px] mt-1 w-2.5 h-2.5 rounded-full bg-[var(--color-navy)]" />
-              <div className="text-[12px] text-ink font-medium">{ev.message ?? ev.type}</div>
-              <div className="text-[10px] text-ink-muted mt-0.5">
-                {fmtJournalDate(ev.created_at)}{ev.created_by ? ` — ${ev.created_by}` : ''}
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-    </Block>
-  );
-}
-
 // HistoriquePanel — fetch + affiche l'historique d'interventions
 // associées au dossier courant : par appartement (avec récidive si même
 // type < 12 mois), par ACP, et compteur global de récidives.
