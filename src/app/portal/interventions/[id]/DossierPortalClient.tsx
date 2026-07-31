@@ -9,6 +9,7 @@ import { relTime, TZ_BRUSSELS } from '@/lib/format';
 import { usePortalContext, useVocab, useOrgType, useT, useLang } from '../../PortalContext';
 import { localeFor, type PortalStringKey } from '@/lib/portal/i18n';
 import { updateReferenceExterne, relanceOccupant } from '../../actions';
+import { splitHistoricReport } from '@/lib/rapport-historique';
 import { MessagesPanel } from '@/components/MessagesPanel';
 import type { Occupant } from '@/lib/types/database';
 import type { DossierData } from './page';
@@ -25,23 +26,9 @@ const CONF_KEY: Record<NonNullable<Occupant['conf']>, PortalStringKey> = {
   decline: 'occDeclined',
 };
 
-// Rapport historique (dossiers importés « encodage à froid ») : la description
-// peut contenir une ligne « Rapport historique (Drive) : https://… ». On
-// extrait l'URL pour l'afficher comme lien dans le bloc Rapport, et on retire
-// la ligne du texte affiché — affichage pur, la donnée en base est intacte.
-const HISTORIC_REPORT_RE = /Rapport historique.*?(https?:\/\/\S+)/;
-
-function splitHistoricReport(description: string | null): { text: string | null; url: string | null } {
-  if (!description) return { text: null, url: null };
-  const m = description.match(HISTORIC_REPORT_RE);
-  if (!m) return { text: description, url: null };
-  const text = description
-    .split('\n')
-    .filter((line) => !HISTORIC_REPORT_RE.test(line))
-    .join('\n')
-    .trim();
-  return { text: text || null, url: m[1] };
-}
+// Rapport historique (dossiers importés « encodage à froid ») : extraction
+// partagée avec l'admin — cf. @/lib/rapport-historique (déplacée là depuis
+// ce fichier, comportement identique).
 
 export function DossierPortalClient({ data }: { data: DossierData }) {
   const v = useVocab();
