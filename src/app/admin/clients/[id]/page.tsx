@@ -1,8 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { TYPE_CLIENT_LABEL, type Client, type Facture } from '@/lib/types/database';
+import { TYPE_CLIENT_LABEL, type Client } from '@/lib/types/database';
 import { ClientForm } from '../ClientForm';
+import { getClient360, type Client360 } from './client360';
+import { InterventionsSection, OccupantsSection } from './Client360Sections';
+import { JournalPanel } from '@/components/admin/JournalPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,12 +41,16 @@ export default async function ClientDetailPage({
   if (!clientRow) notFound();
   const client = clientRow as Client;
 
-  const { data: facturesData } = await supabase.from('factures')
-    .select('id, numero, date_emission, montant_ttc, statut')
-    .eq('client_id', client.id)
-    .order('date_emission', { ascending: false })
-    .limit(50);
-  const factures = (facturesData ?? []) as Pick<Facture, 'id' | 'numero' | 'date_emission' | 'montant_ttc' | 'statut'>[];
+  // Fiche 360° (Mode Appel phase 2) — best-effort : si le chargeur échoue,
+  // la fiche d'édition reste utilisable et un bandeau le signale.
+  let c360: Client360 | null = null;
+  try {
+    c360 = await getClient360({ id: client.id, acp_id: client.acp_id, type: client.type });
+  } catch (e) {
+    console.error('[clients/[id]] getClient360:', e);
+  }
+  const factures = c360?.factures.slice(0, 50) ?? [];
+  const dernierDossier = c360?.interventions[0] ?? null;
 
   return (
     <>
@@ -53,7 +61,7 @@ export default async function ClientDetailPage({
           </h1>
           <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            {TYPE_CLIENT_LABEL[client.type]} · {factures.length} facture{factures.length > 1 ? 's' : ''} liée{factures.length > 1 ? 's' : ''}
+            {TYPE_CLIENT_LABEL[client.type]} · {c360 ? `${c360.interventions.length} intervention${c360.interventions.length > 1 ? 's' : ''} · ` : ''}{factures.length} facture{factures.length > 1 ? 's' : ''} liée{factures.length > 1 ? 's' : ''}
           </div>
         </div>
         <Link
@@ -65,8 +73,39 @@ export default async function ClientDetailPage({
       </div>
 
       <div className="space-y-6">
+        {/* ── Bandeau Situation (résumé mécanique) ── */}
+        {c360 === null ? (
+          <div className="px-4 py-2.5 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg text-xs font-semibold">
+            Historique 360° indisponible pour le moment — la fiche reste modifiable.
+          </div>
+        ) : c360.resume ? (
+          <div className="bg-cream border border-sand-border rounded-2xl px-4 py-3 flex flex-wrap items-center gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted shrink-0">
+              Situation
+            </span>
+            <p className="text-[13px] text-ink flex-1 min-w-[200px]">{c360.resume}</p>
+            {c360.impayes.count > 0 && (
+              <span className="inline-flex items-center gap-1.5 bg-terra-light border border-terra-mid text-terra rounded-full px-3 py-1 text-[11px] font-bold whitespace-nowrap">
+                <AlertTriangle size={12} /> Impayé : {c360.impayes.max_jours} j
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="bg-cream border border-sand-border rounded-2xl px-4 py-3 text-[12px] text-ink-muted italic">
+            Aucun historique d&apos;intervention.
+          </div>
+        )}
+
         <ClientForm initial={client} redirectAfter={`/admin/clients/${client.id}`} />
 
+        {/* ── Interventions du client ── */}
+        {c360 && <InterventionsSection items={c360.interventions} />}
+
+        {/* ── Occupants connus (dédoublonnés, dossier le plus récent) ── */}
+        {c360 && <OccupantsSection items={c360.occupants} />}
+
+        {/* ── Historique des factures (échéance + retard) ── */}
+        {c360 && (
         <section className="max-w-[760px]">
           <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-mid mb-3 dark:text-[#C8C2B8]">
             Historique des factures
@@ -80,7 +119,7 @@ export default async function ClientDetailPage({
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-sand dark:bg-[#221E1A]">
-                    {['N°', 'Émission', 'Montant TTC', 'Statut'].map((h) => (
+                    {['N°', 'Émission', 'Échéance', 'Montant TTC', 'Statut'].map((h) => (
                       <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border dark:text-[#C8C2B8] dark:border-[#3D3A32]">
                         {h}
                       </th>
@@ -101,6 +140,14 @@ export default async function ClientDetailPage({
                       <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono dark:text-[#C8C2B8]">
                         {fmtDate(f.date_emission)}
                       </td>
+                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap dark:text-[#C8C2B8]">
+                        {fmtDate(f.date_echeance)}
+                        {f.en_retard && (
+                          <span className="ml-1.5 inline-flex items-center bg-terra-light border border-terra-mid text-terra rounded-full px-2 py-0.5 text-[10px] font-bold">
+                            En retard ({f.jours_retard} j)
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold dark:text-white">
                         {fmtMoney(f.montant_ttc)}
                       </td>
@@ -114,6 +161,18 @@ export default async function ClientDetailPage({
             </div>
           )}
         </section>
+        )}
+
+        {/* ── Chronologie du dernier dossier (JournalPanel mono-intervention,
+              assumé pour cette phase) ── */}
+        {dernierDossier && (
+          <section className="max-w-[760px]">
+            <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-mid mb-3">
+              Chronologie du dernier dossier ({dernierDossier.ref ?? '—'})
+            </h2>
+            <JournalPanel interventionId={dernierDossier.id} />
+          </section>
+        )}
       </div>
     </>
   );
