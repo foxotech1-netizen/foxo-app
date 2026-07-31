@@ -2,11 +2,13 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { TYPE_CLIENT_LABEL, type Client } from '@/lib/types/database';
+import { TYPE_CLIENT_LABEL, type Client, type Utilisateur } from '@/lib/types/database';
 import { ClientForm } from '../ClientForm';
 import { getClient360, type Client360 } from './client360';
 import { InterventionsSection, OccupantsSection } from './Client360Sections';
 import { JournalPanel } from '@/components/admin/JournalPanel';
+import { buildRdvInitial } from './rdv-initial';
+import { NouveauRdvButton } from './NouveauRdvButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,14 +45,33 @@ export default async function ClientDetailPage({
 
   // Fiche 360° (Mode Appel phase 2) — best-effort : si le chargeur échoue,
   // la fiche d'édition reste utilisable et un bandeau le signale.
+  // Techniciens (même requête que /admin/interventions) pour le modal RDV.
   let c360: Client360 | null = null;
+  let techs: Utilisateur[] = [];
   try {
-    c360 = await getClient360({ id: client.id, acp_id: client.acp_id, type: client.type });
+    const [c360Res, techsRes] = await Promise.all([
+      getClient360({ id: client.id, acp_id: client.acp_id, type: client.type }),
+      supabase
+        .from('utilisateurs')
+        .select('id,prenom,nom,email,couleur,role,actif,organisation_id,telephone,last_seen_at,created_at')
+        .eq('role', 'technicien')
+        .order('prenom', { ascending: true }),
+    ]);
+    c360 = c360Res;
+    techs = (techsRes.data as Utilisateur[] | null) ?? [];
   } catch (e) {
     console.error('[clients/[id]] getClient360:', e);
   }
   const factures = c360?.factures.slice(0, 50) ?? [];
   const dernierDossier = c360?.interventions[0] ?? null;
+
+  // Pré-remplissage « Nouveau RDV » (Mode Appel phase 3) — best-effort aussi.
+  let rdvInitial = null;
+  try {
+    rdvInitial = await buildRdvInitial(client, c360?.occupants ?? []);
+  } catch (e) {
+    console.error('[clients/[id]] buildRdvInitial:', e);
+  }
 
   return (
     <>
@@ -64,12 +85,15 @@ export default async function ClientDetailPage({
             {TYPE_CLIENT_LABEL[client.type]} · {c360 ? `${c360.interventions.length} intervention${c360.interventions.length > 1 ? 's' : ''} · ` : ''}{factures.length} facture{factures.length > 1 ? 's' : ''} liée{factures.length > 1 ? 's' : ''}
           </div>
         </div>
-        <Link
-          href="/admin/clients"
-          className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
-        >
-          ← Retour
-        </Link>
+        <div className="flex items-center gap-3">
+          {rdvInitial && <NouveauRdvButton techs={techs} initial={rdvInitial} />}
+          <Link
+            href="/admin/clients"
+            className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
+          >
+            ← Retour
+          </Link>
+        </div>
       </div>
 
       <div className="space-y-6">
