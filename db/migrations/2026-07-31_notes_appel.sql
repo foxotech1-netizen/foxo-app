@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS public.notes_appel (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS notes_appel_client_created_idx
+CREATE INDEX IF NOT EXISTS notes_appel_client_idx
   ON public.notes_appel (client_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS notes_appel_intervention_idx
