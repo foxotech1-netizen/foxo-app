@@ -368,6 +368,9 @@ export interface Client {
   // ACP d'origine du client miroir type='acp' (migration 2026-05-30
   // sync_acps_clients) — sert de lien vers interventions.acp_id.
   acp_id: string | null;
+  // Résumé de situation IA (Mode Appel phase 5 — migration 2026-07-31).
+  resume_ia: string | null;
+  resume_ia_genere_le: string | null;
   email_factures: string | null;
   email_rapports: string | null;
   email_communications: string | null;
@@ -759,7 +762,9 @@ export interface BaremeKm {
 // Cf. migration 2026-05-13_create_agent_logs_automation_jobs.sql.
 // Les valeurs CHECK SQL sont strictes — ne pas étendre sans ALTER.
 
-export type AgentName = 'triage_mail' | 'analyse_pj' | 'rapport';
+// NB: union historique incomplète (la référence est AgentName de
+// @/lib/observability) — consommée par AgentLog.agent_name ci-dessous.
+export type AgentName = 'triage_mail' | 'analyse_pj' | 'rapport' | 'resume_situation';
 // NB: la DB utilise 'error' (pas 'failed') côté agent_logs — alignement
 // historique avec doc 03 §spec, divergent de automation_jobs.status.
 export type AgentLogStatus = 'success' | 'partial' | 'error';

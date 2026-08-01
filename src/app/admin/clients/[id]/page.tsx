@@ -10,6 +10,7 @@ import { JournalPanel } from '@/components/admin/JournalPanel';
 import { buildRdvInitial } from './rdv-initial';
 import { NouveauRdvButton } from './NouveauRdvButton';
 import { NotesAppelSection } from './NotesAppelSection';
+import { ResumeIASection } from './ResumeIASection';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,6 +121,14 @@ export default async function ClientDetailPage({
             Aucun historique d&apos;intervention.
           </div>
         )}
+
+        {/* ── Résumé IA (Mode Appel phase 5) — complète le bandeau Situation
+              mécanique ci-dessus, génération au clic uniquement ── */}
+        <ResumeIASection
+          clientId={client.id}
+          resumeInitial={client.resume_ia ?? null}
+          genereLe={client.resume_ia_genere_le ?? null}
+        />
 
         {/* ── Notes d'appel (Mode Appel phase 4) — l'outil principal au
               téléphone, placé haut, avant la fiche d'édition ── */}

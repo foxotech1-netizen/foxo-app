@@ -46,7 +46,9 @@ export type AgentName =
   // Extraction des cas historiques en fiches normalisées (chantier Assistant terrain)
   | "extraction_cas"
   // Extraction des factures fournisseurs (chantier Facturation v2, bloc D)
-  | "extraction_achat";
+  | "extraction_achat"
+  // Résumé de situation de la fiche client 360° (Mode Appel phase 5)
+  | "resume_situation";
 
 export type AgentKind = "canonical" | "utility";
 

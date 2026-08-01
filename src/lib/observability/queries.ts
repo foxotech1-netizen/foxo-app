@@ -19,6 +19,7 @@ export const ALL_AGENT_NAMES = [
   "assistant_chat",
   "briefing",
   "synthese_essentiel",
+  "resume_situation",
 ] as const;
 
 export type AgentNameKnown = (typeof ALL_AGENT_NAMES)[number];
@@ -35,6 +36,7 @@ export const AGENT_KIND_BY_NAME: Record<AgentNameKnown, AgentKind> = {
   assistant_chat: "utility",
   briefing: "utility",
   synthese_essentiel: "utility",
+  resume_situation: "utility",
 };
 
 export type ObservabilityPeriod = "7d" | "30d" | "90d" | "all";

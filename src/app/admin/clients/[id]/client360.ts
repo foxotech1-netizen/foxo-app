@@ -32,6 +32,8 @@ export interface Client360Intervention {
   rapport: { statut: string; transmis_at: string | null; date_rapport: string | null } | null;
   /** Lien Drive « Rapport historique » extrait de la description (dossiers importés). */
   rapport_historique_url: string | null;
+  /** Description nettoyée (sans la ligne « Rapport historique (Drive) »). */
+  description: string | null;
 }
 
 export interface Client360Facture {
@@ -169,18 +171,22 @@ export async function getClient360(client: {
   // Tri métier : coalesce(creneau_debut, created_at) desc — en JS (pas de
   // coalesce dans l'order PostgREST).
   const interventions: Client360Intervention[] = ivRows
-    .map((r) => ({
-      id: r.id,
-      ref: r.ref,
-      statut: r.statut,
-      type: r.type,
-      adresse: r.adresse,
-      creneau_debut: r.creneau_debut,
-      created_at: r.created_at,
-      date_effective: r.creneau_debut ?? r.created_at,
-      rapport: rapportByIv.get(r.id) ?? null,
-      rapport_historique_url: splitHistoricReport(r.description).url,
-    }))
+    .map((r) => {
+      const { text, url } = splitHistoricReport(r.description);
+      return {
+        id: r.id,
+        ref: r.ref,
+        statut: r.statut,
+        type: r.type,
+        adresse: r.adresse,
+        creneau_debut: r.creneau_debut,
+        created_at: r.created_at,
+        date_effective: r.creneau_debut ?? r.created_at,
+        rapport: rapportByIv.get(r.id) ?? null,
+        rapport_historique_url: url,
+        description: text,
+      };
+    })
     .sort((a, b) => new Date(b.date_effective).getTime() - new Date(a.date_effective).getTime());
 
   // Factures + impayés (règle canonique, cf. en-tête).
