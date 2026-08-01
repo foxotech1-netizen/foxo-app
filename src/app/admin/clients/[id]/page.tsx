@@ -9,6 +9,7 @@ import { InterventionsSection, OccupantsSection } from './Client360Sections';
 import { JournalPanel } from '@/components/admin/JournalPanel';
 import { buildRdvInitial } from './rdv-initial';
 import { NouveauRdvButton } from './NouveauRdvButton';
+import { NotesAppelSection } from './NotesAppelSection';
 
 export const dynamic = 'force-dynamic';
 
@@ -119,6 +120,17 @@ export default async function ClientDetailPage({
             Aucun historique d&apos;intervention.
           </div>
         )}
+
+        {/* ── Notes d'appel (Mode Appel phase 4) — l'outil principal au
+              téléphone, placé haut, avant la fiche d'édition ── */}
+        <NotesAppelSection
+          clientId={client.id}
+          dossiers={(c360?.interventions ?? []).map((iv) => ({
+            id: iv.id,
+            ref: iv.ref,
+            date: iv.date_effective,
+          }))}
+        />
 
         <ClientForm initial={client} redirectAfter={`/admin/clients/${client.id}`} />
 
