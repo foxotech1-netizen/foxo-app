@@ -368,6 +368,9 @@ export interface Client {
   // ACP d'origine du client miroir type='acp' (migration 2026-05-30
   // sync_acps_clients) — sert de lien vers interventions.acp_id.
   acp_id: string | null;
+  // Résumé de situation IA (Mode Appel phase 5 — migration 2026-07-31).
+  resume_ia: string | null;
+  resume_ia_genere_le: string | null;
   email_factures: string | null;
   email_rapports: string | null;
   email_communications: string | null;
