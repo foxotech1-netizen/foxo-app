@@ -759,7 +759,9 @@ export interface BaremeKm {
 // Cf. migration 2026-05-13_create_agent_logs_automation_jobs.sql.
 // Les valeurs CHECK SQL sont strictes — ne pas étendre sans ALTER.
 
-export type AgentName = 'triage_mail' | 'analyse_pj' | 'rapport';
+// NB: union historique incomplète (la référence est AgentName de
+// @/lib/observability) — consommée par AgentLog.agent_name ci-dessous.
+export type AgentName = 'triage_mail' | 'analyse_pj' | 'rapport' | 'resume_situation';
 // NB: la DB utilise 'error' (pas 'failed') côté agent_logs — alignement
 // historique avec doc 03 §spec, divergent de automation_jobs.status.
 export type AgentLogStatus = 'success' | 'partial' | 'error';
