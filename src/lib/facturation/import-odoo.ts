@@ -108,11 +108,35 @@ export interface LigneOdoo {
   statut: string;
 }
 
+/** Valeurs de statut de DOCUMENT (par opposition à un statut de paiement).
+ *  Sert au fallback de récupération quand le statut de validation a été rangé
+ *  par Odoo dans la colonne « Statut en cours de paiement ». normalise() gère
+ *  accents/casse. */
+const STATUT_DOC_TOKENS = [
+  'comptabilise', 'comptabilisee', 'envoye', 'envoyee', 'sent',
+  'brouillon', 'draft', 'posted',
+];
+function estStatutDocument(v: string): boolean {
+  const n = normalise(v);
+  if (!n) return false;
+  return STATUT_DOC_TOKENS.some((t) => n === t || n.includes(t));
+}
+
 /**
  * Projette une ligne clé/valeur (en-têtes normalisés) vers les champs
- * canoniques. Le mapping est tolérant aux variantes FR/EN d'Odoo ; `statut`
- * est matché en EXACT ('statut'/'status'/'state') pour ne pas avaler
- * `statut de paiement` / `payment status`.
+ * canoniques. Le mapping est tolérant aux variantes FR/EN d'Odoo.
+ *
+ * Colonne de statut de VALIDATION — trois passes (cf. exports réels) :
+ *   1. en-tête EXACT 'statut'/'status'/'state'/'etat' ;
+ *   2. à défaut, en-tête GÉNÉRIQUE contenant 'statut'/'status'/'etat' mais NI
+ *      'peppol' (colonne « Statut PEPPOL ») NI 'paiement'/'payment' (colonne
+ *      « Statut de paiement ») ;
+ *   3. FALLBACK : certains exports rangent le statut de document
+ *      ('Comptabilisé'/'Envoyé') dans la colonne « Statut en cours de
+ *      paiement ». Si aucune colonne de validation n'a été trouvée par 1 & 2
+ *      ET que la colonne de paiement porte une valeur de type document, on la
+ *      consomme comme statut de validation ; le paiement devient alors inconnu
+ *      (→ statut FoxO 'envoyee' par défaut côté mapping).
  */
 export function resoudreColonnes(row: Record<string, string>): LigneOdoo {
   const keys = Object.keys(row);
@@ -121,6 +145,26 @@ export function resoudreColonnes(row: Record<string, string>): LigneOdoo {
   const contient = (...frags: string[]) =>
     keys.find((k) => frags.some((f) => k.includes(f))) ?? null;
   const val = (k: string | null) => (k ? row[k] ?? '' : '');
+
+  const colPaiement = contient('paiement', 'payment');
+
+  // Passes 1 & 2 : colonne de validation par en-tête.
+  let colStatut = exact('statut', 'status', 'state', 'etat');
+  if (!colStatut) {
+    colStatut = keys.find((k) =>
+      (k.includes('statut') || k.includes('status') || k.includes('etat'))
+      && !k.includes('peppol')
+      && !k.includes('paiement') && !k.includes('payment'),
+    ) ?? null;
+  }
+
+  let statut = val(colStatut);
+  let statutPaiement = val(colPaiement);
+  // Passe 3 : fallback de récupération sur la colonne de paiement.
+  if (!colStatut && colPaiement && estStatutDocument(statutPaiement)) {
+    statut = statutPaiement;
+    statutPaiement = '';
+  }
 
   return {
     numero: val(exact('numero', 'number')),
@@ -131,8 +175,8 @@ export function resoudreColonnes(row: Record<string, string>): LigneOdoo {
     reference: val(exact('reference')),
     ht: val(contient('hors taxes', 'untaxed')),
     ttc: val(exact('total')),
-    statut_paiement: val(contient('paiement', 'payment')),
-    statut: val(exact('statut', 'status', 'state')),
+    statut_paiement: statutPaiement,
+    statut,
   };
 }
 
@@ -186,7 +230,11 @@ export function deriverTauxTva(ht: number, ttc: number): number {
 
 // ─── Mapping ventes / achats ────────────────────────────────────────────────
 
-const STATUTS_POSTES = new Set(['posted', 'comptabilise', 'comptabilisee']);
+// Statuts définitifs importés (règle métier tranchée par le client) :
+// « Comptabilisé » ET « Envoyé ». « Brouillon » / « draft » restent exclus.
+const STATUTS_POSTES = new Set([
+  'posted', 'comptabilise', 'comptabilisee', 'envoye', 'envoyee', 'sent',
+]);
 const PAIEMENT_PAYE = ['paye', 'payee', 'paid', 'in_payment', 'in payment'];
 
 function normalise(s: string): string {
@@ -243,9 +291,32 @@ export interface AchatImport {
 
 export type MapResult<T> =
   | { ok: true; piece: T }
-  | { ok: false; numero: string; raison: string };
+  | { ok: false; numero: string; raison: string; regroupement?: boolean };
 
 const DEBUT_PERIODE = '2026-01-01';
+
+// Raison dédiée aux lignes de sous-total de regroupement Odoo (comptées à part,
+// jamais mêlées aux rejets pour statut / période).
+export const RAISON_REGROUPEMENT = 'ligne de regroupement Odoo (ignorée)';
+
+// Sous-total de regroupement Odoo : « 2026 (80) », « T2 2026 (34) »,
+// « S1 2026 (12) »… (préfixe optionnel type/trimestre, année, effectif).
+const RE_REGROUPEMENT = /^\s*([A-Za-z]?\d{1,4}\s+)?\d{4}\s*\(\d+\)\s*$/;
+
+/**
+ * Détecte une ligne de regroupement (sous-total) : soit son « numéro » matche
+ * le motif de libellé de regroupement Odoo, soit c'est une ligne à numéro seul
+ * (partenaire vide, date vide, total non exploitable comme pièce).
+ */
+export function estLigneRegroupement(l: LigneOdoo): boolean {
+  const numero = l.numero.trim();
+  if (!numero) return false;
+  if (RE_REGROUPEMENT.test(numero)) return true;
+  const partenaireVide = !l.partenaire.trim();
+  const dateVide = !l.date_emission.trim();
+  const totalInexploitable = parseMontant(l.ttc) == null;
+  return partenaireVide && dateVide && totalInexploitable;
+}
 
 // Filtres communs ventes/achats. null = ligne valide.
 function filtreCommun(l: LigneOdoo): { numero: string; raison: string } | null {
@@ -267,6 +338,9 @@ function filtreCommun(l: LigneOdoo): { numero: string; raison: string } | null {
 
 export function mapVente(row: Record<string, string>): MapResult<VenteImport> {
   const l = resoudreColonnes(row);
+  if (estLigneRegroupement(l)) {
+    return { ok: false, numero: l.numero.trim() || '(sous-total)', raison: RAISON_REGROUPEMENT, regroupement: true };
+  }
   const rejet = filtreCommun(l);
   if (rejet) return { ok: false, ...rejet };
 
@@ -307,6 +381,9 @@ export function mapVente(row: Record<string, string>): MapResult<VenteImport> {
 
 export function mapAchat(row: Record<string, string>): MapResult<AchatImport> {
   const l = resoudreColonnes(row);
+  if (estLigneRegroupement(l)) {
+    return { ok: false, numero: l.numero.trim() || '(sous-total)', raison: RAISON_REGROUPEMENT, regroupement: true };
+  }
   const rejet = filtreCommun(l);
   if (rejet) return { ok: false, ...rejet };
 
@@ -331,5 +408,107 @@ export function mapAchat(row: Record<string, string>): MapResult<AchatImport> {
       statut: estPaye(l.statut_paiement) ? 'payee' : 'a_payer',
       odoo_move_id: numero,
     },
+  };
+}
+
+// ─── Diagnostic (anti « 0 sans explication ») ───────────────────────────────
+
+export interface ImportDiagnostic {
+  /** Phrase résumant la cause dominante du rejet total (bandeau rouge). */
+  diagnostic: string;
+  /** Colonnes canoniques essentielles non détectées (bandeau ambre). */
+  colonnesManquantes: string[];
+}
+
+/**
+ * Explique pourquoi 100 % des lignes de données (hors regroupement) ont été
+ * écartées. À n'appeler que dans ce cas (chemin froid). Caractérise la cause
+ * dominante : colonne de statut absente, statut non importé (avec la liste des
+ * valeurs vues), hors période, date illisible, ou aucune donnée.
+ */
+export function diagnostiquer(rows: Record<string, string>[]): ImportDiagnostic {
+  if (rows.length === 0) {
+    return { diagnostic: 'Aucune donnée exploitable dans le fichier.', colonnesManquantes: [] };
+  }
+  const headers = Object.keys(rows[0]);
+  const has = (pred: (k: string) => boolean) => headers.some(pred);
+
+  const colStatutValidation =
+    has((k) => ['statut', 'status', 'state', 'etat'].includes(k))
+    || has((k) => (k.includes('statut') || k.includes('status') || k.includes('etat'))
+      && !k.includes('peppol') && !k.includes('paiement') && !k.includes('payment'));
+  const colStatutPaiement = has((k) => k.includes('paiement') || k.includes('payment'));
+  const colNumero = has((k) => ['numero', 'number'].includes(k));
+  const colDate = has((k) => k.includes('date de facturation') || k.includes('invoice date'));
+  const colTotal = has((k) => k === 'total');
+
+  const colonnesManquantes: string[] = [];
+  if (!colNumero) colonnesManquantes.push('Numéro');
+  if (!colDate) colonnesManquantes.push('Date de facturation');
+  if (!colTotal) colonnesManquantes.push('Total');
+  if (!colStatutValidation && !colStatutPaiement) colonnesManquantes.push('Statut');
+
+  // Caractérisation des lignes de données (hors regroupement).
+  let dataLines = 0;
+  let statutInconnu = 0;
+  let horsPeriode = 0;
+  let dateIllisible = 0;
+  const statutsVus = new Set<string>();
+  for (const row of rows) {
+    const l = resoudreColonnes(row);
+    if (estLigneRegroupement(l)) continue;
+    if (!l.numero.trim()) continue;
+    dataLines += 1;
+    // Valeur de statut à afficher : le statut de validation s'il est renseigné,
+    // sinon la valeur de la colonne de paiement (cas « Payé »/« En retard » :
+    // aucune colonne de validation, on montre au moins ce que l'export porte).
+    const st = l.statut.trim() || l.statut_paiement.trim();
+    if (st) statutsVus.add(st);
+    if (!STATUTS_POSTES.has(normalise(l.statut))) { statutInconnu += 1; continue; }
+    const d = parseDateOdoo(l.date_emission);
+    if (!d) { dateIllisible += 1; continue; }
+    if (d < DEBUT_PERIODE) horsPeriode += 1;
+  }
+
+  if (dataLines === 0) {
+    return {
+      diagnostic: 'Aucune ligne de données exploitable (uniquement des sous-totaux de regroupement, ou fichier sans pièces).',
+      colonnesManquantes,
+    };
+  }
+
+  if (!colStatutValidation && !colStatutPaiement) {
+    return {
+      diagnostic: 'Colonne de statut introuvable dans l\'export. Colonnes attendues : « Statut » ou « Statut en cours de paiement ». Ré-exporte depuis Odoo en incluant la colonne de statut.',
+      colonnesManquantes,
+    };
+  }
+  if (statutInconnu === dataLines) {
+    const liste = [...statutsVus].slice(0, 8).map((v) => `« ${v || '—'} »`).join(', ') || '—';
+    return {
+      diagnostic: `Aucune pièce n'a un statut importé. Seuls « Comptabilisé » et « Envoyé » sont repris. Valeurs de statut rencontrées : ${liste}.`,
+      colonnesManquantes,
+    };
+  }
+  if (horsPeriode === dataLines) {
+    return {
+      diagnostic: 'Toutes les pièces sont hors période (émises avant le 01/01/2026).',
+      colonnesManquantes,
+    };
+  }
+  if (dateIllisible === dataLines) {
+    return {
+      diagnostic: 'La date de facturation est illisible sur toutes les lignes (formats acceptés : JJ/MM/AAAA ou AAAA-MM-JJ).',
+      colonnesManquantes,
+    };
+  }
+
+  const parts: string[] = [];
+  if (statutInconnu) parts.push(`${statutInconnu} au statut non importé`);
+  if (horsPeriode) parts.push(`${horsPeriode} hors période`);
+  if (dateIllisible) parts.push(`${dateIllisible} à date illisible`);
+  return {
+    diagnostic: `Toutes les lignes ont été écartées (${parts.join(', ') || 'causes diverses'}).`,
+    colonnesManquantes,
   };
 }
