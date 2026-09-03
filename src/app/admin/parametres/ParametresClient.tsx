@@ -144,6 +144,7 @@ export function ParametresClient({
   const [smsAutoConf, setSmsAutoConf] = useState(initial.sms_auto_confirmation === 'true');
   const [smsAutoRappel, setSmsAutoRappel] = useState(initial.sms_auto_rappel_24h === 'true');
   const [mailAutoAnalyse, setMailAutoAnalyse] = useState(initial.mail_auto_analyse === 'true');
+  const [mailAutoAnalyseDepuis, setMailAutoAnalyseDepuis] = useState(initial.mail_auto_analyse_depuis ?? '');
   const [mailLastCheck, setMailLastCheck] = useState<string | null>(initial.mail_last_check || null);
   const [mailCheckResult, setMailCheckResult] = useState<{ kind: 'ok' | 'err'; msg: string; details?: string[] } | null>(null);
 
@@ -425,18 +426,39 @@ export function ParametresClient({
 
           <Section
             title="Analyse automatique des mails"
-            desc="Le cron /api/cron/check-mails (toutes les 30 min) lit les mails non lus de la boîte connectée, demande à l'Assistant FoxO si c'est une demande d'intervention, et crée un dossier en statut « nouvelle » avec source=mail. Aucun envoi automatique vers les clients — tu garderas le contrôle pour planifier."
+            desc="Le cron /api/cron/check-mails (toutes les 10 min) lit les mails non lus de la boîte connectée, demande à l'Assistant FoxO si c'est une demande d'intervention, et crée un dossier en statut « nouvelle » avec source=mail. Aucun envoi automatique vers les clients — tu garderas le contrôle pour planifier."
           >
+            <Row
+              label="Traiter uniquement les mails reçus à partir du"
+              hint="Les mails reçus avant cette date restent ignorés par FoxO : jamais lus, jamais étiquetés. Sans date, le cron ne traite rien, même activé."
+            >
+              <input
+                type="date"
+                value={mailAutoAnalyseDepuis}
+                onChange={(e) => setMailAutoAnalyseDepuis(e.target.value)}
+                className="flex-1 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              />
+              <SaveBtn pending={pending} onClick={() => save('mail_auto_analyse_depuis', mailAutoAnalyseDepuis)} />
+            </Row>
+
             <ToggleRow
               label="Activer l'analyse automatique"
               checked={mailAutoAnalyse}
               onChange={(v) => { setMailAutoAnalyse(v); save('mail_auto_analyse', String(v)); }}
             />
+            {mailAutoAnalyse && !mailAutoAnalyseDepuis && (
+              <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px]">
+                <div className="inline-flex items-start gap-1.5">
+                  <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+                  <span>Date de début manquante — le cron ne traitera aucun mail.</span>
+                </div>
+              </div>
+            )}
             {mailAutoAnalyse && (
               <div className="mt-2 bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[11px]">
                 <div className="inline-flex items-start gap-1.5">
                   <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
-                  <span>Le cron tournera toutes les 30 min. Vérifie d&apos;abord que Google est connecté (accès Gmail complet) et fais un test à blanc :</span>
+                  <span>Le cron tournera toutes les 10 min. Vérifie d&apos;abord que Google est connecté (accès Gmail complet) et fais un test à blanc :</span>
                 </div>
                 <code className="block mt-1 font-mono text-[10px] break-all">
                   GET /api/cron/check-mails/preview?secret={'<CRON_SECRET>'}
