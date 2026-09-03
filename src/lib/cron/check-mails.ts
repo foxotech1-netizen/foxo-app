@@ -1,8 +1,17 @@
 // Logique partagée POST /api/cron/check-mails (envoi) et
 // GET /preview (dry-run). Aucune action vers les clients.
 //
+// Date de bascule — paramètre `mail_auto_analyse_depuis` (AAAA-MM-JJ) :
+//   - la query Gmail est bornée par `after:<epoch>`, où epoch = minuit
+//     heure de Bruxelles du jour paramétré. Gmail exclut alors côté serveur
+//     tout mail reçu avant cette date : le cron ne le voit jamais, donc il
+//     n'est ni lu (UNREAD conservé) ni étiqueté FoxO/*.
+//   - si le paramètre est absent, vide ou mal formé, le run s'arrête
+//     immédiatement et ne traite AUCUN mail (fail-safe). Ce blocage
+//     s'applique aussi au dry-run (preview) : c'est voulu.
+//
 // Workflow par mail :
-//   1. Liste les mails INBOX is:unread
+//   1. Liste les mails INBOX is:unread after:<epoch>
 //   2. Charge le détail (body)
 //   3. Claude → JSON { ..., est_demande_intervention: bool }
 //   4a. Si oui : crée intervention statut='nouvelle' source='mail'
@@ -21,6 +30,7 @@ import {
   getMailDetail,
   addLabelToMail,
 } from '@/lib/gmail';
+import { brusselsOffset } from '@/lib/import/encodage-froid';
 import { nextRefForYear } from '@/lib/intervention-ref';
 import { bestMatch } from '@/lib/text/similarity';
 import { runAgent } from '@/lib/observability';
@@ -191,6 +201,10 @@ export interface CronMailResult {
   skipped: number;
   errors: number;
   items: CronMailResultItem[];
+  /** Date de bascule appliquée (AAAA-MM-JJ), absente si le run a été bloqué. */
+  since_date?: string;
+  /** Raison du blocage quand aucun mail n'a été traité. */
+  guard?: string;
 }
 
 const STRIP_FENCE_RE = /^\s*```(?:json)?\s*([\s\S]*?)\s*```\s*$/;
@@ -1944,6 +1958,59 @@ async function alreadyConvertedMail(mailId: string): Promise<boolean> {
   }
 }
 
+const DATE_ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Convertit une date AAAA-MM-JJ en epoch (secondes) correspondant à minuit
+ * heure de Bruxelles, format attendu par l'opérateur Gmail `after:`.
+ * Renvoie null si le format est invalide ou si la date n'existe pas
+ * (ex. 2026-02-30).
+ */
+export function mailSinceEpochSeconds(dateIso: string): number | null {
+  if (!DATE_ISO_RE.test(dateIso)) return null;
+  const [y, m, d] = dateIso.split('-').map(Number);
+  // Date réelle : Date.UTC normalise (02-30 → 03-02), on compare pour rejeter.
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  if (
+    probe.getUTCFullYear() !== y ||
+    probe.getUTCMonth() !== m - 1 ||
+    probe.getUTCDate() !== d
+  ) {
+    return null;
+  }
+  const ms = Date.parse(`${dateIso}T00:00:00${brusselsOffset(dateIso)}`);
+  if (Number.isNaN(ms)) return null;
+  return Math.floor(ms / 1000);
+}
+
+/**
+ * Lit `mail_auto_analyse_depuis` dans `parametres`. Fail-safe : toute
+ * absence, valeur vide, valeur invalide ou erreur de lecture renvoie null,
+ * ce qui bloque entièrement le run (dans le doute, on ne traite rien).
+ */
+async function resolveMailSince(): Promise<{ dateIso: string; epoch: number } | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('parametres')
+      .select('valeur')
+      .eq('cle', 'mail_auto_analyse_depuis')
+      .maybeSingle();
+    if (error) {
+      console.warn('[check-mails] lecture mail_auto_analyse_depuis KO:', error.message);
+      return null;
+    }
+    const raw = (data?.valeur ?? '').trim();
+    if (!raw) return null;
+    const epoch = mailSinceEpochSeconds(raw);
+    if (epoch === null) return null;
+    return { dateIso: raw, epoch };
+  } catch (e) {
+    console.warn('[check-mails] lecture mail_auto_analyse_depuis exception:', e);
+    return null;
+  }
+}
+
 export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
   const t0 = Date.now();
   console.log('[check-mails] start', { dryRun });
@@ -1959,10 +2026,22 @@ export async function runCheckMails(dryRun: boolean): Promise<CronMailResult> {
     return result;
   }
 
-  // Filtre Gmail : non lus en boîte de réception. Le cron retire UNREAD dès
-  // qu'il labelise un mail (FoxO/*), donc is:unread exclut déjà tout mail
+  // Garde de date : sans `mail_auto_analyse_depuis` valide, on ne traite
+  // rien du tout — dry-run compris.
+  const since = await resolveMailSince();
+  if (!since) {
+    result.guard = 'mail_auto_analyse_depuis absent ou invalide (AAAA-MM-JJ) — aucun mail traité';
+    console.warn('[check-mails] guard', result.guard);
+    return result;
+  }
+  result.since_date = since.dateIso;
+
+  // Filtre Gmail : non lus en boîte de réception, reçus à partir de la date
+  // de bascule (`after:` prend un epoch en secondes). Le cron retire UNREAD
+  // dès qu'il labelise un mail (FoxO/*), donc is:unread exclut déjà tout mail
   // traité — pas besoin d'exclure des labels explicitement.
-  const q = 'in:inbox is:unread';
+  const q = `in:inbox is:unread after:${since.epoch}`;
+  console.log('[check-mails] query', { since_date: since.dateIso, q });
   let list: Awaited<ReturnType<typeof listInboxMails>>;
   try {
     list = await withTimeout(
