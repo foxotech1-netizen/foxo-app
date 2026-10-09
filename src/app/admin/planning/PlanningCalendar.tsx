@@ -11,6 +11,7 @@ import { ReservedSlotModal } from './ReservedSlotModal';
 import { BlockedSlotModal } from './BlockedSlotModal';
 import { ImportCalendarEventModal, type CalendarEventLite } from './ImportCalendarEventModal';
 import { ProposeSlotModal } from './ProposeSlotModal';
+import { MAIL_PREFILL_PROMPTED_KEY, readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
 import { FOXO_SLOTS, FOXO_DAYS } from '@/lib/foxo-slots';
 
 const MONTHS = [
@@ -91,6 +92,25 @@ export function PlanningCalendar({
   const [techFilter, setTechFilter] = useState<string>('all');
   const [openModal, setOpenModal] = useState<{ kind: 'free' | 'reserved' | 'blocked'; slot: Creneau } | null>(null);
   const [showPropose, setShowPropose] = useState(false);
+  // Arrivée depuis /admin/mails (« ⋯ → Créer une intervention ») : un
+  // pré-remplissage attend dans sessionStorage. On ouvre directement la
+  // proposition de créneau — sinon l'admin atterrit sur le planning sans
+  // aucune indication de la suite. Une seule fois par pré-remplissage
+  // (marqueur *_prompted), différé d'un tick : pas de setState synchrone
+  // dans l'effet, et sessionStorage n'existe pas au rendu serveur. Un
+  // pré-remplissage de plus de 15 min est ignoré (readFreshMailPrefillRaw).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const ss = window.sessionStorage;
+        if (readFreshMailPrefillRaw() && !ss.getItem(MAIL_PREFILL_PROMPTED_KEY)) {
+          ss.setItem(MAIL_PREFILL_PROMPTED_KEY, '1');
+          setShowPropose(true);
+        }
+      } catch { /* noop */ }
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   // Mode d'affichage — Semaine (défaut) ou Mois.
   // Persistant via localStorage 'foxo-planning-view'. Note : on ne peut
