@@ -12,6 +12,7 @@
 // introuvable = rejet de la ligne (la résolution vit dans la route).
 
 import type { StatutIntervention } from '@/lib/types/database';
+import { FOXO_DEFAULT_SLOT_START } from '@/lib/foxo-slots';
 
 // ─── Ligne canonique du fichier ─────────────────────────────────────────────
 
@@ -168,11 +169,11 @@ export function parseDateImport(raw: string): string | null {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/** Heure du fichier → 'HH:MM'. Vide → '09:00' (défaut chantier).
+/** Heure du fichier → 'HH:MM'. Vide → premier créneau de la grille FoxO.
  *  Accepte H:MM et HH:MM:SS. Invalide → null. */
 export function parseHeureImport(raw: string): string | null {
   const s = raw.trim();
-  if (!s) return '09:00';
+  if (!s) return FOXO_DEFAULT_SLOT_START;
   const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (!m) return null;
   const h = Number(m[1]);

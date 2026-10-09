@@ -42,7 +42,7 @@ export default async function NewRequestPage({
   return (
     <NewRequestClient
       preselectedDate={sp.date ?? null}
-      preselectedHeure={sp.heure ?? null}
+      preselectedHeure={sp.heure ? sp.heure.slice(0, 5) : null}
       billingDefault={billingDefault}
     />
   );
