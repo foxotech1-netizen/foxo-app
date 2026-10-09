@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import { FOXO_SLOTS, FOXO_DAYS, dayNameToIdx } from '@/lib/foxo-slots';
 import { createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
+import { brusselsWallTimeToIso } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -208,8 +209,8 @@ export async function POST(request: Request) {
     const admin = createAdminClient();
     for (const slot of insertedRows) {
       try {
-        const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
-        const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
+        const startIso = brusselsWallTimeToIso(slot.date, slot.heure_debut);
+        const endIso = brusselsWallTimeToIso(slot.date, slot.heure_fin);
         const r = await createSlotEvent({ startIso, endIso, technicienName: techName, technicienHex: techHex });
         if (r.ok) {
           await admin
