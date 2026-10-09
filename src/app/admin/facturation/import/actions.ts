@@ -22,6 +22,7 @@ import {
   parseOdooCsv,
   mapVente,
   mapAchat,
+  diagnostiquer,
   type VenteImport,
   type AchatImport,
 } from '@/lib/facturation/import-odoo';
@@ -58,10 +59,29 @@ export interface ImportRapport {
   apercu: ImportApercuLigne[];
   doublons: number;
   ignorees: Array<{ numero: string; raison: string }>;
+  /** Sous-totaux de regroupement Odoo écartés (comptés à part des rejets). */
+  regroupements: number;
   collisions: string[];
   erreurs: string[];
+  /** Cause dominante quand 100 % des lignes de données sont écartées. */
+  diagnostic?: string;
+  /** Colonnes canoniques essentielles non détectées (bandeau ambre). */
+  colonnesManquantes?: string[];
   /** Compteur réel d'insertions (commit=true uniquement). */
   inserees?: number;
+}
+
+// 100 % des lignes de données (hors regroupement) écartées → diagnostic.
+function appliquerDiagnostic(
+  rapport: ImportRapport,
+  rows: Record<string, string>[],
+  piecesCount: number,
+): void {
+  const dataLines = rapport.lignes_lues - rapport.regroupements;
+  if (piecesCount > 0 || dataLines <= 0) return;
+  const d = diagnostiquer(rows);
+  rapport.diagnostic = d.diagnostic;
+  if (d.colonnesManquantes.length > 0) rapport.colonnesManquantes = d.colonnesManquantes;
 }
 
 // « Nom proche » — même logique que capture.ts (helper privé là-bas, dupliqué
@@ -133,9 +153,11 @@ async function importVentes(
 
   const ignorees: Array<{ numero: string; raison: string }> = [];
   const pieces: VenteImport[] = [];
+  let regroupements = 0;
   for (const row of rows) {
     const res = mapVente(row);
     if (res.ok) pieces.push(res.piece);
+    else if (res.regroupement) regroupements += 1;
     else ignorees.push({ numero: res.numero, raison: res.raison });
   }
 
@@ -182,9 +204,11 @@ async function importVentes(
     })),
     doublons,
     ignorees,
+    regroupements,
     collisions,
     erreurs: [],
   };
+  appliquerDiagnostic(rapport, rows, pieces.length);
 
   if (!commit) return rapport;
 
@@ -238,9 +262,11 @@ async function importAchats(
 
   const ignorees: Array<{ numero: string; raison: string }> = [];
   const pieces: AchatImport[] = [];
+  let regroupements = 0;
   for (const row of rows) {
     const res = mapAchat(row);
     if (res.ok) pieces.push(res.piece);
+    else if (res.regroupement) regroupements += 1;
     else ignorees.push({ numero: res.numero, raison: res.raison });
   }
 
@@ -274,9 +300,11 @@ async function importAchats(
     })),
     doublons,
     ignorees,
+    regroupements,
     collisions: [],
     erreurs: [],
   };
+  appliquerDiagnostic(rapport, rows, pieces.length);
 
   if (!commit) return rapport;
 
