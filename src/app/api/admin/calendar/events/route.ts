@@ -4,7 +4,9 @@
 //
 // Confirme le créneau proposé par l'analyse Claude :
 //  1. Crée l'event Google Calendar (createCalendarEvent existant)
-//  2. Marque creneaux_disponibles.statut = 'reserve'
+//  2. Marque creneaux_disponibles.statut = 'reserve' (+ intervention_id).
+//     Le créneau est accepté s'il est encore libre OU déjà réservé pour CE
+//     dossier (cas normal : confirm-and-create le réserve à la création).
 //  3. Met à jour interventions : creneau_debut + technicien_id +
 //     statut='confirmee' (option B validée — pas de FK creneau_id sur
 //     intervention, on dérive depuis le créneau choisi)
@@ -15,6 +17,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import { createCalendarEvent } from '@/lib/google-calendar';
+import { brusselsWallTimeToIso } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
   // 2. Récup créneau (date + horaires + tech)
   const { data: creRow, error: creErr } = await admin
     .from('creneaux_disponibles')
-    .select('id, date, heure_debut, heure_fin, technicien_id, statut')
+    .select('id, date, heure_debut, heure_fin, technicien_id, statut, intervention_id')
     .eq('id', ana.creneau_propose_id)
     .maybeSingle();
   if (creErr || !creRow) {
@@ -78,8 +81,13 @@ export async function POST(request: Request) {
     heure_fin: string;
     technicien_id: string | null;
     statut: string;
+    intervention_id: string | null;
   };
-  if (cre.statut !== 'libre') {
+  // Créneau utilisable = libre, OU déjà réservé pour ce même dossier (c'est
+  // ce que fait confirm-and-create à la création). Tout autre état = refus.
+  const reservePourCeDossier =
+    cre.statut === 'reserve' && cre.intervention_id === ana.dossier_match_id;
+  if (cre.statut !== 'libre' && !reservePourCeDossier) {
     return NextResponse.json(
       { success: false, error: `Créneau déjà ${cre.statut} — impossible de réserver.` },
       { status: 409 },
@@ -111,8 +119,9 @@ export async function POST(request: Request) {
   }
 
   // 5. Création event Calendar
-  const startIso = `${cre.date}T${cre.heure_debut.slice(0, 5)}:00+02:00`;
-  const endIso = `${cre.date}T${cre.heure_fin.slice(0, 5)}:00+02:00`;
+  // Heure belge → instant UTC exact (heure d'été / d'hiver gérée).
+  const startIso = brusselsWallTimeToIso(cre.date, cre.heure_debut);
+  const endIso = brusselsWallTimeToIso(cre.date, cre.heure_fin);
   const summary = dossier?.ref
     ? `${dossier.ref} — ${dossier.adresse ?? '?'}`
     : `Intervention FoxO — ${dossier?.adresse ?? '?'}`;
@@ -133,15 +142,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: evRes.error }, { status: 502 });
   }
 
-  // 6. UPDATE creneaux_disponibles → 'reserve'
+  // 6. UPDATE creneaux_disponibles → 'reserve', rattaché au dossier
   await admin
     .from('creneaux_disponibles')
-    .update({ statut: 'reserve' })
+    .update({ statut: 'reserve', intervention_id: ana.dossier_match_id })
     .eq('id', cre.id);
 
   // 7. UPDATE intervention → creneau_debut + technicien_id + statut='confirmee'
   //    (option B — pas de FK creneau_id, on dérive depuis le créneau choisi)
-  const creneauDebutIso = `${cre.date}T${cre.heure_debut.slice(0, 5)}:00+02:00`;
+  const creneauDebutIso = startIso;
   await admin
     .from('interventions')
     .update({
