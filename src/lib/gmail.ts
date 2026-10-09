@@ -31,6 +31,8 @@ export interface GmailMessage {
   thread_id: string;
   from: string;
   to: string;
+  // Destinataires en copie (header « Cc », brut). Chaîne vide si absent.
+  cc: string;
   subject: string;
   date: string;            // ISO
   snippet: string;
@@ -133,6 +135,7 @@ function toMessage(raw: RawMessage): GmailMessage {
     thread_id: raw.threadId,
     from: header(raw.payload, 'From'),
     to: header(raw.payload, 'To'),
+    cc: header(raw.payload, 'Cc'),
     subject: header(raw.payload, 'Subject'),
     date,
     snippet: raw.snippet ?? '',
