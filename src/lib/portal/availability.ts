@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { CreneauDisponible } from '@/lib/types/database';
+import { brusselsWallTimeToIso } from '@/lib/format';
 
 // Modèle : créneaux FERMÉS par défaut. Seules les lignes présentes dans
 // `creneaux_disponibles` (statut='libre') apparaissent comme disponibles.
@@ -39,21 +40,27 @@ export async function getMonthSlots(year: number, month: number): Promise<Slot[]
   // Si plusieurs techs ont le même slot (date+heure), on garde "libre" si au
   // moins un est libre. Sinon "reserve".
   const merged = new Map<string, Slot>();
-  const now = new Date();
+  const nowMs = Date.now();
 
   for (const r of rows) {
     const key = `${r.date}T${r.heure_debut}`;
-    const [hh, mm] = r.heure_debut.split(':').map(Number);
-    const [yy, mo, dd] = r.date.split('-').map(Number);
-    const dt = new Date(yy, mo - 1, dd, hh, mm);
+    // Heure belge → instant exact. Avant : new Date(y, m, d, h, min) sur un
+    // serveur en UTC, soit +1/+2 h — un créneau passé restait « libre » une
+    // à deux heures de trop, et l'instant exposé au public était décalé.
+    let iso: string;
+    try {
+      iso = brusselsWallTimeToIso(r.date, r.heure_debut);
+    } catch {
+      continue; // ligne mal formée : ignorée plutôt que de casser la page publique
+    }
     let status: Slot['status'] = r.statut === 'libre' ? 'libre' : 'reserve';
-    if (dt < now) status = 'passe';
+    if (Date.parse(iso) < nowMs) status = 'passe';
 
     const existing = merged.get(key);
     if (!existing) {
       merged.set(key, {
         id: r.id,
-        iso: dt.toISOString(),
+        iso,
         date: r.date,
         hour: r.heure_debut,
         hourEnd: r.heure_fin,

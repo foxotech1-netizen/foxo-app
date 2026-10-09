@@ -13,13 +13,22 @@
 const MAX_EDGE = 2000;
 const QUALITY = 0.82;
 
-export async function compressImage(file: File): Promise<File> {
+export interface CompressImageOptions {
+  /** Grand côté maximal en pixels (défaut 2000). */
+  maxEdge?: number;
+  /** Qualité JPEG 0..1 (défaut 0.82). */
+  quality?: number;
+}
+
+export async function compressImage(file: File, options: CompressImageOptions = {}): Promise<File> {
   if (typeof document === 'undefined' || !file.type.startsWith('image/')) {
     return file;
   }
+  const maxEdge = options.maxEdge ?? MAX_EDGE;
+  const quality = options.quality ?? QUALITY;
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
     const w = Math.max(1, Math.round(bitmap.width * scale));
     const h = Math.max(1, Math.round(bitmap.height * scale));
 
@@ -35,7 +44,7 @@ export async function compressImage(file: File): Promise<File> {
     bitmap.close();
 
     const blob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b), 'image/jpeg', QUALITY);
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', quality);
     });
     if (!blob || blob.size >= file.size) return file;
 

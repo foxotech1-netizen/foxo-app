@@ -35,6 +35,7 @@ export async function GET(
     qrDataUrl = await generateEpcQrDataUrl({
       beneficiaryName: VENDOR.name,
       iban: VENDOR.iban,
+      bic: VENDOR.bic,
       amountEur: ttc > 0 ? ttc : 0.01,
       bba: facture.reference_structuree ?? undefined,
     });

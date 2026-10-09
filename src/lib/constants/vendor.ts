@@ -6,6 +6,10 @@ export const VENDOR = {
   bce: 'BE1030.109.019',
   vat: 'BE1030.109.019',
   iban: 'BE62 9502 6652 9861',
+  // BIC de la banque qui tient cet IBAN (Beobank). Source unique pour tous
+  // les QR de paiement EPC — ne jamais le recopier ailleurs. À changer en
+  // même temps que l'IBAN.
+  bic: 'CTBKBEBX',
   bank: 'BEOBANK',
   email: 'info@foxo.be',
   phone: '+32 488 700 007',

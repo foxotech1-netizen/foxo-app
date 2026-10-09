@@ -8,6 +8,8 @@ import type { OrgType } from '@/lib/portal/vocab';
 import { useOrgType, useVocab, useT, useLang } from '../PortalContext';
 import { typeLabel } from '@/lib/portal/i18n';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
+import { FOXO_SLOTS, FOXO_DEFAULT_SLOT_START, slotLabel } from '@/lib/foxo-slots';
+import { brusselsWallTimeToIso } from '@/lib/format';
 import {
   searchAcp,
   createAcp,
@@ -24,7 +26,6 @@ const TYPES: TypeIntervention[] = [
   'Autre',
 ];
 
-const HOURS = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -196,8 +197,15 @@ export function NewRequestClient({
     setSubmitError(null);
     let creneauIso: string | null = null;
     if (creneauDate) {
-      const heure = creneauHeure || '09:00';
-      creneauIso = new Date(`${creneauDate}T${heure}:00`).toISOString();
+      // Heure belge → instant exact, quel que soit le fuseau du navigateur.
+      // Heure absente ou illisible (lien modifié à la main) → premier créneau
+      // de la grille, pour ne pas perdre la date demandée.
+      const heure = /^\d{1,2}:\d{2}/.test(creneauHeure) ? creneauHeure : FOXO_DEFAULT_SLOT_START;
+      try {
+        creneauIso = brusselsWallTimeToIso(creneauDate, heure);
+      } catch {
+        creneauIso = null; // date illisible : la demande part sans créneau souhaité
+      }
     }
     const res = await submitRequest({
       acp_id: isPartner ? null : selectedAcp!.id,
@@ -707,7 +715,9 @@ function Step4({
             className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
           >
             <option value="">{t('indifferentOption')}</option>
-            {HOURS.map((h) => <option key={h} value={h}>{h.replace(':', 'h')}</option>)}
+            {FOXO_SLOTS.map((sl) => (
+              <option key={sl.heure_debut} value={sl.heure_debut}>{slotLabel(sl)}</option>
+            ))}
           </select>
         </div>
       </div>
