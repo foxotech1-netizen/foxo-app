@@ -8,7 +8,7 @@ import type { OrgType } from '@/lib/portal/vocab';
 import { useOrgType, useVocab, useT, useLang } from '../PortalContext';
 import { typeLabel } from '@/lib/portal/i18n';
 import { AddressAutocomplete, addressFromString } from '@/components/AddressAutocomplete';
-import { FOXO_SLOTS, FOXO_DEFAULT_SLOT_START, slotLabel } from '@/lib/foxo-slots';
+import { FOXO_SLOTS, FOXO_DEFAULT_SLOT_START, findSlotByStart, slotLabel } from '@/lib/foxo-slots';
 import { brusselsWallTimeToIso } from '@/lib/format';
 import {
   searchAcp,
@@ -715,6 +715,12 @@ function Step4({
             className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
           >
             <option value="">{t('indifferentOption')}</option>
+            {/* Créneau pré-sélectionné à une heure hors grille (dispo créée sur
+                d'anciennes heures) : on l'ajoute à la liste, sinon la liste
+                afficherait « Indifférent » à côté d'un créneau bien choisi. */}
+            {/^\d{2}:\d{2}/.test(heure) && !findSlotByStart(heure) && (
+              <option value={heure}>{heure.slice(0, 5).replace(':', 'h')}</option>
+            )}
             {FOXO_SLOTS.map((sl) => (
               <option key={sl.heure_debut} value={sl.heure_debut}>{slotLabel(sl)}</option>
             ))}

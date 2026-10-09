@@ -7,7 +7,7 @@ import type { Slot } from '@/lib/portal/availability';
 import { Logo } from '@/components/Logo';
 import { submitRdv } from './actions';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
-import { FOXO_SLOTS, FOXO_DEFAULT_SLOT_START, slotLabel } from '@/lib/foxo-slots';
+import { FOXO_SLOTS, FOXO_DEFAULT_SLOT_START, findSlotByStart, slotLabel } from '@/lib/foxo-slots';
 import { brusselsWallTimeToIso } from '@/lib/format';
 import { compressImage } from '@/lib/images/compress-image';
 
@@ -1092,6 +1092,12 @@ function Step3(props: {
             className={inputCls + ' cursor-pointer'}
           >
             <option value="">— Indifférent —</option>
+            {/* Créneau pré-sélectionné à une heure hors grille (dispo créée sur
+                d'anciennes heures) : on l'ajoute à la liste, sinon la liste
+                afficherait « Indifférent » à côté d'un créneau bien choisi. */}
+            {/^\d{2}:\d{2}/.test(props.heure) && !findSlotByStart(props.heure) && (
+              <option value={props.heure}>{props.heure.slice(0, 5).replace(':', 'h')}</option>
+            )}
             {FOXO_SLOTS.map((sl) => (
               <option key={sl.heure_debut} value={sl.heure_debut}>{slotLabel(sl)}</option>
             ))}
