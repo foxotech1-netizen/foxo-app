@@ -12,7 +12,7 @@ import { BlockedSlotModal } from './BlockedSlotModal';
 import { ImportCalendarEventModal, type CalendarEventLite } from './ImportCalendarEventModal';
 import { ProposeSlotModal } from './ProposeSlotModal';
 import { MAIL_PREFILL_PROMPTED_KEY, readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
-import { FOXO_SLOTS, FOXO_DAYS, slotIdxForTime } from '@/lib/foxo-slots';
+import { FOXO_SLOTS, FOXO_DAYS, slotIdxForTime, slotIdxForRange } from '@/lib/foxo-slots';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -605,7 +605,7 @@ export function PlanningCalendar({
         />
       )}
 
-      {/* Calendar — vue Semaine (5 créneaux fixes FoxO × 7 jours) */}
+      {/* Calendar — vue Semaine (créneaux fixes FoxO × 7 jours) */}
       {viewMode === 'week' && (
         <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
           <div
@@ -653,7 +653,12 @@ export function PlanningCalendar({
                 </div>
                 {weekDates.map((d) => {
                   const iso = isoDate(d);
-                  const cellCreneaux = (byDate.get(iso) ?? []).filter((c) => c.heure_debut.slice(0, 5) === slot.heure_debut);
+                  // Créneaux en base placés sur la ligne que leur plage horaire
+                  // recouvre le plus (slotIdxForRange) : une ligne créée sur une
+                  // ancienne grille (17:00, 19:00…) ou déplacée à une heure libre
+                  // reste visible, là où elle occupe réellement le technicien,
+                  // avec son heure réelle sur la pastille (`heureReelle` plus bas).
+                  const cellCreneaux = (byDate.get(iso) ?? []).filter((c) => slotIdxForRange(c.heure_debut, c.heure_fin) === slotIdx);
                   // Les events Google qui tombent dans la fenêtre du créneau :
                   // [début du créneau, début du suivant), en heure belge.
                   const cellGcal = (gcalByDate.get(iso) ?? []).filter((ev) => {
@@ -701,6 +706,14 @@ export function PlanningCalendar({
                         const techIdx = cr.technicien_id ? techs.findIndex((t) => t.id === cr.technicien_id) : -1;
                         const techColor = cr.technicien_id ? techColorMap.get(cr.technicien_id) : null;
                         const techBadge = techIdx >= 0 ? `T.${techIdx + 1}` : null;
+                        // Heure réelle affichée uniquement quand elle diffère de
+                        // celle de la ligne (créneau d'une ancienne grille).
+                        const heureReelle = cr.heure_debut.slice(0, 5) !== slot.heure_debut
+                          ? cr.heure_debut.slice(0, 5).replace(':', 'h')
+                          : null;
+                        const plageReelle = heureReelle
+                          ? ` (${heureReelle} – ${cr.heure_fin.slice(0, 5).replace(':', 'h')})`
+                          : '';
 
                         if (cr.statut === 'libre') {
                           return (
@@ -709,14 +722,16 @@ export function PlanningCalendar({
                               type="button"
                               onClick={() => setOpenModal({ kind: 'free', slot: cr })}
                               className="w-full text-left rounded px-1.5 py-1 hover:brightness-95 cursor-pointer flex items-center gap-1 border"
-                              title="Cliquer pour planifier une intervention"
+                              title={`Cliquer pour planifier une intervention${plageReelle}`}
                               style={{
                                 background: hexToSoft(planningColors.libre),
                                 borderColor: planningColors.libre,
                                 color: planningColors.libre,
                               }}
                             >
-                              <span className="text-[10px] font-bold flex-1 truncate">Libre</span>
+                              <span className="text-[10px] font-bold flex-1 truncate">
+                                {heureReelle ? `Libre · ${heureReelle}` : 'Libre'}
+                              </span>
                               {techBadge && techColor && (
                                 <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF' }}>
                                   {techBadge}
@@ -736,11 +751,13 @@ export function PlanningCalendar({
                               type="button"
                               onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
                               className="w-full text-left rounded px-1.5 py-1 hover:brightness-95 cursor-pointer flex items-center gap-1"
-                              title={`Cliquer pour modifier — ${clientLabel}`}
+                              title={`Cliquer pour modifier — ${clientLabel}${plageReelle}`}
                               style={{ background: bg, color: '#FFFFFF', borderLeft: techColor ? `3px solid ${techColor.bg}` : undefined }}
                             >
                               <Check size={10} />
-                              <span className="text-[11px] font-bold flex-1 truncate">{clientLabel}</span>
+                              <span className="text-[11px] font-bold flex-1 truncate">
+                                {heureReelle ? `${heureReelle} ${clientLabel}` : clientLabel}
+                              </span>
                               {techBadge && techColor && (
                                 <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF', filter: 'brightness(1.1)' }}>
                                   {techBadge}
@@ -754,10 +771,12 @@ export function PlanningCalendar({
                           <div
                             key={cr.id}
                             className="w-full rounded px-1.5 py-1 bg-sand-mid text-ink-muted text-[10px] font-bold flex items-center gap-1"
-                            title="Créneau bloqué"
+                            title={`Créneau bloqué${plageReelle}`}
                           >
                             <Construction size={10} />
-                            <span className="flex-1 truncate">Bloqué</span>
+                            <span className="flex-1 truncate">
+                              {heureReelle ? `Bloqué · ${heureReelle}` : 'Bloqué'}
+                            </span>
                             {techBadge && <span className="text-[9px] opacity-70">{techBadge}</span>}
                           </div>
                         );
