@@ -1,11 +1,15 @@
 'use client';
 
 import { useMemo, useRef, useState, useTransition } from 'react';
+import { unstable_isUnrecognizedActionError } from 'next/navigation';
 import { Camera, Check, CheckCircle2, ChevronDown, Shield, Zap } from 'lucide-react';
 import type { Slot } from '@/lib/portal/availability';
 import { Logo } from '@/components/Logo';
 import { submitRdv } from './actions';
 import { AddressAutocomplete } from '@/components/AddressAutocomplete';
+import { FOXO_SLOTS, FOXO_DEFAULT_SLOT_START, slotLabel } from '@/lib/foxo-slots';
+import { brusselsWallTimeToIso } from '@/lib/format';
+import { compressImage } from '@/lib/images/compress-image';
 
 const TYPES = [
   'Fuite canalisation',
@@ -15,7 +19,24 @@ const TYPES = [
   'Autre',
 ];
 
-const HOURS = ['08:00', '09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00'];
+// Photos : compressées dans le navigateur avant envoi (grand côté 1600 px,
+// JPEG 0,8 → quelques centaines de Ko chacune). Le corps d'une requête est
+// plafonné à ~4,5 Mo par l'hébergeur : au-delà, l'envoi échouait avec une
+// page d'erreur. On garde une marge sous ce plafond.
+const MAX_PHOTOS = 3;
+const MAX_TOTAL_PHOTO_BYTES = 4 * 1024 * 1024;
+const PHOTO_COMPRESSION = { maxEdge: 1600, quality: 0.8 } as const;
+
+// Identifiant de soumission : identique pour tous les essais d'un même
+// formulaire, il permet au serveur de ne pas créer deux dossiers.
+function newSubmissionId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch { /* contexte non sécurisé : repli ci-dessous */ }
+  return `rdv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 const MONTH_NAMES = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -77,10 +98,14 @@ export function RdvClient({ months }: { months: MonthData[] }) {
 
   const formRef = useRef<HTMLDivElement>(null);
   const photosInputRef = useRef<HTMLInputElement>(null);
+  const [photosBusy, setPhotosBusy] = useState(false);
+  const submissionIdRef = useRef<string | null>(null);
 
   function pickSlot(s: Slot) {
     setCreneauDate(s.date);
-    setCreneauHeure(s.hour);
+    // « HH:MM » strict (tolère une ligne stockée en « HH:MM:SS ») : c'est la
+    // valeur comparée aux options de la liste et au créneau surligné.
+    setCreneauHeure(s.hour.slice(0, 5));
     setCreneauPreSelected(true);
     // scroll vers le form
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -150,10 +175,23 @@ export function RdvClient({ months }: { months: MonthData[] }) {
     void handleSubmit();
   }
 
-  function onPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
-    setPhotos((cur) => [...cur, ...files].slice(0, 3));
     if (photosInputRef.current) photosInputRef.current.value = '';
+    const room = Math.max(0, MAX_PHOTOS - photos.length);
+    const picked = files.slice(0, room);
+    if (picked.length === 0) return;
+    setServerError(null);
+    setPhotosBusy(true);
+    try {
+      // Séquentiel : une photo de smartphone décodée occupe beaucoup de
+      // mémoire. compressImage ne lève jamais (échec → fichier d'origine).
+      const ready: File[] = [];
+      for (const f of picked) ready.push(await compressImage(f, PHOTO_COMPRESSION));
+      setPhotos((cur) => [...cur, ...ready].slice(0, MAX_PHOTOS));
+    } finally {
+      setPhotosBusy(false);
+    }
   }
   function removePhoto(i: number) {
     setPhotos((cur) => cur.filter((_, idx) => idx !== i));
@@ -161,11 +199,31 @@ export function RdvClient({ months }: { months: MonthData[] }) {
 
   async function handleSubmit() {
     setServerError(null);
+    if (photosBusy) {
+      setServerError('Les photos sont encore en cours de préparation. Patientez un instant puis renvoyez.');
+      return;
+    }
+    const totalPhotoBytes = photos.reduce((sum, p) => sum + p.size, 0);
+    if (totalPhotoBytes > MAX_TOTAL_PHOTO_BYTES) {
+      setServerError(
+        `Vos photos sont trop lourdes (${(totalPhotoBytes / 1024 / 1024).toFixed(1)} Mo au total, maximum 4 Mo). `
+        + 'Retirez-en une à l\'étape « Problème », puis renvoyez.',
+      );
+      return;
+    }
     let creneauIso: string | null = null;
     if (creneauDate) {
-      const heure = creneauHeure || '09:00';
-      creneauIso = new Date(`${creneauDate}T${heure}:00`).toISOString();
+      // Heure belge → instant exact, quel que soit le fuseau du navigateur
+      // du client (avant : fuseau de l'appareil).
+      const heure = creneauHeure || FOXO_DEFAULT_SLOT_START;
+      try {
+        creneauIso = brusselsWallTimeToIso(creneauDate, heure);
+      } catch {
+        setServerError('La date choisie est invalide. Corrigez-la à l\'étape « Créneau ».');
+        return;
+      }
     }
+    submissionIdRef.current ??= newSubmissionId();
     const fd = new FormData();
     fd.append('data', JSON.stringify({
       prenom, nom, email, telephone, bce,
@@ -182,15 +240,35 @@ export function RdvClient({ months }: { months: MonthData[] }) {
       contact_instr: contactInstr,
       type, description, priorite,
       creneauIso,
+      submission_id: submissionIdRef.current,
     }));
     photos.forEach((p, i) => fd.append(`photo_${i}`, p));
 
     startTransition(async () => {
-      const res = await submitRdv(fd);
-      if (res.ok) {
-        setSuccess(res.data);
-      } else {
-        setServerError(res.error);
+      // try/catch indispensable : une coupure réseau ou une réponse non
+      // lisible fait LEVER l'appel de la Server Action côté navigateur —
+      // sans capture, la page d'erreur remplaçait le formulaire rempli.
+      try {
+        const res = await submitRdv(fd);
+        if (res.ok) {
+          setSuccess(res.data);
+        } else {
+          setServerError(res.error);
+        }
+      } catch (e) {
+        // Cas particulier : le site a été mis à jour pendant que la page était
+        // ouverte — renvoyer ne marchera pas tant qu'elle n'est pas rechargée.
+        if (unstable_isUnrecognizedActionError(e)) {
+          setServerError(
+            'Le site vient d\'être mis à jour. Rechargez cette page puis refaites votre demande, '
+            + 'ou contactez-nous par téléphone.',
+          );
+          return;
+        }
+        setServerError(
+          'La connexion a été interrompue pendant l\'envoi. Vérifiez votre connexion puis renvoyez : '
+          + 'votre demande ne sera pas enregistrée deux fois.',
+        );
       }
     });
   }
@@ -355,6 +433,7 @@ export function RdvClient({ months }: { months: MonthData[] }) {
               description={description} setDescription={setDescription}
               priorite={priorite} setPriorite={setPriorite}
               photos={photos} onPhotos={onPhotos}
+              photosBusy={photosBusy}
               onRemovePhoto={removePhoto}
               photosInputRef={photosInputRef}
             />
@@ -497,7 +576,7 @@ function CalendarWidget({
             <div className="space-y-0.5">
               {c.slots.map((s) => {
                 const time = s.hour.replace(':', 'h');
-                const isSelected = selectedIso === s.iso;
+                const isSelected = selectedIso === `${s.date}T${s.hour.slice(0, 5)}:00`;
                 if (s.status === 'libre') {
                   return (
                     <button
@@ -821,9 +900,25 @@ function Step2(props: {
   priorite: 'normale' | 'urgente'; setPriorite: (v: 'normale' | 'urgente') => void;
   photos: File[];
   onPhotos: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  photosBusy: boolean;
   onRemovePhoto: (i: number) => void;
   photosInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
+  // Déstructuration : la ref de l'input (photosInputRef) ne doit pas être lue
+  // à travers l'objet `props` pendant le rendu (règle react-hooks/refs).
+  const {
+    description,
+    onPhotos,
+    onRemovePhoto,
+    photos,
+    photosBusy,
+    photosInputRef,
+    priorite,
+    setDescription,
+    setPriorite,
+    setType,
+    type,
+  } = props;
   const inputCls = 'w-full min-h-[48px] px-4 py-3 border border-[var(--color-sand-border)] rounded-lg text-[14px] bg-[var(--color-cream)] text-[var(--color-ink)] outline-none focus:border-[var(--color-navy)] focus:ring-2 focus:ring-[var(--color-navy-pale)] transition-all';
 
   return (
@@ -840,8 +935,8 @@ function Step2(props: {
           Type d&apos;intervention <span className="text-[var(--color-terra)] ml-0.5">*</span>
         </label>
         <select
-          value={props.type}
-          onChange={(e) => props.setType(e.target.value)}
+          value={type}
+          onChange={(e) => setType(e.target.value)}
           className={inputCls + ' cursor-pointer'}
           required
         >
@@ -855,15 +950,15 @@ function Step2(props: {
           Description détaillée <span className="text-[var(--color-terra)] ml-0.5">*</span>
         </label>
         <textarea
-          value={props.description}
-          onChange={(e) => props.setDescription(e.target.value)}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           placeholder="Décrivez le problème, l'étage, les dégâts visibles…"
           rows={5}
           required
           className={inputCls + ' resize-y min-h-[120px] placeholder:text-[var(--color-ink-muted)] placeholder:italic'}
         />
         <p className="text-[12px] text-[var(--color-ink-mid)] mt-1.5">
-          {props.description.trim().length} caractère{props.description.trim().length > 1 ? 's' : ''} — minimum 10
+          {description.trim().length} caractère{description.trim().length > 1 ? 's' : ''} — minimum 10
         </p>
       </div>
 
@@ -871,7 +966,7 @@ function Step2(props: {
         <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Priorité</label>
         <div className="grid grid-cols-2 gap-3">
           {(['normale', 'urgente'] as const).map((p) => {
-            const active = props.priorite === p;
+            const active = priorite === p;
             return (
               <label
                 key={p}
@@ -888,7 +983,7 @@ function Step2(props: {
                   type="radio"
                   name="priorite"
                   checked={active}
-                  onChange={() => props.setPriorite(p)}
+                  onChange={() => setPriorite(p)}
                   className="w-4 h-4 accent-[var(--color-navy)]"
                 />
                 {p === 'urgente' ? (
@@ -905,11 +1000,12 @@ function Step2(props: {
       <div>
         <label className="text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--color-ink-mid)] block mb-1.5">Photos (facultatif, max 3)</label>
         <input
-          ref={props.photosInputRef}
+          ref={photosInputRef}
           type="file"
           accept="image/*"
           multiple
-          onChange={props.onPhotos}
+          onChange={onPhotos}
+          disabled={photosBusy || photos.length >= 3}
           className="hidden"
           id="rdv-photos"
         />
@@ -917,23 +1013,25 @@ function Step2(props: {
           htmlFor="rdv-photos"
           className={
             'inline-flex items-center gap-2 min-h-[48px] px-4 py-3 rounded-lg text-[14px] font-medium transition-colors ' +
-            (props.photos.length >= 3
+            (photos.length >= 3 || photosBusy
               ? 'bg-[var(--color-sand-mid)] text-[var(--color-ink-muted)] cursor-not-allowed'
               : 'bg-[var(--color-cream)] border border-dashed border-[var(--color-amber-foxo)]/40 text-[var(--color-ink)] hover:bg-[var(--color-amber-light)]/50 cursor-pointer')
           }
         >
           <Camera size={16} className="text-[var(--color-amber-foxo)]" />
-          {props.photos.length >= 3 ? 'Maximum atteint' : 'Ajouter des photos'}
+          {photosBusy
+            ? 'Préparation des photos…'
+            : photos.length >= 3 ? 'Maximum atteint' : 'Ajouter des photos'}
         </label>
-        {props.photos.length > 0 && (
+        {photos.length > 0 && (
           <div className="mt-3 space-y-2">
-            {props.photos.map((p, i) => (
+            {photos.map((p, i) => (
               <div key={i} className="flex items-center justify-between bg-[var(--color-sand)] border border-[var(--color-sand-border)] rounded-md px-3 py-2 text-[13px] text-[var(--color-ink)]">
                 <span className="truncate flex-1">{p.name}</span>
                 <span className="text-[var(--color-ink-mid)] text-[12px] mx-2 font-mono">{(p.size / 1024 / 1024).toFixed(1)} MB</span>
                 <button
                   type="button"
-                  onClick={() => props.onRemovePhoto(i)}
+                  onClick={() => onRemovePhoto(i)}
                   className="text-[var(--color-terra)] hover:underline text-[12px] font-semibold min-h-[44px] px-2"
                 >Retirer</button>
               </div>
@@ -994,7 +1092,9 @@ function Step3(props: {
             className={inputCls + ' cursor-pointer'}
           >
             <option value="">— Indifférent —</option>
-            {HOURS.map((h) => <option key={h} value={h}>{h.replace(':', 'h')}</option>)}
+            {FOXO_SLOTS.map((sl) => (
+              <option key={sl.heure_debut} value={sl.heure_debut}>{slotLabel(sl)}</option>
+            ))}
           </select>
         </div>
       </div>

@@ -2,6 +2,11 @@ import { getMonthSlots, type Slot } from '@/lib/portal/availability';
 import { RdvClient } from './RdvClient';
 
 export const dynamic = 'force-dynamic';
+// Délai des Server Actions de cette page (submitRdv) : la soumission enchaîne
+// référence (base + Drive), INSERT et upload des photos. Sans ce réglage, la
+// limite par défaut de la plateforme pouvait couper la requête alors que le
+// dossier était déjà créé (page d'erreur générique + doublon au 2e essai).
+export const maxDuration = 60;
 
 export default async function RdvPage() {
   // Charge 2 mois de dispos pour permettre une nav simple côté client.
