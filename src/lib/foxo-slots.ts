@@ -34,3 +34,37 @@ export function findSlotByStart(heure_debut: string): FoxoSlot | null {
   const hh = heure_debut.slice(0, 5); // tolère "09:00:00"
   return FOXO_SLOTS.find((s) => s.heure_debut === hh) ?? null;
 }
+
+// Minutes depuis minuit d'une heure 'HH:MM' (tolère 'H:MM' et 'HH:MM:SS').
+// null si la chaîne n'est pas une heure.
+function minutesOf(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm.trim());
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+// Index (0..FOXO_SLOTS.length-1) du créneau FoxO dans lequel tombe une heure
+// belge 'HH:MM'. Règle unique pour tout placement dans la grille : fenêtre
+// [début du créneau, début du créneau suivant). Le premier créneau recueille
+// aussi ce qui précède, le dernier ce qui suit : aucune heure n'est « hors
+// grille » (avant : comparaison d'heures entières — un évènement à 10:45 ou
+// à 15:00 n'apparaissait dans aucune case).
+export function slotIdxForTime(hhmm: string): number {
+  const minutes = minutesOf(hhmm);
+  if (minutes === null) return 0;
+  let idx = 0;
+  for (let i = 0; i < FOXO_SLOTS.length; i++) {
+    const start = minutesOf(FOXO_SLOTS[i].heure_debut);
+    if (start !== null && minutes >= start) idx = i;
+  }
+  return idx;
+}
+
+// Heure de début par défaut quand aucune heure n'est précisée (premier
+// créneau de la grille) — à utiliser à la place d'un '09:00' écrit en dur.
+export const FOXO_DEFAULT_SLOT_START: string = FOXO_SLOTS[0].heure_debut;
+
+// Libellé d'un créneau pour une liste de choix : « 09h00 – 10h30 ».
+export function slotLabel(slot: FoxoSlot): string {
+  return `${slot.heure_debut.replace(':', 'h')} – ${slot.heure_fin.replace(':', 'h')}`;
+}

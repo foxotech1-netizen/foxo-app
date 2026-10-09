@@ -1,6 +1,6 @@
 'use client';
 
-import { fmtTime } from '@/lib/format';
+import { fmtDateISO, fmtTime } from '@/lib/format';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,7 @@ import { BlockedSlotModal } from './BlockedSlotModal';
 import { ImportCalendarEventModal, type CalendarEventLite } from './ImportCalendarEventModal';
 import { ProposeSlotModal } from './ProposeSlotModal';
 import { MAIL_PREFILL_PROMPTED_KEY, readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
-import { FOXO_SLOTS, FOXO_DAYS } from '@/lib/foxo-slots';
+import { FOXO_SLOTS, FOXO_DAYS, slotIdxForTime } from '@/lib/foxo-slots';
 
 const MONTHS = [
   'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -283,13 +283,17 @@ export function PlanningCalendar({
     return () => { mounted = false; };
   }, [googleConnected, showGoogle, viewMode, weekMonday, year, month]);
 
-  // Bucket des events Google par date YYYY-MM-DD (date locale, pas UTC).
+  // Bucket des events Google par date YYYY-MM-DD, en date BELGE (ni UTC ni
+  // fuseau du navigateur) — cohérent avec l'heure belge utilisée pour le
+  // placement dans les créneaux.
   const gcalByDate = useMemo(() => {
     const m = new Map<string, CalendarEventLite[]>();
     for (const e of gcalEvents) {
       if (!e.start) continue;
-      const d = new Date(e.start);
-      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      // Journée entière : l'API renvoie « YYYY-MM-DDT00:00:00 » sans fuseau —
+      // c'est déjà une date de calendrier, à ne pas reconvertir.
+      const iso = e.all_day ? e.start.slice(0, 10) : fmtDateISO(e.start);
+      if (!iso) continue;
       if (!m.has(iso)) m.set(iso, []);
       m.get(iso)!.push(e);
     }
@@ -650,14 +654,11 @@ export function PlanningCalendar({
                 {weekDates.map((d) => {
                   const iso = isoDate(d);
                   const cellCreneaux = (byDate.get(iso) ?? []).filter((c) => c.heure_debut.slice(0, 5) === slot.heure_debut);
-                  const slotStartH = parseInt(slot.heure_debut.split(':')[0], 10);
-                  const slotEndH = parseInt(slot.heure_fin.split(':')[0], 10);
-                  // Les events Google qui tombent dans la fenêtre du créneau
+                  // Les events Google qui tombent dans la fenêtre du créneau :
+                  // [début du créneau, début du suivant), en heure belge.
                   const cellGcal = (gcalByDate.get(iso) ?? []).filter((ev) => {
                     if (ev.all_day) return slotIdx === 0;
-                    const dt = new Date(ev.start);
-                    const evH = dt.getHours();
-                    return evH >= slotStartH && evH < slotEndH;
+                    return slotIdxForTime(fmtTime(ev.start)) === slotIdx;
                   });
                   const isTodayCell = iso === todayStr;
                   const showPlus = cellCreneaux.length === 0
