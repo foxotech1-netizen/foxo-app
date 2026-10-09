@@ -3,31 +3,25 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import QRCode from 'qrcode';
+import { VENDOR } from '@/lib/constants/vendor';
+import { buildEpcPayloadString } from '@/lib/facturation/epc-qr';
 
-// Coordonnées Fox Group srl — fixes (cf. footer rapports + IBAN Beobank).
-const BIC = 'NICABEBB';
-const BENEFICIAIRE = 'Fox Group srl';
-const IBAN_RAW = 'BE62950266529861';
-const IBAN_DISPLAY = 'BE62 9502 6652 9861';
+// Coordonnées bancaires : source unique VENDOR (src/lib/constants/vendor.ts).
+// Le payload est construit par le MÊME constructeur que les QR des factures
+// PDF (buildEpcPayloadString) : un seul format EPC dans toute la plateforme.
+// Avant : BIC d'une autre banque écrit en dur ici, et numéro de facture placé
+// dans les champs « Purpose » / « référence structurée » du QR.
+const IBAN_RAW = VENDOR.iban.replace(/\s+/g, '');
 
-// Construit le payload EPC SCT (Quick Response Code Guidelines, EPC012-09 v2)
-// reconnu par toutes les apps bancaires belges qui supportent le scan QR
-// virement européen. Format strict respecté ligne par ligne.
 function buildEpcPayload(montantTTC: number, communication: string): string {
-  // Montant : EUR + nombre avec point décimal et 2 décimales max.
-  const amount = `EUR${(Math.round(montantTTC * 100) / 100).toFixed(2)}`;
-  return [
-    'BCD',
-    '002',
-    '1',
-    'SCT',
-    BIC,
-    BENEFICIAIRE,
-    IBAN_RAW,
-    amount,
-    communication,
-    communication,
-  ].join('\n');
+  return buildEpcPayloadString({
+    beneficiaryName: VENDOR.name,
+    iban: VENDOR.iban,
+    bic: VENDOR.bic,
+    amountEur: montantTTC,
+    // Numéro de facture en communication libre (pas une référence structurée).
+    textCommunication: communication,
+  });
 }
 
 function fmtMoney(n: number): string {
@@ -52,6 +46,10 @@ export function QrPaiement({
 
   useEffect(() => {
     let cancelled = false;
+    // Montant nul, négatif ou illisible : aucun QR (le constructeur partagé
+    // le forcerait à 0,01 € — un QR ne doit jamais demander un autre montant
+    // que celui affiché).
+    if (!(montantTTC > 0)) return;
     const payload = buildEpcPayload(montantTTC, numero);
     QRCode.toDataURL(payload, {
       width: 400,
@@ -91,7 +89,11 @@ export function QrPaiement({
         </div>
       )}
 
-      {dataUrl ? (
+      {!(montantTTC > 0) ? (
+        <div className="w-[200px] rounded-lg border border-sand-border bg-sand-light px-3 py-6 text-center text-[12px] text-ink-mid">
+          Aucun montant à payer : pas de QR de paiement.
+        </div>
+      ) : dataUrl ? (
         <img
           src={dataUrl}
           alt={`QR de paiement EPC pour ${numero}`}
@@ -103,13 +105,15 @@ export function QrPaiement({
         <div className="w-[200px] h-[200px] rounded-lg border border-sand-border bg-sand-light animate-pulse" />
       )}
 
-      <div className="text-[11px] text-ink-mid text-center max-w-[260px]">
-        Scannez avec votre app bancaire pour générer un virement pré-rempli.
-      </div>
+      {montantTTC > 0 && (
+        <div className="text-[11px] text-ink-mid text-center max-w-[260px]">
+          Scannez avec votre app bancaire pour générer un virement pré-rempli.
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5 items-center text-[11px] font-mono text-ink-mid">
-        <div>{IBAN_DISPLAY}</div>
-        <div>BIC : {BIC}</div>
+        <div>{VENDOR.iban}</div>
+        <div>BIC : {VENDOR.bic}</div>
       </div>
 
       <div className="flex flex-col gap-2 w-full max-w-[260px]">

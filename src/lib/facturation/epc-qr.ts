@@ -69,6 +69,10 @@ export function buildEpcPayloadString(p: EpcPayload): string {
     remittance.slice(0, 140),
     '',                    // Information
   ];
+  // Les éléments vides en fin de message sont omis : le dernier élément
+  // renseigné n'est suivi d'aucun séparateur (lecture stricte par certaines
+  // applications bancaires).
+  while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
   return lines.join('\n');
 }
 

@@ -666,6 +666,7 @@ export async function setFactureStatut(id: string, statut: StatutFacture, datePa
           qrDataUrl = await generateEpcQrDataUrl({
             beneficiaryName: VENDOR.name,
             iban: VENDOR.iban,
+            bic: VENDOR.bic,
             amountEur: ttc > 0 ? ttc : 0.01,
             bba: facture.reference_structuree ?? undefined,
           });
@@ -880,6 +881,7 @@ export async function sendDocumentEmail(
     qrDataUrl = await generateEpcQrDataUrl({
       beneficiaryName: VENDOR.name,
       iban: VENDOR.iban,
+      bic: VENDOR.bic,
       amountEur: ttc > 0 ? ttc : 0.01,
       bba: facture.reference_structuree ?? undefined,
     });
