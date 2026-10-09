@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, Save, Lock, Construction } from 'lucide-react';
+import { X, Save, Lock, Construction, Trash2, AlertTriangle } from 'lucide-react';
 import type { Utilisateur } from '@/lib/types/database';
-import { FOXO_SLOTS, FOXO_DAYS, FOXO_DAYS_SHORT, type FoxoDay } from '@/lib/foxo-slots';
+import { FOXO_SLOTS, FOXO_DAYS, FOXO_DAYS_SHORT, slotRangesOverlap, type FoxoDay } from '@/lib/foxo-slots';
 
 // État interne d'une cellule : {existing: id | null, statut: ...}
 // existing=null → cellule vide en DB. existing=string → créneau en DB
@@ -14,11 +14,17 @@ import { FOXO_SLOTS, FOXO_DAYS, FOXO_DAYS_SHORT, type FoxoDay } from '@/lib/foxo
 // mais plus dans selected).
 type SlotStatut = 'libre' | 'reserve' | 'bloque';
 interface ExistingSlot { id: string; statut: SlotStatut; google_event_id: string | null }
+// Créneau en base dont l'heure de début n'appartient pas (ou plus) à la
+// grille FOXO_SLOTS — créé avant un changement de grille, ou déplacé à une
+// heure libre (contre-proposition acceptée). Il n'a pas de case : on le
+// liste à part pour qu'il reste visible et, s'il est libre, supprimable.
+interface HorsGrilleSlot { id: string; date: string; heure_debut: string; heure_fin: string; statut: SlotStatut }
+const AUCUN_HORS_GRILLE: HorsGrilleSlot[] = [];
 
 const ALLOWED_WEEKS = [1, 2, 4, 8] as const;
 type WeekCount = typeof ALLOWED_WEEKS[number];
 
-// Cellule = (dayIdx 0..6, slotIdx 0..4)
+// Cellule = (dayIdx 0..6, slotIdx 0..FOXO_SLOTS.length-1)
 function cellKey(day: number, slotIdx: number): string {
   return `${day}-${slotIdx}`;
 }
@@ -37,6 +43,16 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// 'HH:MM' (ou 'HH:MM:SS') → '17h00'
+function fmtHeure(h: string): string {
+  return h.slice(0, 5).replace(':', 'h');
+}
+
+// 'YYYY-MM-DD' → 'lun. 12 oct.' (midi local : pas de bascule de jour)
+function fmtJour(date: string): string {
+  return new Date(date + 'T12:00:00').toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
 export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
   const router = useRouter();
   const [techId, setTechId] = useState<string>(techs[0]?.id ?? '');
@@ -46,6 +62,12 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
   const [weeks, setWeeks] = useState<WeekCount>(1);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  // Créneaux hors grille de la semaine chargée. `cle` = tech + semaine du
+  // chargement : on n'affiche la liste que si elle correspond à l'écran
+  // courant (pas de liste d'un autre technicien pendant un rechargement).
+  const [horsGrille, setHorsGrille] = useState<{ cle: string; rows: HorsGrilleSlot[] }>({ cle: '', rows: [] });
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const msgRef = useRef<HTMLDivElement>(null);
 
   // Lundi de la semaine d'application — point de départ pour les N semaines.
   // Le date picker accepte n'importe quel jour ; on snap au lundi le plus
@@ -81,6 +103,31 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     return d.toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   }
 
+  const horsGrilleRows = horsGrille.cle === `${techId}|${isoDate(weekStart)}` ? horsGrille.rows : AUCUN_HORS_GRILLE;
+
+  // Cases de la semaine affichée dont la plage chevauche un créneau hors
+  // grille (clé de case → plage du créneau gênant). Tant que ce créneau
+  // existe, la case ne peut pas être cochée : on créerait deux créneaux
+  // pour la même heure et le même technicien. La route bulk applique la
+  // même règle côté serveur, pour toutes les semaines du lot.
+  const conflits = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of horsGrilleRows) {
+      const dow = new Date(h.date + 'T12:00:00').getDay();
+      const dayIdx = dow === 0 ? 6 : dow - 1;
+      FOXO_SLOTS.forEach((slot, slotIdx) => {
+        if (slotRangesOverlap(slot.heure_debut, slot.heure_fin, h.heure_debut, h.heure_fin)) {
+          m.set(cellKey(dayIdx, slotIdx), `${fmtHeure(h.heure_debut)} – ${fmtHeure(h.heure_fin)}`);
+        }
+      });
+    }
+    return m;
+  }, [horsGrilleRows]);
+  // Une case déjà enregistrée reste gérable (décochable) même en conflit.
+  function isConflit(k: string): boolean {
+    return conflits.has(k) && !existingByKey.has(k);
+  }
+
   // Drag select
   const [dragging, setDragging] = useState<{ mode: 'add' | 'remove' } | null>(null);
 
@@ -113,22 +160,24 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 
   // Presets
   function presetSemaineStandard() {
-    // Lun–Ven × Matin 1 / Matin 2 / Après-midi (slotIdx 0, 1, 2)
+    // Lun–Ven × créneaux de journée (tous sauf ceux marqués `soiree`)
     const next = new Set<string>();
     for (let day = 0; day < 5; day++) {
-      for (const slotIdx of [0, 1, 2]) {
-        next.add(cellKey(day, slotIdx));
-      }
+      FOXO_SLOTS.forEach((slot, slotIdx) => {
+        const k = cellKey(day, slotIdx);
+        if (!slot.soiree && !isConflit(k)) next.add(k);
+      });
     }
     setSelected(next);
   }
 
   function presetAvecSoirees() {
-    // Lun–Ven × tous les créneaux (5)
+    // Lun–Ven × tous les créneaux de la grille
     const next = new Set<string>();
     for (let day = 0; day < 5; day++) {
       for (let slotIdx = 0; slotIdx < FOXO_SLOTS.length; slotIdx++) {
-        next.add(cellKey(day, slotIdx));
+        const k = cellKey(day, slotIdx);
+        if (!isConflit(k)) next.add(k);
       }
     }
     setSelected(next);
@@ -152,6 +201,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     setLoadingExisting(true);
     const endDate = new Date(weekStart);
     endDate.setDate(weekStart.getDate() + 6);
+    const cle = `${techId}|${isoDate(weekStart)}`;
     const url = `/api/admin/planning/dispos?technicien_id=${encodeURIComponent(techId)}&start_date=${isoDate(weekStart)}&end_date=${isoDate(endDate)}`;
     fetch(url, { signal: ac.signal, cache: 'no-store' })
       .then((r) => r.json())
@@ -160,6 +210,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         type LoadedSlot = { id: string; date: string; heure_debut: string; heure_fin: string; statut: SlotStatut; google_event_id: string | null };
         const map = new Map<string, ExistingSlot>();
         const sel = new Set<string>();
+        const hors: HorsGrilleSlot[] = [];
         for (const s of (data.slots ?? []) as LoadedSlot[]) {
           // Calcule dayIdx (0=lun) depuis la date du slot relative au lundi
           const slotDate = new Date(s.date + 'T00:00:00');
@@ -167,13 +218,19 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           const dayIdx = dow === 0 ? 6 : dow - 1;
           const hd = s.heure_debut.slice(0, 5);
           const slotIdx = FOXO_SLOTS.findIndex((fs) => fs.heure_debut === hd);
-          if (slotIdx < 0) continue; // slot non-FoxO (legacy 1h, etc.)
+          if (slotIdx < 0) {
+            // Heure hors grille (ancienne grille, legacy 1h…) : pas de case,
+            // listé dans l'encart « hors grille » sous la grille.
+            hors.push({ id: s.id, date: s.date, heure_debut: s.heure_debut, heure_fin: s.heure_fin, statut: s.statut });
+            continue;
+          }
           const k = cellKey(dayIdx, slotIdx);
           map.set(k, { id: s.id, statut: s.statut, google_event_id: s.google_event_id });
           sel.add(k);
         }
         setExistingByKey(map);
         setSelected(sel);
+        setHorsGrille({ cle, rows: hors });
       })
       .catch((e: unknown) => {
         if (e instanceof Error && e.name === 'AbortError') return;
@@ -195,7 +252,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     const toDeleteIds: string[] = [];
     const skippedReserved: string[] = [];
     for (const k of selected) {
-      if (!existingByKey.has(k)) toAddKeys.push(k);
+      if (!existingByKey.has(k) && !isConflit(k)) toAddKeys.push(k);
     }
     for (const [k, slot] of existingByKey.entries()) {
       if (!selected.has(k)) {
@@ -203,6 +260,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         else skippedReserved.push(k);
       }
     }
+    if (deletingId) return;
     if (toAddKeys.length === 0 && toDeleteIds.length === 0) {
       setMsg({ kind: 'err', msg: 'Aucun changement à enregistrer.' });
       return;
@@ -211,6 +269,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     setMsg(null);
     try {
       let createdCount = 0;
+      let skippedOverlap = 0;
       let calendarSynced = 0;
       let calendarFailed = 0;
       let deletedCount = 0;
@@ -245,6 +304,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           return;
         }
         createdCount = data.created ?? 0;
+        skippedOverlap = data.skipped_overlap ?? 0;
         calendarSynced = data.calendar_synced ?? 0;
         calendarFailed = data.calendar_failed ?? 0;
       }
@@ -275,7 +335,10 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       if (calendarDeleted > 0) parts.push(`${calendarDeleted} retiré(s) du Calendar`);
       if (calendarFailed > 0) parts.push(`${calendarFailed} sync calendar échouée(s)`);
       if (skippedReserved.length > 0) parts.push(`${skippedReserved.length} non supprimé(s) (réservés)`);
-      setMsg({ kind: 'ok', msg: `${techLabel} · ${parts.join(' · ')}` });
+      if (skippedOverlap > 0) parts.push(`${skippedOverlap} non créé(s) : chevauchement avec un créneau existant`);
+      // Rien de fait à cause de chevauchements = à signaler comme un échec.
+      const rienFait = createdCount === 0 && deletedCount === 0 && skippedOverlap > 0;
+      setMsg({ kind: rienFait ? 'err' : 'ok', msg: `${techLabel} · ${parts.join(' · ')}` });
       setRefreshTick((t) => t + 1);
       router.refresh();
     } catch (e) {
@@ -285,16 +348,59 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     }
   }
 
+  // Supprime un créneau libre hors grille (et son évènement Google) sans
+  // recharger la grille : les cases cochées non enregistrées sont conservées.
+  async function supprimerHorsGrille(slot: HorsGrilleSlot) {
+    if (deletingId || saving) return;
+    const libelle = `${fmtJour(slot.date)} · ${fmtHeure(slot.heure_debut)} – ${fmtHeure(slot.heure_fin)}`;
+    if (!window.confirm(`Supprimer le créneau libre du ${libelle} ?`)) return;
+    setDeletingId(slot.id);
+    setMsg(null);
+    try {
+      const r = await fetch('/api/admin/planning/dispos/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slot_ids: [slot.id] }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        setMsg({ kind: 'err', msg: data.error ?? 'Échec de la suppression.' });
+        return;
+      }
+      if ((data.deleted ?? 0) === 0 && (data.skipped_reserved ?? 0) > 0) {
+        // Réservé entre-temps : on le garde, affiché comme non supprimable.
+        setHorsGrille((h) => ({
+          ...h,
+          rows: h.rows.map((x) => (x.id === slot.id ? { ...x, statut: 'reserve' as const } : x)),
+        }));
+        setMsg({ kind: 'err', msg: 'Ce créneau n’est plus libre : il n’a pas été supprimé.' });
+        return;
+      }
+      setHorsGrille((h) => ({ ...h, rows: h.rows.filter((x) => x.id !== slot.id) }));
+      setMsg((data.calendar_failed ?? 0) > 0
+        ? { kind: 'err', msg: `Créneau du ${libelle} supprimé, mais son évènement « Disponible » n’a pas pu être retiré de Google Calendar : supprimez-le à la main dans l’agenda.` }
+        : { kind: 'ok', msg: `Créneau du ${libelle} supprimé.` });
+      // Le bouton cliqué disparaît avec sa ligne : on rend le focus au
+      // message de résultat plutôt que de le laisser tomber sur <body>.
+      setTimeout(() => msgRef.current?.focus(), 0);
+      router.refresh();
+    } catch (e) {
+      setMsg({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const cellCount = selected.size;
   const totalForWeeks = useMemo(() => cellCount * weeks, [cellCount, weeks]);
   const diffCount = useMemo(() => {
     let adds = 0, removes = 0;
-    for (const k of selected) if (!existingByKey.has(k)) adds++;
+    for (const k of selected) if (!existingByKey.has(k) && !conflits.has(k)) adds++;
     for (const [k, slot] of existingByKey.entries()) {
       if (!selected.has(k) && slot.statut === 'libre') removes++;
     }
     return { adds, removes };
-  }, [selected, existingByKey]);
+  }, [selected, existingByKey, conflits]);
 
   return (
     <div onMouseUp={endDrag} onMouseLeave={endDrag} className="select-none">
@@ -396,12 +502,58 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
               slotIdx={slotIdx}
               selected={selected}
               existingByKey={existingByKey}
+              conflits={conflits}
               onMouseDownCell={onMouseDown}
               onMouseEnterCell={onMouseEnter}
             />
           ))}
         </div>
       </div>
+
+      {/* Créneaux hors grille (ancienne grille, heure déplacée) */}
+      {horsGrilleRows.length > 0 && (
+        <div className="mt-3 bg-amber-light border border-sand-border rounded-xl px-3 py-2.5">
+          <p className="text-sm font-bold text-ink">
+            {horsGrilleRows.length === 1
+              ? '1 créneau hors grille cette semaine'
+              : `${horsGrilleRows.length} créneaux hors grille cette semaine`}
+          </p>
+          <p className="text-sm text-ink-mid mt-0.5">
+            Leur heure ne correspond à aucune ligne de la grille. Un créneau libre reste proposé tant qu’il n’est pas supprimé, et les cases qu’il chevauche (<AlertTriangle size={12} className="inline" aria-label="avertissement" />) ne peuvent pas être cochées.
+          </p>
+          <ul className="mt-2 divide-y divide-sand-border">
+            {horsGrilleRows.map((s) => {
+              const plage = `${fmtHeure(s.heure_debut)} – ${fmtHeure(s.heure_fin)}`;
+              return (
+                <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-sm text-ink">
+                  <span className="font-semibold">{fmtJour(s.date)}</span>
+                  <span className="font-mono tabular-nums">{plage}</span>
+                  {s.statut === 'libre' ? (
+                    <>
+                      <span className="text-ink-mid">Libre</span>
+                      <button
+                        type="button"
+                        onClick={() => supprimerHorsGrille(s)}
+                        disabled={deletingId !== null || saving}
+                        aria-label={`Supprimer le créneau libre du ${fmtJour(s.date)}, ${plage}`}
+                        className="ml-auto inline-flex items-center gap-1.5 text-sm font-bold bg-terra-light text-terra-deep border border-terra-mid px-3 py-1.5 rounded-md hover:brightness-95 disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                        {deletingId === s.id ? 'Suppression…' : 'Supprimer'}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="ml-auto inline-flex items-center gap-1.5 text-ink-mid">
+                      {s.statut === 'reserve' ? <Lock size={14} /> : <Construction size={14} />}
+                      {s.statut === 'reserve' ? 'Réservé — non supprimable ici' : 'Bloqué — non supprimable ici'}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* Footer actions */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -433,7 +585,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           <button
             type="button"
             onClick={save}
-            disabled={saving || !techId || (diffCount.adds === 0 && diffCount.removes === 0)}
+            disabled={saving || deletingId !== null || !techId || (diffCount.adds === 0 && diffCount.removes === 0)}
             className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             {saving ? 'Enregistrement…' : (<><Save size={14} /> Enregistrer les dispos</>)}
@@ -442,8 +594,8 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       </div>
 
       {msg && (
-        <div className={
-          'mt-2 px-3 py-2 text-[12px] rounded-md border font-semibold ' +
+        <div ref={msgRef} tabIndex={-1} role="status" className={
+          'mt-2 px-3 py-2 text-[12px] rounded-md border font-semibold outline-none focus-visible:ring-2 focus-visible:ring-navy-mid ' +
           (msg.kind === 'ok'
             ? 'bg-ok-light border-ok-mid text-ok'
             : 'bg-terra-light border-terra-mid text-terra')
@@ -465,12 +617,13 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 }
 
 function Row({
-  slot, slotIdx, selected, existingByKey, onMouseDownCell, onMouseEnterCell,
+  slot, slotIdx, selected, existingByKey, conflits, onMouseDownCell, onMouseEnterCell,
 }: {
   slot: typeof FOXO_SLOTS[number];
   slotIdx: number;
   selected: Set<string>;
   existingByKey: Map<string, ExistingSlot>;
+  conflits: Map<string, string>;
   onMouseDownCell: (day: number, slotIdx: number) => void;
   onMouseEnterCell: (day: number, slotIdx: number) => void;
 }) {
@@ -488,17 +641,23 @@ function Row({
         const k = cellKey(day, slotIdx);
         const on = selected.has(k);
         const existing = existingByKey.get(k);
-        const locked = Boolean(existing && existing.statut !== 'libre');
+        // Case vide dont la plage chevauche un créneau hors grille : non
+        // cochable tant que ce créneau existe (plage affichée en infobulle).
+        const conflit = !existing ? conflits.get(k) : undefined;
+        const locked = Boolean(existing && existing.statut !== 'libre') || Boolean(conflit);
         // Visual states :
+        // - conflit (chevauche un créneau hors grille) : ambre clair, non-cliquable
         // - locked (réservé/bloqué) : navy strié, non-cliquable
         // - on + existing libre : navy plein (créneau enregistré)
         // - on + nouveau : navy clair avec bordure (sera créé)
         // - off + existing : ambré (sera supprimé après save)
         // - off + nouveau : blanc
         const willDelete = !on && existing && existing.statut === 'libre';
-        const willCreate = on && !existing;
+        const willCreate = on && !existing && !conflit;
         let cellClass = 'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors flex items-center justify-center text-[10px] font-bold ';
-        if (locked) {
+        if (conflit) {
+          cellClass += 'bg-amber-light cursor-not-allowed text-amber-deep ';
+        } else if (locked) {
           cellClass += 'bg-navy/40 cursor-not-allowed text-white/70 ';
         } else if (on && existing) {
           cellClass += 'bg-navy hover:brightness-110 cursor-pointer text-white/90 ';
@@ -522,7 +681,9 @@ function Row({
             onMouseEnter={() => { if (!locked) onMouseEnterCell(day, slotIdx); }}
             className={cellClass}
             title={
-              locked
+              conflit
+                ? `Chevauche le créneau hors grille ${conflit} — non disponible tant qu’il existe`
+                : locked
                 ? (existing?.statut === 'reserve' ? 'Réservé — ne peut pas être supprimé d\'ici' : 'Bloqué')
                 : willDelete
                   ? 'Sera supprimé au prochain enregistrement'
@@ -531,9 +692,11 @@ function Row({
                     : on ? 'Enregistré' : 'Vide'
             }
           >
-            {locked
-              ? (existing?.statut === 'reserve' ? <Lock size={12} /> : <Construction size={12} />)
-              : willDelete ? <X size={12} /> : null}
+            {conflit
+              ? <AlertTriangle size={12} />
+              : locked
+                ? (existing?.statut === 'reserve' ? <Lock size={12} /> : <Construction size={12} />)
+                : willDelete ? <X size={12} /> : null}
           </button>
         );
       })}

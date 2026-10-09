@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
-import { FOXO_SLOTS, FOXO_DAYS, dayNameToIdx } from '@/lib/foxo-slots';
+import { FOXO_SLOTS, FOXO_DAYS, dayNameToIdx, slotRangesOverlap } from '@/lib/foxo-slots';
 import { createSlotEvent, deleteCalendarEvent } from '@/lib/google-calendar';
 import { brusselsWallTimeToIso } from '@/lib/format';
 
@@ -146,31 +146,55 @@ export async function POST(request: Request) {
       created: 0,
       skipped: skippedPast,
       skipped_existing: 0,
+      skipped_overlap: 0,
       message: 'Tous les créneaux générés sont passés — rien à insérer.',
     });
   }
 
-  // Dédup applicative (UNIQUE absente sur tech+date+heure)
+  // Dédup applicative + anti-chevauchement. Pour chaque candidat, on regarde
+  // les lignes déjà en base du même technicien ce jour-là, quel que soit leur
+  // statut :
+  //  - même heure de début → déjà existant (skipped_existing) ;
+  //  - autre heure mais plages qui se chevauchent → refusé (skipped_overlap).
+  //    Cas visé : une ligne d'une ancienne grille (17:00–18:30) ou déplacée à
+  //    une heure libre, à côté de laquelle on créerait 17:30–19:00 — deux
+  //    créneaux proposables pour la même heure et le même technicien.
   const dates = Array.from(new Set(rows.map((r) => r.date)));
   const { data: existing, error: existingErr } = await supabase
     .from('creneaux_disponibles')
-    .select('technicien_id, date, heure_debut')
+    .select('technicien_id, date, heure_debut, heure_fin')
     .eq('technicien_id', techId)
     .in('date', dates);
   if (existingErr) {
     console.error('[dispos/bulk] dedup query error', existingErr);
     return NextResponse.json({ ok: false, error: existingErr.message }, { status: 500 });
   }
-  const existingKeys = new Set(
-    ((existing ?? []) as { technicien_id: string; date: string; heure_debut: string }[])
-      .map((e) => `${e.date}|${e.heure_debut.slice(0, 5)}`),
-  );
-  const filtered = rows.filter((r) => !existingKeys.has(`${r.date}|${r.heure_debut}`));
-  const skippedExisting = rows.length - filtered.length;
+  type ExistingRow = { technicien_id: string; date: string; heure_debut: string; heure_fin: string | null };
+  const existingByDate = new Map<string, ExistingRow[]>();
+  for (const e of (existing ?? []) as ExistingRow[]) {
+    const list = existingByDate.get(e.date);
+    if (list) list.push(e);
+    else existingByDate.set(e.date, [e]);
+  }
+  const filtered: Row[] = [];
+  let skippedExisting = 0;
+  let skippedOverlap = 0;
+  for (const r of rows) {
+    const sameDay = existingByDate.get(r.date) ?? [];
+    if (sameDay.some((e) => e.heure_debut.slice(0, 5) === r.heure_debut)) {
+      skippedExisting++;
+      continue;
+    }
+    if (sameDay.some((e) => slotRangesOverlap(r.heure_debut, r.heure_fin, e.heure_debut, e.heure_fin ?? ''))) {
+      skippedOverlap++;
+      continue;
+    }
+    filtered.push(r);
+  }
 
   if (filtered.length === 0) {
     return NextResponse.json({
-      ok: true, created: 0, skipped: skippedPast, skipped_existing: skippedExisting,
+      ok: true, created: 0, skipped: skippedPast, skipped_existing: skippedExisting, skipped_overlap: skippedOverlap,
     });
   }
 
@@ -234,6 +258,7 @@ export async function POST(request: Request) {
     created: filtered.length,
     skipped: skippedPast,
     skipped_existing: skippedExisting,
+    skipped_overlap: skippedOverlap,
     ids: insertedRows.map((r) => r.id),
     calendar_synced: calendarSynced,
     calendar_failed: calendarFailed,
