@@ -1662,7 +1662,10 @@ export function InterventionsClient({
                         {relTime(iv.updated_at, nowMs)}
                       </td>
                       <td className="px-2 py-2.5 text-right whitespace-nowrap">
-                        {iv.statut === 'nouvelle' && (
+                        {/* Masqué si un créneau est déjà posé (dossier créé depuis un
+                            mail avec créneau) : re-planifier ici réserverait un second
+                            créneau — la replanification se fait dans le tiroir. */}
+                        {iv.statut === 'nouvelle' && !iv.creneau_debut && (
                           <button
                             type="button"
                             onClick={(e) => {

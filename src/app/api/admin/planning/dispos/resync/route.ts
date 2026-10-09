@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
 import { createSlotEvent } from '@/lib/google-calendar';
+import { brusselsWallTimeToIso } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -66,8 +67,8 @@ export async function POST() {
   const failures: { slot_id: string; error: string }[] = [];
   for (const slot of rows) {
     try {
-      const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
-      const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
+      const startIso = brusselsWallTimeToIso(slot.date, slot.heure_debut);
+      const endIso = brusselsWallTimeToIso(slot.date, slot.heure_fin);
       const techName = slot.technicien_id ? techNameById.get(slot.technicien_id) : undefined;
       const techHex = slot.technicien_id ? techHexById.get(slot.technicien_id) ?? null : null;
       const r = await createSlotEvent({ startIso, endIso, technicienName: techName, technicienHex: techHex });

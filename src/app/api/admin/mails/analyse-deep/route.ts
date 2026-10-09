@@ -352,8 +352,20 @@ export async function POST(request: Request) {
     }
     // Le builder GmailMessage tronque body_text à 4000 chars/message ;
     // pour 30 messages c'est ~120k chars max → safe pour Claude.
+    //
+    // Chaque message est précédé de son objet et de ses destinataires : les
+    // syndics indiquent très souvent l'immeuble, l'adresse et leur référence
+    // dans l'OBJET, et les occupants sont fréquemment en copie (Cc).
     const threadText = messages
-      .map((m) => `--- Message du ${m.date} de ${m.from} ---\n${m.body_text}`)
+      .map((m) => {
+        const head = [
+          `--- Message du ${m.date} de ${m.from} ---`,
+          m.subject ? `Objet : ${m.subject}` : null,
+          m.to ? `À : ${m.to}` : null,
+          m.cc ? `Cc : ${m.cc}` : null,
+        ].filter(Boolean).join('\n');
+        return `${head}\n\n${m.body_text}`;
+      })
       .join('\n\n');
 
     // 3. Contexte FoxO (parallèle)
@@ -420,6 +432,10 @@ export async function POST(request: Request) {
       `   "autre" : tout le reste`,
       `  Émets AUSSI le champ "type" (taxonomie historique ci-dessus) : les deux coexistent.`,
       ``,
+      `- Chaque message commence par ses lignes "Objet :", "À :" et "Cc :" : elles font partie du mail.`,
+      `  Exploite l'objet pour acp_nom, adresse_extraite et numero_dossier_mentionne, et la ligne "Cc :"`,
+      `  pour les emails des occupants.`,
+      ``,
       `- acp_nom : nom de l'ACP / copropriété tel que mentionné dans le mail ou clairement déductible`,
       `  (ex. "ACP MANNEKEN", "Résidence Les Tilleuls"). null si absent. INTERDICTION d'inventer.`,
       `- syndic_nom : nom du cabinet syndic expéditeur ou mentionné. Si le domaine email de`,
@@ -443,8 +459,11 @@ export async function POST(request: Request) {
       ``,
       `  Cherche dans :`,
       `   - Le corps du mail (priorité)`,
+      `   - L'objet du mail (ligne "Objet :") — les syndics y indiquent souvent l'immeuble et son adresse`,
       `   - La signature (souvent en bas)`,
       `   - Les forwards inclus dans le thread`,
+      `  Si l'adresse figure sous une autre forme (ex. "Avenue Henri Jaspar, 113-114 à 1060 Bruxelles"),`,
+      `  remets-la au format strict ci-dessus ("Avenue Henri Jaspar 113-114, 1060 Bruxelles") sans rien inventer.`,
       ``,
       `  Si aucune adresse postale complète n'est trouvée, mets null.`,
       `  Ne JAMAIS deviner ni reformater un nom de résidence en adresse.`,
@@ -598,6 +617,7 @@ export async function POST(request: Request) {
               .from('interventions')
               .select('id, ref, adresse, lat, lng')
               .eq('ref', classification.numero_dossier_mentionne)
+              .is('deleted_at', null)
               .maybeSingle();
             if (data) {
               const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
@@ -609,21 +629,50 @@ export async function POST(request: Request) {
             }
           }
           if (!matchedInterventionId && classification.adresse_extraite) {
-            const firstWords = classification.adresse_extraite.split(/\s+/).slice(0, 3).join(' ');
-            const { data } = await admin
-              .from('interventions')
-              .select('id, ref, adresse, lat, lng')
-              .ilike('adresse', `%${firstWords}%`)
-              .neq('statut', 'cloturee')
-              .limit(1)
-              .maybeSingle();
-            if (data) {
-              const d = data as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null };
-              matchedInterventionId = d.id;
-              matchedInfo = { id: d.id, ref: d.ref, adresse: d.adresse };
-              matchedExisted = true;
-              matchedLat = d.lat;
-              matchedLng = d.lng;
+            // Rapprochement par adresse : on compare « rue + numéro » (segment
+            // avant la première virgule), jamais les 3 premiers mots — « Rue de
+            // la … » rattachait le mail à n'importe quel dossier ouvert d'une
+            // rue homonyme. Sans numéro dans le segment : aucun rapprochement
+            // automatique (l'admin peut lier à la main). Dossiers en corbeille
+            // exclus.
+            const streetPart = (classification.adresse_extraite.split(',')[0] ?? '').trim();
+            if (streetPart.length >= 6 && /\d/.test(streetPart)) {
+              const pattern = `%${streetPart.replace(/[%_]/g, ' ')}%`;
+              const { data: rows } = await admin
+                .from('interventions')
+                .select('id, ref, adresse, lat, lng')
+                .ilike('adresse', pattern)
+                .neq('statut', 'cloturee')
+                .is('deleted_at', null)
+                .order('created_at', { ascending: false })
+                .limit(20);
+              // Filtre fin côté code (ILIKE seul accepterait « Waterloo 125 »
+              // pour « Waterloo 12 ») : le numéro ne doit pas être suivi d'un
+              // autre chiffre, et si les deux adresses portent un code postal
+              // (4 chiffres isolés) il doit être identique.
+              const needle = streetPart.toLowerCase();
+              const cpOf = (a: string): string | null => {
+                const m = a.match(/(?:^|[^\d])(\d{4})(?!\d)(?=[^\d]*$)/);
+                return m ? m[1] : null;
+              };
+              const cpMail = cpOf(classification.adresse_extraite.slice(streetPart.length));
+              const hit = ((rows ?? []) as { id: string; ref: string | null; adresse: string | null; lat: number | null; lng: number | null }[])
+                .find((r) => {
+                  const adr = (r.adresse ?? '').toLowerCase();
+                  const at = adr.indexOf(needle);
+                  if (at === -1) return false;
+                  if (/\d/.test(adr.charAt(at + needle.length))) return false;
+                  const cpDossier = cpOf(adr.slice(at + needle.length));
+                  if (cpMail && cpDossier && cpMail !== cpDossier) return false;
+                  return true;
+                });
+              if (hit) {
+                matchedInterventionId = hit.id;
+                matchedInfo = { id: hit.id, ref: hit.ref, adresse: hit.adresse };
+                matchedExisted = true;
+                matchedLat = hit.lat;
+                matchedLng = hit.lng;
+              }
             }
           }
 
@@ -723,6 +772,19 @@ export async function POST(request: Request) {
       // draft-reply / calendar/events. L'UPSERT préserve naturellement
       // les colonnes absentes du payload (Supabase upsert sémantique :
       // INSERT … ON CONFLICT DO UPDATE SET <colonnes du payload>).
+      // Ré-analyse d'un fil déjà rattaché à un dossier : on CONSERVE toujours
+      // le lien existant et le créneau retenu, quel que soit le résultat du
+      // rapprochement automatique — sinon le formulaire de création
+      // réapparaîtrait (doublon possible) ou un second créneau serait réservé.
+      // Pour changer de dossier : « Délier » dans la fiche, puis relancer.
+      const { data: prevRow } = await admin
+        .from('mails_analyses')
+        .select('dossier_match_id, creneau_propose_id')
+        .eq('thread_id', threadId)
+        .maybeSingle();
+      const prev = prevRow as { dossier_match_id: string | null; creneau_propose_id: string | null } | null;
+      const keepPrevLink = Boolean(prev?.dossier_match_id);
+
       const upsertPayload: Record<string, unknown> = {
         thread_id: threadId,
         sujet: messages[0]?.subject ?? null,
@@ -747,8 +809,10 @@ export async function POST(request: Request) {
         occupant_telephone: analyse.occupant_telephone,
         occupant_email: analyse.occupant_email,
         occupants_extraits: normalizeOccupants(analyse.occupants),
-        dossier_match_id: dossierMatchId,
-        creneau_propose_id: creneauPropose?.creneau_id ?? null,
+        dossier_match_id: keepPrevLink ? prev?.dossier_match_id ?? null : dossierMatchId,
+        creneau_propose_id: keepPrevLink
+          ? prev?.creneau_propose_id ?? null
+          : creneauPropose?.creneau_id ?? null,
         fenetre_etendue: fenetreEtendue,
         analyse_raw: analyse,
         errors: errors.length > 0 ? errors : null,

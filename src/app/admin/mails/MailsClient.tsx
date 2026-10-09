@@ -14,6 +14,7 @@ import { MailAnalyseBadges } from './MailAnalyseBadges';
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { MailAnalyseActions } from './MailAnalyseActions';
 import { FicheDossierCard } from './FicheDossierCard';
+import { MAIL_PREFILL_KEY, MAIL_PREFILL_PROMPTED_KEY } from '@/lib/mails/mail-prefill';
 import {
   MAIL_CLASSIFICATIONS,
   CLASSIFICATION_LABEL_FR,
@@ -122,6 +123,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // Ancre de la zone MailAnalyseActions (ConfirmCreateForm) — cible du
   // bouton « Créer l'intervention » de la FicheDossierCard.
   const analyseActionsRef = useRef<HTMLDivElement>(null);
+  // Surlignage bref de cette zone quand on y amène l'admin : le formulaire
+  // est AU-DESSUS de la fiche, un simple défilement passait inaperçu
+  // (« j'ai cliqué et rien ne s'est passé »).
+  const [flashActions, setFlashActions] = useState(false);
+  function scrollToActions() {
+    analyseActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setFlashActions(true);
+    window.setTimeout(() => setFlashActions(false), 1800);
+  }
+  // Compteur PAR FIL, incrémenté après chaque (ré)analyse réussie de ce fil :
+  // remonte son formulaire de création pour qu'il reparte des nouvelles
+  // valeurs extraites — sans toucher au formulaire d'un autre mail ouvert
+  // entre-temps.
+  const [analyseTicks, setAnalyseTicks] = useState<Record<string, number>>({});
 
   // Sélection multiple
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -612,23 +627,31 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
   // « Analyser avec IA » (ergo2) — déplacé de MailAnalyseActions vers la
   // barre du volet. Même appel POST analyse-deep ; MailAnalyseActions n'est
   // plus rendu que quand une analyse existe (actions 1-clic inchangées).
-  const [analyseLoading, setAnalyseLoading] = useState(false);
+  // Fil en cours d'analyse (une seule analyse à la fois). L'indicateur de
+  // progression n'est affiché que sur CE fil ; les boutons d'analyse restent
+  // désactivés partout tant qu'elle tourne.
+  const [analysingThread, setAnalysingThread] = useState<string | null>(null);
+  const analyseLoading = analysingThread !== null;
   async function runAnalyseDeep() {
     if (!detail) return;
-    setAnalyseLoading(true);
+    // Figé dès le départ : `detail` peut changer si l'admin ouvre un autre
+    // mail pendant les 5-15 s de l'analyse.
+    const tid = detail.thread_id;
+    setAnalysingThread(tid);
     setFeedback(null);
     try {
       const r = await fetch('/api/admin/mails/analyse-deep', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ thread_id: detail.thread_id }),
+        body: JSON.stringify({ thread_id: tid }),
       });
       const data = await r.json();
       if (!data.success) {
         setFeedback({ kind: 'err', msg: data.error ?? 'Échec analyse.' });
         return;
       }
-      await refreshAnalyse(detail.thread_id);
+      await refreshAnalyse(tid);
+      setAnalyseTicks((m) => ({ ...m, [tid]: (m[tid] ?? 0) + 1 }));
       const errs: string[] = data.analyse?.errors ?? [];
       setFeedback(errs.length > 0
         ? { kind: 'err', msg: `Analyse OK avec ${errs.length} avertissement(s)` }
@@ -636,7 +659,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     } catch (e) {
       setFeedback({ kind: 'err', msg: e instanceof Error ? e.message : 'Erreur réseau.' });
     } finally {
-      setAnalyseLoading(false);
+      setAnalysingThread(null);
     }
   }
 
@@ -699,25 +722,30 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
     // best-effort vers le payload attendu par CreateInterventionModal ;
     // tous les champs y sont optionnels.
     const deep = analyses.get(detail.thread_id) ?? null;
-    if (deep) {
-      const occ = deep.occupants_extraits?.[0] ?? null;
-      const nomClient = occ ? `${occ.prenom} ${occ.nom}`.trim() : '';
-      try {
-        sessionStorage.setItem('foxo_mail_prefill', JSON.stringify({
-          source_mail_id: detail.id,
-          analysis: {
-            nom_client: nomClient || null,
-            adresse: deep.adresse_extraite,
-            type_probleme: null,
-            telephone: deep.occupant_telephone ?? (occ?.telephone || null),
-            email: deep.occupant_email ?? (occ?.email || null),
-            date_souhaitee: null,
-            priorite: deep.urgence == null ? null : (deep.urgence ? 'urgente' : 'normale'),
-            resume: deep.resume,
-          },
-        }));
-      } catch { /* noop */ }
-    }
+    const occ = deep?.occupants_extraits?.[0] ?? null;
+    const nomClient = occ ? `${occ.prenom} ${occ.nom}`.trim() : '';
+    try {
+      // Toujours posé, même sans analyse (objet du mail en description) :
+      // c'est ce pré-remplissage qui fait ouvrir « Proposer un créneau » à
+      // l'arrivée sur le planning.
+      sessionStorage.setItem(MAIL_PREFILL_KEY, JSON.stringify({
+        source_mail_id: detail.id,
+        // Horodatage : au-delà de 15 min le pré-remplissage est ignoré
+        // (cf. readFreshMailPrefillRaw) — pas de fuite vers une autre création.
+        created_at: Date.now(),
+        analysis: {
+          nom_client: nomClient || null,
+          adresse: deep?.adresse_extraite ?? null,
+          type_probleme: null,
+          telephone: deep?.occupant_telephone ?? (occ?.telephone || null),
+          email: deep?.occupant_email ?? (occ?.email || null),
+          date_souhaitee: null,
+          priorite: deep?.urgence == null ? null : (deep.urgence ? 'urgente' : 'normale'),
+          resume: deep?.resume ?? detail.subject ?? null,
+        },
+      }));
+      sessionStorage.removeItem(MAIL_PREFILL_PROMPTED_KEY);
+    } catch { /* noop */ }
     router.push('/admin/planning');
   }
 
@@ -1269,7 +1297,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
                 >
                   <Sparkles size={14} />
-                  {analyseLoading ? 'Analyse en cours (5-15s)…' : 'Analyser avec IA'}
+                  {analysingThread === detail.thread_id ? 'Analyse en cours (5-15s)…' : 'Analyser avec IA'}
                 </button>
               )}
               <button
@@ -1293,9 +1321,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   disabled={bulkLoading}
                   gmailUrl={`https://mail.google.com/mail/u/0/#inbox/${detail.id}`}
                   onCreateIntervention={createIntervention}
+                  onReanalyse={
+                    detailAnalyse && !detailAnalyse.dossier_match_id && !analyseLoading
+                      ? runAnalyseDeep
+                      : undefined
+                  }
                   onAction={(a) => applyBulkActionForOne(detail.id, a)}
                   onRequestPermanentDelete={() => setConfirmDelete({ ids: [detail.id] })}
                 />
+              )}
+              {detail && detailAnalyse && analysingThread === detail.thread_id && (
+                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-mid">
+                  <RefreshCw size={13} className="animate-spin" aria-hidden />
+                  Nouvelle analyse en cours (5-15 s)…
+                </span>
               )}
             </div>
 
@@ -1318,8 +1357,18 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 n'est rendu que quand une analyse existe. Le détail vit dans
                 FicheDossierCard (P3 U2). */}
             {detail && detailAnalyse && (
-              <div ref={analyseActionsRef}>
+              <div
+                ref={analyseActionsRef}
+                style={{
+                  outline: flashActions ? '2px solid var(--color-amber-foxo)' : '2px solid transparent',
+                  outlineOffset: '-2px',
+                  transition: 'outline-color .25s ease',
+                }}
+              >
+                {/* key : l'état interne (formulaire de création, toasts) ne doit
+                    JAMAIS survivre à un changement de mail ni à une ré-analyse. */}
                 <MailAnalyseActions
+                  key={`${detail.thread_id}:${analyseTicks[detail.thread_id] ?? 0}`}
                   threadId={detail.thread_id}
                   analyse={detailAnalyse}
                   onAnalyseRefresh={refreshAnalyse}
@@ -1381,9 +1430,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 reste le bouton « Analyser avec IA » plus haut). */}
             {detail && analyses.get(detail.thread_id) && (
               <FicheDossierCard
+                key={detail.thread_id}
                 analyse={analyses.get(detail.thread_id)!}
-                onScrollToActions={() =>
-                  analyseActionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                onScrollToActions={scrollToActions}
                 onReply={() => setReplyOpen(true)}
                 onAnalyseRefresh={refreshAnalyse}
               />
@@ -1944,7 +1993,7 @@ function FilterMenu({
 // menu « Filtres ».
 function DetailMoreMenu({
   inTrash, unread, important, disabled, gmailUrl,
-  onCreateIntervention, onAction, onRequestPermanentDelete,
+  onCreateIntervention, onReanalyse, onAction, onRequestPermanentDelete,
 }: {
   inTrash: boolean;
   unread: boolean;
@@ -1952,6 +2001,9 @@ function DetailMoreMenu({
   disabled: boolean;
   gmailUrl: string;
   onCreateIntervention: () => void;
+  // Fourni uniquement quand une ré-analyse est possible (mail déjà analysé,
+  // aucun dossier lié) — l'entrée de menu est masquée sinon.
+  onReanalyse?: () => void;
   onAction: (a: BulkAction) => void;
   onRequestPermanentDelete: () => void;
 }) {
@@ -1984,6 +2036,12 @@ function DetailMoreMenu({
                 <ClipboardList size={14} aria-hidden />
                 Créer une intervention
               </button>
+              {onReanalyse && (
+                <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onReanalyse)} className={itemClass + 'text-ink'}>
+                  <Sparkles size={14} aria-hidden />
+                  Relancer l&apos;analyse IA
+                </button>
+              )}
               <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('archive'))} className={itemClass + 'text-ink'}>
                 <Archive size={14} aria-hidden />
                 Archiver

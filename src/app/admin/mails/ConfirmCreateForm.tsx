@@ -6,21 +6,23 @@
 //   - Vérifier/corriger l'adresse extraite (souvent vide ou imprécise)
 //   - Choisir le type d'intervention (5 valeurs DB)
 //   - Vérifier les contacts occupant
-//   - Choisir le créneau (primary proposé OU lier à un dossier existant
-//     via autocomplete)
+//   - Choisir le créneau : proposition recalculée EN DIRECT à l'ouverture du
+//     formulaire (recommandé + alternative), ou « sans créneau » (dossier à
+//     planifier ensuite), ou lier à un dossier existant via autocomplete
 //
 // Submit → POST /api/admin/mails/confirm-and-create. Side-effects
 // (création Drive + INSERT intervention + réservation créneau + upload PJ)
 // déférés ici, pas dans analyse-deep (read-only).
 //
-// ⚠ Limitation actuelle : seul le créneau primary est affiché en radio.
-// Le créneau alternative n'est pas persisté en DB (mails_analyses ne
-// stocke pas alternative_id). Si l'admin veut un autre créneau : lien
-// vers /admin/planning pour choisir manuellement (à câbler ultérieurement
-// avec un picker inline si besoin).
+// Le créneau n'est plus figé au moment de l'analyse : il est recalculé ici
+// via proposeSlotForIntervention (même moteur que le planning). Un mail
+// analysé avant la création des disponibilités, ou dont le créneau proposé a
+// été pris entre-temps, reste donc traitable sans relancer l'analyse.
 
-import { useEffect, useRef, useState } from 'react';
-import { Loader2, Search, Plus } from 'lucide-react';
+import { useEffect, useRef, useState, useTransition } from 'react';
+import { Loader2, Search, Plus, RefreshCw } from 'lucide-react';
+import { proposeSlotForIntervention } from '@/app/admin/planning/actions';
+import type { ProposeCreneauResult } from '@/lib/mails/propose-creneau';
 import type {
   MailAnalyse,
   ConfirmCreateOccupant,
@@ -73,6 +75,9 @@ interface Props {
 
 type SubmitState = 'idle' | 'submitting';
 
+// Un créneau proposé = entrée non-null du résultat de proposeCreneau.
+type CreneauOption = NonNullable<ProposeCreneauResult['primary']>;
+
 export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
   const [adresse, setAdresse] = useState(analyse.adresse_extraite ?? '');
   const [typeInterv, setTypeInterv] = useState<string>('Autre');
@@ -81,7 +86,14 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
     if (src && src.length > 0) return src.map(fromExtrait);
     return [emptyConfirmCreateOccupant()];
   });
-  const [creneauChoice, setCreneauChoice] = useState<'primary' | 'existing' | 'other'>('primary');
+  // Créneau retenu : id d'un créneau proposé, ou null = « sans créneau ».
+  const [selectedCreneauId, setSelectedCreneauId] = useState<string | null>(null);
+  // Vrai dès que l'admin a choisi lui-même une option : un rafraîchissement
+  // ne remplace alors plus son choix (sauf si le créneau choisi a disparu).
+  const [creneauTouched, setCreneauTouched] = useState(false);
+  const [proposal, setProposal] = useState<ProposeCreneauResult | null>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
+  const [proposing, startProposing] = useTransition();
 
   function fromExtrait(o: OccupantExtrait): ConfirmCreateOccupant {
     return {
@@ -117,8 +129,42 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const primary = analyse.creneau;
-  const adresseInvalid = creneauChoice !== 'existing' && adresse.trim().length === 0;
+  const creneauOptions: CreneauOption[] = proposal
+    ? [proposal.primary, proposal.alternative].filter((c): c is CreneauOption => c !== null)
+    : [];
+  const adresseInvalid = !linkedDossier && adresse.trim().length === 0;
+  const hasContactableOccupant = occupants.some((o) => o.email.trim() || o.telephone.trim());
+
+  // Recalcule les créneaux libres (lecture seule côté serveur). L'adresse
+  // courante du formulaire sert au regroupement géographique des tournées.
+  // Aucun setState synchrone ici : tous les états sont posés après l'await.
+  function loadProposal() {
+    startProposing(async () => {
+      try {
+        const r = await proposeSlotForIntervention({
+          adresse: adresse.trim() || null,
+          urgence: Boolean(analyse.urgence),
+        });
+        setProposalError(null);
+        setProposal(r);
+        const ids = [r.primary?.creneau_id, r.alternative?.creneau_id].filter(Boolean);
+        setSelectedCreneauId((cur) => {
+          if (creneauTouched && (cur === null || ids.includes(cur))) return cur;
+          return r.primary?.creneau_id ?? null;
+        });
+      } catch (e) {
+        setProposal({ primary: null, alternative: null, fenetre_etendue: false });
+        setSelectedCreneauId(null);
+        setProposalError(e instanceof Error ? e.message : 'Recherche de créneaux impossible.');
+      }
+    });
+  }
+
+  // Première proposition à l'ouverture du formulaire. Une seule fois.
+  useEffect(() => {
+    loadProposal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Debounce autocomplete (300ms — politique Nominatim-like).
   // Pas de clear synchrone via setState dans l'effect : on dérive la
@@ -154,33 +200,24 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
     setLinkedDossier(r);
     setSearchOpen(false);
     setSearchQuery(r.ref ? `${r.ref} — ${r.adresse ?? ''}`.trim() : (r.adresse ?? ''));
-    setCreneauChoice('existing');
   }
 
   function clearLinkedDossier() {
     setLinkedDossier(null);
     setSearchQuery('');
-    setCreneauChoice('primary');
+  }
+
+  function chooseCreneau(id: string | null) {
+    clearLinkedDossier();
+    setCreneauTouched(true);
+    setSelectedCreneauId(id);
   }
 
   async function handleSubmit() {
     setError(null);
 
-    if (creneauChoice !== 'existing' && adresseInvalid) {
+    if (adresseInvalid) {
       setError('Adresse requise (ou lie à un dossier existant).');
-      return;
-    }
-    if (!analyse.creneau_propose_id || !primary) {
-      setError('Aucun créneau disponible — relance l\'analyse approfondie.');
-      return;
-    }
-    if (creneauChoice === 'existing' && !linkedDossier) {
-      setError('Sélectionne un dossier dans la liste de recherche.');
-      return;
-    }
-    if (creneauChoice === 'other') {
-      // Pas encore implémenté : on guide l'admin vers /admin/planning.
-      setError('Pour un autre créneau, ouvre /admin/planning, sélectionne le créneau, puis reviens ici. Fonctionnalité picker inline à venir.');
       return;
     }
 
@@ -196,10 +233,10 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
         // depuis le premier occupant de la liste.
         occupant_telephone: occupants[0]?.telephone ?? '',
         occupant_email: occupants[0]?.email ?? '',
-        // creneau_propose_id est l'ID DB du créneau primary stocké par
-        // analyse-deep ; analyse.creneau ne contient que la metadata
-        // formatée (date / heure / tech_nom).
-        creneau_id: analyse.creneau_propose_id,
+        // Créneau choisi dans la proposition en direct, ou null = dossier
+        // créé « sans créneau ». Jamais de créneau en mode « lier à un
+        // dossier existant » : le planning du dossier n'est pas modifié.
+        creneau_id: linkedDossier ? null : selectedCreneauId,
         dossier_match_id: linkedDossier?.id ?? null,
       };
       const r = await fetch('/api/admin/mails/confirm-and-create', {
@@ -235,13 +272,13 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
       </div>
 
       {/* Adresse */}
-      <Field label="Adresse" required={creneauChoice !== 'existing'}>
+      <Field label="Adresse" required={!linkedDossier}>
         <input
           type="text"
           value={adresse}
           onChange={(e) => setAdresse(e.target.value)}
           placeholder="Avenue Henri Liebrecht 66, 1090 Bruxelles"
-          disabled={submitState === 'submitting' || creneauChoice === 'existing'}
+          disabled={submitState === 'submitting' || !!linkedDossier}
           className="w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50"
           style={{
             background: 'var(--color-cream)',
@@ -427,38 +464,56 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
         </button>
       </Field>
 
-      {/* Créneau (radios) */}
-      <Field label="Créneau">
+      {/* Créneau — proposition recalculée en direct */}
+      <Field label="Créneau" as="div">
         <div className="space-y-1.5">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="creneau-choice"
-              value="primary"
-              checked={creneauChoice === 'primary'}
-              onChange={() => { clearLinkedDossier(); setCreneauChoice('primary'); }}
-              disabled={!primary || submitState === 'submitting'}
-              className="mt-0.5"
-            />
-            <span className="text-[12px]" style={{ color: 'var(--color-ink)' }}>
-              {primary
-                ? `${formatDateFr(primary.date)} ${primary.heure_debut} → ${primary.heure_fin} — ${primary.technicien_nom}`
-                : 'Aucun créneau proposé'}
-            </span>
-          </label>
+          {proposing && !proposal && (
+            <div className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--color-ink-muted)' }}>
+              <Loader2 size={12} className="animate-spin" aria-hidden />
+              Recherche des créneaux libres…
+            </div>
+          )}
 
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name="creneau-choice"
-              value="other"
-              checked={creneauChoice === 'other'}
-              onChange={() => { clearLinkedDossier(); setCreneauChoice('other'); }}
-              disabled={submitState === 'submitting'}
-              className="mt-0.5"
-            />
-            <span className="text-[12px]" style={{ color: 'var(--color-ink)' }}>
-              Autre créneau —{' '}
+          {creneauOptions.map((c, idx) => (
+            <label key={c.creneau_id} className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="creneau-choice"
+                value={c.creneau_id}
+                checked={!linkedDossier && selectedCreneauId === c.creneau_id}
+                onChange={() => chooseCreneau(c.creneau_id)}
+                disabled={proposing || submitState === 'submitting'}
+                className="mt-0.5"
+              />
+              <span className="text-[12px]" style={{ color: 'var(--color-ink)' }}>
+                {`${formatDateFr(c.date)} ${c.heure_debut} → ${c.heure_fin} — ${c.technicien_nom}`}
+                <span style={{ color: 'var(--color-ink-muted)' }}>
+                  {idx === 0 ? ' · recommandé' : ' · alternative'}
+                </span>
+              </span>
+            </label>
+          ))}
+
+          {proposal && (
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="creneau-choice"
+                value="none"
+                checked={!linkedDossier && selectedCreneauId === null}
+                onChange={() => chooseCreneau(null)}
+                disabled={proposing || submitState === 'submitting'}
+                className="mt-0.5"
+              />
+              <span className="text-[12px]" style={{ color: 'var(--color-ink)' }}>
+                Sans créneau — créer le dossier et planifier ensuite
+              </span>
+            </label>
+          )}
+
+          {proposal && creneauOptions.length === 0 && !proposalError && (
+            <div className="text-[11px]" style={{ color: 'var(--color-amber-foxo)' }}>
+              Aucun créneau libre à proposer. Ajoute des disponibilités dans{' '}
               <a
                 href="/admin/planning"
                 target="_blank"
@@ -466,10 +521,40 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
                 className="underline"
                 style={{ color: 'var(--color-navy)' }}
               >
-                ouvrir /admin/planning
+                le planning
               </a>
-            </span>
-          </label>
+              {' '}(au plus tôt dans 3 jours, dès demain pour une urgence), puis clique sur
+              « Actualiser » — ou crée le dossier sans créneau.
+            </div>
+          )}
+          {proposal?.fenetre_etendue && creneauOptions.length > 0 && (
+            <div className="text-[11px]" style={{ color: 'var(--color-amber-foxo)' }}>
+              Rien de libre dans le délai habituel — créneaux proposés plus tard.
+            </div>
+          )}
+          {proposalError && (
+            <div className="text-[11px]" style={{ color: 'var(--color-terra)' }}>
+              {proposalError}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={loadProposal}
+            disabled={proposing || submitState === 'submitting'}
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold hover:underline disabled:opacity-50"
+            style={{ color: 'var(--color-navy)' }}
+          >
+            <RefreshCw size={11} className={proposing ? 'animate-spin' : undefined} aria-hidden />
+            {proposing ? 'Recherche…' : 'Actualiser les créneaux'}
+          </button>
+
+          {!linkedDossier && selectedCreneauId !== null && hasContactableOccupant && (
+            <div className="text-[11px]" style={{ color: 'var(--color-ink-muted)' }}>
+              À la création, la demande de confirmation de présence est envoyée aux occupants
+              renseignés ci-dessus (email ou SMS selon le mode de contact choisi).
+            </div>
+          )}
         </div>
       </Field>
 
@@ -559,23 +644,40 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={submitState === 'submitting'}
+          // En mode création, désactivé pendant une recherche de créneaux :
+          // évite une création « sans créneau » par simple précipitation, et
+          // garantit que le créneau envoyé est bien celui affiché. Le mode
+          // « lier à un dossier » n'utilise aucun créneau : jamais bloqué.
+          disabled={submitState === 'submitting' || (proposing && !linkedDossier)}
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-[12px] font-bold disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
         >
           {submitState === 'submitting' && <Loader2 size={14} className="animate-spin" aria-hidden />}
           {submitState === 'submitting'
             ? 'Création en cours (5-10s)…'
-            : (linkedDossier ? 'Lier au dossier' : 'Valider et créer le dossier')}
+            : linkedDossier
+              ? 'Lier au dossier'
+              : selectedCreneauId !== null
+                ? 'Valider et créer le dossier'
+                : 'Créer le dossier sans créneau'}
         </button>
       </div>
     </div>
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+// `as="div"` pour un GROUPE de contrôles (radios + textes + bouton) : dans un
+// <label>, un clic sur n'importe quel texte du bloc activerait le premier
+// contrôle — ici, il changerait silencieusement le créneau choisi.
+function Field({ label, required, as = 'label', children }: {
+  label: string;
+  required?: boolean;
+  as?: 'label' | 'div';
+  children: React.ReactNode;
+}) {
+  const Wrapper = as;
   return (
-    <label className="block">
+    <Wrapper className="block">
       <span
         className="text-[10px] font-medium uppercase tracking-wider block mb-1"
         style={{ color: 'var(--color-ink-muted)' }}
@@ -584,7 +686,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {required && <span style={{ color: 'var(--color-terra)' }}> *</span>}
       </span>
       {children}
-    </label>
+    </Wrapper>
   );
 }
 

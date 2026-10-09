@@ -4,6 +4,7 @@ import { isAdminUser } from '@/lib/auth/server';
 import { assignTechnician, validateRapport, resendRapportToSyndic } from '@/app/admin/actions';
 import { notifyOccupantsForIntervention } from '@/lib/occupants/notify-occupants';
 import { createCalendarEvent } from '@/lib/google-calendar';
+import { brusselsWallTimeToIso } from '@/lib/format';
 import { createGmailDraft } from '@/lib/gmail';
 
 export const maxDuration = 60;
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
         // Même logique que la route manuelle soeur
         // (src/app/api/admin/interventions/[id]/schedule/route.ts) : pose le créneau
         // et passe en 'attente'. Aucun email, aucun événement agenda.
-        const creneauDebutIso = new Date(`${date}T${heure}:00`).toISOString();
+        const creneauDebutIso = brusselsWallTimeToIso(date, heure);
         const { error: schedErr } = await supabase
           .from('interventions')
           .update({ creneau_debut: creneauDebutIso, statut: 'attente', updated_at: new Date().toISOString() })

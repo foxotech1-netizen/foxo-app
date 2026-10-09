@@ -23,6 +23,7 @@ import type {
   Utilisateur,
 } from '@/lib/types/database';
 import { OccupantsEditor } from '../interventions/OccupantsEditor';
+import { MAIL_PREFILL_KEY, MAIL_PREFILL_PROMPTED_KEY, readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
 
 const TYPES: TypeIntervention[] = [
   'Fuite canalisation',
@@ -115,8 +116,9 @@ export function CreateInterventionModal({
   // (analyse Claude d'un email entrant). Ne tourne qu'une fois au mount.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    let raw: string | null = null;
-    try { raw = sessionStorage.getItem('foxo_mail_prefill'); } catch { /* noop */ }
+    // null si absent OU périmé (> 15 min) : un pré-remplissage abandonné ne
+    // doit pas ressortir dans une création sans rapport.
+    const raw = readFreshMailPrefillRaw();
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as {
@@ -170,7 +172,10 @@ export function CreateInterventionModal({
       if (a.resume) setDescription(a.resume);
 
       // Cleanup pour éviter le re-prefill au prochain modal
-      try { sessionStorage.removeItem('foxo_mail_prefill'); } catch { /* noop */ }
+      try {
+        sessionStorage.removeItem(MAIL_PREFILL_KEY);
+        sessionStorage.removeItem(MAIL_PREFILL_PROMPTED_KEY);
+      } catch { /* noop */ }
     } catch {
       /* noop */
     }

@@ -5,6 +5,7 @@ import { Sparkles, Zap, CalendarClock, AlertTriangle, Check } from 'lucide-react
 import { ModalShell, ModalFooter } from './CreateInterventionModal';
 import { proposeSlotForIntervention } from './actions';
 import type { ProposeCreneauResult } from '@/lib/mails/propose-creneau';
+import { readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
 
 // Une suggestion = un créneau non-null retourné par proposeCreneau.
 // Dérivée du résultat pour ne pas dépendre d'un export supplémentaire.
@@ -21,6 +22,22 @@ interface ProposeSlotModalProps {
   }) => void;
 }
 
+// Pré-remplissage posé par /admin/mails (« ⋯ → Créer une intervention »).
+// Lecture seule : c'est CreateInterventionModal qui le consomme et l'efface.
+function readMailPrefill(): { adresse: string; urgente: boolean } | null {
+  try {
+    const raw = readFreshMailPrefillRaw();
+    if (!raw) return null;
+    const a = (JSON.parse(raw) as {
+      analysis?: { adresse?: string | null; priorite?: string | null };
+    }).analysis;
+    if (!a) return null;
+    return { adresse: a.adresse ?? '', urgente: a.priorite === 'urgente' };
+  } catch {
+    return null;
+  }
+}
+
 function fmtDate(iso: string): string {
   return new Date(`${iso}T12:00:00`).toLocaleDateString('fr-BE', {
     weekday: 'long',
@@ -31,8 +48,9 @@ function fmtDate(iso: string): string {
 }
 
 export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
-  const [adresse, setAdresse] = useState('');
-  const [urgence, setUrgence] = useState(false);
+  const [mailPrefill] = useState(readMailPrefill);
+  const [adresse, setAdresse] = useState(mailPrefill?.adresse ?? '');
+  const [urgence, setUrgence] = useState(mailPrefill?.urgente ?? false);
   const [result, setResult] = useState<ProposeCreneauResult | null>(null);
   const [searched, setSearched] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -57,6 +75,12 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
       onClose={onClose}
     >
       <div className="space-y-4">
+        {mailPrefill && (
+          <div className="bg-navy-pale border border-navy-light text-navy rounded-lg px-3 py-2 text-[12px] dark:text-white">
+            Création depuis un mail : clique sur « Proposer », puis choisis un créneau —
+            la fiche d&apos;intervention s&apos;ouvrira pré-remplie avec les informations du mail.
+          </div>
+        )}
         {/* Adresse */}
         <div>
           <label className="text-xs font-semibold text-ink-mid block mb-1.5">
@@ -103,7 +127,7 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
             {result?.fenetre_etendue && (
               <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[12px] inline-flex items-start gap-1.5 w-full">
                 <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                <span>Aucun créneau disponible dans les prochains jours — proposition au-delà de 10 jours.</span>
+                <span>Aucun créneau disponible dans le délai habituel — proposition plus tardive.</span>
               </div>
             )}
 

@@ -11,6 +11,7 @@ import { createCalendarEvent, createSlotEvent, deleteCalendarEvent } from '@/lib
 import { nextRefForYear } from '@/lib/intervention-ref';
 import { proposeCreneau, type ProposeCreneauResult } from '@/lib/mails/propose-creneau';
 import { geocodeAddress } from '@/lib/geo/geocode';
+import { brusselsWallTimeToIso } from '@/lib/format';
 import type {
   Acp,
   Organisation,
@@ -115,8 +116,8 @@ export async function generateCreneaux(
 
     for (const slot of data as Array<{ id: string; date: string; heure_debut: string; heure_fin: string }>) {
       try {
-        const startIso = new Date(`${slot.date}T${slot.heure_debut}:00`).toISOString();
-        const endIso = new Date(`${slot.date}T${slot.heure_fin}:00`).toISOString();
+        const startIso = brusselsWallTimeToIso(slot.date, slot.heure_debut);
+        const endIso = brusselsWallTimeToIso(slot.date, slot.heure_fin);
         const r = await createSlotEvent({ startIso, endIso, technicienName: techName });
         if (r.ok) {
           await supabase
@@ -303,7 +304,7 @@ export async function createInterventionFromSlot(
   if (!input.description?.trim()) return { ok: false, error: 'Description requise.' };
 
   // ISO datetime du créneau
-  const creneauIso = new Date(`${creneau.date}T${creneau.heure_debut}:00`).toISOString();
+  const creneauIso = brusselsWallTimeToIso(creneau.date, creneau.heure_debut);
   const ref = input.ref?.trim() || (await nextRefForYear());
 
   // Branche syndic vs particulier
@@ -464,7 +465,7 @@ export async function createInterventionFromSlot(
   try {
     const startIso = creneauIso;
     // Fin = créneau de heure_fin
-    const endIso = new Date(`${creneau.date}T${creneau.heure_fin}:00`).toISOString();
+    const endIso = brusselsWallTimeToIso(creneau.date, creneau.heure_fin);
     const summary = `FoxO ${ref} — ${input.type ?? 'Intervention'}`;
     const description = input.description?.trim().slice(0, 500) ?? '';
     let location = '';
@@ -566,7 +567,7 @@ export async function moveIntervention(input: {
   if (e2) return { ok: false, error: e2.message };
 
   // Met à jour l'intervention
-  const newIso = new Date(`${to.date}T${to.heure_debut}:00`).toISOString();
+  const newIso = brusselsWallTimeToIso(to.date, to.heure_debut);
   await supabase
     .from('interventions')
     .update({

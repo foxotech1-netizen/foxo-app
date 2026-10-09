@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isAdminUser } from "@/lib/auth/server";
+import { brusselsWallTimeToIso } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +13,9 @@ interface PatchBody {
 
 // PATCH /api/admin/interventions/[id]/schedule
 // Met à jour creneau_debut + statut → 'attente' (en attente de
-// confirmation occupants/client). Si creneau_id fourni, lie aussi
-// le creneau à l'intervention et le marque réservé.
+// confirmation occupants/client). Si creneau_id fourni, réserve ce créneau
+// pour l'intervention (uniquement s'il est libre) ; dans tous les cas, les
+// autres créneaux encore réservés pour ce dossier sont libérés.
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -43,8 +45,40 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: 'Heure invalide (HH:MM).' }, { status: 400 });
   }
 
-  const creneauDebutIso = new Date(`${date}T${heure}:00`).toISOString();
+  // Heure belge → instant UTC exact (heure d'été / d'hiver gérée).
+  const creneauDebutIso = brusselsWallTimeToIso(date, heure);
 
+  // 1. Créneau fourni : on le réserve D'ABORD, et seulement s'il est encore
+  //    libre (filtre statut='libre' = réservation atomique). S'il est déjà
+  //    réservé pour CE dossier, on continue ; pour un autre dossier → 409,
+  //    sans toucher à l'intervention.
+  let lockedNow = false;
+  if (creneauId) {
+    const { data: locked, error: cErr } = await supabase
+      .from('creneaux_disponibles')
+      .update({ intervention_id: id, statut: 'reserve' })
+      .eq('id', creneauId)
+      .eq('statut', 'libre')
+      .select('id');
+    if (cErr) return NextResponse.json({ ok: false, error: cErr.message }, { status: 500 });
+    lockedNow = Boolean(locked && locked.length > 0);
+    if (!lockedNow) {
+      const { data: cur } = await supabase
+        .from('creneaux_disponibles')
+        .select('statut, intervention_id')
+        .eq('id', creneauId)
+        .maybeSingle();
+      const dejaPourCeDossier = cur?.statut === 'reserve' && cur?.intervention_id === id;
+      if (!dejaPourCeDossier) {
+        return NextResponse.json(
+          { ok: false, error: 'Ce créneau n\'est plus libre — choisis-en un autre.' },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
+  // 2. Planifie l'intervention.
   const { error } = await supabase
     .from('interventions')
     .update({
@@ -53,18 +87,28 @@ export async function PATCH(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-
-  // Lie le créneau si fourni
-  if (creneauId) {
-    const { error: cErr } = await supabase
-      .from('creneaux_disponibles')
-      .update({ intervention_id: id, statut: 'reserve' })
-      .eq('id', creneauId);
-    if (cErr) {
-      console.warn('[schedule] creneau update failed:', cErr.message);
-      // On ne fail pas — l'intervention est déjà planifiée.
+  if (error) {
+    // Rend le créneau qu'on vient de prendre : pas de réservation sans dossier planifié.
+    if (creneauId && lockedNow) {
+      await supabase
+        .from('creneaux_disponibles')
+        .update({ statut: 'libre', intervention_id: null })
+        .eq('id', creneauId);
     }
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
+
+  // 3. Replanification : libère les AUTRES créneaux encore réservés pour ce
+  //    dossier (sinon l'ancien créneau restait bloqué indéfiniment).
+  {
+    let release = supabase
+      .from('creneaux_disponibles')
+      .update({ statut: 'libre', intervention_id: null })
+      .eq('intervention_id', id)
+      .eq('statut', 'reserve');
+    if (creneauId) release = release.neq('id', creneauId);
+    const { error: relErr } = await release;
+    if (relErr) console.warn('[schedule] libération ancien créneau échouée:', relErr.message);
   }
 
   return NextResponse.json({ ok: true, creneau_debut: creneauDebutIso });
