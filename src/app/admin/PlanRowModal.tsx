@@ -155,7 +155,7 @@ export function PlanRowModal({ intervention, onClose, onScheduled }: PlanRowModa
             {result?.fenetre_etendue && (
               <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[12px] inline-flex items-start gap-1.5 w-full">
                 <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
-                <span>Aucun créneau proche — proposition au-delà de 10 jours.</span>
+                <span>Aucun créneau dans le délai habituel — proposition plus tardive.</span>
               </div>
             )}
 

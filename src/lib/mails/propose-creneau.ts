@@ -234,9 +234,12 @@ export async function proposeCreneau(
   );
   let fenetreEtendue = false;
 
-  // Fallback : aucun créneau libre → étendre à today+10..today+20.
+  // Fallback : aucun créneau libre → étendre du lendemain de la fenêtre
+  // primaire jusqu'à today+20. (Avant : toujours today+10..today+20, ce qui
+  // laissait un trou J+4..J+9 pour une urgence — un créneau libre à J+5
+  // n'était jamais proposé.)
   if (scored.length === 0) {
-    const extendedStart = isoDatePlusDays(today, 10);
+    const extendedStart = isoDatePlusDays(today, primaryEndOffset + 1);
     const extendedEnd   = isoDatePlusDays(today, 20);
     scored = await findCreneauxInWindow(
       extendedStart,
