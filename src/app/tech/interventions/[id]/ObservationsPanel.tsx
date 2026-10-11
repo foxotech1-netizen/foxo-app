@@ -395,7 +395,6 @@ export function ObservationsPanel({
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               multiple
               onChange={(e) => setFormPhotos(Array.from(e.target.files ?? []))}
               className="w-full text-[13px] text-[var(--color-ink-mid)] file:mr-2 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-[var(--color-navy)] file:text-[var(--color-cream)] file:text-[13px] file:font-semibold file:cursor-pointer"
