@@ -14,16 +14,25 @@ import {
   createInterventionFromSlot,
   searchAcps,
   searchOrganisations,
+  type ActionResult,
   type SlotOccupant,
 } from './actions';
-import type {
-  Acp,
-  Organisation,
-  TypeIntervention,
-  Utilisateur,
+import {
+  TYPE_OCCUPANT_LABEL,
+  type Acp,
+  type Organisation,
+  type TypeIntervention,
+  type TypeOccupant,
+  type Utilisateur,
 } from '@/lib/types/database';
 import { OccupantsEditor } from '../interventions/OccupantsEditor';
-import { MAIL_PREFILL_KEY, MAIL_PREFILL_PROMPTED_KEY, readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
+import {
+  MAIL_PREFILL_KEY,
+  MAIL_PREFILL_PROMPTED_KEY,
+  readFreshMailPrefillRaw,
+  type MailPrefillOccupant,
+  type MailPrefillPayload,
+} from '@/lib/mails/mail-prefill';
 
 const TYPES: TypeIntervention[] = [
   'Fuite canalisation',
@@ -32,6 +41,64 @@ const TYPES: TypeIntervention[] = [
   'Surconsommation eau',
   'Autre',
 ];
+
+// ─── Pré-remplissage depuis un mail : helpers ────────────────────────────
+
+// Occupant extrait par l'analyse du mail → ligne de l'éditeur d'occupants.
+// Même correspondance que le formulaire de l'écran Mails (ConfirmCreateForm).
+function occupantFromMail(o: MailPrefillOccupant): SlotOccupant {
+  const t = String(o.type ?? '');
+  return {
+    appartement: String(o.appartement ?? ''),
+    etage: String(o.etage ?? ''),
+    prenom: String(o.prenom ?? ''),
+    nom: String(o.nom ?? ''),
+    email: String(o.email ?? ''),
+    telephone: String(o.telephone ?? ''),
+    conf: 'en_attente',
+    instructions: String(o.remarques ?? ''),
+    contact_preference: 'email',
+    type_occupant: t in TYPE_OCCUPANT_LABEL ? (t as TypeOccupant) : 'occupant',
+  };
+}
+
+function occupantHasContent(o: SlotOccupant): boolean {
+  return Boolean(o.appartement || o.nom || o.prenom || o.email || o.telephone);
+}
+
+// Comparaison de noms tolérante : accents, casse, espaces multiples.
+function normName(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Retrouve en base la fiche qui porte le nom extrait du mail.
+//  - Recherche sur le nom complet ; si rien, nouvel essai sans le premier mot
+//    (le mail écrit souvent un préfixe que la fiche en base n'a pas).
+//  - Sélection automatique uniquement sans ambiguïté : nom identique, ou
+//    résultat unique sur le nom complet. Sinon `match` reste null et les
+//    résultats sont renvoyés pour un choix en un clic.
+async function resolveByName<T extends { nom: string }>(
+  name: string,
+  search: (q: string) => Promise<ActionResult<T[]>>,
+): Promise<{ match: T | null; rows: T[]; query: string }> {
+  const pick = (rows: T[], wanted: string, allowSingle: boolean): T | null => {
+    const exact = rows.filter((r) => normName(r.nom) === normName(wanted));
+    if (exact.length === 1) return exact[0];
+    if (allowSingle && rows.length === 1) return rows[0];
+    return null;
+  };
+  const full = name.trim().replace(/\s+/g, ' ');
+  const r1 = await search(full);
+  const rows1 = r1.ok ? r1.data ?? [] : [];
+  if (rows1.length > 0) return { match: pick(rows1, full, true), rows: rows1, query: full };
+  const rest = full.split(/\s+/).slice(1).join(' ');
+  if (rest.length >= 3) {
+    const r2 = await search(rest);
+    const rows2 = r2.ok ? r2.data ?? [] : [];
+    if (rows2.length > 0) return { match: pick(rows2, rest, false), rows: rows2, query: rest };
+  }
+  return { match: null, rows: [], query: full };
+}
 
 export interface SlotInfo {
   id: string;
@@ -121,46 +188,70 @@ export function CreateInterventionModal({
     const raw = readFreshMailPrefillRaw();
     if (!raw) return;
     try {
-      const data = JSON.parse(raw) as {
-        analysis?: {
-          nom_client?: string | null;
-          adresse?: string | null;
-          type_probleme?: string | null;
-          telephone?: string | null;
-          email?: string | null;
-          date_souhaitee?: string | null;
-          priorite?: 'urgente' | 'normale' | null;
-          resume?: string | null;
-        };
-      };
+      const data = JSON.parse(raw) as MailPrefillPayload;
       const a = data?.analysis;
       if (!a) return;
 
-      // Bascule en mode particulier (les mails entrants sont rarement
-      // d'un syndic enregistré)
-      setDemandeurType('particulier');
+      const acpNom = (a.acp_nom ?? '').trim();
+      const syndicNom = (a.syndic_nom ?? '').trim();
+      const extraits = Array.isArray(a.occupants) ? a.occupants : [];
 
-      if (a.nom_client) {
-        const parts = a.nom_client.trim().split(/\s+/);
-        if (parts.length >= 2) {
-          setPPrenom(parts[0]);
-          setPNom(parts.slice(1).join(' '));
-        } else {
-          setPNom(a.nom_client);
+      if (acpNom || syndicNom) {
+        // L'analyse a identifié une copropriété et/ou un syndic : mode
+        // syndic, tous les occupants extraits reportés dans la liste.
+        setDemandeurType('syndic');
+        const fromMail = extraits.map(occupantFromMail).filter(occupantHasContent);
+        if (fromMail.length > 0) setOccupants(fromMail);
+
+        // ACP et syndic : retrouvés en base par leur nom. Sélection
+        // automatique seulement sans ambiguïté ; sinon le champ de recherche
+        // est pré-rempli et les résultats affichés (choix en un clic).
+        if (acpNom) {
+          resolveByName(acpNom, searchAcps)
+            .then((r) => {
+              if (r.match) { setSelectedAcp(r.match); setAcpQuery(r.match.nom); }
+              else { setAcpQuery(r.query); setAcpResults(r.rows); }
+            })
+            .catch(() => setAcpQuery(acpNom));
         }
-      }
-      if (a.email) setPEmail(a.email);
-      if (a.telephone) setPTel(a.telephone);
-      if (a.adresse) {
-        // Heuristique légère : "Rue X 12, 1000 Bruxelles" → rue + cp + ville
-        const m = a.adresse.match(/^(.+?),?\s*(\d{4})\s+(.+?)$/);
-        if (m) {
-          setPRue(m[1].trim());
-          setPCp(m[2].trim());
-          setPVille(m[3].trim());
-        } else {
-          setPRue(a.adresse);
+        if (syndicNom) {
+          resolveByName(syndicNom, (q) => searchOrganisations(q))
+            .then((r) => {
+              if (r.match) { setSelectedOrg(r.match); setOrgQuery(r.match.nom); }
+              else { setOrgQuery(r.query); setOrgResults(r.rows); }
+            })
+            .catch(() => setOrgQuery(syndicNom));
         }
+      } else {
+        // Ni copropriété ni syndic identifiés : mode particulier. Le premier
+        // occupant extrait devient le mandant ; les suivants vont dans la
+        // liste des autres unités.
+        setDemandeurType('particulier');
+
+        if (a.nom_client) {
+          const parts = a.nom_client.trim().split(/\s+/);
+          if (parts.length >= 2) {
+            setPPrenom(parts[0]);
+            setPNom(parts.slice(1).join(' '));
+          } else {
+            setPNom(a.nom_client);
+          }
+        }
+        if (a.email) setPEmail(a.email);
+        if (a.telephone) setPTel(a.telephone);
+        if (a.adresse) {
+          // Heuristique légère : "Rue X 12, 1000 Bruxelles" → rue + cp + ville
+          const m = a.adresse.match(/^(.+?),?\s*(\d{4})\s+(.+?)$/);
+          if (m) {
+            setPRue(m[1].trim());
+            setPCp(m[2].trim());
+            setPVille(m[3].trim());
+          } else {
+            setPRue(a.adresse);
+          }
+        }
+        const autres = extraits.slice(1).map(occupantFromMail).filter(occupantHasContent);
+        if (autres.length > 0) setOccupants(autres);
       }
       if (a.type_probleme) {
         const allowed = ['Fuite canalisation', 'Fuite chauffage', 'Fuite infiltration', 'Surconsommation eau', 'Autre'] as const;
