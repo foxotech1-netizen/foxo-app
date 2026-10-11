@@ -13,6 +13,42 @@ export const MAIL_PREFILL_PROMPTED_KEY = 'foxo_mail_prefill_prompted';
 // ressortir dans une création sans rapport, plus tard dans le même onglet.
 const MAIL_PREFILL_TTL_MS = 15 * 60_000;
 
+// Forme du pré-remplissage, partagée entre l'écran Mails (écriture) et le
+// planning (lecture). Tous les champs d'analyse sont optionnels : un
+// pré-remplissage posé avant l'ajout d'un champ reste lisible.
+export interface MailPrefillOccupant {
+  prenom: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  appartement: string;
+  etage: string;
+  type: string;
+  remarques: string;
+}
+
+export interface MailPrefillAnalysis {
+  nom_client?: string | null;
+  adresse?: string | null;
+  type_probleme?: string | null;
+  telephone?: string | null;
+  email?: string | null;
+  date_souhaitee?: string | null;
+  priorite?: 'urgente' | 'normale' | null;
+  resume?: string | null;
+  // Extraits de l'analyse approfondie — reportés tels quels dans le
+  // formulaire de création du planning.
+  acp_nom?: string | null;
+  syndic_nom?: string | null;
+  occupants?: MailPrefillOccupant[] | null;
+}
+
+export interface MailPrefillPayload {
+  source_mail_id?: string;
+  created_at?: number;
+  analysis?: MailPrefillAnalysis;
+}
+
 /**
  * Renvoie le JSON brut du pré-remplissage s'il est encore valable, sinon null.
  * Un pré-remplissage périmé est effacé au passage. Les entrées sans

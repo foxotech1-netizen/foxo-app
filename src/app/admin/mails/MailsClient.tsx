@@ -14,7 +14,7 @@ import { MailAnalyseBadges } from './MailAnalyseBadges';
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { MailAnalyseActions } from './MailAnalyseActions';
 import { FicheDossierCard } from './FicheDossierCard';
-import { MAIL_PREFILL_KEY, MAIL_PREFILL_PROMPTED_KEY } from '@/lib/mails/mail-prefill';
+import { MAIL_PREFILL_KEY, MAIL_PREFILL_PROMPTED_KEY, type MailPrefillPayload } from '@/lib/mails/mail-prefill';
 import {
   MAIL_CLASSIFICATIONS,
   CLASSIFICATION_LABEL_FR,
@@ -728,7 +728,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
       // Toujours posé, même sans analyse (objet du mail en description) :
       // c'est ce pré-remplissage qui fait ouvrir « Proposer un créneau » à
       // l'arrivée sur le planning.
-      sessionStorage.setItem(MAIL_PREFILL_KEY, JSON.stringify({
+      const payload: MailPrefillPayload = {
         source_mail_id: detail.id,
         // Horodatage : au-delà de 15 min le pré-remplissage est ignoré
         // (cf. readFreshMailPrefillRaw) — pas de fuite vers une autre création.
@@ -736,14 +736,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         analysis: {
           nom_client: nomClient || null,
           adresse: deep?.adresse_extraite ?? null,
-          type_probleme: null,
+          type_probleme: deep?.type_intervention ?? null,
           telephone: deep?.occupant_telephone ?? (occ?.telephone || null),
           email: deep?.occupant_email ?? (occ?.email || null),
           date_souhaitee: null,
           priorite: deep?.urgence == null ? null : (deep.urgence ? 'urgente' : 'normale'),
           resume: deep?.resume ?? detail.subject ?? null,
+          // Fiche dossier complète : ACP, syndic et TOUS les occupants
+          // (pas seulement le premier) suivent jusqu'au formulaire.
+          acp_nom: deep?.acp_nom ?? null,
+          syndic_nom: deep?.syndic_nom ?? null,
+          occupants: deep?.occupants_extraits ?? [],
         },
-      }));
+      };
+      sessionStorage.setItem(MAIL_PREFILL_KEY, JSON.stringify(payload));
       sessionStorage.removeItem(MAIL_PREFILL_PROMPTED_KEY);
     } catch { /* noop */ }
     router.push('/admin/planning');
