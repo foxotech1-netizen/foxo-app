@@ -173,9 +173,20 @@ function message(e: unknown): string {
  * Numéro de dossier FoxO en tête de la référence Odoo :
  * « 2026-221 Rue du Noyer 296 » → « 2026-221 ». Même format que les
  * références d'intervention ({année}-{numéro}, cf. intervention-ref.ts).
+ * Sert de SECOURS : le numéro de facture fait foi (extraireDossierNumero).
  */
 export function extraireDossierRef(reference: string | null): string | null {
   const m = (reference ?? '').match(/^\s*(\d{4}-\d+)(?!\d)/);
+  return m ? m[1] : null;
+}
+
+/**
+ * Numéro de dossier FoxO porté par le NUMÉRO de la facture de vente : la
+ * facture reprend le numéro du dossier, précédé de lettres
+ * (« FV2026-001 » → « 2026-001 »). Règle métier confirmée par Foxo.
+ */
+export function extraireDossierNumero(numero: string | null): string | null {
+  const m = (numero ?? '').match(/^[^\d]*(\d{4}-\d+)$/);
   return m ? m[1] : null;
 }
 
@@ -204,7 +215,15 @@ export function mapperFacture(
   if (odooId == null || !type || !TYPES_FACTURE.includes(type)) return null;
 
   const sens = type.startsWith('out_') ? 'vente' : 'achat';
+  const estNoteCredit = type.endsWith('_refund');
+  const numero = texte(r.name);
   const reference = texte(r.ref);
+  // Lien avec le dossier (ventes uniquement) : le numéro de facture fait foi ;
+  // la référence sert de secours. Le numéro d'une note de crédit n'est pas un
+  // numéro de dossier : seule sa référence est lue.
+  const dossierRef = sens === 'vente'
+    ? (estNoteCredit ? null : extraireDossierNumero(numero)) ?? extraireDossierRef(reference)
+    : null;
   const reglements = lireReglements(r.invoice_payments_widget);
   const datesReglement = reglements
     .map((x) => x.date)
@@ -217,8 +236,8 @@ export function mapperFacture(
     odoo_id: odooId,
     odoo_societe_id: idDe(r.company_id),
     sens,
-    est_note_credit: type.endsWith('_refund'),
-    numero: texte(r.name),
+    est_note_credit: estNoteCredit,
+    numero,
     reference,
     communication: texte(r.payment_reference),
     tiers_nom: nomDe(r.partner_id) ?? (tiersId != null ? nomsTiers.get(tiersId) ?? null : null),
@@ -233,7 +252,7 @@ export function mapperFacture(
     etat_paiement: texte(r.payment_state) ?? 'inconnu',
     reglements,
     date_dernier_reglement: datesReglement.length > 0 ? datesReglement[datesReglement.length - 1] : null,
-    dossier_ref: sens === 'vente' ? extraireDossierRef(reference) : null,
+    dossier_ref: dossierRef,
     intervention_id: null,
     odoo_modifie_le: horodatage(r.write_date),
     synchronise_le: commun.synchroniseLe,
@@ -474,6 +493,22 @@ async function executer(admin: Admin, reglages: Reglages, commun: Commun): Promi
   const mouvements = lectureMouvements.lignes
     .map((r) => mapperMouvement(r, nomsTiers, commun))
     .filter((m): m is OdooMouvementRow => m !== null);
+
+  // Numéro et référence qui ne désignent pas le même dossier : on le signale.
+  const desaccords = factures
+    .filter((f) => {
+      if (f.sens !== 'vente' || f.est_note_credit) return false;
+      const parNumero = extraireDossierNumero(f.numero);
+      const parReference = extraireDossierRef(f.reference);
+      return parNumero !== null && parReference !== null && parNumero !== parReference;
+    })
+    .map((f) => f.numero ?? String(f.odoo_id));
+  if (desaccords.length > 0) {
+    const extrait = desaccords.slice(0, 10).join(', ');
+    avertissements.push(
+      `Numéro et référence en désaccord sur ${desaccords.length} facture(s) — le numéro fait foi : ${extrait}${desaccords.length > 10 ? '…' : ''}.`,
+    );
+  }
 
   const dossiersRelies = await relierDossiers(admin, factures);
 
