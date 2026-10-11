@@ -2014,15 +2014,37 @@ function DetailMoreMenu({
   onRequestPermanentDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  // Sens d'ouverture du menu. Le bouton « ⋯ » est près du bord gauche du
+  // volet, et le volet (overflow-y-auto) rogne tout ce qui dépasse : par
+  // défaut le menu s'ouvre donc vers la droite (aligné sur le bord gauche du
+  // bouton). Il ne s'ouvre vers la gauche que s'il ne tient pas à droite ET
+  // qu'il tient à gauche (volet étroit avec trois boutons dans la barre).
+  const [openLeftward, setOpenLeftward] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useCloseOnOutside(ref, open, () => setOpen(false));
   const itemClass = 'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover disabled:opacity-40 min-h-[44px] ';
   function run(fn: () => void) { setOpen(false); fn(); }
+  function toggle() {
+    if (!open) {
+      const MENU_WIDTH = 230; // = min-w-[230px] du menu
+      const MARGIN = 8;
+      const btn = ref.current?.getBoundingClientRect();
+      const pane = ref.current?.closest('main')?.getBoundingClientRect();
+      const paneLeft = pane?.left ?? 0;
+      const paneRight = pane?.right ?? window.innerWidth;
+      setOpenLeftward(
+        btn != null
+        && btn.left + MENU_WIDTH > paneRight - MARGIN
+        && btn.right - MENU_WIDTH >= paneLeft + MARGIN,
+      );
+    }
+    setOpen((v) => !v);
+  }
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Plus d'actions"
@@ -2034,7 +2056,10 @@ function DetailMoreMenu({
       {open && (
         <div
           role="menu"
-          className="absolute top-full right-0 mt-1 z-30 min-w-[230px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden"
+          className={
+            'absolute top-full mt-1 z-30 min-w-[230px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden '
+            + (openLeftward ? 'right-0' : 'left-0')
+          }
         >
           {!inTrash ? (
             <>
