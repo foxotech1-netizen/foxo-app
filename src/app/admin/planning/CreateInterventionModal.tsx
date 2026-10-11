@@ -68,7 +68,7 @@ function occupantHasContent(o: SlotOccupant): boolean {
 
 // Comparaison de noms tolérante : accents, casse, espaces multiples.
 function normName(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 // Retrouve en base la fiche qui porte le nom extrait du mail.
