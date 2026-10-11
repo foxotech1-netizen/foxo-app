@@ -254,7 +254,6 @@ export function PhotosPanel({
         ref={inputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         onChange={onFiles}
         disabled={uploading}

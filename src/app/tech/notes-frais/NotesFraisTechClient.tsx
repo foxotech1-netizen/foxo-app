@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Camera, Plus, Save, Send } from 'lucide-react';
 import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types/database';
 import { categorieComptable } from '@/lib/types/database';
+import { compressImage } from '@/lib/images/compress-image';
 
 // Catégories regroupées par classification comptable belge — l'ordre
 // d'affichage met les frais professionnels en premier (les plus courants).
@@ -106,9 +107,14 @@ export function NotesFraisTechClient({
     setUploading(true);
     setFeedback(null);
     try {
+      const compressed = await compressImage(file);
       const fd = new FormData();
-      fd.append('photo', file);
+      fd.append('photo', compressed);
       const r = await fetch('/api/tech/notes-frais/upload', { method: 'POST', body: fd });
+      if (r.status === 413) {
+        setFeedback({ kind: 'err', msg: 'Photo trop lourde, réessayez.' });
+        return;
+      }
       const data = await r.json();
       if (!data.ok) {
         setFeedback({ kind: 'err', msg: data.error ?? 'Erreur upload.' });
@@ -377,7 +383,6 @@ export function NotesFraisTechClient({
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
-                  capture="environment"
                   className="hidden"
                   disabled={uploading}
                   onChange={(e) => {

@@ -272,13 +272,19 @@ export function ObservationsPanel({
     setUploadingForObs(obsId);
     try {
       for (const file of files) {
+        const compressed = await compressImage(file);
         const fd = new FormData();
-        fd.append('file', file);
+        fd.append('file', compressed);
         fd.append('intervention_id', interventionId);
-        const uploadRes = await fetch('/api/tech/upload-photo', {
+        const uploadResp = await fetch('/api/tech/upload-photo', {
           method: 'POST',
           body: fd,
-        }).then((r) => r.json());
+        });
+        if (!uploadResp.ok) {
+          setError(uploadResp.status === 413 ? 'Photo trop lourde, réessayez.' : `Upload échoué (HTTP ${uploadResp.status}).`);
+          continue;
+        }
+        const uploadRes = await uploadResp.json();
         if (!uploadRes.ok || !uploadRes.id) {
           setError(uploadRes.error ?? 'Upload échoué.');
           continue;
@@ -395,7 +401,6 @@ export function ObservationsPanel({
             <input
               type="file"
               accept="image/*"
-              capture="environment"
               multiple
               onChange={(e) => setFormPhotos(Array.from(e.target.files ?? []))}
               className="w-full text-[13px] text-[var(--color-ink-mid)] file:mr-2 file:py-2 file:px-3 file:rounded-md file:border-0 file:bg-[var(--color-navy)] file:text-[var(--color-cream)] file:text-[13px] file:font-semibold file:cursor-pointer"
