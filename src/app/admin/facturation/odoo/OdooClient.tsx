@@ -110,8 +110,8 @@ function resumeFactures(liste: FactureOdoo[]): string {
   }
   const morceaux = [...parLabel.values()]
     .sort((a, b) => ORDRE_GROUPES.indexOf(a.groupe) - ORDRE_GROUPES.indexOf(b.groupe))
-    .map((l) => `${l.n} ${l.n > 1 ? l.plusieurs : l.un}`);
-  if (notesCredit > 0) morceaux.push(`${notesCredit} note${notesCredit > 1 ? 's' : ''} de crédit`);
+    .map((l) => `${l.n}\u00A0${l.n > 1 ? l.plusieurs : l.un}`);
+  if (notesCredit > 0) morceaux.push(`${notesCredit}\u00A0note${notesCredit > 1 ? 's' : ''} de crédit`);
   return morceaux.length > 0 ? morceaux.join(' · ') : 'Aucune pièce';
 }
 
