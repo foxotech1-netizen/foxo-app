@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/rappel-j1",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/odoo-sync",
+      "schedule": "0 2 * * *"
     }
   ]
 }
