@@ -75,6 +75,7 @@ import {
 import { searchOrganisations } from './planning/actions';
 import { FactureBlock } from './FactureBlock';
 import { DocumentsBlock } from './DocumentsBlock';
+import { OdooFactureBlock } from './OdooFactureBlock';
 import { PlanRowModal } from './PlanRowModal';
 import { AssistantChat, type QuickAction } from './assistant/AssistantChat';
 import { TypeBadge } from '@/components/TypeBadge';
@@ -2024,6 +2025,9 @@ export function InterventionsClient({
                       }}
                     />
                   </Block>
+
+                  {/* Facture Odoo reliée au dossier (miroir, lecture seule) */}
+                  <OdooFactureBlock interventionId={selected.id} />
 
                   {/* ① Édition rapide des infos */}
                   <Block id="section-infos" title={`Infos${selected.demandeur_type === 'particulier' ? ' particulier' : ''}`}>
