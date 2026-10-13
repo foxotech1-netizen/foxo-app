@@ -8,7 +8,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ExternalLink, Info, Lock, RefreshCw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Info, Lock, RefreshCw } from 'lucide-react';
 import { CLASSES_TON, etatFacture, type GroupeEtat, type TonEtat } from '@/lib/facturation/odoo-libelles';
 import { TZ_BRUSSELS } from '@/lib/format';
 import { lancerSynchronisationOdoo, reglerPassageNocturne } from './actions';
@@ -58,8 +58,14 @@ export interface PassageOdoo {
 
 type Vue = 'ventes' | 'achats' | 'recus' | 'envoyes';
 type Filtre = 'tous' | GroupeEtat | 'rapproche' | 'non_rapproche';
+/** Colonnes triables des listes de factures. */
+type CleTri = 'numero' | 'dossier' | 'tiers' | 'date';
+type Tri = { cle: CleTri; sens: 'asc' | 'desc' };
 
 const ORDRE_GROUPES: GroupeEtat[] = ['payee', 'a_regler', 'partielle', 'autre'];
+// Espace insécable, sans séquence d'échappement dans le source (certains outils
+// d'écriture la convertissent en caractère brut).
+const INSECABLE = String.fromCharCode(160);
 
 // ─── Mise en forme ──────────────────────────────────────────────────────────
 
@@ -110,8 +116,8 @@ function resumeFactures(liste: FactureOdoo[]): string {
   }
   const morceaux = [...parLabel.values()]
     .sort((a, b) => ORDRE_GROUPES.indexOf(a.groupe) - ORDRE_GROUPES.indexOf(b.groupe))
-    .map((l) => `${l.n}\u00A0${l.n > 1 ? l.plusieurs : l.un}`);
-  if (notesCredit > 0) morceaux.push(`${notesCredit}\u00A0note${notesCredit > 1 ? 's' : ''} de crédit`);
+    .map((l) => `${l.n}${INSECABLE}${l.n > 1 ? l.plusieurs : l.un}`);
+  if (notesCredit > 0) morceaux.push(`${notesCredit}${INSECABLE}note${notesCredit > 1 ? 's' : ''} de crédit`);
   return morceaux.length > 0 ? morceaux.join(' · ') : 'Aucune pièce';
 }
 
@@ -120,6 +126,51 @@ function Pastille({ ton, children }: { ton: TonEtat; children: React.ReactNode }
     <span className={'inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold whitespace-nowrap ' + CLASSES_TON[ton]}>
       {children}
     </span>
+  );
+}
+
+// ─── Tri des listes de factures ─────────────────────────────────────────────
+// Numéros et dossiers comparés « à la numérique » (FV2026-9 avant FV2026-10),
+// accents ignorés ; les valeurs vides vont en fin de liste quel que soit le sens.
+const collation = new Intl.Collator('fr', { numeric: true, sensitivity: 'base' });
+
+function valeurTri(f: FactureOdoo, cle: CleTri): string | null {
+  switch (cle) {
+    case 'numero': return f.numero;
+    case 'dossier': return f.sens === 'vente' ? (f.dossier_ref ?? adresseDe(f)) : f.reference;
+    case 'tiers': return f.tiers_nom;
+    case 'date': return f.date_facture;
+  }
+}
+
+function trierFactures(liste: FactureOdoo[], tri: Tri): FactureOdoo[] {
+  const signe = tri.sens === 'asc' ? 1 : -1;
+  return [...liste].sort((a, b) => {
+    const va = valeurTri(a, tri.cle);
+    const vb = valeurTri(b, tri.cle);
+    if (va === vb) return 0;
+    if (!va) return 1;
+    if (!vb) return -1;
+    return signe * collation.compare(va, vb);
+  });
+}
+
+function EnTeteTriable({ cle, tri, onTri, children }: {
+  cle: CleTri; tri: Tri; onTri: (cle: CleTri) => void; children: React.ReactNode;
+}) {
+  const actif = tri.cle === cle;
+  const Icone = !actif ? ArrowUpDown : tri.sens === 'asc' ? ArrowUp : ArrowDown;
+  return (
+    <th aria-sort={actif ? (tri.sens === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-1 py-0.5 font-bold">
+      <button
+        type="button"
+        onClick={() => onTri(cle)}
+        className={'inline-flex items-center gap-1 px-2 min-h-[36px] rounded-md uppercase tracking-wide whitespace-nowrap hover:bg-sand-hover ' + (actif ? 'text-navy' : '')}
+      >
+        {children}
+        <Icone size={13} aria-hidden className={actif ? undefined : 'opacity-50'} />
+      </button>
+    </th>
   );
 }
 
@@ -141,6 +192,7 @@ export function OdooClient({
   const [pending, startTransition] = useTransition();
   const [vue, setVue] = useState<Vue>('ventes');
   const [filtre, setFiltre] = useState<Filtre>('tous');
+  const [tri, setTri] = useState<Tri>({ cle: 'date', sens: 'desc' });
   const [recherche, setRecherche] = useState('');
   const [retour, setRetour] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
 
@@ -171,13 +223,14 @@ export function OdooClient({
 
   const facturesAffichees = useMemo(() => {
     if (!estFactures) return [];
-    return listeFactures.filter((f) => {
+    const filtrees = listeFactures.filter((f) => {
       if (filtre !== 'tous' && etatFacture(f.etat_paiement, f.sens).groupe !== filtre) return false;
       if (!q) return true;
       return [f.numero, f.reference, f.tiers_nom, f.dossier_ref, fmtMontant(f.montant_ttc), fmtJour(f.date_facture)]
         .some((v) => (v ?? '').toLowerCase().includes(q));
     });
-  }, [estFactures, listeFactures, filtre, q]);
+    return trierFactures(filtrees, tri);
+  }, [estFactures, listeFactures, filtre, q, tri]);
 
   const mouvementsAffiches = useMemo(() => {
     if (estFactures) return [];
@@ -220,6 +273,14 @@ export function OdooClient({
   function choisirVue(v: Vue) {
     setVue(v);
     setFiltre('tous');
+  }
+
+  // Même colonne : on inverse le sens. Nouvelle colonne : croissant, sauf la
+  // date (plus récentes d'abord).
+  function choisirTri(cle: CleTri) {
+    setTri((t) => (t.cle === cle
+      ? { cle, sens: t.sens === 'asc' ? 'desc' : 'asc' }
+      : { cle, sens: cle === 'date' ? 'desc' : 'asc' }));
   }
 
   function synchroniser() {
@@ -399,10 +460,10 @@ export function OdooClient({
                 <table className="w-full text-left min-w-[1040px]">
                   <thead>
                     <tr className="bg-sand-mid text-[11px] uppercase tracking-wide text-ink-mid">
-                      <th className="px-3 py-2.5 font-bold">N° Odoo</th>
-                      <th className="px-3 py-2.5 font-bold">{vue === 'ventes' ? 'Dossier' : 'Réf. fournisseur'}</th>
-                      <th className="px-3 py-2.5 font-bold">{vue === 'ventes' ? 'Client' : 'Fournisseur'}</th>
-                      <th className="px-3 py-2.5 font-bold">Date</th>
+                      <EnTeteTriable cle="numero" tri={tri} onTri={choisirTri}>N° Odoo</EnTeteTriable>
+                      <EnTeteTriable cle="dossier" tri={tri} onTri={choisirTri}>{vue === 'ventes' ? 'Dossier' : 'Réf. fournisseur'}</EnTeteTriable>
+                      <EnTeteTriable cle="tiers" tri={tri} onTri={choisirTri}>{vue === 'ventes' ? 'Client' : 'Fournisseur'}</EnTeteTriable>
+                      <EnTeteTriable cle="date" tri={tri} onTri={choisirTri}>Date</EnTeteTriable>
                       <th className="px-3 py-2.5 font-bold">Échéance</th>
                       <th className="px-3 py-2.5 font-bold text-right">Montant TTC</th>
                       <th className="px-3 py-2.5 font-bold">État</th>
