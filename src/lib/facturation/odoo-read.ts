@@ -2,7 +2,8 @@
 //
 // Sens inverse du connecteur de push (odoo.ts) : ici FoxO LIT Odoo et n'y
 // écrit jamais. Garanti par construction : seules les méthodes listées dans
-// METHODES_LECTURE peuvent partir sur le réseau.
+// METHODES_LECTURE peuvent partir sur le réseau (default_get ne fait que
+// calculer des valeurs par défaut en mémoire : rien n'est écrit).
 //
 // Indépendant de parametres.odoo_sync_enabled : cet interrupteur gouverne le
 // PUSH FoxO → Odoo et doit pouvoir rester éteint pendant qu'on lit.
@@ -22,7 +23,7 @@
 //
 // Aucune dépendance (fetch natif), aucun accès base : fichier autonome.
 
-const METHODES_LECTURE = ['search_read', 'search_count', 'fields_get'] as const;
+const METHODES_LECTURE = ['search_read', 'search_count', 'fields_get', 'default_get'] as const;
 export type OdooMethodeLecture = (typeof METHODES_LECTURE)[number];
 export type OdooProtocole = 'json2' | 'jsonrpc';
 
