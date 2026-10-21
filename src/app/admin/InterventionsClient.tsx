@@ -1466,11 +1466,8 @@ export function InterventionsClient({
           <button
             type="button"
             onClick={() => router.push('/admin')}
-            className={'fx-label px-3 py-1.5 rounded-lg font-medium border transition-colors ' +
-              (!techFilter
-                ? 'bg-[var(--color-navy)] text-[var(--color-cream)] border-[var(--color-navy)]'
-                : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
-            }
+            className="fx-chip"
+            aria-pressed={!techFilter}
           >
             Tous
           </button>
@@ -1481,11 +1478,8 @@ export function InterventionsClient({
                 key={t.id}
                 type="button"
                 onClick={() => router.push(active ? '/admin' : `/admin?tech=${t.id}`)}
-                className={'fx-label px-3 py-1.5 rounded-lg font-medium border transition-colors ' +
-                  (active
-                    ? 'bg-[var(--color-amber-foxo)] text-[var(--color-cream)] border-[var(--color-amber-foxo)]'
-                    : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-amber-foxo)]')
-                }
+                className="fx-chip"
+                aria-pressed={active}
               >
                 {[t.prenom, t.nom].filter(Boolean).join(' ') || t.email}
               </button>
@@ -1608,7 +1602,7 @@ export function InterventionsClient({
                           )}
                           {(iv.unread_messages_count ?? 0) > 0 && (
                             <span
-                              className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-cream)] bg-[var(--color-terra)] rounded-full px-1.5 py-0.5"
+                              className="fx-badge fx-badge-terra-solid inline-flex items-center gap-1"
                               title={`${iv.unread_messages_count} message(s) non lu(s) du partenaire`}
                             >
                               <MessageCircle size={12} />{iv.unread_messages_count}
@@ -1779,7 +1773,7 @@ export function InterventionsClient({
                         </span>
                       )}
                       {(iv.unread_messages_count ?? 0) > 0 && (
-                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-cream)] bg-[var(--color-terra)] rounded-full px-1.5 py-0.5">
+                        <span className="fx-badge fx-badge-terra-solid inline-flex items-center gap-1">
                           <MessageCircle size={12} />{iv.unread_messages_count}
                         </span>
                       )}

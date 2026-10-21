@@ -189,7 +189,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
           <button
             type="button"
             onClick={() => setManualOpen(true)}
-            className="fx-small mt-2 font-medium text-[var(--color-navy)] inline-flex items-center gap-1 hover:underline"
+            className="fx-small mt-2 min-h-[44px] inline-flex items-center font-medium text-[var(--color-navy)] inline-flex items-center gap-1 hover:underline"
           >
             <ChevronDown size={12} aria-hidden />
             Voir les suggestions

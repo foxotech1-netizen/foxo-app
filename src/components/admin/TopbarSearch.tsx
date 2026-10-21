@@ -139,7 +139,7 @@ export function TopbarSearch() {
             aria-label="Recherche globale"
             className="fx-body w-full pl-9 pr-16 py-2 bg-cream border border-sand-border rounded-lg text-ink outline-none focus:border-navy-mid placeholder:text-ink-muted placeholder:italic"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5" data-fx-overlay>
             {state === 'loading' && (
               <span
                 aria-hidden

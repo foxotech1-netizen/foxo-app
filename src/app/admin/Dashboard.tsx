@@ -351,7 +351,7 @@ export function DashboardTechs({
               </div>
               <Link
                 href={`/admin?tech=${tech.id}`}
-                className="fx-small text-navy underline hover:no-underline whitespace-nowrap"
+                className="fx-link whitespace-nowrap"
               >
                 Filtrer →
               </Link>
@@ -377,7 +377,7 @@ export function DashboardTechs({
                       key={iv.id}
                       type="button"
                       onClick={() => onOpenIntervention(iv.id)}
-                      className="fx-meta w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-lg px-2.5 py-1.5 flex items-center gap-2 transition-colors"
+                      className="fx-meta w-full min-h-[44px] text-left bg-sand hover:bg-navy-pale border border-sand-mid rounded-lg px-3 py-2 flex items-center gap-2 transition-colors"
                     >
                       <span className="fx-small fx-ref font-semibold text-navy">
                         {fmtTime(iv.creneau_debut)}
@@ -616,7 +616,7 @@ function RecentResponsesCard({
               <button
                 type="button"
                 onClick={() => onOpenIntervention(r.intervention_id)}
-                className="flex-1 min-w-0 text-left flex items-center gap-3"
+                className="flex-1 min-w-0 min-h-[44px] text-left flex items-center gap-3"
               >
                 <span className={'fx-badge font-semibold border rounded-full px-2 py-0.5 whitespace-nowrap inline-flex items-center gap-1 ' + tag.cls}>
                   {tag.Icon && <tag.Icon size={11} aria-hidden />}
@@ -917,7 +917,7 @@ function NewMailSection({
                 <button
                   type="button"
                   onClick={() => onOpenIntervention(iv.id)}
-                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                  className="flex-1 flex items-center gap-2 text-left min-w-0 min-h-[44px]"
                 >
                   <span className="fx-eyebrow inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink font-semibold flex-shrink-0">
                     <Mail size={11} aria-hidden /> Mail
@@ -953,7 +953,7 @@ function NewMailSection({
                     e.stopPropagation();
                     setOpenMenuId((cur) => cur === iv.id ? null : iv.id);
                   }}
-                  className="fx-body flex-shrink-0 px-1.5 py-0.5 text-ink-mid hover:text-navy leading-none"
+                  className="fx-body flex-shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-lg text-ink-mid hover:text-navy hover:bg-sand-hover leading-none"
                   aria-label="Actions"
                   aria-expanded={showMenu}
                 >

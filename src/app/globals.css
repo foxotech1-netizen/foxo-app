@@ -1747,17 +1747,25 @@ textarea::placeholder {
    AddressAutocomplete, RowMenu, ConfirmDialog…) rendus dans l'admin : leurs
    utilitaires hors échelle ou hors contraste sont rebasés ici, sans toucher
    à leur code ni à leur rendu ailleurs. */
-.fx-admin .text-\[9px\].uppercase, .fx-admin .text-\[10px\].uppercase { font-size: 10.5px; }
-.fx-admin .text-\[9px\]:not(.uppercase), .fx-admin .text-\[10px\]:not(.uppercase) { font-size: 12px; }
-.fx-admin .text-\[16px\] { font-size: 15px; }
-.fx-admin .text-\[17px\], .fx-admin .text-\[20px\], .fx-admin .text-\[22px\] { font-size: 18px; }
-.fx-admin .text-\[26px\], .fx-admin .text-\[28px\] { font-size: 24px; }
-.fx-admin .text-\[32px\] { font-size: 34px; }
-.fx-admin .text-ink-muted, .fx-admin .text-\[var\(--color-ink-muted\)\] { color: var(--color-ink-mid); }
-.fx-admin .text-terra, .fx-admin .text-\[var\(--color-terra\)\] { color: var(--color-terra-ink); }
-.fx-admin .text-amber-foxo, .fx-admin .text-\[var\(--color-amber-foxo\)\] { color: var(--color-amber-ink); }
+.fx-admin [class~="text-[9px]"].uppercase, .fx-admin [class~="text-[10px]"].uppercase { font-size: 10.5px; }
+.fx-admin [class~="text-[9px]"]:not(.uppercase), .fx-admin [class~="text-[10px]"]:not(.uppercase) { font-size: 12px; }
+.fx-admin [class~="text-[16px]"] { font-size: 15px; }
+.fx-admin [class~="text-[17px]"], .fx-admin [class~="text-[20px]"], .fx-admin [class~="text-[22px]"] { font-size: 18px; }
+.fx-admin [class~="text-[26px]"], .fx-admin [class~="text-[28px]"] { font-size: 24px; }
+.fx-admin [class~="text-[32px]"] { font-size: 34px; }
+.fx-admin .text-ink-muted, .fx-admin [class~="text-[var(--color-ink-muted)]"] { color: var(--color-ink-mid); }
+.fx-admin .text-terra, .fx-admin [class~="text-[var(--color-terra)]"] { color: var(--color-terra-ink); }
+.fx-admin .text-amber-foxo, .fx-admin [class~="text-[var(--color-amber-foxo)]"] { color: var(--color-amber-ink); }
 .fx-admin .bg-white { background-color: var(--color-cream); }
 .fx-admin .font-mono {
   font-family: var(--font-sora), ui-sans-serif, sans-serif;
   font-variant-numeric: tabular-nums;
+}
+
+/* Noms de variables et références techniques : jamais de débordement. */
+.fx-admin code {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }

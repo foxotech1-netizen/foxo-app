@@ -2,7 +2,7 @@
 
 import { TZ_BRUSSELS } from '@/lib/format';
 import { DEFAULT_PLANNING_COLORS } from '@/lib/planning/couleurs';
-import { COULEUR_TECH_NEUTRE } from '@/lib/techniciens/couleurs';
+import { COULEUR_TECH_NEUTRE, readableTextColor } from '@/lib/techniciens/couleurs';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   AlertTriangle, Bell, Building2, Check, CheckCircle2, Cloud, CreditCard,
@@ -334,7 +334,7 @@ export function ParametresClient({
               </div>
             ) : filteredGroups.map((g) => (
               <div key={g.title} className="param-nav-group">
-                <div className="param-nav-title">{g.title}</div>
+                <div className="param-nav-title fx-eyebrow">{g.title}</div>
                 {g.items.map((item) => {
                   const badge = getBadge(item.id);
                   const active = activeId === item.id;
@@ -349,7 +349,7 @@ export function ParametresClient({
                       <Icon size={14} aria-hidden />
                       <span className="param-nav-label">{item.label}</span>
                       {badge && (
-                        <span className={'param-nav-badge ' + badge.kind}>
+                        <span className={'param-nav-badge fx-badge ' + badge.kind}>
                           {badge.label}
                         </span>
                       )}
@@ -1158,12 +1158,13 @@ export function ParametresClient({
           margin-top: 12px;
         }
         .param-nav-title {
-          font-size: 9px;
-          font-weight: 700;
-          letter-spacing: 0.15em;
-          color: var(--color-ink-muted);
+          font-family: var(--font-sora), ui-sans-serif, sans-serif;
+          font-size: 10.5px;
+          font-weight: 500;
+          letter-spacing: 0.12em;
+          color: var(--color-ink-mid);
           text-transform: uppercase;
-          padding: 4px 8px 2px;
+          padding: 4px 8px 4px;
         }
         .param-nav-item {
           display: flex;
@@ -1174,8 +1175,10 @@ export function ParametresClient({
           background: transparent;
           border: 0;
           cursor: pointer;
-          font-family: inherit;
-          font-size: 12px;
+          font-family: var(--font-sora), ui-sans-serif, sans-serif;
+          font-size: 13px;
+          font-weight: 500;
+          min-height: 40px;
           color: var(--color-ink-mid);
           text-align: left;
           transition: background-color 0.15s ease, color 0.15s ease;
@@ -1195,11 +1198,10 @@ export function ParametresClient({
           min-width: 0;
         }
         .param-nav-badge {
-          font-size: 9px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          padding: 1px 6px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          padding: 2px 8px;
           border-radius: 999px;
           flex-shrink: 0;
           white-space: nowrap;
@@ -1246,8 +1248,10 @@ export function ParametresClient({
           }
           .param-nav-item {
             flex-shrink: 0;
+            width: auto;
+            min-height: 44px;
             white-space: nowrap;
-            padding: 8px 10px;
+            padding: 8px 12px;
           }
           .param-nav-badge {
             display: none;
@@ -1494,11 +1498,15 @@ function PlanningCouleursPanel() {
               const initiales = ((t.prenom?.[0] ?? '') + (t.nom?.[0] ?? '')).toUpperCase() || '?';
               const display = [t.prenom, t.nom].filter(Boolean).join(' ') || t.email || '—';
               const couleur = t.couleur ?? COULEUR_TECH_NEUTRE;
+              // Sans couleur choisie : avatar neutre lisible (sable / encre).
+              const avatar = t.couleur
+                ? { background: t.couleur, color: readableTextColor(t.couleur) }
+                : { background: 'var(--color-sand-mid)', color: 'var(--color-ink)' };
               return (
                 <div key={t.id} className="flex items-center gap-2.5 bg-cream border border-sand-border rounded-lg px-2.5 py-1.5">
                   <div
-                    className="fx-small w-9 h-9 rounded-full flex items-center justify-center text-cream font-semibold flex-shrink-0"
-                    style={{ background: couleur }}
+                    className="fx-small w-9 h-9 rounded-full flex items-center justify-center font-semibold flex-shrink-0"
+                    style={avatar}
                   >
                     {initiales}
                   </div>
