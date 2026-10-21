@@ -11,12 +11,17 @@ import {
   creneauDebutIso,
   mapStatutFichier,
   normalise,
-  normaliseNomAcp,
   parseDateImport,
   parseHeureImport,
-  resoudreAliasSyndic,
   type LigneImport,
 } from '@/lib/import/encodage-froid';
+import {
+  demandeurParticulierMinimal,
+  resoudreAcp,
+  resoudreSyndic,
+  type AcpRow,
+  type SyndicRow,
+} from '@/lib/import/resolution';
 import type {
   CreateFromSlotSyndic,
   CreateFromSlotParticulier,
@@ -53,78 +58,8 @@ interface ResultatLigne {
   details?: string;
 }
 
-interface SyndicRow { id: string; nom: string; bce: string | null }
-interface AcpRow { id: string; nom: string; adresse: string | null; syndic_id_ref: string | null; bce: string | null }
-
-// ─── Résolutions référentiels (lecture seule, matching normalisé) ───────────
-
-type Resolution<T> =
-  | { ok: true; item: T; exact: boolean }
-  | { ok: false; raison: string };
-
-function resoudreSyndic(nomFichier: string, syndics: SyndicRow[]): Resolution<SyndicRow> {
-  const cible = normalise(resoudreAliasSyndic(nomFichier));
-  const exacts = syndics.filter((s) => normalise(s.nom) === cible);
-  if (exacts.length === 1) return { ok: true, item: exacts[0], exact: true };
-  if (exacts.length > 1) {
-    return { ok: false, raison: `syndic ambigu : ${nomFichier} (${exacts.map((s) => s.nom).join(', ')})` };
-  }
-  const partiels = syndics.filter((s) => {
-    const n = normalise(s.nom);
-    return n.includes(cible) || cible.includes(n);
-  });
-  if (partiels.length === 1) return { ok: true, item: partiels[0], exact: false };
-  if (partiels.length > 1) {
-    return { ok: false, raison: `syndic ambigu : ${nomFichier} (${partiels.map((s) => s.nom).join(', ')})` };
-  }
-  return { ok: false, raison: `syndic introuvable : ${nomFichier}` };
-}
-
-function resoudreAcp(nomFichier: string, acps: AcpRow[]): Resolution<AcpRow> {
-  const cible = normaliseNomAcp(nomFichier);
-  const exacts = acps.filter((a) => normaliseNomAcp(a.nom) === cible);
-  if (exacts.length === 1) return { ok: true, item: exacts[0], exact: true };
-  if (exacts.length > 1) {
-    return { ok: false, raison: `ACP ambiguë : ${nomFichier} (${exacts.map((a) => a.nom).join(', ')})` };
-  }
-  const partiels = acps.filter((a) => {
-    const n = normaliseNomAcp(a.nom);
-    return n.includes(cible) || cible.includes(n);
-  });
-  if (partiels.length === 1) return { ok: true, item: partiels[0], exact: false };
-  if (partiels.length > 1) {
-    return { ok: false, raison: `ACP ambiguë : ${nomFichier} (${partiels.map((a) => a.nom).join(', ')})` };
-  }
-  return { ok: false, raison: `ACP introuvable : ${nomFichier}` };
-}
-
-// ─── Demandeur particulier minimal (aucun syndic résolvable) ────────────────
-
-// Adresse belge « Rue X 12, 1000 Bruxelles » → { cp, ville } best-effort.
-function extraireCpVille(adresse: string): { cp: string; ville: string } {
-  const m = adresse.match(/\b(\d{4})\s+([^,;]+?)\s*$/);
-  return { cp: m?.[1] ?? '0000', ville: (m?.[2] ?? '—').trim() };
-}
-
-function demandeurParticulierMinimal(l: LigneImport, acp: AcpRow | null): CreateFromSlotParticulier {
-  const rue = l.adresse.trim() || acp?.adresse?.trim() || '—';
-  const { cp, ville } = extraireCpVille(rue);
-  return {
-    demandeur_type: 'particulier',
-    mandant: {
-      prenom: 'Import',
-      nom: acp?.nom || l.acp.trim() || 'Historique',
-      // Placeholder : le fichier ne porte pas d'email mandant et
-      // createInterventionCold l'exige. Adresse interne, jamais notifiée
-      // (création à froid = silencieuse).
-      email: 'import-historique@foxo.be',
-      tel: '',
-      adresse_facturation: { rue, code_postal: cp, ville },
-    },
-    lieu: { meme_que_mandant: true, rue, cp, ville },
-    contact_sur_place: { actif: false },
-  };
-}
+// Résolution ACP / syndic et demandeur particulier minimal : partagés avec
+// la reconstruction depuis Odoo (src/lib/import/resolution.ts).
 
 // ─── Corps de la ligne ──────────────────────────────────────────────────────
 
@@ -291,7 +226,7 @@ export async function POST(request: Request) {
     const demandeur: CreateFromSlotSyndic | CreateFromSlotParticulier =
       acp && syndic
         ? { demandeur_type: 'syndic', acp_id: acp.id, syndic_id: syndic.id, occupants: [] }
-        : demandeurParticulierMinimal(l, acp);
+        : demandeurParticulierMinimal({ nom: l.acp, email: '', tel: '', adresse: l.adresse }, acp);
     if (demandeur.demandeur_type === 'particulier') {
       notes.push('demandeur particulier minimal (aucun syndic résolu)');
     }
