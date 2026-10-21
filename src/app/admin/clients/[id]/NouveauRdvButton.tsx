@@ -29,7 +29,7 @@ export function NouveauRdvButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-bold bg-navy text-white hover:opacity-90 min-h-[40px]"
+        className="fx-body inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-semibold bg-navy text-cream hover:opacity-90 min-h-[40px]"
       >
         <CalendarPlus size={15} /> Nouveau RDV
       </button>

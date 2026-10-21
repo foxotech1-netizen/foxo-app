@@ -28,7 +28,7 @@ function emptyOccupant(): SlotOccupant {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
         {title}
       </div>
       {children}
@@ -61,16 +61,16 @@ export function OccupantsEditor({
     <Section title={title}>
       <div className="space-y-2">
         {value.map((o, i) => (
-          <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
+          <div key={i} className="bg-cream border border-sand-border rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+              <span className="fx-eyebrow font-semibold text-ink-mid">
                 Unité {i + 1}
               </span>
               {value.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeOccupant(i)}
-                  className="text-[10px] text-terra hover:underline"
+                  className="fx-small text-terra hover:underline"
                 >
                   Retirer
                 </button>
@@ -81,23 +81,23 @@ export function OccupantsEditor({
                 value={o.appartement}
                 onChange={(e) => updateOccupant(i, { appartement: e.target.value })}
                 placeholder="Numéro / nom (Apt 3B, Cave 2, Communs…)"
-                className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded bg-cream"
               />
               <input
                 value={o.etage ?? ''}
                 onChange={(e) => updateOccupant(i, { etage: e.target.value })}
                 placeholder="Étage (optionnel)"
-                className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded bg-cream"
               />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+              <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                 Type d'occupant
               </div>
               <select
                 value={o.type_occupant ?? 'occupant'}
                 onChange={(e) => updateOccupant(i, { type_occupant: e.target.value as TypeOccupant })}
-                className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+                className="fx-meta w-full px-2 py-1.5 border border-sand-border rounded bg-cream"
               >
                 {(Object.entries(TYPE_OCCUPANT_LABEL) as [TypeOccupant, string][]).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
@@ -109,31 +109,31 @@ export function OccupantsEditor({
                 value={o.prenom}
                 onChange={(e) => updateOccupant(i, { prenom: e.target.value })}
                 placeholder="Prénom occupant"
-                className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded bg-cream"
               />
               <input
                 value={o.nom}
                 onChange={(e) => updateOccupant(i, { nom: e.target.value })}
                 placeholder="Nom occupant"
-                className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded bg-cream"
               />
               <input
                 value={o.telephone}
                 onChange={(e) => updateOccupant(i, { telephone: e.target.value })}
                 type="tel"
                 placeholder="+32 488 12 34 56"
-                className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white font-mono"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded bg-cream tabular-nums"
               />
               <input
                 value={o.email}
                 onChange={(e) => updateOccupant(i, { email: e.target.value })}
                 type="email"
                 placeholder="Email (lien occupant /o/…)"
-                className="px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded bg-cream"
               />
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+              <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                 Statut accès
               </div>
               <div className="grid grid-cols-3 gap-1.5">
@@ -146,11 +146,10 @@ export function OccupantsEditor({
                 ).map((opt) => (
                   <label
                     key={opt.v}
-                    className={
-                      'px-2 py-1.5 border rounded text-[11px] font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
+                    className={'fx-small px-2 py-1.5 border rounded font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
                       (o.conf === opt.v
-                        ? 'border-navy bg-navy-pale text-navy dark:text-white'
-                        : 'border-sand-border bg-white text-ink-mid')
+                        ? 'border-navy bg-navy-pale text-navy'
+                        : 'border-sand-border bg-cream text-ink-mid')
                     }
                   >
                     <input
@@ -166,7 +165,7 @@ export function OccupantsEditor({
               </div>
             </div>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+              <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                 Préférence contact
               </div>
               <div className="grid grid-cols-4 gap-1.5">
@@ -180,11 +179,10 @@ export function OccupantsEditor({
                 ).map((opt) => (
                   <label
                     key={opt.v}
-                    className={
-                      'px-1.5 py-1 border rounded text-[10px] font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
+                    className={'fx-small px-1.5 py-1 border rounded font-semibold cursor-pointer text-center inline-flex items-center justify-center gap-1 ' +
                       (o.contact_preference === opt.v
-                        ? 'border-navy bg-navy-pale text-navy dark:text-white'
-                        : 'border-sand-border bg-white text-ink-mid')
+                        ? 'border-navy bg-navy-pale text-navy'
+                        : 'border-sand-border bg-cream text-ink-mid')
                     }
                   >
                     <input
@@ -206,19 +204,19 @@ export function OccupantsEditor({
               onChange={(e) => updateOccupant(i, { instructions: e.target.value })}
               placeholder="Instructions spécifiques (digicode, gardien, créneau d'accès…)"
               rows={2}
-              className="w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none resize-y"
+              className="fx-meta w-full px-2 py-1.5 border border-sand-border rounded bg-cream outline-none resize-y"
             />
           </div>
         ))}
         <button
           type="button"
           onClick={addOccupant}
-          className="w-full bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-semibold dark:bg-[rgba(255,255,255,.06)]"
+          className="fx-label w-full bg-sand-mid text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-semibold"
         >
           + Ajouter un appartement
         </button>
         {hint && (
-          <p className="text-[10px] text-ink-muted italic mt-1">
+          <p className="fx-small text-ink-mid italic mt-1">
             {hint}
           </p>
         )}

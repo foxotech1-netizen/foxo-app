@@ -11,13 +11,13 @@ export default function ImportEncodageFroidPage() {
     <>
       <div className="mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <h1 className="fxs-page-title mb-1">Import interventions</h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
           Encodage à froid — reprise de l&apos;historique depuis un fichier Excel (.xlsx)
         </div>
       </div>
 
-      <div className="bg-navy-pale border border-navy-light rounded-xl px-4 py-3 mb-5 text-[12px] text-ink space-y-1 max-w-[980px]">
+      <div className="fx-meta bg-navy-pale border border-navy-light rounded-xl px-4 py-3 mb-5 text-ink space-y-1 max-w-[980px]">
         <p>
           <strong>Mode d&apos;emploi</strong> — dépose le fichier Excel (en-têtes exacts en ligne 1),
           lance la <strong>validation à blanc</strong> (obligatoire, aucune écriture), corrige les rejets

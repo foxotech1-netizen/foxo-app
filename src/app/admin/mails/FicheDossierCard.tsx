@@ -42,10 +42,10 @@ function occupantTypeLabel(type: string): string {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-ink-muted">
+      <div className="fx-eyebrow font-medium text-ink-mid">
         {label}
       </div>
-      <div className="text-[12px] text-ink mt-0.5 break-words">{children}</div>
+      <div className="fx-meta text-ink mt-0.5 break-words">{children}</div>
     </div>
   );
 }
@@ -70,8 +70,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
     }
     linkTimer.current = setTimeout(async () => {
       try {
-        const r = await fetch(
-          `/api/admin/interventions/search?q=${encodeURIComponent(linkQuery.trim())}`,
+        const r = await fetch( `/api/admin/interventions/search?q=${encodeURIComponent(linkQuery.trim())}`,
           { cache: 'no-store' },
         );
         const data = await r.json();
@@ -128,7 +127,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
     <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3">
       {/* En-tête : titre + badges existants réutilisés */}
       <div className="flex items-center justify-between gap-2 flex-wrap mb-2.5">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+        <span className="fx-eyebrow font-semibold text-ink-mid">
           Fiche dossier
         </span>
         <MailAnalyseBadges analyse={analyse} />
@@ -142,7 +141,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
         <Field label="Syndic">{analyse.syndic_nom ?? DASH}</Field>
         <Field label="N° dossier mentionné">
           {analyse.numero_dossier_mentionne
-            ? <span className="font-mono">{analyse.numero_dossier_mentionne}</span>
+            ? <span className="tabular-nums">{analyse.numero_dossier_mentionne}</span>
             : DASH}
         </Field>
         <Field label="Créneau proposé">{creneauTxt ?? DASH}</Field>
@@ -155,16 +154,16 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
 
       {/* Occupants extraits */}
       <div className="mt-3 pt-2.5 border-t border-sand-border">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1.5">
+        <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
           Occupants
         </div>
         {occupants.length === 0 ? (
-          <span className="text-[11px] text-ink-muted italic">Aucun occupant extrait.</span>
+          <span className="fx-small text-ink-mid italic">Aucun occupant extrait.</span>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[11px] border-collapse min-w-[480px]">
+            <table className="fx-small w-full border-collapse min-w-[480px]">
               <thead>
-                <tr className="text-left text-[10px] uppercase tracking-wider text-ink-muted">
+                <tr className="fx-eyebrow text-left text-ink-mid">
                   <th className="font-medium py-1 pr-3">Étage/Apt</th>
                   <th className="font-medium py-1 pr-3">Nom</th>
                   <th className="font-medium py-1 pr-3">Téléphone</th>
@@ -180,8 +179,8 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
                     <tr key={i} className="border-t border-sand-border">
                       <td className="py-1 pr-3 whitespace-nowrap">{zone || DASH}</td>
                       <td className="py-1 pr-3">{nom || DASH}</td>
-                      <td className="py-1 pr-3 font-mono whitespace-nowrap">{o.telephone || DASH}</td>
-                      <td className="py-1 pr-3 font-mono break-all">{o.email || DASH}</td>
+                      <td className="py-1 pr-3 tabular-nums whitespace-nowrap">{o.telephone || DASH}</td>
+                      <td className="py-1 pr-3 tabular-nums break-all">{o.email || DASH}</td>
                       <td className="py-1 whitespace-nowrap">{occupantTypeLabel(o.type)}</td>
                     </tr>
                   );
@@ -207,14 +206,14 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
       {/* Dossier lié — lier/délier manuellement (Phase 3 U3) */}
       <div className="mt-2.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-ink-muted">
+          <span className="fx-eyebrow font-medium text-ink-mid">
             Dossier
           </span>
           {analyse.dossier ? (
             <>
               <Link
                 href={`/admin/interventions/${analyse.dossier.id}`}
-                className="font-sora inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold hover:underline"
+                className="fx-small font-sora inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold hover:underline"
                 style={{
                   background: 'var(--color-navy-pale)',
                   color: 'var(--color-navy)',
@@ -227,7 +226,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
                 type="button"
                 onClick={unlink}
                 disabled={linkPosting}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-ink-muted hover:text-terra hover:underline disabled:opacity-50"
+                className="fx-small inline-flex items-center gap-1 font-medium text-ink-mid hover:text-terra hover:underline disabled:opacity-50"
                 title="Retirer le lien entre ce fil et le dossier"
               >
                 {linkPosting ? <Loader2 size={11} className="animate-spin" aria-hidden /> : <X size={11} aria-hidden />}
@@ -236,11 +235,11 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
             </>
           ) : (
             <>
-              <span className="text-[11px] text-ink-muted italic">Aucun dossier lié.</span>
+              <span className="fx-small text-ink-mid italic">Aucun dossier lié.</span>
               <button
                 type="button"
                 onClick={() => { setLinkOpen((v) => !v); setLinkError(null); }}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-navy hover:underline"
+                className="fx-small inline-flex items-center gap-1 font-semibold text-navy hover:underline"
                 aria-expanded={linkOpen}
               >
                 <Link2 size={11} aria-hidden />
@@ -255,13 +254,13 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
         {linkOpen && !analyse.dossier && (
           <div className="mt-1.5 max-w-[420px]">
             <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" aria-hidden />
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-mid" aria-hidden />
               <input
                 type="text"
                 value={linkQuery}
                 onChange={(e) => setLinkQuery(e.target.value)}
                 placeholder="Réf ou adresse du dossier (min. 2 caractères)…"
-                className="w-full pl-8 pr-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid"
+                className="fx-meta w-full pl-8 pr-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                 disabled={linkPosting}
                 autoFocus
               />
@@ -277,7 +276,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
                       type="button"
                       onClick={() => postLink(r.id)}
                       disabled={linkPosting}
-                      className="w-full text-left px-3 py-2 text-[12px] hover:bg-[var(--color-sand-hover)] disabled:opacity-50"
+                      className="fx-meta w-full text-left px-3 py-2 hover:bg-[var(--color-sand-hover)] disabled:opacity-50"
                     >
                       <span className="font-semibold text-navy">{r.ref ?? '?'}</span>
                       {r.adresse ? <span className="text-ink-mid"> — {r.adresse}</span> : null}
@@ -287,7 +286,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
               </ul>
             )}
             {linkPosting && (
-              <div className="mt-1 text-[11px] text-ink-muted inline-flex items-center gap-1.5">
+              <div className="fx-small mt-1 text-ink-mid inline-flex items-center gap-1.5">
                 <Loader2 size={11} className="animate-spin" aria-hidden />
                 Liaison en cours…
               </div>
@@ -296,7 +295,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
         )}
 
         {linkError && (
-          <div className="mt-1.5 text-[11px]" style={{ color: 'var(--color-terra)' }}>
+          <div className="fx-small mt-1.5" style={{ color: 'var(--color-terra)' }}>
             {linkError}
           </div>
         )}
@@ -305,10 +304,10 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
       {/* Avertissements */}
       {analyse.errors && analyse.errors.length > 0 && (
         <div
-          className="mt-2.5 p-2 rounded text-[11px]"
+          className="fx-small mt-2.5 p-2 rounded"
           style={{ background: 'var(--color-amber-light)', color: 'var(--color-amber-foxo)' }}
         >
-          <div className="font-bold mb-1 inline-flex items-center gap-1">
+          <div className="font-semibold mb-1 inline-flex items-center gap-1">
             <AlertTriangle size={11} aria-hidden />
             Avertissements :
           </div>
@@ -324,7 +323,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
           <button
             type="button"
             onClick={onScrollToActions}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-bold min-h-[44px]"
+            className="fx-label inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold min-h-[44px]"
             style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
           >
             <ClipboardList size={14} aria-hidden />
@@ -334,7 +333,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
         <button
           type="button"
           onClick={onReply}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-bold min-h-[44px]"
+          className="fx-label inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold min-h-[44px]"
           style={{ background: 'var(--color-cream)', color: 'var(--color-navy)', border: '1px solid var(--color-navy)' }}
         >
           ↩ Répondre
@@ -394,8 +393,7 @@ function OccupantResponsePanel({
   // l'état repart « loading » à chaque changement de fil.
   async function fetchMatch(): Promise<ResponseMatch> {
     try {
-      const r = await fetch(
-        `/api/admin/mails/occupant-response?thread_id=${encodeURIComponent(threadId)}`,
+      const r = await fetch( `/api/admin/mails/occupant-response?thread_id=${encodeURIComponent(threadId)}`,
         { cache: 'no-store' },
       );
       const data = await r.json();
@@ -439,7 +437,7 @@ function OccupantResponsePanel({
   if (loading) {
     return (
       <div className="mt-3 pt-2.5 border-t border-sand-border">
-        <div className="inline-flex items-center gap-1.5 text-[11px] text-ink-muted">
+        <div className="fx-small inline-flex items-center gap-1.5 text-ink-mid">
           <Loader2 size={11} className="animate-spin" aria-hidden />
           Analyse de la réponse…
         </div>
@@ -455,7 +453,7 @@ function OccupantResponsePanel({
     return (
       <div className="mt-3 pt-2.5 border-t border-sand-border">
         <div
-          className="rounded-lg px-3 py-2 text-[12px] font-semibold inline-flex items-center gap-2"
+          className="fx-label rounded-lg px-3 py-2 font-semibold inline-flex items-center gap-2"
           style={{ background: 'var(--color-ok-light)', border: '1px solid var(--color-ok-mid)', color: 'var(--color-ok)' }}
         >
           <CheckCircle2 size={14} aria-hidden />
@@ -470,7 +468,7 @@ function OccupantResponsePanel({
     return (
       <div className="mt-3 pt-2.5 border-t border-sand-border">
         <div
-          className="rounded-lg px-3 py-2 text-[12px]"
+          className="fx-meta rounded-lg px-3 py-2"
           style={{ background: 'var(--color-amber-light)', border: '1px solid var(--color-amber-foxo)', color: 'var(--color-amber-foxo)' }}
         >
           <div className="font-semibold inline-flex items-center gap-2">
@@ -478,7 +476,7 @@ function OccupantResponsePanel({
             Refus ou contre-proposition détecté — décision de planning manuelle requise.
           </div>
           {creneauPropose && (
-            <div className="mt-1 text-[11px] font-medium">
+            <div className="fx-small mt-1 font-medium">
               Créneau proposé : {creneauPropose}
             </div>
           )}
@@ -491,18 +489,18 @@ function OccupantResponsePanel({
   const candidats = match.candidats ?? [];
   return (
     <div className="mt-3 pt-2.5 border-t border-sand-border">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1.5">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
         Réponse occupant — à valider
       </div>
       <div className="bg-cream border border-sand-border rounded-lg p-2.5">
-        <div className="text-[12px] font-semibold text-ink mb-0.5">
+        <div className="fx-label font-semibold text-ink mb-0.5">
           Cette réponse semble confirmer une présence — à valider
         </div>
-        <div className="text-[11px] text-ink-muted mb-2">
+        <div className="fx-small text-ink-mid mb-2">
           Aucune confirmation n&apos;est appliquée sans ton clic.
         </div>
         {candidats.length === 0 ? (
-          <div className="text-[11px] text-ink-muted italic">
+          <div className="fx-small text-ink-mid italic">
             Aucun occupant candidat identifié.
           </div>
         ) : (
@@ -513,17 +511,17 @@ function OccupantResponsePanel({
               return (
                 <li
                   key={o.id}
-                  className="flex items-center justify-between gap-2 flex-wrap rounded-md px-2 py-1.5"
+                  className="flex items-center justify-between gap-2 flex-wrap rounded-lg px-2 py-1.5"
                   style={{ background: 'var(--color-sand)' }}
                 >
-                  <div className="min-w-0 text-[11px]">
+                  <div className="fx-small min-w-0">
                     <span className="font-semibold text-ink">{occupantLabel(o)}</span>
-                    {zone && <span className="text-ink-muted"> · {zone}</span>}
-                    {o.email && <span className="text-ink-muted font-mono break-all"> · {o.email}</span>}
+                    {zone && <span className="text-ink-mid"> · {zone}</span>}
+                    {o.email && <span className="text-ink-mid tabular-nums break-all"> · {o.email}</span>}
                   </div>
                   {dejaConfirme ? (
                     <span
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold"
+                      className="fx-small inline-flex items-center gap-1 font-semibold"
                       style={{ color: 'var(--color-ok)' }}
                     >
                       <CheckCircle2 size={12} aria-hidden /> Confirmé
@@ -533,7 +531,7 @@ function OccupantResponsePanel({
                       type="button"
                       onClick={() => confirmCandidate(o.id)}
                       disabled={confirmingId !== null}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] font-bold min-h-[36px] disabled:opacity-50"
+                      className="fx-small inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-semibold min-h-[36px] disabled:opacity-50"
                       style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
                     >
                       {confirmingId === o.id

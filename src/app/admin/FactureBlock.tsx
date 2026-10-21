@@ -80,22 +80,22 @@ export function FactureBlock({
   if (!editing && facturee) {
     return (
       <div className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border">
-        <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
+        <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
           Facturation
         </div>
-        <div className="text-[13px] text-ok font-semibold inline-flex items-center gap-1.5">
+        <div className="fx-body text-ok font-semibold inline-flex items-center gap-1.5">
           <Check size={14} />
           Facture émise
         </div>
-        <p className="text-[11px] text-ink-muted mt-1">
-          PDF stocké dans le bucket <span className="font-mono">invoices/{interventionId}.pdf</span>
+        <p className="fx-small text-ink-mid mt-1">
+          PDF stocké dans le bucket <span className="tabular-nums">invoices/{interventionId}.pdf</span>
         </p>
         {feedback?.kind === 'ok' && (
-          <p className="text-xs mt-2 text-ok font-semibold">{feedback.msg}</p>
+          <p className="fx-label mt-2 text-ok font-semibold">{feedback.msg}</p>
         )}
         <button
           onClick={() => { setEditing(true); setFeedback(null); }}
-          className="mt-3 bg-[#A17244] text-white px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-[#8A613B]"
+          className="fx-small mt-3 bg-navy text-cream px-3 py-1.5 rounded-lg font-semibold hover:bg-navy-mid"
         >
           Ré-émettre / corriger
         </button>
@@ -105,7 +105,7 @@ export function FactureBlock({
 
   return (
     <div className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
         {facturee ? 'Ré-émission de la facture' : 'Émettre la facture'}
       </div>
 
@@ -113,14 +113,14 @@ export function FactureBlock({
         {items.map((it, i) => (
           <div key={i} className="bg-sand rounded-lg p-2.5 border border-sand-border">
             <div className="flex items-start justify-between gap-2 mb-1.5">
-              <span className="text-[10px] font-bold text-ink-muted uppercase tracking-wider">
+              <span className="fx-eyebrow font-semibold text-ink-mid">
                 Ligne {i + 1}
               </span>
               {items.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeItem(i)}
-                  className="text-[11px] text-terra hover:underline"
+                  className="fx-small text-terra hover:underline"
                 >
                   Retirer
                 </button>
@@ -131,10 +131,10 @@ export function FactureBlock({
               onChange={(e) => updateItem(i, { description: e.target.value })}
               placeholder="Description de la prestation"
               rows={2}
-              className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid resize-y mb-1.5"
+              className="fx-meta w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid resize-y mb-1.5"
             />
             <div className="grid grid-cols-2 gap-2">
-              <label className="text-[10px] text-ink-muted">
+              <label className="fx-small text-ink-mid">
                 Qté
                 <input
                   type="number"
@@ -142,10 +142,10 @@ export function FactureBlock({
                   step="0.01"
                   value={it.quantity}
                   onChange={(e) => updateItem(i, { quantity: parseFloat(e.target.value) || 0 })}
-                  className="w-full mt-0.5 px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid"
+                  className="fx-meta w-full mt-0.5 px-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                 />
               </label>
-              <label className="text-[10px] text-ink-muted">
+              <label className="fx-small text-ink-mid">
                 P.U. HT (€)
                 <input
                   type="number"
@@ -153,11 +153,11 @@ export function FactureBlock({
                   step="0.01"
                   value={it.unitPrice}
                   onChange={(e) => updateItem(i, { unitPrice: parseFloat(e.target.value) || 0 })}
-                  className="w-full mt-0.5 px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid"
+                  className="fx-meta w-full mt-0.5 px-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                 />
               </label>
             </div>
-            <div className="text-right text-[11px] text-ink-mid mt-1.5 font-mono">
+            <div className="fx-small text-right text-ink-mid mt-1.5 tabular-nums">
               Sous-total HT : {fmt(it.quantity * it.unitPrice)} €
             </div>
           </div>
@@ -167,13 +167,13 @@ export function FactureBlock({
       <button
         type="button"
         onClick={addItem}
-        className="mt-2 bg-sand-mid text-ink-mid px-3 py-1.5 rounded-md text-[11px] font-semibold"
+        className="fx-small mt-2 bg-sand-mid text-ink-mid px-3 py-1.5 rounded-lg font-semibold"
       >
         + Ajouter une ligne
       </button>
 
       <div className="grid grid-cols-2 gap-2 mt-3">
-        <label className="text-[10px] text-ink-muted">
+        <label className="fx-small text-ink-mid">
           TVA (%)
           <input
             type="number"
@@ -182,7 +182,7 @@ export function FactureBlock({
             step="0.01"
             value={vatRate}
             onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
-            className="w-full mt-0.5 px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid"
+            className="fx-meta w-full mt-0.5 px-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
           />
         </label>
       </div>
@@ -192,11 +192,11 @@ export function FactureBlock({
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Notes / mentions complémentaires (optionnel)"
         rows={2}
-        className="w-full mt-2 px-2.5 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid resize-y"
+        className="fx-meta w-full mt-2 px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid resize-y"
       />
 
       {/* Récap totaux */}
-      <div className="mt-3 bg-sand rounded-lg p-2.5 border border-sand-border space-y-1 font-mono">
+      <div className="mt-3 bg-sand rounded-lg p-2.5 border border-sand-border space-y-1 tabular-nums">
         <Row label="Total HT" value={`${fmt(totals.ht)} €`} />
         <Row label={`TVA ${vatRate}%`} value={`${fmt(totals.tva)} €`} />
         <Row label="Total TTC" value={`${fmt(totals.ttc)} €`} bold />
@@ -208,7 +208,7 @@ export function FactureBlock({
             type="button"
             onClick={() => { setEditing(false); setFeedback(null); }}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+            className="fx-label bg-sand-mid text-ink-mid py-2.5 rounded-lg font-semibold disabled:opacity-50"
           >
             Annuler
           </button>
@@ -217,13 +217,10 @@ export function FactureBlock({
           type="button"
           onClick={emit}
           disabled={pending}
-          className={
-            (facturee ? '' : 'col-span-2 ') +
-            'bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50'
+          className={(facturee ? '' : 'col-span-2 ') + 'fx-label bg-navy text-cream py-2.5 rounded-lg font-semibold disabled:opacity-50'
           }
         >
-          {pending ? (
-            'Génération…'
+          {pending ? ( 'Génération…'
           ) : (
             <span className="inline-flex items-center gap-1.5">
               <Check size={14} />
@@ -234,8 +231,7 @@ export function FactureBlock({
       </div>
 
       {feedback && (
-        <p className={
-          'text-xs mt-2 font-semibold ' +
+        <p className={'fx-label mt-2 font-semibold ' +
           (feedback.kind === 'ok' ? 'text-ok' : 'text-terra')
         }>
           {feedback.msg}
@@ -247,9 +243,9 @@ export function FactureBlock({
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between items-center text-[12px]">
-      <span className={bold ? 'font-bold text-navy' : 'text-ink-mid'}>{label}</span>
-      <span className={bold ? 'font-bold text-navy text-[13px]' : 'text-ink'}>{value}</span>
+    <div className="fx-meta flex justify-between items-center">
+      <span className={bold ? 'font-semibold text-navy' : 'text-ink-mid'}>{label}</span>
+      <span className={bold ? 'fx-body font-semibold text-navy' : 'text-ink'}>{value}</span>
     </div>
   );
 }

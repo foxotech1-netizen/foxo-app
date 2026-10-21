@@ -63,13 +63,13 @@ export default async function EditAvoirPage({
       <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">
-            Note de crédit <span className="font-mono">{avoir.numero}</span>
+            Note de crédit <span className="tabular-nums">{avoir.numero}</span>
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             Statut : <strong className="capitalize">{avoir.statut}</strong>
             {avoir.facture_origine_id && (
-              <> · Lié à <Link href={`/admin/facturation/${avoir.facture_origine_id}`} className="font-mono text-[var(--color-navy)] underline">
+              <> · Lié à <Link href={`/admin/facturation/${avoir.facture_origine_id}`} className="fx-ref text-[var(--color-navy)] underline">
                 {origineNumero ?? '?'}
               </Link></>
             )}
@@ -89,7 +89,7 @@ export default async function EditAvoirPage({
             disabledReason="Disponible après émission de la note de crédit."
           />
           <RevertToBrouillonButton facture={avoir} />
-          <Link href="/admin/facturation/notes-credit" className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
+          <Link href="/admin/facturation/notes-credit" className="fx-meta text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>
         </div>

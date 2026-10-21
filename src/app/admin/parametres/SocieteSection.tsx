@@ -95,8 +95,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
     });
   }
 
-  const inputCls =
-    'w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid';
+  const inputCls = 'w-full px-3 py-2 border border-sand-border rounded-lg fx-body bg-cream outline-none focus:border-navy-mid';
 
   return (
     <section className="bg-cream rounded-xl border border-sand-border p-5 space-y-5">
@@ -104,7 +103,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
         <h2 className="fxs-block-title text-ink flex items-center gap-1.5">
           <Building2 size={16} aria-hidden /> Société
         </h2>
-        <p className="text-[11px] text-ink-muted mt-0.5">
+        <p className="fx-small text-ink-mid mt-0.5">
           Informations légales utilisées sur les factures et documents.
         </p>
       </div>
@@ -144,7 +143,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               value={societeTva}
               onChange={(e) => setSocieteTva(e.target.value)}
               placeholder="ex : BE0123456789"
-              className={inputCls + ' font-mono'}
+              className={inputCls + ' tabular-nums'}
             />
           </Field>
 
@@ -154,7 +153,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               value={societeBce}
               onChange={(e) => setSocieteBce(e.target.value)}
               placeholder="ex : 0123.456.789"
-              className={inputCls + ' font-mono'}
+              className={inputCls + ' tabular-nums'}
             />
           </Field>
         </div>
@@ -191,7 +190,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 value={societeCodePostal}
                 onChange={(e) => setSocieteCodePostal(e.target.value)}
                 placeholder="ex : 3070"
-                className={inputCls + ' font-mono'}
+                className={inputCls + ' tabular-nums'}
               />
             </Field>
             <Field label="Ville">
@@ -226,7 +225,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               value={societeTel}
               onChange={(e) => setSocieteTel(e.target.value)}
               placeholder="ex : +32 488 700 007"
-              className={inputCls + ' font-mono'}
+              className={inputCls + ' tabular-nums'}
             />
           </Field>
           <Field label="Email">
@@ -235,7 +234,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               value={societeEmail}
               onChange={(e) => setSocieteEmail(e.target.value)}
               placeholder="ex : info@foxo.be"
-              className={inputCls + ' font-mono'}
+              className={inputCls + ' tabular-nums'}
             />
           </Field>
           <Field label="Site web">
@@ -244,7 +243,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               value={societeSite}
               onChange={(e) => setSocieteSite(e.target.value)}
               placeholder="ex : https://foxo.be"
-              className={inputCls + ' font-mono'}
+              className={inputCls + ' tabular-nums'}
             />
           </Field>
         </div>
@@ -261,7 +260,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
                 value={societeIban}
                 onChange={(e) => setSocieteIban(e.target.value)}
                 placeholder="ex : BE68 5390 0754 7034"
-                className={inputCls + ' font-mono'}
+                className={inputCls + ' tabular-nums'}
               />
             </Field>
           </div>
@@ -271,7 +270,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
               value={societeBic}
               onChange={(e) => setSocieteBic(e.target.value)}
               placeholder="ex : TRIOBEBB"
-              className={inputCls + ' font-mono'}
+              className={inputCls + ' tabular-nums'}
             />
           </Field>
           <div className="sm:col-span-3">
@@ -312,11 +311,10 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
             className="hidden"
           />
           <span
-            className={
-              'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-bold cursor-pointer ' +
+            className={'fx-label inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold cursor-pointer ' +
               (uploadingLogo
-                ? 'bg-sand-mid text-ink-muted cursor-wait dark:bg-[rgba(255,255,255,.06)]'
-                : 'bg-sand-mid text-ink border border-sand-border hover:bg-sand-hover dark:bg-[rgba(255,255,255,.06)]')
+                ? 'bg-sand-mid text-ink-mid cursor-wait'
+                : 'bg-sand-mid text-ink border border-sand-border hover:bg-sand-hover')
             }
           >
             {uploadingLogo ? (
@@ -328,7 +326,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
             )}
           </span>
         </label>
-        <p className="text-[10px] text-ink-muted mt-1">
+        <p className="fx-small text-ink-mid mt-1">
           jpg / png / webp / svg, max 2 Mo. L&apos;ancien logo est écrasé à chaque upload.
         </p>
       </div>
@@ -339,14 +337,13 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
           type="button"
           onClick={handleSave}
           disabled={pending}
-          className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+          className="fx-label bg-navy text-cream px-4 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
         >
           {pending ? '…' : (<><Save size={14} aria-hidden /> Enregistrer</>)}
         </button>
         {feedback && (
           <span
-            className={
-              'text-[11px] font-semibold ' +
+            className={'fx-small font-semibold ' +
               (feedback.kind === 'ok' ? 'text-ok' : 'text-terra')
             }
           >
@@ -363,7 +360,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1">
+      <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
         {label}
       </label>
       {children}
@@ -373,7 +370,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function FieldGroup({ label }: { label: string }) {
   return (
-    <div className="text-[10px] font-bold text-navy uppercase tracking-widest border-b border-sand-border pb-1">
+    <div className="fx-eyebrow font-semibold text-navy border-b border-sand-border pb-1">
       {label}
     </div>
   );

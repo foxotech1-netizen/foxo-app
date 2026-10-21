@@ -58,11 +58,10 @@ export function FacturationTabs() {
             <Link
               key={t.href}
               href={t.href}
-              className={
-                'flex items-center gap-1.5 px-3.5 py-2 rounded-t-lg text-[12px] font-bold border-b-2 transition-colors ' +
+              className={'fx-label flex items-center gap-1.5 px-3.5 py-2 rounded-t-lg font-semibold border-b-2 transition-colors ' +
                 (active
                   ? 'bg-cream border-navy text-navy'
-                  : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)] dark:hover:border-[rgba(255,255,255,.2)]')
+                  : 'border-transparent text-ink-mid hover:text-ink hover:border-[rgba(27,58,107,.2)]')
               }
             >
               <Icon size={14} aria-hidden />

@@ -88,8 +88,7 @@ export function FournisseursClient({
     });
   }
 
-  const inputCls =
-    'w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid';
+  const inputCls = 'w-full px-3 py-2 border border-sand-border rounded-lg fx-body bg-cream outline-none focus:border-navy-mid';
 
   function Field({
     label, value, onChange, placeholder, mono, type = 'text',
@@ -99,13 +98,13 @@ export function FournisseursClient({
   }) {
     return (
       <div>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">{label}</label>
+        <label className="fx-label font-semibold text-ink-mid block mb-1.5">{label}</label>
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className={`${inputCls} ${mono ? 'font-mono' : ''}`}
+          className={`${inputCls}${mono ? 'font-mono' : ''}`}
         />
       </div>
     );
@@ -118,12 +117,12 @@ export function FournisseursClient({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher (nom, TVA, email)…"
-          className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid w-full sm:w-[280px]"
+          className="fx-body px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid w-full sm:w-[280px]"
         />
         <button
           type="button"
           onClick={() => { setDrawer({ ...EMPTY }); setFeedback(null); }}
-          className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
+          className="fx-label bg-navy text-cream px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
         >
           <Plus size={14} aria-hidden /> Nouveau fournisseur
         </button>
@@ -131,8 +130,7 @@ export function FournisseursClient({
 
       {feedback && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
               : 'bg-terra-light border-terra-mid text-terra')
@@ -143,13 +141,13 @@ export function FournisseursClient({
       )}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-14 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border">
+        <div className="fx-body text-center py-14 text-ink-mid bg-cream rounded-xl border border-sand-border">
           Aucun fournisseur{query ? ' pour cette recherche' : ''}.
           <div className="mt-3">
             <button
               type="button"
               onClick={() => setDrawer({ ...EMPTY })}
-              className="text-navy font-bold underline hover:no-underline text-[12px]"
+              className="fx-label text-navy font-semibold underline hover:no-underline"
             >
               Créer le premier fournisseur
             </button>
@@ -159,28 +157,27 @@ export function FournisseursClient({
         <div className="bg-cream rounded-xl border border-sand-border overflow-x-auto">
           <table className="w-full text-left min-w-[760px]">
             <thead>
-              <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted">
-                <th className="px-3.5 py-2.5 font-bold">Nom</th>
-                <th className="px-3.5 py-2.5 font-bold">TVA</th>
-                <th className="px-3.5 py-2.5 font-bold">Email</th>
-                <th className="px-3.5 py-2.5 font-bold">Délai</th>
-                <th className="px-3.5 py-2.5 font-bold">Catégorie défaut</th>
-                <th className="px-3.5 py-2.5 font-bold">Actif</th>
-                <th className="px-3.5 py-2.5 font-bold text-right">Actions</th>
+              <tr className="fx-eyebrow border-b border-sand-border text-ink-mid">
+                <th className="px-3.5 py-2.5 font-semibold">Nom</th>
+                <th className="px-3.5 py-2.5 font-semibold">TVA</th>
+                <th className="px-3.5 py-2.5 font-semibold">Email</th>
+                <th className="px-3.5 py-2.5 font-semibold">Délai</th>
+                <th className="px-3.5 py-2.5 font-semibold">Catégorie défaut</th>
+                <th className="px-3.5 py-2.5 font-semibold">Actif</th>
+                <th className="px-3.5 py-2.5 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((f) => (
                 <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                  <td className="px-3.5 py-2.5 text-xs font-bold text-navy">{f.nom}</td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid">{f.tva ?? '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">{f.email ?? '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid">{f.conditions_paiement_jours ?? 30} j</td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">{f.categorie_comptable_defaut ?? '—'}</td>
+                  <td className="fx-body-dense px-3.5 py-2.5 font-semibold text-navy">{f.nom}</td>
+                  <td className="fx-small px-3.5 py-2.5 tabular-nums text-ink-mid">{f.tva ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid">{f.email ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-2.5 tabular-nums text-ink-mid">{f.conditions_paiement_jours ?? 30} j</td>
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid">{f.categorie_comptable_defaut ?? '—'}</td>
                   <td className="px-3.5 py-2.5">
-                    <span className={
-                      'inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ' +
-                      (f.actif ? 'bg-ok-light text-ok border-ok-mid' : 'bg-sand-mid text-ink-muted border-sand-border')
+                    <span className={'fx-small inline-block font-semibold px-2 py-0.5 rounded-lg border ' +
+                      (f.actif ? 'bg-ok-light text-ok border-ok-mid' : 'bg-sand-mid text-ink-mid border-sand-border')
                     }>
                       {f.actif ? 'Actif' : 'Inactif'}
                     </span>
@@ -189,7 +186,7 @@ export function FournisseursClient({
                     <button
                       type="button"
                       onClick={() => { openEdit(f); setFeedback(null); }}
-                      className="text-[11px] font-semibold text-navy hover:underline inline-flex items-center gap-1 mr-3"
+                      className="fx-small font-semibold text-navy hover:underline inline-flex items-center gap-1 mr-3"
                     >
                       <Pencil size={12} aria-hidden /> Éditer
                     </button>
@@ -197,7 +194,7 @@ export function FournisseursClient({
                       type="button"
                       onClick={() => handleDelete(f)}
                       disabled={pending}
-                      className="text-[11px] font-semibold text-terra hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+                      className="fx-small font-semibold text-terra hover:underline inline-flex items-center gap-1 disabled:opacity-50"
                     >
                       <Trash2 size={12} aria-hidden /> Supprimer
                     </button>
@@ -214,13 +211,13 @@ export function FournisseursClient({
         <div className="fixed inset-0 z-50 bg-black/40 flex justify-end">
           <div className="bg-sand h-full w-full max-w-[420px] overflow-y-auto p-5 space-y-4 border-l border-sand-border">
             <div className="flex items-center justify-between">
-              <h2 className="text-[14px] font-bold text-ink">
+              <h2 className="fx-h3 font-semibold text-ink">
                 {drawer.id ? 'Éditer le fournisseur' : 'Nouveau fournisseur'}
               </h2>
               <button
                 type="button"
                 onClick={() => setDrawer(null)}
-                className="text-ink-muted hover:text-ink"
+                className="text-ink-mid hover:text-ink"
                 aria-label="Fermer"
               >
                 <X size={16} aria-hidden />
@@ -239,13 +236,13 @@ export function FournisseursClient({
             <div>
               <Field label="IBAN" value={drawer.iban ?? ''} onChange={(v) => setDrawer({ ...drawer, iban: v })} placeholder="BE…" mono />
               {drawer.id && derniereVerifIban[drawer.id] && (
-                <p className="mt-1.5 text-[11px] font-semibold text-ok inline-flex items-center gap-1">
+                <p className="fx-small mt-1.5 font-semibold text-ok inline-flex items-center gap-1">
                   <ShieldCheck size={12} aria-hidden /> IBAN vérifié le {fmtVerifDate(derniereVerifIban[drawer.id])}
                 </p>
               )}
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink-mid block mb-1.5">Adresse</label>
+              <label className="fx-label font-semibold text-ink-mid block mb-1.5">Adresse</label>
               <textarea
                 value={drawer.adresse ?? ''}
                 onChange={(e) => setDrawer({ ...drawer, adresse: e.target.value })}
@@ -255,13 +252,13 @@ export function FournisseursClient({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-semibold text-ink-mid block mb-1.5">Délai paiement (jours)</label>
+                <label className="fx-label font-semibold text-ink-mid block mb-1.5">Délai paiement (jours)</label>
                 <input
                   type="number"
                   min={0}
                   value={drawer.conditions_paiement_jours ?? 30}
                   onChange={(e) => setDrawer({ ...drawer, conditions_paiement_jours: parseInt(e.target.value, 10) || 0 })}
-                  className={`${inputCls} font-mono`}
+                  className={`${inputCls} tabular-nums`}
                 />
               </div>
               <Field
@@ -272,7 +269,7 @@ export function FournisseursClient({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink-mid block mb-1.5">Notes</label>
+              <label className="fx-label font-semibold text-ink-mid block mb-1.5">Notes</label>
               <textarea
                 value={drawer.notes ?? ''}
                 onChange={(e) => setDrawer({ ...drawer, notes: e.target.value })}
@@ -280,12 +277,12 @@ export function FournisseursClient({
                 className={`${inputCls} resize-y`}
               />
             </div>
-            <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+            <label className="fx-label flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={drawer.actif ?? true}
                 onChange={(e) => setDrawer({ ...drawer, actif: e.target.checked })}
-                className="accent-[#1B3A6B]"
+                className="accent-[var(--color-navy)]"
               />
               Actif
             </label>
@@ -295,7 +292,7 @@ export function FournisseursClient({
                 type="button"
                 onClick={handleSave}
                 disabled={pending || !drawer.nom.trim()}
-                className="bg-navy text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] flex-1"
+                className="fx-body bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] flex-1"
               >
                 {pending ? '…' : 'Enregistrer'}
               </button>
@@ -303,7 +300,7 @@ export function FournisseursClient({
                 type="button"
                 onClick={() => setDrawer(null)}
                 disabled={pending}
-                className="bg-white text-ink-mid border border-sand-border px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-sand-hover disabled:opacity-50 min-h-[44px]"
+                className="fx-body bg-cream text-ink-mid border border-sand-border px-4 py-2.5 rounded-lg font-semibold hover:bg-sand-hover disabled:opacity-50 min-h-[44px]"
               >
                 Annuler
               </button>

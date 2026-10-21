@@ -213,8 +213,7 @@ export function FactureEditor({
     setClientBce(c.bce ?? '');
     setClientSyndic(
       c.type === 'acp' ? 'Syndic' :
-      c.type === 'particulier' ? 'Particulier' :
-      'Entreprise',
+      c.type === 'particulier' ? 'Particulier' : 'Entreprise',
     );
 
     // Auto-remplit la remise globale depuis la remise auto du client.
@@ -417,19 +416,18 @@ export function FactureEditor({
   return (
     <div className="space-y-5 max-w-[960px] pb-[calc(140px+env(safe-area-inset-bottom,0px))] sm:pb-4">
       {/* Toggle liée / hors intervention */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
+        <div className="fx-th font-semibold text-ink-mid mb-2">
           Type de facture
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => setLinked(true)}
-            className={
-              'px-4 py-2.5 rounded-lg text-[13px] font-bold border-2 inline-flex items-center justify-center gap-1.5 ' +
+            className={'fx-body px-4 py-2.5 rounded-lg font-semibold border-2 inline-flex items-center justify-center gap-1.5 ' +
               (linked
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink border-sand-border hover:border-navy-mid')
+                ? 'bg-navy text-cream border-navy'
+                : 'bg-cream text-ink border-sand-border hover:border-navy-mid')
             }
           >
             <Link2 size={14} aria-hidden /> Liée à une intervention
@@ -437,11 +435,10 @@ export function FactureEditor({
           <button
             type="button"
             onClick={() => { setLinked(false); clearIntervention(); }}
-            className={
-              'px-4 py-2.5 rounded-lg text-[13px] font-bold border-2 inline-flex items-center justify-center gap-1.5 ' +
+            className={'fx-body px-4 py-2.5 rounded-lg font-semibold border-2 inline-flex items-center justify-center gap-1.5 ' +
               (!linked
-                ? 'bg-[#A17244] text-white border-[#A17244]'
-                : 'bg-white text-ink border-sand-border hover:border-[#A17244]')
+                ? 'bg-navy text-cream border-navy'
+                : 'bg-cream text-ink border-sand-border hover:border-navy')
             }
           >
             <Pencil size={14} aria-hidden /> Hors intervention
@@ -451,27 +448,27 @@ export function FactureEditor({
 
       {/* Recherche intervention */}
       {linked && (
-        <div className="bg-cream border border-sand-border rounded-2xl p-4">
-          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+        <div className="bg-cream border border-sand-border rounded-modal p-4">
+          <div className="fx-th font-semibold text-ink-mid mb-2">
             Intervention
           </div>
           {interventionId ? (
             <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-navy/70 font-bold dark:text-white/70">
+                <div className="fx-eyebrow text-navy/70 font-semibold">
                   Sélectionnée
                 </div>
-                <div className="font-bold text-[14px] text-navy mt-0.5 dark:text-white">
+                <div className="fx-body font-semibold text-navy mt-0.5">
                   {reference || 'Sans référence'}
                 </div>
-                <div className="text-xs text-navy/80 mt-0.5 dark:text-white/80">
+                <div className="fx-meta text-navy/80 mt-0.5">
                   {clientNom} {clientSyndic ? `(${clientSyndic})` : ''}
                 </div>
               </div>
               <button
                 type="button"
                 onClick={clearIntervention}
-                className="text-[11px] text-navy underline hover:no-underline dark:text-white"
+                className="fx-small text-navy underline hover:no-underline"
               >
                 Changer
               </button>
@@ -482,21 +479,21 @@ export function FactureEditor({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher par référence ou description…"
-                className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
               />
               {showSearchResults && (
-                <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[200px] overflow-y-auto">
+                <div className="mt-2 bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[200px] overflow-y-auto">
                   {searchResults.map((r) => (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => pickIntervention(r.id)}
-                      className="block w-full text-left px-3.5 py-2 text-[12px] hover:bg-sand"
+                      className="fx-meta block w-full text-left px-3.5 py-2 hover:bg-sand"
                     >
-                      <span className="font-mono font-bold text-navy">{r.ref ?? '—'}</span>
+                      <span className="fx-ref font-semibold text-navy">{r.ref ?? '—'}</span>
                       {' · '}
                       <span>{r.acp_nom ?? '—'}</span>
-                      <span className="text-ink-muted"> — {r.syndic_nom ?? '—'}</span>
+                      <span className="text-ink-mid"> — {r.syndic_nom ?? '—'}</span>
                     </button>
                   ))}
                 </div>
@@ -507,19 +504,19 @@ export function FactureEditor({
       )}
 
       {/* Identification (3 colonnes) */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-3">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
+        <div className="fx-th font-semibold text-ink-mid mb-3">
           Identification
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <Label>N° de facture</Label>
             {numeroProvisoire ? (
-              <div className="text-[12px] font-semibold text-ink-mid bg-sand-mid border border-sand-border rounded-lg px-3 py-2.5">
+              <div className="fx-label font-semibold text-ink-mid bg-sand-mid border border-sand-border rounded-lg px-3 py-2.5">
                 Brouillon — numéro attribué à l&apos;émission
               </div>
             ) : (
-              <div className="font-mono text-[13px] font-bold text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5 dark:text-white">
+              <div className="fx-body fx-ref font-semibold text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5">
                 {numero}
               </div>
             )}
@@ -534,41 +531,41 @@ export function FactureEditor({
           <div>
             <Label>Communication structurée (auto)</Label>
             {bbaPreview ? (
-              <div className="font-mono text-[13px] text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5 dark:text-white">
+              <div className="fx-body fx-ref text-navy bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5">
                 {bbaPreview}
               </div>
             ) : (
-              <div className="text-[12px] text-ink-muted bg-sand-mid border border-sand-border rounded-lg px-3 py-2.5">
+              <div className="fx-meta text-ink-mid bg-sand-mid border border-sand-border rounded-lg px-3 py-2.5">
                 Générée à l&apos;émission
               </div>
             )}
           </div>
         </div>
         {docType === 'facture' && isBrouillon && (
-          <label className="mt-3 flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer">
+          <label className="fx-label mt-3 flex items-center gap-2 text-ink-mid cursor-pointer">
             <input
               type="checkbox"
               checked={isAcompte}
               onChange={(e) => setIsAcompte(e.target.checked)}
-              className="accent-[#1B3A6B]"
+              className="accent-[var(--color-navy)]"
             />
             <span className="font-semibold">Facture d&apos;acompte</span>
-            <span className="text-ink-muted">— sera déduite sur la facture finale de l&apos;intervention</span>
+            <span className="text-ink-mid">— sera déduite sur la facture finale de l&apos;intervention</span>
           </label>
         )}
       </div>
 
       {/* Client */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
+          <div className="fx-th font-semibold text-ink-mid">
             Client
           </div>
           {clientId && (
             <button
               type="button"
               onClick={clearClientLink}
-              className="text-[11px] text-ink-mid hover:text-navy underline"
+              className="fx-small text-ink-mid hover:text-navy underline"
             >
               Délier le client
             </button>
@@ -584,7 +581,7 @@ export function FactureEditor({
                 value={clientQuery}
                 onChange={(e) => setClientQuery(e.target.value)}
                 placeholder="Nom, BCE ou email…"
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
               />
             </div>
             <button
@@ -593,24 +590,24 @@ export function FactureEditor({
                 setShowQuickClientForm((v) => !v);
                 if (!showQuickClientForm) setQuickClientNom(clientNom);
               }}
-              className="bg-[#A17244] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90"
+              className="fx-label bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90"
             >
               + Nouveau
             </button>
           </div>
           {showClientResults && (
-            <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
+            <div className="mt-2 bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
               {clientResults.map((c) => (
                 <button
                   key={c.id}
                   type="button"
                   onClick={() => pickClient(c)}
-                  className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand"
+                  className="fx-meta block w-full text-left px-3 py-2 hover:bg-sand"
                 >
-                  <div className="font-bold">
+                  <div className="font-semibold">
                     {[c.prenom, c.nom].filter(Boolean).join(' ')}
                   </div>
-                  <div className="text-[10px] text-ink-muted">
+                  <div className="fx-small text-ink-mid">
                     {c.type.toUpperCase()}
                     {c.email ? ` · ${c.email}` : ''}
                     {c.bce ? ` · BCE ${c.bce}` : ''}
@@ -621,8 +618,8 @@ export function FactureEditor({
           )}
 
           {showQuickClientForm && (
-            <div className="mt-2 bg-amber-light border border-[#E8C896] rounded-lg p-3 space-y-2">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-[#8A5A1A]">
+            <div className="mt-2 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg p-3 space-y-2">
+              <div className="fx-th font-semibold text-amber-ink">
                 Nouveau client (rapide)
               </div>
               <div className="grid grid-cols-3 gap-1.5">
@@ -631,11 +628,10 @@ export function FactureEditor({
                     key={t}
                     type="button"
                     onClick={() => setQuickClientType(t)}
-                    className={
-                      'px-2 py-1.5 rounded-md text-[11px] font-bold border ' +
+                    className={'fx-small px-2 py-1.5 rounded-lg font-semibold border ' +
                       (quickClientType === t
-                        ? 'bg-navy text-white border-navy'
-                        : 'bg-white text-ink-mid border-sand-border')
+                        ? 'bg-navy text-cream border-navy'
+                        : 'bg-cream text-ink-mid border-sand-border')
                     }
                   >
                     {t === 'acp' ? 'ACP' : t === 'particulier' ? 'Particulier' : 'Entreprise'}
@@ -646,7 +642,7 @@ export function FactureEditor({
                 value={quickClientNom}
                 onChange={(e) => setQuickClientNom(e.target.value)}
                 placeholder="Nom *"
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream"
               />
               <div className="grid grid-cols-2 gap-1.5">
                 <input
@@ -654,20 +650,20 @@ export function FactureEditor({
                   onChange={(e) => setQuickClientEmail(e.target.value)}
                   placeholder="Email"
                   type="email"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream"
                 />
                 <input
                   value={quickClientBce}
                   onChange={(e) => setQuickClientBce(e.target.value)}
                   placeholder="BCE"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white font-mono"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream tabular-nums"
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setShowQuickClientForm(false)}
-                  className="text-[11px] text-ink-mid underline"
+                  className="fx-small text-ink-mid underline"
                 >
                   Annuler
                 </button>
@@ -675,7 +671,7 @@ export function FactureEditor({
                   type="button"
                   onClick={createQuickClient}
                   disabled={quickClientPending}
-                  className="bg-navy text-white px-3 py-1.5 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                  className="fx-label bg-navy text-cream px-3 py-1.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {quickClientPending ? '…' : 'Créer & sélectionner'}
                 </button>
@@ -684,7 +680,7 @@ export function FactureEditor({
           )}
 
           {clientId && (
-            <div className="mt-2 text-[11px] text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1.5 font-semibold dark:text-white inline-flex items-center gap-1.5">
+            <div className="fx-small mt-2 text-ok bg-ok-light border border-ok-mid rounded-lg px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5">
               <Check size={12} aria-hidden /> Client lié à la base — modifications sur ce formulaire restent locales à la facture
             </div>
           )}
@@ -701,16 +697,16 @@ export function FactureEditor({
               value={clientAdresse}
               onChange={(e) => setClientAdresse(e.target.value)}
               rows={2}
-              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+              className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
             />
           </div>
         </div>
       </div>
 
       {/* Lignes prestations */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
+          <div className="fx-th font-semibold text-ink-mid">
             Prestations
           </div>
           <select
@@ -720,7 +716,7 @@ export function FactureEditor({
               e.target.value = '';
             }}
             value=""
-            className="text-[11px] px-2 py-1 border border-sand-border rounded-md bg-white cursor-pointer"
+            className="fx-small px-2 py-1 border border-sand-border rounded-lg bg-cream cursor-pointer"
           >
             <option value="">+ Article catalogue</option>
             {articles.map((a) => {
@@ -737,19 +733,19 @@ export function FactureEditor({
 
         <div className="space-y-2">
           {lignes.map((l, i) => (
-            <div key={i} className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
+            <div key={i} className="bg-cream border border-sand-border rounded-lg p-3 space-y-2">
               <div className="flex items-start gap-2">
                 <input
                   value={l.description}
                   onChange={(e) => updateLigne(i, { description: e.target.value })}
                   placeholder="Description de la prestation"
-                  className="flex-1 px-2.5 py-1.5 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid"
+                  className="fx-body flex-1 px-2.5 py-1.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                 />
                 {lignes.length > 1 && (
                   <button
                     type="button"
                     onClick={() => removeLigne(i)}
-                    className="text-terra hover:underline text-[11px] font-semibold flex-shrink-0"
+                    className="fx-small text-terra hover:underline font-semibold flex-shrink-0"
                   >
                     Retirer
                   </button>
@@ -759,7 +755,7 @@ export function FactureEditor({
                 value={l.notes ?? ''}
                 onChange={(e) => updateLigne(i, { notes: e.target.value })}
                 placeholder="Notes (italique sous la description sur le PDF) — ex : Apt 1706-1806, Rue Willems 14"
-                className="w-full px-2.5 py-1.5 border border-sand-border rounded-md text-[12px] italic bg-white outline-none focus:border-navy-mid"
+                className="fx-meta w-full px-2.5 py-1.5 border border-sand-border rounded-lg italic bg-cream outline-none focus:border-navy-mid"
               />
               <div className="grid grid-cols-4 gap-2">
                 <NumField label="Qté" value={l.quantite} step="1" onChange={(v) => updateLigne(i, { quantite: v })} />
@@ -772,7 +768,7 @@ export function FactureEditor({
                 <NumField label="TVA %" value={l.tva_pct} step="1" onChange={(v) => updateLigne(i, { tva_pct: v })} />
                 <div>
                   <Label>Total TTC</Label>
-                  <div className="px-2.5 py-1.5 text-[13px] font-mono font-bold text-navy dark:text-white">
+                  <div className="fx-body px-2.5 py-1.5 fx-ref font-semibold text-navy">
                     {fmtMoney(l.quantite * htvaToTtc(l.prix_unitaire, l.tva_pct))} €
                   </div>
                 </div>
@@ -781,10 +777,10 @@ export function FactureEditor({
                 ligne={l}
                 onChange={(patch) => updateLigne(i, patch)}
               />
-              <div className="text-[10px] text-ink-muted flex flex-wrap gap-3 pt-1 border-t border-sand-border">
-                <span>HTVA unitaire : <span className="font-mono">{fmtMoney(l.prix_unitaire)} €</span></span>
-                <span>HTVA total : <span className="font-mono">{fmtMoney(l.quantite * l.prix_unitaire)} €</span></span>
-                <span>TVA {l.tva_pct}% : <span className="font-mono">{fmtMoney(l.quantite * (htvaToTtc(l.prix_unitaire, l.tva_pct) - l.prix_unitaire))} €</span></span>
+              <div className="fx-small text-ink-mid flex flex-wrap gap-3 pt-1 border-t border-sand-border">
+                <span>HTVA unitaire : <span className="tabular-nums">{fmtMoney(l.prix_unitaire)} €</span></span>
+                <span>HTVA total : <span className="tabular-nums">{fmtMoney(l.quantite * l.prix_unitaire)} €</span></span>
+                <span>TVA {l.tva_pct}% : <span className="tabular-nums">{fmtMoney(l.quantite * (htvaToTtc(l.prix_unitaire, l.tva_pct) - l.prix_unitaire))} €</span></span>
               </div>
             </div>
           ))}
@@ -794,7 +790,7 @@ export function FactureEditor({
           <button
             type="button"
             onClick={() => addLigne()}
-            className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-md text-[11px] font-semibold hover:bg-sand-hover"
+            className="fx-small bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-lg font-semibold hover:bg-sand-hover"
           >
             + Ligne libre
           </button>
@@ -802,7 +798,7 @@ export function FactureEditor({
             <button
               type="button"
               onClick={deduireAcomptes}
-              className="bg-navy-pale text-navy border border-navy-light px-3 py-1.5 rounded-md text-[11px] font-semibold hover:opacity-90 dark:text-white"
+              className="fx-small bg-navy-pale text-navy border border-navy-light px-3 py-1.5 rounded-lg font-semibold hover:opacity-90"
               title={acomptesDisponibles.map((a) => a.numero).join(', ')}
             >
               Déduire les acomptes ({acomptesDisponibles.length})
@@ -812,17 +808,17 @@ export function FactureEditor({
       </div>
 
       {/* Détails intervention (optionnel) */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">
+          <div className="fx-th font-semibold text-ink-mid">
             Détails intervention
           </div>
-          <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer">
+          <label className="fx-label flex items-center gap-2 text-ink-mid cursor-pointer">
             <input
               type="checkbox"
               checked={showDetails}
               onChange={(e) => setShowDetails(e.target.checked)}
-              className="accent-[#1B3A6B]"
+              className="accent-[var(--color-navy)]"
             />
             Afficher sur la facture
           </label>
@@ -838,8 +834,8 @@ export function FactureEditor({
       </div>
 
       {/* Notes / remarques */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-3">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
+        <div className="fx-th font-semibold text-ink-mid mb-3">
           Notes / Remarques
         </div>
         <textarea
@@ -847,19 +843,19 @@ export function FactureEditor({
           onChange={(e) => setRemarques(e.target.value)}
           rows={3}
           placeholder="Remarques visibles sur le PDF (ex: « Travaux à réaliser dans les plus brefs délais »)"
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y mb-2"
+          className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y mb-2"
         />
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           placeholder="Notes internes (apparaissent aussi sur le PDF en complément)"
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+          className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
         />
       </div>
 
       {/* TVA + Remise globale + totaux */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4">
+      <div className="bg-cream border border-sand-border rounded-modal p-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <NumField label="Taux TVA %" value={tvaPct} step="1" onChange={setTvaPct} />
           {(initial?.type ?? mode) === 'devis' && (
@@ -873,7 +869,7 @@ export function FactureEditor({
         </div>
 
         <div className="border-t border-sand-border pt-3 mb-3">
-          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+          <div className="fx-th font-semibold text-ink-mid mb-2">
             Remise globale (sur le total après remises lignes)
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-[120px_120px_1fr] gap-2 items-end">
@@ -888,7 +884,7 @@ export function FactureEditor({
               <select
                 value={remiseGlobaleType}
                 onChange={(e) => setRemiseGlobaleType(e.target.value as RemiseType)}
-                className="w-full px-2.5 py-1.5 border border-sand-border rounded-md text-[13px] bg-white"
+                className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded-lg bg-cream"
               >
                 <option value="pct">% pourcentage</option>
                 <option value="fixe">€ fixe</option>
@@ -900,7 +896,7 @@ export function FactureEditor({
                 value={remiseGlobaleDescription}
                 onChange={(e) => setRemiseGlobaleDescription(e.target.value)}
                 placeholder={Number(remiseGlobaleValeur) > 0 ? 'Obligatoire (apparaît sur le PDF)' : 'Ex. Geste commercial'}
-                className="w-full px-2.5 py-1.5 border border-sand-border rounded-md text-[13px] bg-white"
+                className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded-lg bg-cream"
               />
             </div>
           </div>
@@ -909,46 +905,45 @@ export function FactureEditor({
         <div className="border-t border-sand-border pt-3">
           {(totals.totalHt !== totals.sousTotalBrut || totals.totalRemisesLignes > 0 || totals.remiseGlobale > 0) && (
             <>
-              <div className="flex justify-between text-[12px] py-1 text-ink-mid">
+              <div className="fx-meta flex justify-between py-1 text-ink-mid">
                 <span>Sous-total brut</span>
-                <span className="font-mono">{fmtMoney(totals.sousTotalBrut)} €</span>
+                <span className="tabular-nums">{fmtMoney(totals.sousTotalBrut)} €</span>
               </div>
               {totals.totalRemisesLignes > 0 && (
-                <div className="flex justify-between text-[12px] py-1 text-terra">
+                <div className="fx-meta flex justify-between py-1 text-terra">
                   <span>Remises lignes</span>
-                  <span className="font-mono">−{fmtMoney(totals.totalRemisesLignes)} €</span>
+                  <span className="tabular-nums">−{fmtMoney(totals.totalRemisesLignes)} €</span>
                 </div>
               )}
               {totals.remiseGlobale > 0 && (
-                <div className="flex justify-between text-[12px] py-1 text-terra">
+                <div className="fx-meta flex justify-between py-1 text-terra">
                   <span>
                     Remise globale
                     {remiseGlobaleType === 'pct' ? ` (${Number(remiseGlobaleValeur)}%)` : ''}
                   </span>
-                  <span className="font-mono">−{fmtMoney(totals.remiseGlobale)} €</span>
+                  <span className="tabular-nums">−{fmtMoney(totals.remiseGlobale)} €</span>
                 </div>
               )}
             </>
           )}
-          <div className="flex justify-between text-[13px] py-1">
+          <div className="fx-body flex justify-between py-1">
             <span>Montant HT</span>
-            <span className="font-mono">{fmtMoney(totals.totalHt)} €</span>
+            <span className="tabular-nums">{fmtMoney(totals.totalHt)} €</span>
           </div>
-          <div className="flex justify-between text-[13px] py-1 text-ink-mid">
+          <div className="fx-body flex justify-between py-1 text-ink-mid">
             <span>TVA {tvaPct}%</span>
-            <span className="font-mono">{fmtMoney(totals.tva)} €</span>
+            <span className="tabular-nums">{fmtMoney(totals.tva)} €</span>
           </div>
-          <div className="flex justify-between text-[15px] font-extrabold text-navy py-2 border-t border-sand-border dark:text-white">
+          <div className="fx-h2 flex justify-between font-semibold text-navy py-2 border-t border-sand-border">
             <span>Total TTC</span>
-            <span className="font-mono">{fmtMoney(totals.totalTtc)} €</span>
+            <span className="tabular-nums">{fmtMoney(totals.totalTtc)} €</span>
           </div>
         </div>
       </div>
 
       {feedback && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
               : 'bg-terra-light border-terra-mid text-terra')
@@ -965,7 +960,7 @@ export function FactureEditor({
           type="button"
           onClick={() => handleSave(false)}
           disabled={pending}
-          className="bg-[#A17244] text-white py-3 rounded-xl font-bold text-[13px] hover:bg-[#8A613B] disabled:opacity-50 min-h-[52px] sm:min-h-0"
+          className="fx-body bg-navy text-cream py-3 rounded-xl font-semibold hover:bg-navy-mid disabled:opacity-50 min-h-[52px] sm:min-h-0"
         >
           {pending ? '…' : 'Enregistrer brouillon'}
         </button>
@@ -973,7 +968,7 @@ export function FactureEditor({
           type="button"
           onClick={() => handleSave(true)}
           disabled={pending}
-          className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50 min-h-[52px] sm:min-h-0 inline-flex items-center justify-center gap-1.5"
+          className="fx-body bg-navy text-cream py-3 rounded-xl font-semibold hover:opacity-90 disabled:opacity-50 min-h-[52px] sm:min-h-0 inline-flex items-center justify-center gap-1.5"
         >
           <Check size={14} aria-hidden /> Émettre la facture
         </button>
@@ -996,9 +991,8 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={
-          'w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid ' +
-          (mono ? 'font-mono' : '')
+        className={'fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid ' +
+          (mono ? 'tabular-nums' : '')
         }
       />
     </div>
@@ -1018,7 +1012,7 @@ function NumField({
         step={step ?? 'any'}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full px-2.5 py-1.5 border border-sand-border rounded-md text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+        className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
       />
     </div>
   );
@@ -1026,7 +1020,7 @@ function NumField({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+    <label className="fx-label font-semibold text-ink-mid block mb-1.5">
       {children}
     </label>
   );
@@ -1053,7 +1047,7 @@ function RemiseLigneRow({
           setOpen(true);
           if (!ligne.remise_type) onChange({ remise_type: 'pct' });
         }}
-        className="text-[11px] font-semibold text-navy hover:underline"
+        className="fx-small font-semibold text-navy hover:underline"
       >
         + Ajouter une remise sur cette ligne
       </button>
@@ -1061,9 +1055,9 @@ function RemiseLigneRow({
   }
 
   return (
-    <div className="bg-sand border border-sand-border rounded-md p-2 space-y-2">
+    <div className="bg-sand border border-sand-border rounded-lg p-2 space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+        <span className="fx-eyebrow font-semibold text-ink-mid">
           Remise sur ligne
         </span>
         <button
@@ -1072,7 +1066,7 @@ function RemiseLigneRow({
             setOpen(false);
             onChange({ remise_valeur: 0, remise_type: undefined, remise_description: undefined });
           }}
-          className="text-[10px] text-terra hover:underline"
+          className="fx-small text-terra hover:underline"
         >
           Retirer
         </button>
@@ -1089,7 +1083,7 @@ function RemiseLigneRow({
           <select
             value={ligne.remise_type ?? 'pct'}
             onChange={(e) => onChange({ remise_type: e.target.value as RemiseType })}
-            className="w-full px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white"
+            className="fx-meta w-full px-2 py-1.5 border border-sand-border rounded-lg bg-cream"
           >
             <option value="pct">%</option>
             <option value="fixe">€</option>
@@ -1101,7 +1095,7 @@ function RemiseLigneRow({
             value={ligne.remise_description ?? ''}
             onChange={(e) => onChange({ remise_description: e.target.value })}
             placeholder={Number(ligne.remise_valeur ?? 0) > 0 ? 'Obligatoire' : 'Ex. Fidélité'}
-            className="w-full px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white"
+            className="fx-meta w-full px-2 py-1.5 border border-sand-border rounded-lg bg-cream"
           />
         </div>
       </div>

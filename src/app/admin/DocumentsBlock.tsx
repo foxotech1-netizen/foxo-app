@@ -168,7 +168,7 @@ function UploadCard({
 
   return (
     <div className="bg-cream rounded-xl px-3.5 py-3 border border-sand-border">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-2">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
         {title}
       </div>
 
@@ -176,8 +176,8 @@ function UploadCard({
         <div className="bg-ok-light border border-ok-mid rounded-lg p-2.5 flex items-center gap-2">
           <div className="text-ok"><FileText size={20} /></div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-semibold text-ok truncate">{existing.name}</div>
-            <div className="text-[10px] text-ink-muted">
+            <div className="fx-label font-semibold text-ok truncate">{existing.name}</div>
+            <div className="fx-small text-ink-mid">
               {(existing.size / 1024).toFixed(0)} KB
               {existing.createdAt
                 ? ' · uploadé le ' + new Date(existing.createdAt).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })
@@ -187,12 +187,12 @@ function UploadCard({
           <a
             href={downloadHref}
             download={downloadName}
-            className="text-[11px] text-navy underline-offset-2 hover:underline px-2"
+            className="fx-small text-navy underline-offset-2 hover:underline px-2"
           >Télécharger</a>
           <button
             onClick={onDelete}
             disabled={busy}
-            className="text-[11px] text-terra hover:underline disabled:opacity-50"
+            className="fx-small text-terra hover:underline disabled:opacity-50"
           >Supprimer</button>
         </div>
       ) : (
@@ -200,8 +200,7 @@ function UploadCard({
           onDragOver={onDragOver}
           onDragLeave={onDragLeave}
           onDrop={onDrop}
-          className={
-            'block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ' +
+          className={'block border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ' +
             (dragActive
               ? 'border-navy bg-navy-pale'
               : 'border-sand-border bg-sand hover:bg-sand-hover hover:border-navy-mid')
@@ -219,10 +218,10 @@ function UploadCard({
             }}
           />
           <div className="flex justify-center mb-1 text-ink-mid"><Send size={24} /></div>
-          <div className="text-[12px] font-semibold text-ink mb-0.5">
+          <div className="fx-label font-semibold text-ink mb-0.5">
             {kind === 'rapport' ? 'Uploader un rapport PDF' : 'Uploader une facture PDF'}
           </div>
-          <div className="text-[10px] text-ink-muted">
+          <div className="fx-small text-ink-mid">
             Glisser-déposer ou cliquer · PDF · max {MAX_PDF_MB} MB
           </div>
         </label>
@@ -236,17 +235,17 @@ function UploadCard({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-[10px] text-ink-muted mt-1">Upload en cours…</p>
+          <p className="fx-small text-ink-mid mt-1">Upload en cours…</p>
         </div>
       )}
 
       {error && (
-        <div className="mt-2 text-[11px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-1.5 font-semibold">
+        <div className="fx-small mt-2 text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-1.5 font-semibold">
           {error}
         </div>
       )}
 
-      <p className="text-[10px] text-ink-muted mt-2 leading-relaxed">{helpText}</p>
+      <p className="fx-small text-ink-mid mt-2 leading-relaxed">{helpText}</p>
     </div>
   );
 }

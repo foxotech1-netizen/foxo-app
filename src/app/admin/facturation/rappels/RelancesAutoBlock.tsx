@@ -75,10 +75,10 @@ export function RelancesAutoBlock() {
     <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-3 mb-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-[13px] font-bold text-ink flex items-center gap-1.5">
+          <h2 className="fx-h3 font-semibold text-ink flex items-center gap-1.5">
             <Zap size={15} aria-hidden className="text-[var(--color-amber-foxo)]" /> Relances automatiques
           </h2>
-          <p className="text-[11px] text-ink-muted mt-0.5 max-w-[560px]">
+          <p className="fx-small text-ink-mid mt-0.5 max-w-[560px]">
             Niveaux selon les délais de <code>relance_delais_jours</code> (défaut 7, 14, 30 jours après
             échéance) — ton croissant, PDF et QR de paiement joints. Aperçu d&apos;abord, envoi après confirmation (20 max par passage).
           </p>
@@ -88,7 +88,7 @@ export function RelancesAutoBlock() {
             type="button"
             onClick={handlePreview}
             disabled={pending}
-            className="bg-white text-navy border border-navy-light px-3.5 py-2 rounded-lg text-[12px] font-bold hover:bg-navy-pale disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[40px]"
+            className="fx-label bg-cream text-navy border border-navy-light px-3.5 py-2 rounded-lg font-semibold hover:bg-navy-pale disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[40px]"
           >
             <RefreshCw size={14} aria-hidden className={pending ? 'animate-spin' : undefined} />
             Aperçu des relances dues
@@ -98,7 +98,7 @@ export function RelancesAutoBlock() {
               type="button"
               onClick={handleSend}
               disabled={pending}
-              className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[40px]"
+              className="fx-label bg-navy text-cream px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5 min-h-[40px]"
             >
               <Send size={14} aria-hidden /> Envoyer ces {Math.min(candidates.length, 20)} relance(s)
             </button>
@@ -108,8 +108,7 @@ export function RelancesAutoBlock() {
 
       {feedback && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
               : 'bg-terra-light border-terra-mid text-terra')
@@ -121,40 +120,39 @@ export function RelancesAutoBlock() {
 
       {candidates !== null && (
         candidates.length === 0 ? (
-          <p className="text-[12px] text-ink-mid italic">
+          <p className="fx-meta text-ink-mid italic">
             Aucune relance due — toutes les factures en retard ont déjà reçu le niveau correspondant, ou sont suspendues.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[680px]">
               <thead>
-                <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted">
-                  <th className="px-2.5 py-2 font-bold">Facture</th>
-                  <th className="px-2.5 py-2 font-bold">Client</th>
-                  <th className="px-2.5 py-2 font-bold text-right">TTC</th>
-                  <th className="px-2.5 py-2 font-bold">Retard</th>
-                  <th className="px-2.5 py-2 font-bold">Niveau dû</th>
-                  <th className="px-2.5 py-2 font-bold text-right">Suspendre</th>
+                <tr className="fx-eyebrow border-b border-sand-border text-ink-mid">
+                  <th className="px-2.5 py-2 font-semibold">Facture</th>
+                  <th className="px-2.5 py-2 font-semibold">Client</th>
+                  <th className="px-2.5 py-2 font-semibold text-right">TTC</th>
+                  <th className="px-2.5 py-2 font-semibold">Retard</th>
+                  <th className="px-2.5 py-2 font-semibold">Niveau dû</th>
+                  <th className="px-2.5 py-2 font-semibold text-right">Suspendre</th>
                 </tr>
               </thead>
               <tbody>
                 {candidates.map((c) => (
                   <tr key={c.facture_id} className="border-b border-sand-mid">
                     <td className="px-2.5 py-2">
-                      <Link href={`/admin/facturation/${c.facture_id}`} className="font-mono text-xs font-bold text-navy hover:underline">
+                      <Link href={`/admin/facturation/${c.facture_id}`} className="fx-label fx-ref font-semibold text-navy hover:underline">
                         {c.numero}
                       </Link>
                     </td>
-                    <td className="px-2.5 py-2 text-[12px]">{c.client_nom ?? '—'}</td>
-                    <td className="px-2.5 py-2 text-[12px] font-mono text-right whitespace-nowrap">{fmtMoney(c.montant_ttc)}</td>
-                    <td className="px-2.5 py-2 text-[12px] font-mono">{c.jours_de_retard} j</td>
+                    <td className="fx-body-dense px-2.5 py-2">{c.client_nom ?? '—'}</td>
+                    <td className="fx-body-dense px-2.5 py-2 tabular-nums text-right whitespace-nowrap">{fmtMoney(c.montant_ttc)}</td>
+                    <td className="fx-body-dense px-2.5 py-2 tabular-nums">{c.jours_de_retard} j</td>
                     <td className="px-2.5 py-2">
-                      <span className={
-                        'inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ' +
+                      <span className={'fx-small inline-block font-semibold px-2 py-0.5 rounded-lg border ' +
                         (c.niveau_du === 1
-                          ? 'bg-navy-pale text-navy border-navy-light dark:text-white'
+                          ? 'bg-navy-pale text-navy border-navy-light'
                           : c.niveau_du === 2
-                            ? 'bg-amber-light text-[#8A5A1A] border-[#E8C896]'
+                            ? 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30'
                             : 'bg-terra-light text-terra border-terra-mid')
                       }>
                         {c.niveau_du} — {NIVEAU_LABEL[c.niveau_du]}
@@ -166,7 +164,7 @@ export function RelancesAutoBlock() {
                         onClick={() => handlePause(c)}
                         disabled={pending || pausePending === c.facture_id}
                         title="Suspendre les relances pour cette facture (relances_pause)."
-                        className="text-[11px] font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+                        className="fx-small font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
                       >
                         <PauseCircle size={13} aria-hidden /> Suspendre
                       </button>
@@ -207,7 +205,7 @@ export function RelancesPauseBadge({
         onClick={toggle}
         disabled={pending}
         title="Suspendre les relances automatiques pour cette facture."
-        className="text-[10px] font-semibold text-ink-muted hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+        className="fx-small font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
       >
         <PauseCircle size={12} aria-hidden /> Suspendre les relances
       </button>
@@ -215,14 +213,14 @@ export function RelancesPauseBadge({
   }
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-1.5 py-0.5">
+      <span className="fx-eyebrow inline-block font-semibold text-amber-ink bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5">
         Relances suspendues
       </span>
       <button
         type="button"
         onClick={toggle}
         disabled={pending}
-        className="text-[10px] font-semibold text-navy hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+        className="fx-small font-semibold text-navy hover:underline inline-flex items-center gap-1 disabled:opacity-50"
       >
         <PlayCircle size={12} aria-hidden /> Réactiver
       </button>

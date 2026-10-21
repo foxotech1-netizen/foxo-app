@@ -77,9 +77,9 @@ export default async function AchatDetailPage({
         <div>
           <h1 className="fxs-page-title mb-1">
             Facture d&apos;achat{' '}
-            <span className="font-mono">{achat.numero_piece ?? '(sans n°)'}</span>
+            <span className="tabular-nums">{achat.numero_piece ?? '(sans n°)'}</span>
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {achat.fournisseur_nom ?? 'Fournisseur inconnu'} · source {achat.source}
           </div>
@@ -97,7 +97,7 @@ export default async function AchatDetailPage({
           />
           <Link
             href="/admin/facturation/achats"
-            className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
+            className="fx-meta text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
           >
             ← Retour à la liste
           </Link>

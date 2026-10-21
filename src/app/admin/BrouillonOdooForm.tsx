@@ -25,8 +25,8 @@ import {
   preparerBrouillonAction,
 } from './facturation/odoo/brouillon-actions';
 
-const CHAMP = 'w-full min-h-[40px] px-3 border border-sand-border rounded-lg text-[13px] bg-white text-ink outline-none focus:border-navy-mid disabled:bg-sand disabled:text-ink-mid';
-const ETIQUETTE = 'block text-[12px] font-semibold text-ink-mid mb-1';
+const CHAMP = 'w-full min-h-[40px] px-3 border border-sand-border rounded-lg fx-body bg-cream text-ink outline-none focus:border-navy-mid disabled:bg-sand disabled:text-ink-mid';
+const ETIQUETTE = 'fx-label block mb-1';
 
 function fmtMontant(n: number): string {
   return n.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
@@ -201,11 +201,11 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
       data-testid="odoo-brouillon-form"
     >
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="font-sora text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">
+        <div className="fx-eyebrow font-medium text-ink-mid">
           Facture Odoo · nouveau brouillon
         </div>
         {!succes && (
-          <span className="inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold bg-amber-light text-[var(--color-amber-deep)] border-[var(--color-amber-foxo)]/30">
+          <span className="fx-badge inline-block px-2 py-0.5 rounded-full border font-semibold bg-amber-light text-[var(--color-amber-deep)] border-[var(--color-amber-foxo)]/30">
             Rien n&apos;est encore envoyé
           </span>
         )}
@@ -213,22 +213,22 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
 
       {!prep && !erreurPrep && (
         <div className="space-y-2">
-          <div className="text-[12px] text-ink-mid">Lecture d&apos;Odoo (client, catalogue)… quelques secondes.</div>
+          <div className="fx-meta text-ink-mid">Lecture d&apos;Odoo (client, catalogue)… quelques secondes.</div>
           <SkeletonText lines={4} />
         </div>
       )}
 
       {erreurPrep && (
-        <div className="text-[13px]">
+        <div className="fx-body">
           <div className="text-terra font-semibold">Lecture d&apos;Odoo impossible : {erreurPrep}</div>
-          <button type="button" onClick={onFerme} className="mt-2 min-h-[44px] px-3 rounded-lg border border-sand-border text-[13px] font-semibold text-navy hover:bg-sand-hover">
+          <button type="button" onClick={onFerme} className="fx-body mt-2 min-h-[44px] px-3 rounded-lg border border-sand-border font-semibold text-navy hover:bg-sand-hover">
             Fermer
           </button>
         </div>
       )}
 
       {prep && succes && (
-        <div className="text-[13px] space-y-2">
+        <div className="fx-body space-y-2">
           <div className="font-semibold text-ok">
             Brouillon créé dans Odoo{succes.partner_cree ? ' (nouvelle fiche client créée)' : ''}.
           </div>
@@ -237,11 +237,11 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
           </div>
           <div className="flex flex-wrap gap-2">
             {succes.odoo_url && (
-              <a href={succes.odoo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy text-white text-[13px] font-bold hover:opacity-90">
+              <a href={succes.odoo_url} target="_blank" rel="noopener noreferrer" className="fx-body inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy text-cream font-semibold hover:opacity-90">
                 Ouvrir dans Odoo <ExternalLink size={13} aria-hidden />
               </a>
             )}
-            <button type="button" onClick={onFerme} className="min-h-[44px] px-3 rounded-lg border border-sand-border text-[13px] font-semibold text-navy hover:bg-sand-hover">
+            <button type="button" onClick={onFerme} className="fx-body min-h-[44px] px-3 rounded-lg border border-sand-border font-semibold text-navy hover:bg-sand-hover">
               Fermer
             </button>
           </div>
@@ -250,13 +250,13 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
       )}
 
       {prep && !succes && (
-        <div className="space-y-4 text-[13px]">
+        <div className="fx-body space-y-4">
           {prep.blocage && (
             <div className="px-3 py-2 rounded-lg bg-amber-light text-[var(--color-amber-deep)] font-semibold">{prep.blocage}</div>
           )}
           {!prep.ecriture_active && !prep.blocage && (
             <div className="px-3 py-2 rounded-lg bg-sand-mid text-ink-mid">
-              Écriture vers Odoo désactivée (réglage <span className="font-mono">odoo_ecriture_active</span>) : le formulaire est consultable, mais rien ne peut partir.
+              Écriture vers Odoo désactivée (réglage <span className="tabular-nums">odoo_ecriture_active</span>) : le formulaire est consultable, mais rien ne peut partir.
             </div>
           )}
 
@@ -264,13 +264,13 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
           <div>
             <span className={ETIQUETTE}>Client Odoo</span>
             {modeClient === 'existant' && client && (
-              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border border-sand-border rounded-lg bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border border-sand-border rounded-lg bg-cream">
                 <div>
                   <div className="font-semibold">{client.nom}</div>
                   {prep.client.source && client.id === prep.client.propose?.id && (
-                    <div className="text-[12px] text-ok">{SOURCE_LABEL[prep.client.source]}</div>
+                    <div className="fx-meta text-ok">{SOURCE_LABEL[prep.client.source]}</div>
                   )}
-                  {client.email && <div className="text-[12px] text-ink-mid">{client.email}</div>}
+                  {client.email && <div className="fx-meta text-ink-mid">{client.email}</div>}
                 </div>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => { setRechercheOuverte((o) => !o); setRecherche(''); }} className="min-h-[44px] text-navy font-semibold underline">
@@ -283,7 +283,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
               </div>
             )}
             {modeClient === 'existant' && !client && (
-              <div className="px-3 py-2 border border-sand-border rounded-lg bg-white text-ink-mid">
+              <div className="px-3 py-2 border border-sand-border rounded-lg bg-cream text-ink-mid">
                 Aucun client Odoo retrouvé pour ce dossier.
                 <button type="button" onClick={() => setRechercheOuverte(true)} className="ml-2 min-h-[44px] text-navy font-semibold underline">Chercher</button>
                 <button type="button" onClick={() => setModeClient('nouveau')} className="ml-3 min-h-[44px] text-navy font-semibold underline">Nouvelle fiche</button>
@@ -302,12 +302,12 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
                   className={CHAMP}
                   autoFocus
                 />
-                {chercheEnCours && <div className="mt-1 text-[12px] text-ink-mid">Recherche…</div>}
+                {chercheEnCours && <div className="fx-meta mt-1 text-ink-mid">Recherche…</div>}
                 {!chercheEnCours && recherche.trim().length >= 2 && resultatsAffiches.length === 0 && (
-                  <div className="mt-1 text-[12px] text-ink-mid">Aucun client Odoo ne correspond.</div>
+                  <div className="fx-meta mt-1 text-ink-mid">Aucun client Odoo ne correspond.</div>
                 )}
                 {resultatsAffiches.length > 0 && (
-                  <ul className="mt-1 border border-sand-border rounded-lg bg-white divide-y divide-sand-border max-h-56 overflow-y-auto">
+                  <ul className="mt-1 border border-sand-border rounded-lg bg-cream divide-y divide-sand-border max-h-56 overflow-y-auto">
                     {resultatsAffiches.map((r) => (
                       <li key={r.id}>
                         <button
@@ -316,7 +316,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
                           className="w-full text-left px-3 py-2 min-h-[44px] hover:bg-sand-hover"
                         >
                           <span className="font-semibold">{r.nom}</span>
-                          {r.email && <span className="ml-2 text-[12px] text-ink-mid">{r.email}</span>}
+                          {r.email && <span className="fx-meta ml-2 text-ink-mid">{r.email}</span>}
                         </button>
                       </li>
                     ))}
@@ -326,7 +326,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
             )}
 
             {modeClient === 'nouveau' && nouveau && (
-              <div className="px-3 py-3 border border-sand-border rounded-lg bg-white space-y-2">
+              <div className="px-3 py-3 border border-sand-border rounded-lg bg-cream space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0">
                   <div className="font-semibold">Nouvelle fiche client dans Odoo</div>
                   {(prep.client.propose || client) && (
@@ -383,7 +383,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
             <div>
               <label htmlFor="bo-date" className={ETIQUETTE}>Date de facture</label>
               <input id="bo-date" type="date" className={CHAMP} value={dateFacture} onChange={(e) => setDateFacture(e.target.value)} />
-              <div className="mt-1 text-[11px] text-ink-mid">
+              <div className="fx-small mt-1 text-ink-mid">
                 Échéance : {prep.condition_paiement ? `« ${prep.condition_paiement} », comme tes dernières factures` : 'selon Odoo'} · numéro : attribué par Odoo.
               </div>
             </div>
@@ -446,10 +446,10 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
               })}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={ajouterLigne} className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy-pale border border-navy-light text-navy text-[13px] font-semibold hover:bg-navy-light">
+              <button type="button" onClick={ajouterLigne} className="fx-body inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy-pale border border-navy-light text-navy font-semibold hover:bg-navy-light">
                 <Plus size={14} aria-hidden /> Ajouter une ligne
               </button>
-              <span className="text-[11px] text-ink-mid">Produits, prix et TVA viennent d&apos;Odoo ; tout reste modifiable ici puis dans Odoo.</span>
+              <span className="fx-small text-ink-mid">Produits, prix et TVA viennent d&apos;Odoo ; tout reste modifiable ici puis dans Odoo.</span>
             </div>
           </div>
 
@@ -457,7 +457,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
           <div>
             <label htmlFor="bo-note" className={ETIQUETTE}>Note sous les lignes (comme dans Odoo)</label>
             <textarea id="bo-note" rows={6} className={`${CHAMP} py-2 leading-relaxed`} value={note} onChange={(e) => setNote(e.target.value)} />
-            <div className="mt-1 text-[11px] text-ink-mid">Pré-remplie avec la référence courtier/syndic, l&apos;adresse et les occupants du dossier.</div>
+            <div className="fx-small mt-1 text-ink-mid">Pré-remplie avec la référence courtier/syndic, l&apos;adresse et les occupants du dossier.</div>
           </div>
 
           {/* Totaux */}
@@ -465,12 +465,12 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
             <div className="grid grid-cols-[auto_120px] gap-x-4 gap-y-1 text-right tabular-nums">
               <span className="text-ink-mid">Total HT</span><span>{fmtMontant(totaux.ht)}</span>
               <span className="text-ink-mid">TVA</span><span>{fmtMontant(totaux.tva)}</span>
-              <span className="font-bold">Total TTC</span><span className="font-bold text-[15px]">{fmtMontant(totaux.ttc)}</span>
+              <span className="font-semibold">Total TTC</span><span className="fx-h2 font-semibold">{fmtMontant(totaux.ttc)}</span>
             </div>
           </div>
 
-          <div className="text-[12px] text-ink-mid">
-            Communication structurée posée sur le brouillon : <span className="font-mono text-ink">{prep.communication}</span> — dérivée du n° de dossier, utilisable pour un paiement sur place (QR affiché après création) ; Odoo la conserve à la validation.
+          <div className="fx-meta text-ink-mid">
+            Communication structurée posée sur le brouillon : <span className="tabular-nums text-ink">{prep.communication}</span> — dérivée du n° de dossier, utilisable pour un paiement sur place (QR affiché après création) ; Odoo la conserve à la validation.
           </div>
 
           {erreur && <div className="text-terra font-semibold">{erreur}</div>}
@@ -480,14 +480,14 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
               type="button"
               onClick={creer}
               disabled={!peutEnvoyer}
-              className="bg-navy text-white px-4 rounded-lg text-[13px] font-bold hover:opacity-90 min-h-[44px] disabled:opacity-50"
+              className="fx-body bg-navy text-cream px-4 rounded-lg font-semibold hover:opacity-90 min-h-[44px] disabled:opacity-50"
             >
               {pending ? 'Création dans Odoo…' : 'Créer le brouillon dans Odoo'}
             </button>
-            <button type="button" onClick={onFerme} disabled={pending} className="min-h-[44px] px-3 rounded-lg border border-sand-border text-[13px] font-semibold text-navy hover:bg-sand-hover disabled:opacity-50">
+            <button type="button" onClick={onFerme} disabled={pending} className="fx-body min-h-[44px] px-3 rounded-lg border border-sand-border font-semibold text-navy hover:bg-sand-hover disabled:opacity-50">
               Annuler
             </button>
-            <span className="text-[12px] text-ink-mid">Sans numéro : Odoo l&apos;attribue à la validation.</span>
+            <span className="fx-meta text-ink-mid">Sans numéro : Odoo l&apos;attribue à la validation.</span>
           </div>
         </div>
       )}

@@ -13,7 +13,7 @@ function fmtMontant(n: number): string {
 
 export function QrPaiement({ paiement }: { paiement: PaiementBrouillon }) {
   return (
-    <div className="mt-3 p-3 rounded-lg border border-sand-border bg-white flex flex-wrap items-center gap-4" data-testid="odoo-qr-paiement">
+    <div className="mt-3 p-3 rounded-lg border border-sand-border bg-cream flex flex-wrap items-center gap-4" data-testid="odoo-qr-paiement">
       {/* eslint-disable-next-line @next/next/no-img-element -- image générée (data URL), pas un asset optimisable */}
       <img
         src={paiement.qr_data_url}
@@ -22,14 +22,14 @@ export function QrPaiement({ paiement }: { paiement: PaiementBrouillon }) {
         height={176}
         className="w-44 h-44 shrink-0 rounded"
       />
-      <div className="text-[13px] space-y-1 min-w-0">
+      <div className="fx-body space-y-1 min-w-0">
         <div className="font-semibold">Paiement sur place</div>
         <div className="text-ink-mid">Le client scanne ce code avec son application bancaire.</div>
         <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 pt-1">
           <span className="text-ink-mid">Montant</span><span className="font-semibold tabular-nums">{fmtMontant(paiement.montant_ttc)}</span>
-          <span className="text-ink-mid">IBAN</span><span className="font-mono">{paiement.iban}</span>
+          <span className="text-ink-mid">IBAN</span><span className="tabular-nums">{paiement.iban}</span>
           <span className="text-ink-mid">Bénéficiaire</span><span>{paiement.beneficiaire}</span>
-          <span className="text-ink-mid">Communication</span><span className="font-mono">{paiement.communication}</span>
+          <span className="text-ink-mid">Communication</span><span className="tabular-nums">{paiement.communication}</span>
         </div>
       </div>
     </div>

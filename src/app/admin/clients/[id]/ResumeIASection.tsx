@@ -56,21 +56,21 @@ export function ResumeIASection({
   }
 
   return (
-    <div className="bg-navy-pale border border-navy-light rounded-2xl px-4 py-3">
+    <div className="bg-navy-pale border border-navy-light rounded-modal px-4 py-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-navy shrink-0">
+        <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold text-navy shrink-0">
           <Sparkles size={12} /> IA
         </span>
         {resume ? (
           <>
-            <span className="text-[10px] text-ink-muted">
+            <span className="fx-small text-ink-mid">
               Résumé IA du {date ? fmtDateTime(date) : '—'}
             </span>
             <button
               type="button"
               onClick={() => generate(true)}
               disabled={loading}
-              className="ml-auto text-[11px] font-bold text-navy hover:underline disabled:opacity-50 disabled:no-underline"
+              className="fx-small ml-auto font-semibold text-navy hover:underline disabled:opacity-50 disabled:no-underline"
             >
               {loading ? 'Génération en cours…' : 'Régénérer'}
             </button>
@@ -80,19 +80,19 @@ export function ResumeIASection({
             type="button"
             onClick={() => generate(false)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold bg-navy text-white hover:opacity-90 disabled:opacity-50"
+            className="fx-label inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold bg-navy text-cream hover:opacity-90 disabled:opacity-50"
           >
             {loading ? 'Génération en cours…' : 'Résumer la situation (IA)'}
           </button>
         )}
       </div>
       {resume && (
-        <p className="text-[13px] text-ink mt-2 leading-relaxed whitespace-pre-wrap">
+        <p className="fx-body text-ink mt-2 leading-relaxed whitespace-pre-wrap">
           {resume}
         </p>
       )}
       {error && (
-        <div className="mt-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
+        <div className="fx-small mt-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-lg font-semibold">
           {error}
         </div>
       )}

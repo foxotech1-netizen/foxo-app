@@ -76,34 +76,34 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
     >
       <div className="space-y-4">
         {mailPrefill && (
-          <div className="bg-navy-pale border border-navy-light text-navy rounded-lg px-3 py-2 text-[12px] dark:text-white">
+          <div className="fx-meta bg-navy-pale border border-navy-light text-navy rounded-lg px-3 py-2">
             Création depuis un mail : clique sur « Proposer », puis choisis un créneau —
             la fiche d&apos;intervention s&apos;ouvrira pré-remplie avec les informations du mail.
           </div>
         )}
         {/* Adresse */}
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+          <label className="fx-label font-semibold text-ink-mid block mb-1.5">
             Adresse de l&apos;intervention
           </label>
           <input
             value={adresse}
             onChange={(e) => setAdresse(e.target.value)}
             placeholder="Rue, numéro, code postal, ville"
-            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+            className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
           />
-          <p className="text-[10px] text-ink-muted italic mt-1">
+          <p className="fx-small text-ink-mid italic mt-1">
             Optionnel — sert à privilégier les créneaux proches d&apos;autres interventions du jour.
           </p>
         </div>
 
         {/* Urgence */}
-        <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+        <label className="fx-label flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
             checked={urgence}
             onChange={(e) => setUrgence(e.target.checked)}
-            className="accent-[#C4622D]"
+            className="accent-[var(--color-terra)]"
           />
           <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
             <Zap size={14} /> Intervention urgente
@@ -115,7 +115,7 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
           type="button"
           onClick={runPropose}
           disabled={isPending}
-          className="w-full bg-navy text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+          className="fx-body w-full bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
         >
           <Sparkles size={14} />
           {isPending ? 'Recherche en cours…' : 'Proposer'}
@@ -125,7 +125,7 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
         {searched && !isPending && (
           <div className="space-y-3">
             {result?.fenetre_etendue && (
-              <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-lg px-3 py-2 text-[12px] inline-flex items-start gap-1.5 w-full">
+              <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg px-3 py-2 inline-flex items-start gap-1.5 w-full">
                 <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
                 <span>Aucun créneau disponible dans le délai habituel — proposition plus tardive.</span>
               </div>
@@ -148,7 +148,7 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
             )}
 
             {noResult && (
-              <div className="bg-sand border border-sand-border rounded-lg px-3 py-3 text-[12px] text-ink-mid text-center">
+              <div className="fx-meta bg-sand border border-sand-border rounded-lg px-3 py-3 text-ink-mid text-center">
                 Aucun créneau libre trouvé. Ajoutez des disponibilités dans l&apos;onglet
                 {' '}« Gérer les disponibilités ».
               </div>
@@ -161,7 +161,7 @@ export function ProposeSlotModal({ onClose, onSelect }: ProposeSlotModalProps) {
         <button
           type="button"
           onClick={onClose}
-          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold dark:bg-[rgba(255,255,255,.06)]"
+          className="fx-body bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg font-semibold"
         >
           Fermer
         </button>
@@ -184,21 +184,20 @@ function SuggestionCard({
   const s = suggestion;
   return (
     <div
-      className={
-        'rounded-xl p-3 border ' +
+      className={'rounded-xl p-3 border ' +
         (highlight
           ? 'bg-navy-pale border-navy-light'
-          : 'bg-white border-sand-border')
+          : 'bg-cream border-sand-border')
       }
     >
-      <div className="text-[10px] uppercase tracking-wider font-bold text-ink-muted mb-1 inline-flex items-center gap-1">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-1 inline-flex items-center gap-1">
         <CalendarClock size={12} /> {label}
       </div>
-      <div className="text-[13px] font-extrabold text-ink capitalize">
+      <div className="fx-body font-semibold text-ink capitalize">
         {fmtDate(s.date)}
       </div>
-      <div className="text-[12px] text-ink-mid mt-0.5">
-        <span className="font-mono font-bold">{s.heure_debut} → {s.heure_fin}</span>
+      <div className="fx-meta text-ink-mid mt-0.5">
+        <span className="tabular-nums font-semibold">{s.heure_debut} → {s.heure_fin}</span>
         {' · '}
         {s.technicien_nom}
       </div>
@@ -213,7 +212,7 @@ function SuggestionCard({
             technicien_id: s.technicien_id,
           })
         }
-        className="mt-2.5 w-full bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center justify-center gap-1.5"
+        className="fx-label mt-2.5 w-full bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 inline-flex items-center justify-center gap-1.5"
       >
         <Check size={13} /> Planifier ce créneau
       </button>

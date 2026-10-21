@@ -30,14 +30,14 @@ function VoirPlus({ hidden, onClick }: { hidden: number; onClick: () => void }) 
     <button
       type="button"
       onClick={onClick}
-      className="w-full py-2 text-[11px] font-bold text-navy hover:bg-sand-hover border-t border-sand-mid"
+      className="fx-small w-full py-2 font-semibold text-navy hover:bg-sand-hover border-t border-sand-mid"
     >
       Voir plus ({hidden} de plus)
     </button>
   );
 }
 
-const TH_CLASS = 'px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap';
+const TH_CLASS = 'fx-th px-3.5 py-2.5 text-left border-b border-sand-border whitespace-nowrap';
 
 // ─── Interventions ──────────────────────────────────────────────────────
 
@@ -48,15 +48,15 @@ export function InterventionsSection({ items }: { items: Client360Intervention[]
 
   return (
     <section>
-      <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-mid mb-3">
+      <h2 className="fx-th font-medium text-ink-mid mb-3">
         Interventions ({items.length})
       </h2>
       {items.length === 0 ? (
-        <div className="bg-cream border border-sand-border rounded-2xl p-6 text-center text-[13px] text-ink-muted">
+        <div className="fx-body bg-cream border border-sand-border rounded-modal p-6 text-center text-ink-mid">
           Aucune intervention liée à ce client.
         </div>
       ) : (
-        <div className="bg-cream rounded-2xl border border-sand-border overflow-hidden">
+        <div className="bg-cream rounded-modal border border-sand-border overflow-hidden">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-sand">
@@ -72,21 +72,21 @@ export function InterventionsSection({ items }: { items: Client360Intervention[]
                   onClick={() => router.push(`/admin/interventions/${iv.id}`)}
                   className="border-b border-sand-mid hover:bg-sand-hover cursor-pointer"
                 >
-                  <td className="px-3.5 py-2.5 font-mono text-xs font-bold text-navy whitespace-nowrap">
+                  <td className="fx-body-dense px-3.5 py-2.5 fx-ref font-semibold text-navy whitespace-nowrap">
                     {iv.ref ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                     {fmtDateBe(iv.date_effective)}
                   </td>
                   <td className="px-3.5 py-2.5">
                     <StatutBadge statut={iv.statut} />
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
-                    {iv.adresse ?? <span className="text-ink-muted">—</span>}
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid">
+                    {iv.adresse ?? <span className="text-ink-mid">—</span>}
                   </td>
                   <td className="px-3.5 py-2.5 whitespace-nowrap">
                     {iv.rapport?.statut === 'transmis' ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy">
+                      <span className="fx-small inline-flex items-center gap-1 font-semibold text-navy">
                         <FileText size={12} /> Rapport
                       </span>
                     ) : iv.rapport_historique_url ? (
@@ -95,12 +95,12 @@ export function InterventionsSection({ items }: { items: Client360Intervention[]
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-navy hover:underline"
+                        className="fx-small inline-flex items-center gap-1 font-semibold text-navy hover:underline"
                       >
                         <ExternalLink size={12} /> Drive
                       </a>
                     ) : (
-                      <span className="text-ink-muted text-[11px]">—</span>
+                      <span className="fx-small text-ink-mid">—</span>
                     )}
                   </td>
                 </tr>
@@ -126,10 +126,10 @@ export function OccupantsSection({ items }: { items: Client360Occupant[] }) {
 
   return (
     <section>
-      <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-ink-mid mb-3">
+      <h2 className="fx-th font-medium text-ink-mid mb-3">
         Occupants connus ({items.length})
       </h2>
-      <div className="bg-cream rounded-2xl border border-sand-border overflow-hidden">
+      <div className="bg-cream rounded-modal border border-sand-border overflow-hidden">
         <table className="w-full border-collapse">
           <thead>
             <tr className="bg-sand">
@@ -145,19 +145,19 @@ export function OccupantsSection({ items }: { items: Client360Occupant[] }) {
                 onClick={() => router.push(`/admin/interventions/${o.intervention_id}`)}
                 className="border-b border-sand-mid hover:bg-sand-hover cursor-pointer"
               >
-                <td className="px-3.5 py-2 text-[12px] font-semibold text-ink whitespace-nowrap">
+                <td className="fx-body-dense px-3.5 py-2 font-semibold text-ink whitespace-nowrap">
                   {[o.prenom, o.nom].filter(Boolean).join(' ') || '—'}
                 </td>
-                <td className="px-3.5 py-2 font-mono text-[11px] text-ink-mid whitespace-nowrap">
+                <td className="fx-small px-3.5 py-2 tabular-nums text-ink-mid whitespace-nowrap">
                   {o.telephone ?? '—'}
                 </td>
-                <td className="px-3.5 py-2 font-mono text-[11px] text-ink-mid">
+                <td className="fx-small px-3.5 py-2 tabular-nums text-ink-mid">
                   {o.email ?? '—'}
                 </td>
-                <td className="px-3.5 py-2 text-[11px] text-ink-mid whitespace-nowrap">
+                <td className="fx-small px-3.5 py-2 text-ink-mid whitespace-nowrap">
                   {o.appartement ?? '—'}
                 </td>
-                <td className="px-3.5 py-2 font-mono text-[11px] font-bold text-navy whitespace-nowrap">
+                <td className="fx-small px-3.5 py-2 fx-ref font-semibold text-navy whitespace-nowrap">
                   {o.intervention_ref ?? '—'}
                 </td>
               </tr>

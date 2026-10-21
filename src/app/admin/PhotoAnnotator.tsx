@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { ANNOTATION_BLANC, ANNOTATION_COLORS, ANNOTATION_NOIR, ANNOTATION_SELECTION } from '@/lib/photos/couleurs';
 import {
   ArrowUpRight,
   Circle,
@@ -32,7 +33,7 @@ export type Annotation =
 
 type Tool = 'select' | 'arrow' | 'ellipse' | 'rect' | 'line' | 'free' | 'text';
 
-const COLORS = ['#FF3B30', '#FFCC00', '#34C759', '#FFFFFF', '#000000'];
+const COLORS = ANNOTATION_COLORS;
 const STROKES: { label: string; sw: number }[] = [
   { label: 'Fin', sw: 0.004 },
   { label: 'Moyen', sw: 0.007 },
@@ -96,7 +97,7 @@ function drawAnnotation(ctx: CanvasRenderingContext2D, a: Annotation, outW: numb
     ctx.font = `700 ${px}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
     ctx.lineWidth = Math.max(2, px * 0.14);
-    ctx.strokeStyle = a.color === '#FFFFFF' ? '#000000' : '#FFFFFF';
+    ctx.strokeStyle = a.color === ANNOTATION_BLANC ? ANNOTATION_NOIR : ANNOTATION_BLANC;
     ctx.strokeText(a.text, a.x * outW, a.y * outH);
     ctx.fillStyle = a.color;
     ctx.fillText(a.text, a.x * outW, a.y * outH);
@@ -151,7 +152,7 @@ function drawSelection(ctx: CanvasRenderingContext2D, a: Annotation, outW: numbe
   const b = bboxOf(a);
   const pad = 0.012;
   ctx.save();
-  ctx.strokeStyle = '#2A5298';
+  ctx.strokeStyle = ANNOTATION_SELECTION;
   ctx.lineWidth = Math.max(1.5, outW * 0.003);
   ctx.setLineDash([Math.max(4, outW * 0.01), Math.max(3, outW * 0.008)]);
   ctx.strokeRect((b.x - pad) * outW, (b.y - pad) * outH, (b.w + pad * 2) * outW, (b.h + pad * 2) * outH);
@@ -430,7 +431,7 @@ export default function PhotoAnnotator({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy-deep/60 p-4" role="dialog" aria-modal="true">
-      <div className="flex max-h-[92vh] w-full max-w-[980px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="flex max-h-[92vh] w-full max-w-[980px] flex-col overflow-hidden rounded-modal bg-cream shadow-2xl">
         <div className="flex flex-wrap items-center gap-2 border-b border-sand-border px-4 py-3">
           <div className="flex flex-wrap gap-1">
             {TOOLS.map((it) => {
@@ -442,7 +443,7 @@ export default function PhotoAnnotator({
                   title={it.label}
                   aria-label={it.label}
                   onClick={() => { setTool(it.t); if (it.t !== 'select') setSelectedIdx(null); }}
-                  className={`rounded-md p-1.5 ${tool === it.t ? 'bg-navy text-white' : 'bg-sand text-ink hover:bg-sand-border'}`}
+                  className={`rounded-lg p-1.5 ${tool === it.t ? 'bg-navy text-white' : 'bg-sand text-ink hover:bg-sand-border'}`}
                 >
                   <Icon size={16} />
                 </button>
@@ -469,29 +470,29 @@ export default function PhotoAnnotator({
                 key={st.label}
                 type="button"
                 onClick={() => setSw(st.sw)}
-                className={`rounded-md px-2 py-1.5 text-xs font-semibold ${sw === st.sw ? 'bg-navy text-white' : 'bg-sand text-ink hover:bg-sand-border'}`}
+                className={`fx-label rounded-lg px-2 py-1.5 font-semibold ${sw === st.sw ? 'bg-navy text-white' : 'bg-sand text-ink hover:bg-sand-border'}`}
               >
                 {st.label}
               </button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <button type="button" title="Annuler (Ctrl+Z)" aria-label="Annuler" onClick={undo} disabled={past.length === 0} className="rounded-md bg-sand p-1.5 text-ink hover:bg-sand-border disabled:opacity-40"><Undo2 size={16} /></button>
-            <button type="button" title="Refaire (Ctrl+Y)" aria-label="Refaire" onClick={redo} disabled={future.length === 0} className="rounded-md bg-sand p-1.5 text-ink hover:bg-sand-border disabled:opacity-40"><Redo2 size={16} /></button>
-            <button type="button" title="Supprimer la selection (Suppr)" aria-label="Supprimer la selection" onClick={deleteSelected} disabled={selectedIdx == null} className="rounded-md bg-sand p-1.5 text-ink hover:bg-sand-border disabled:opacity-40"><Trash2 size={16} /></button>
-            <button type="button" onClick={clearAll} disabled={shapes.length === 0} className="rounded-md bg-sand px-2 py-1.5 text-xs font-semibold text-ink hover:bg-sand-border disabled:opacity-40">Tout effacer</button>
+            <button type="button" title="Annuler (Ctrl+Z)" aria-label="Annuler" onClick={undo} disabled={past.length === 0} className="rounded-lg bg-sand p-1.5 text-ink hover:bg-sand-border disabled:opacity-40"><Undo2 size={16} /></button>
+            <button type="button" title="Refaire (Ctrl+Y)" aria-label="Refaire" onClick={redo} disabled={future.length === 0} className="rounded-lg bg-sand p-1.5 text-ink hover:bg-sand-border disabled:opacity-40"><Redo2 size={16} /></button>
+            <button type="button" title="Supprimer la selection (Suppr)" aria-label="Supprimer la selection" onClick={deleteSelected} disabled={selectedIdx == null} className="rounded-lg bg-sand p-1.5 text-ink hover:bg-sand-border disabled:opacity-40"><Trash2 size={16} /></button>
+            <button type="button" onClick={clearAll} disabled={shapes.length === 0} className="fx-label rounded-lg bg-sand px-2 py-1.5 font-semibold text-ink hover:bg-sand-border disabled:opacity-40">Tout effacer</button>
           </div>
         </div>
 
         {tool === 'select' && (
-          <div className="border-b border-sand-border bg-navy-pale px-4 py-1.5 text-[11px] text-navy">
+          <div className="fx-small border-b border-sand-border bg-navy-pale px-4 py-1.5 text-navy">
             Clique une annotation pour la selectionner, puis Supprimer (ou touche Suppr).
           </div>
         )}
 
         <div className="flex flex-1 items-center justify-center overflow-auto bg-sand/40 p-4">
-          {loading && <div className="text-sm text-ink-muted">Chargement de la photo...</div>}
-          {loadErr && <div className="text-sm text-red-600">{loadErr}</div>}
+          {loading && <div className="fx-body text-ink-mid">Chargement de la photo...</div>}
+          {loadErr && <div className="fx-body text-red-600">{loadErr}</div>}
           {!loading && !loadErr && (
             <canvas
               ref={canvasRef}
@@ -506,14 +507,14 @@ export default function PhotoAnnotator({
 
         <div className="flex items-center gap-2 border-t border-sand-border px-4 py-3">
           {hasInitial && (
-            <button type="button" onClick={removeAnnotation} disabled={saving} className="rounded-md px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40">
+            <button type="button" onClick={removeAnnotation} disabled={saving} className="fx-label rounded-lg px-3 py-2 font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40">
               Retirer l annotation
             </button>
           )}
-          {saveErr && <span className="text-xs text-red-600">{saveErr}</span>}
+          {saveErr && <span className="fx-meta text-red-600">{saveErr}</span>}
           <div className="ml-auto flex gap-2">
-            <button type="button" onClick={onClose} disabled={saving} className="rounded-md bg-sand px-3 py-2 text-xs font-semibold text-ink hover:bg-sand-border disabled:opacity-40">Fermer</button>
-            <button type="button" onClick={save} disabled={saving || loading || !!loadErr} className="rounded-md bg-navy px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:opacity-40">
+            <button type="button" onClick={onClose} disabled={saving} className="fx-label rounded-lg bg-sand px-3 py-2 font-semibold text-ink hover:bg-sand-border disabled:opacity-40">Fermer</button>
+            <button type="button" onClick={save} disabled={saving || loading || !!loadErr} className="fx-label rounded-lg bg-navy px-4 py-2 font-semibold text-cream hover:opacity-90 disabled:opacity-40">
               {saving ? 'Enregistrement...' : 'Enregistrer l annotation'}
             </button>
           </div>

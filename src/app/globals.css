@@ -1708,3 +1708,33 @@ textarea::placeholder {
   font-variant-numeric: tabular-nums;
   color: var(--color-navy);
 }
+
+/* Pills de statut dans l'admin : StatutBadge (composant partagé, couleurs en
+   style inline) rebasé sur les 4 familles de la maquette. !important : seule
+   façon de passer devant un style inline sans toucher aux autres portails. */
+.fx-admin .statut-badge {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  padding: 4px 10px !important;
+  line-height: 1.2;
+}
+.fx-admin .statut-badge[data-statut="attente"],
+.fx-admin .statut-badge[data-statut="nouvelle"] {
+  background: var(--color-amber-light) !important;
+  color: var(--color-amber-ink) !important;
+}
+.fx-admin .statut-badge[data-statut="confirmee"],
+.fx-admin .statut-badge[data-statut="realisee"] {
+  background: var(--color-sky-light-foxo) !important;
+  color: var(--color-navy) !important;
+}
+.fx-admin .statut-badge[data-statut="rapport"],
+.fx-admin .statut-badge[data-statut="cloturee"] {
+  background: var(--color-ok-light) !important;
+  color: var(--color-ok) !important;
+}
+.fx-admin .statut-badge[data-statut="en_suspens"] {
+  background: var(--color-terra-light) !important;
+  color: var(--color-terra-ink) !important;
+}

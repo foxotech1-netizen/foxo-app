@@ -5,15 +5,10 @@ import { RelancesAutoBlock } from './RelancesAutoBlock';
 
 export const dynamic = 'force-dynamic';
 
-const PARAM_KEYS = [
-  'rappels_auto_actifs',
-  'rappel_delai_j1',
-  'rappel_delai_j2',
-  'rappel_template_email',
+const PARAM_KEYS = [ 'rappels_auto_actifs', 'rappel_delai_j1', 'rappel_delai_j2', 'rappel_template_email',
 ] as const;
 
-const DEFAULT_TEMPLATE =
-  'Bonjour,\n\nNous vous rappelons que la facture {ref} d\'un montant de {montant} € est en attente de règlement depuis {jours} jours.\n\nMerci de procéder au paiement dans les meilleurs délais.\n\nCordialement,\nFoxO';
+const DEFAULT_TEMPLATE = 'Bonjour,\n\nNous vous rappelons que la facture {ref} d\'un montant de {montant} € est en attente de règlement depuis {jours} jours.\n\nMerci de procéder au paiement dans les meilleurs délais.\n\nCordialement,\nFoxO';
 
 export default async function RappelsPage() {
   const supabase = await createClient();
@@ -60,7 +55,7 @@ export default async function RappelsPage() {
         <h1 className="fxs-page-title mb-1">
           Rappels de paiement
         </h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
           Configure les rappels automatiques et envoie des rappels manuels
         </div>

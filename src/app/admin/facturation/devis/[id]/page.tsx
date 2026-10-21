@@ -41,9 +41,9 @@ export default async function EditDevisPage({
       <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">
-            Devis <span className="font-mono">{devis.numero}</span>
+            Devis <span className="tabular-nums">{devis.numero}</span>
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             Statut : <strong className="capitalize">{devis.statut}</strong>
             {devis.converted_to_facture_id && (
@@ -54,7 +54,7 @@ export default async function EditDevisPage({
         <div className="flex flex-wrap gap-2 items-center">
           <SendByEmailButton facture={devis} defaults={emailDefaults} />
           <RevertToBrouillonButton facture={devis} />
-          <Link href="/admin/facturation/devis" className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
+          <Link href="/admin/facturation/devis" className="fx-meta text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center">
             ← Retour
           </Link>
         </div>

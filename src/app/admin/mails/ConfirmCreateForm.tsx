@@ -54,7 +54,7 @@ const CONTACT_PREF_LABELS: { value: ContactPreference; label: string }[] = [
 ];
 
 // Mêmes classe/style que les inputs existants du formulaire (adresse, type…).
-const OCC_INPUT_CLASS = 'w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50';
+const OCC_INPUT_CLASS = 'fx-body-dense w-full px-2.5 py-1.5 rounded-lg outline-none disabled:opacity-50';
 const OCC_INPUT_STYLE: React.CSSProperties = {
   background: 'var(--color-cream)',
   border: '1px solid var(--color-sand-border)',
@@ -179,8 +179,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
     }
     searchTimer.current = setTimeout(async () => {
       try {
-        const r = await fetch(
-          `/api/admin/interventions/search?q=${encodeURIComponent(searchQuery.trim())}`,
+        const r = await fetch( `/api/admin/interventions/search?q=${encodeURIComponent(searchQuery.trim())}`,
           { cache: 'no-store' },
         );
         const data = await r.json();
@@ -261,13 +260,13 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
 
   return (
     <div
-      className="rounded-md p-4 space-y-3"
+      className="rounded-lg p-4 space-y-3"
       style={{
         background: 'var(--color-sand)',
         border: '1px solid var(--color-sand-border)',
       }}
     >
-      <div className="font-sora text-[13px] font-semibold" style={{ color: 'var(--color-ink)' }}>
+      <div className="fx-body font-sora font-semibold" style={{ color: 'var(--color-ink)' }}>
         Vérifier les informations avant création
       </div>
 
@@ -279,7 +278,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
           onChange={(e) => setAdresse(e.target.value)}
           placeholder="Avenue Henri Liebrecht 66, 1090 Bruxelles"
           disabled={submitState === 'submitting' || !!linkedDossier}
-          className="w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50"
+          className="fx-meta w-full px-2.5 py-1.5 rounded outline-none disabled:opacity-50"
           style={{
             background: 'var(--color-cream)',
             border: `1px solid ${adresseInvalid ? 'var(--color-terra)' : 'var(--color-sand-border)'}`,
@@ -287,7 +286,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
           }}
         />
         {adresseInvalid && (
-          <div className="text-[10px] mt-1" style={{ color: 'var(--color-terra)' }}>
+          <div className="fx-small mt-1" style={{ color: 'var(--color-terra)' }}>
             Adresse extraite vide — saisis une adresse postale belge complète.
           </div>
         )}
@@ -299,7 +298,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
           value={typeInterv}
           onChange={(e) => setTypeInterv(e.target.value)}
           disabled={submitState === 'submitting'}
-          className="w-full px-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50"
+          className="fx-meta w-full px-2.5 py-1.5 rounded outline-none disabled:opacity-50"
           style={{
             background: 'var(--color-cream)',
             border: '1px solid var(--color-sand-border)',
@@ -323,7 +322,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
             >
               <div className="flex items-center justify-between">
                 <span
-                  className="text-[10px] font-medium uppercase tracking-wider"
+                  className="fx-eyebrow font-medium"
                   style={{ color: 'var(--color-ink-muted)' }}
                 >
                   Occupant {i + 1}
@@ -333,7 +332,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
                     type="button"
                     onClick={() => removeOccupant(i)}
                     disabled={submitState === 'submitting'}
-                    className="text-[10px] font-medium hover:underline disabled:opacity-50"
+                    className="fx-small font-medium hover:underline disabled:opacity-50"
                     style={{ color: 'var(--color-terra)' }}
                   >
                     Supprimer
@@ -423,7 +422,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
                 {CONTACT_PREF_LABELS.map((p) => (
                   <label
                     key={p.value}
-                    className="inline-flex items-center gap-1.5 cursor-pointer text-[12px]"
+                    className="fx-label inline-flex items-center gap-1.5 cursor-pointer"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <input
@@ -457,7 +456,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
           type="button"
           onClick={addOccupant}
           disabled={submitState === 'submitting'}
-          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold disabled:opacity-50"
+          className="fx-label mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded font-semibold disabled:opacity-50"
           style={{ background: 'var(--color-sand-mid)', color: 'var(--color-ink-mid)' }}
         >
           <Plus size={14} aria-hidden /> Ajouter un occupant
@@ -468,7 +467,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
       <Field label="Créneau" as="div">
         <div className="space-y-1.5">
           {proposing && !proposal && (
-            <div className="inline-flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--color-ink-muted)' }}>
+            <div className="fx-meta inline-flex items-center gap-1.5" style={{ color: 'var(--color-ink-muted)' }}>
               <Loader2 size={12} className="animate-spin" aria-hidden />
               Recherche des créneaux libres…
             </div>
@@ -485,7 +484,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
                 disabled={proposing || submitState === 'submitting'}
                 className="mt-0.5"
               />
-              <span className="text-[12px]" style={{ color: 'var(--color-ink)' }}>
+              <span className="fx-meta" style={{ color: 'var(--color-ink)' }}>
                 {`${formatDateFr(c.date)} ${c.heure_debut} → ${c.heure_fin} — ${c.technicien_nom}`}
                 <span style={{ color: 'var(--color-ink-muted)' }}>
                   {idx === 0 ? ' · recommandé' : ' · alternative'}
@@ -505,14 +504,14 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
                 disabled={proposing || submitState === 'submitting'}
                 className="mt-0.5"
               />
-              <span className="text-[12px]" style={{ color: 'var(--color-ink)' }}>
+              <span className="fx-meta" style={{ color: 'var(--color-ink)' }}>
                 Sans créneau — créer le dossier et planifier ensuite
               </span>
             </label>
           )}
 
           {proposal && creneauOptions.length === 0 && !proposalError && (
-            <div className="text-[11px]" style={{ color: 'var(--color-amber-foxo)' }}>
+            <div className="fx-small" style={{ color: 'var(--color-amber-foxo)' }}>
               Aucun créneau libre à proposer. Ajoute des disponibilités dans{' '}
               <a
                 href="/admin/planning"
@@ -528,12 +527,12 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
             </div>
           )}
           {proposal?.fenetre_etendue && creneauOptions.length > 0 && (
-            <div className="text-[11px]" style={{ color: 'var(--color-amber-foxo)' }}>
+            <div className="fx-small" style={{ color: 'var(--color-amber-foxo)' }}>
               Rien de libre dans le délai habituel — créneaux proposés plus tard.
             </div>
           )}
           {proposalError && (
-            <div className="text-[11px]" style={{ color: 'var(--color-terra)' }}>
+            <div className="fx-small" style={{ color: 'var(--color-terra)' }}>
               {proposalError}
             </div>
           )}
@@ -542,7 +541,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
             type="button"
             onClick={loadProposal}
             disabled={proposing || submitState === 'submitting'}
-            className="inline-flex items-center gap-1.5 text-[11px] font-bold hover:underline disabled:opacity-50"
+            className="fx-small inline-flex items-center gap-1.5 font-semibold hover:underline disabled:opacity-50"
             style={{ color: 'var(--color-navy)' }}
           >
             <RefreshCw size={11} className={proposing ? 'animate-spin' : undefined} aria-hidden />
@@ -550,7 +549,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
           </button>
 
           {!linkedDossier && selectedCreneauId !== null && hasContactableOccupant && (
-            <div className="text-[11px]" style={{ color: 'var(--color-ink-muted)' }}>
+            <div className="fx-small" style={{ color: 'var(--color-ink-muted)' }}>
               À la création, la demande de confirmation de présence est envoyée aux occupants
               renseignés ci-dessus (email ou SMS selon le mode de contact choisi).
             </div>
@@ -584,7 +583,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
               onFocus={() => setSearchOpen(true)}
               placeholder="Rechercher par ref ou adresse…"
               disabled={submitState === 'submitting'}
-              className="w-full pl-7 pr-2.5 py-1.5 rounded text-[12px] outline-none disabled:opacity-50"
+              className="fx-meta w-full pl-7 pr-2.5 py-1.5 rounded outline-none disabled:opacity-50"
               style={{
                 background: 'var(--color-cream)',
                 border: `1px solid ${linkedDossier ? 'var(--color-ok-mid)' : 'var(--color-sand-border)'}`,
@@ -606,7 +605,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
                   key={r.id}
                   type="button"
                   onClick={() => pickExisting(r)}
-                  className="w-full text-left px-2.5 py-1.5 text-[12px] hover:bg-[var(--color-sand-hover)]"
+                  className="fx-meta w-full text-left px-2.5 py-1.5 hover:bg-[var(--color-sand-hover)]"
                   style={{ color: 'var(--color-ink)' }}
                 >
                   <span className="font-sora font-semibold" style={{ color: 'var(--color-navy)' }}>
@@ -620,7 +619,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
             </div>
           )}
           {linkedDossier && (
-            <div className="text-[10px] mt-1" style={{ color: 'var(--color-ok)' }}>
+            <div className="fx-small mt-1" style={{ color: 'var(--color-ok)' }}>
               ✓ Lié à <strong>{linkedDossier.ref ?? '?'}</strong> — pas de nouveau dossier créé.
             </div>
           )}
@@ -629,7 +628,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
 
       {error && (
         <div
-          className="px-2.5 py-1.5 rounded text-[11px] font-medium"
+          className="fx-small px-2.5 py-1.5 rounded font-medium"
           style={{
             background: 'var(--color-terra-light)',
             border: '1px solid var(--color-terra-mid)',
@@ -649,7 +648,7 @@ export function ConfirmCreateForm({ threadId, analyse, onConfirmed }: Props) {
           // garantit que le créneau envoyé est bien celui affiché. Le mode
           // « lier à un dossier » n'utilise aucun créneau : jamais bloqué.
           disabled={submitState === 'submitting' || (proposing && !linkedDossier)}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-[12px] font-bold disabled:opacity-50 min-h-[44px]"
+          className="fx-label inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg font-semibold disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
         >
           {submitState === 'submitting' && <Loader2 size={14} className="animate-spin" aria-hidden />}
@@ -679,7 +678,7 @@ function Field({ label, required, as = 'label', children }: {
   return (
     <Wrapper className="block">
       <span
-        className="text-[10px] font-medium uppercase tracking-wider block mb-1"
+        className="fx-eyebrow font-medium block mb-1"
         style={{ color: 'var(--color-ink-muted)' }}
       >
         {label}

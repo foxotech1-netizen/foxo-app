@@ -406,7 +406,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
     <div onMouseUp={endDrag} onMouseLeave={endDrag} className="select-none">
       {/* Onglets techniciens */}
       <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mr-2">
+        <span className="fx-eyebrow font-semibold text-ink-mid mr-2">
           Technicien
         </span>
         {techs.map((t, i) => {
@@ -417,11 +417,10 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
               key={t.id}
               type="button"
               onClick={() => setTechId(t.id)}
-              className={
-                'px-3 py-1.5 rounded-md text-[12px] font-bold border transition-colors ' +
+              className={'fx-label px-3 py-1.5 rounded-lg font-semibold border transition-colors ' +
                 (active
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                  ? 'bg-navy text-cream border-navy'
+                  : 'bg-cream text-ink-mid border-sand-border hover:border-navy-mid')
               }
             >
               {label}
@@ -435,21 +434,21 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         <button
           type="button"
           onClick={presetSemaineStandard}
-          className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)]"
+          className="fx-small bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-semibold"
         >
           Semaine standard
         </button>
         <button
           type="button"
           onClick={presetAvecSoirees}
-          className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)]"
+          className="fx-small bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-semibold"
         >
           Avec soirées
         </button>
         <button
           type="button"
           onClick={clearAll}
-          className="text-[11px] bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-bold inline-flex items-center gap-1.5"
+          className="fx-small bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-semibold inline-flex items-center gap-1.5"
         >
           <X size={12} /> Tout effacer
         </button>
@@ -457,20 +456,20 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 
       {/* Sélecteur de semaine de départ + résumé */}
       <div className="bg-cream border border-sand-border rounded-xl px-3 py-2.5 mb-3 flex flex-wrap items-center gap-3">
-        <label className="text-[11px] font-bold text-ink-muted">
+        <label className="fx-small font-semibold text-ink-mid">
           Semaine de départ
         </label>
         <input
           type="date"
           value={isoDate(weekStart)}
           onChange={(e) => handleStartDateChange(e.target.value)}
-          className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid font-mono"
+          className="fx-meta px-2 py-1 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid tabular-nums"
         />
-        <span className="text-[11px] text-ink">
+        <span className="fx-small text-ink">
           → <strong>{fmtLong(weekStart)}</strong>
         </span>
         {cellCount > 0 && (
-          <span className="text-[11px] text-ink-muted ml-auto">
+          <span className="fx-small text-ink-mid ml-auto">
             Créera des créneaux du <strong className="text-ink">{fmtLong(weekStart)}</strong> au{' '}
             <strong className="text-ink">{fmtLong(rangeEnd)}</strong>
           </span>
@@ -488,7 +487,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
           {FOXO_DAYS_SHORT.map((d) => (
             <div
               key={d}
-              className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 text-[11px] font-bold uppercase tracking-wider text-ink-muted"
+              className="fx-th bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0 font-semibold text-ink-mid"
             >
               {d}
             </div>
@@ -513,21 +512,21 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       {/* Créneaux hors grille (ancienne grille, heure déplacée) */}
       {horsGrilleRows.length > 0 && (
         <div className="mt-3 bg-amber-light border border-sand-border rounded-xl px-3 py-2.5">
-          <p className="text-sm font-bold text-ink">
+          <p className="fx-body font-semibold text-ink">
             {horsGrilleRows.length === 1
               ? '1 créneau hors grille cette semaine'
               : `${horsGrilleRows.length} créneaux hors grille cette semaine`}
           </p>
-          <p className="text-sm text-ink-mid mt-0.5">
+          <p className="fx-body text-ink-mid mt-0.5">
             Leur heure ne correspond à aucune ligne de la grille. Un créneau libre reste proposé tant qu’il n’est pas supprimé, et les cases qu’il chevauche (<AlertTriangle size={12} className="inline" aria-label="avertissement" />) ne peuvent pas être cochées.
           </p>
           <ul className="mt-2 divide-y divide-sand-border">
             {horsGrilleRows.map((s) => {
               const plage = `${fmtHeure(s.heure_debut)} – ${fmtHeure(s.heure_fin)}`;
               return (
-                <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-sm text-ink">
+                <li key={s.id} className="fx-body flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-ink">
                   <span className="font-semibold">{fmtJour(s.date)}</span>
-                  <span className="font-mono tabular-nums">{plage}</span>
+                  <span className="tabular-nums">{plage}</span>
                   {s.statut === 'libre' ? (
                     <>
                       <span className="text-ink-mid">Libre</span>
@@ -536,7 +535,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
                         onClick={() => supprimerHorsGrille(s)}
                         disabled={deletingId !== null || saving}
                         aria-label={`Supprimer le créneau libre du ${fmtJour(s.date)}, ${plage}`}
-                        className="ml-auto inline-flex items-center gap-1.5 text-sm font-bold bg-terra-light text-terra-deep border border-terra-mid px-3 py-1.5 rounded-md hover:brightness-95 disabled:opacity-50"
+                        className="fx-body ml-auto inline-flex items-center gap-1.5 font-semibold bg-terra-light text-terra-deep border border-terra-mid px-3 py-1.5 rounded-lg hover:brightness-95 disabled:opacity-50"
                       >
                         <Trash2 size={14} />
                         {deletingId === s.id ? 'Suppression…' : 'Supprimer'}
@@ -557,7 +556,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
 
       {/* Footer actions */}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <span className="text-[11px] text-ink-mid">
+        <span className="fx-small text-ink-mid">
           {loadingExisting ? (
             <span className="italic">Chargement des créneaux existants…</span>
           ) : (
@@ -565,18 +564,18 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
               {cellCount} coché{cellCount !== 1 ? 's' : ''}
               {weeks > 1 && diffCount.adds > 0 && <> · <strong>{diffCount.adds * weeks}</strong> à créer sur {weeks} semaines</>}
               {weeks === 1 && diffCount.adds > 0 && <> · <strong>+{diffCount.adds}</strong> à créer</>}
-              {diffCount.removes > 0 && <> · <strong className="text-[#8A5A1A]">−{diffCount.removes}</strong> à supprimer</>}
+              {diffCount.removes > 0 && <> · <strong className="text-amber-ink">−{diffCount.removes}</strong> à supprimer</>}
             </>
           )}
         </span>
         <div className="flex items-center gap-2 ml-auto">
-          <label className="text-[11px] text-ink-mid font-semibold">
+          <label className="fx-small text-ink-mid font-semibold">
             Appliquer sur
           </label>
           <select
             value={weeks}
             onChange={(e) => setWeeks(parseInt(e.target.value, 10) as WeekCount)}
-            className="px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid"
+            className="fx-meta px-2 py-1 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
           >
             {ALLOWED_WEEKS.map((n) => (
               <option key={n} value={n}>{n} semaine{n > 1 ? 's' : ''}</option>
@@ -586,7 +585,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
             type="button"
             onClick={save}
             disabled={saving || deletingId !== null || !techId || (diffCount.adds === 0 && diffCount.removes === 0)}
-            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="fx-label bg-navy text-cream px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             {saving ? 'Enregistrement…' : (<><Save size={14} /> Enregistrer les dispos</>)}
           </button>
@@ -594,8 +593,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
       </div>
 
       {msg && (
-        <div ref={msgRef} tabIndex={-1} role="status" className={
-          'mt-2 px-3 py-2 text-[12px] rounded-md border font-semibold outline-none focus-visible:ring-2 focus-visible:ring-navy-mid ' +
+        <div ref={msgRef} tabIndex={-1} role="status" className={'fx-label mt-2 px-3 py-2 rounded-lg border font-semibold outline-none focus-visible:ring-2 focus-visible:ring-navy-mid ' +
           (msg.kind === 'ok'
             ? 'bg-ok-light border-ok-mid text-ok'
             : 'bg-terra-light border-terra-mid text-terra')
@@ -604,13 +602,13 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         </div>
       )}
 
-      <p className="text-[10px] text-ink-muted italic mt-2 inline-flex flex-wrap items-center gap-1">
+      <p className="fx-small text-ink-mid italic mt-2 inline-flex flex-wrap items-center gap-1">
         <span>Astuce : les cases déjà cochées en navy sont les créneaux enregistrés en DB.</span>
         <span className="inline-flex items-center gap-1">Décocher une case = suppression au prochain enregistrement (badge ambre <X size={10} className="inline" />).</span>
         <span className="inline-flex items-center gap-1">Les créneaux <Lock size={10} className="inline" /> réservés ou <Construction size={10} className="inline" /> bloqués ne peuvent pas être supprimés ici.</span>
       </p>
-      <p className="text-[10px] text-ink-muted mt-1">
-        <span className="text-[9px] uppercase font-bold tracking-wider">{totalForWeeks ? `${totalForWeeks} créneaux total après save` : ''}</span>
+      <p className="fx-small text-ink-mid mt-1">
+        <span className="fx-eyebrow font-semibold">{totalForWeeks ? `${totalForWeeks} créneaux total après save` : ''}</span>
       </p>
     </div>
   );
@@ -630,10 +628,10 @@ function Row({
   return (
     <>
       <div className="bg-sand border-b border-r border-sand-border text-center py-2">
-        <div className="text-[11px] font-mono font-extrabold text-ink">
+        <div className="fx-small tabular-nums font-semibold text-ink">
           {slot.heure_debut}
         </div>
-        <div className="text-[9px] font-mono text-ink-muted">
+        <div className="fx-small tabular-nums text-ink-mid">
           →{slot.heure_fin}
         </div>
       </div>
@@ -654,7 +652,7 @@ function Row({
         // - off + nouveau : blanc
         const willDelete = !on && existing && existing.statut === 'libre';
         const willCreate = on && !existing && !conflit;
-        let cellClass = 'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors flex items-center justify-center text-[10px] font-bold ';
+        let cellClass = 'h-12 border-b border-r border-sand-border last:border-r-0 transition-colors flex items-center justify-center fx-small font-semibold ';
         if (conflit) {
           cellClass += 'bg-amber-light cursor-not-allowed text-amber-deep ';
         } else if (locked) {
@@ -664,7 +662,7 @@ function Row({
         } else if (willCreate) {
           cellClass += 'bg-navy-light/60 hover:brightness-110 cursor-pointer text-navy border-2 border-navy-mid ';
         } else if (willDelete) {
-          cellClass += 'bg-amber-light hover:brightness-95 cursor-pointer text-[#8A5A1A] border-2 border-[#E8C896] ';
+          cellClass += 'bg-amber-light hover:brightness-95 cursor-pointer text-amber-ink border-2 border-[var(--color-amber-foxo)]/30 ';
         } else {
           cellClass += 'bg-white hover:bg-sand-hover cursor-pointer ';
         }

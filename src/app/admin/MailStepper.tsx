@@ -30,18 +30,17 @@ export function MailStepper({ steps }: { steps: StepDef[] }) {
   }
 
   return (
-    <div className="bg-cream border border-sand-border rounded-xl p-3 mb-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+    <div className="bg-cream border border-sand-border rounded-xl p-3 mb-3">
       <div className="flex items-center justify-between gap-1">
         {steps.map((s, idx) => {
           const last = idx === steps.length - 1;
-          const stateColor = s.done ? '#1F6B45' : s.active ? '#1B3A6B' : '#A09A8E';
-          const stateBg = s.done ? '#E4F2EB' : s.active ? '#EBF2FB' : 'transparent';
+          const stateColor = s.done ? 'var(--color-ok)' : s.active ? 'var(--color-navy)' : 'var(--color-ink-mid)';
+          const stateBg = s.done ? 'var(--color-ok-light)' : s.active ? 'var(--color-navy-pale)' : 'transparent';
           const clickable = Boolean(s.sectionId) && (s.done || s.active);
           return (
             <div key={s.key} className="flex items-center flex-1 min-w-0">
               <div
-                className={
-                  'flex flex-col items-center gap-1 min-w-0 ' +
+                className={'flex flex-col items-center gap-1 min-w-0 ' +
                   (clickable ? 'cursor-pointer group' : 'cursor-default')
                 }
                 role={clickable ? 'button' : undefined}
@@ -54,8 +53,7 @@ export function MailStepper({ steps }: { steps: StepDef[] }) {
                 title={clickable ? `Aller à ${s.label}` : undefined}
               >
                 <div
-                  className={
-                    'w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold flex-shrink-0 transition-transform ' +
+                  className={'fx-label w-7 h-7 rounded-full flex items-center justify-center font-semibold flex-shrink-0 transition-transform ' +
                     (clickable ? 'group-hover:scale-110 group-hover:shadow-md' : '')
                   }
                   style={{
@@ -67,8 +65,7 @@ export function MailStepper({ steps }: { steps: StepDef[] }) {
                   {s.done ? <Check size={14} /> : idx + 1}
                 </div>
                 <span
-                  className={
-                    'text-[9px] font-semibold uppercase tracking-wider text-center truncate w-full ' +
+                  className={'fx-eyebrow font-semibold text-center truncate w-full ' +
                     (clickable ? 'group-hover:underline' : '')
                   }
                   style={{ color: stateColor }}
@@ -80,7 +77,7 @@ export function MailStepper({ steps }: { steps: StepDef[] }) {
               {!last && (
                 <div
                   className="flex-1 h-[2px] mx-1 rounded"
-                  style={{ background: s.done ? '#1F6B45' : '#DDD8CC' }}
+                  style={{ background: s.done ? 'var(--color-ok)' : 'var(--color-sand-border)' }}
                 />
               )}
             </div>

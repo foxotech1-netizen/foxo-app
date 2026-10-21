@@ -25,8 +25,7 @@ export function PeppolActions({
   const emitted = facture.statut !== 'brouillon' && !facture.numero.startsWith('BR-');
   const annulee = facture.statut === 'annulee';
 
-  const btnBase =
-    'px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px] inline-flex items-center gap-1.5';
+  const btnBase = 'fx-tile-label px-3 py-2 rounded-lg min-h-[44px] inline-flex items-center gap-1.5';
 
   function handleSendPeppol() {
     if (!confirm(`Envoyer ${facture.numero} via le réseau Peppol ?\n\nLe document UBL sera transmis au point d'accès Storecove et routé vers le n° BCE du client.`)) {
@@ -48,7 +47,7 @@ export function PeppolActions({
       {emitted ? (
         <a
           href={`/api/admin/facture/${facture.id}/ubl`}
-          className={`${btnBase} bg-white text-navy border border-navy-light hover:bg-navy-pale`}
+          className={`${btnBase} bg-cream text-navy border border-navy-light hover:bg-navy-pale`}
         >
           <FileCode2 size={14} aria-hidden /> Télécharger UBL (XML)
         </a>
@@ -57,7 +56,7 @@ export function PeppolActions({
           type="button"
           disabled
           title="Disponible après émission (le brouillon n'a pas encore de numéro définitif)."
-          className={`${btnBase} bg-sand-mid text-ink-muted border border-sand-border cursor-not-allowed`}
+          className={`${btnBase} bg-sand-mid text-ink-mid border border-sand-border cursor-not-allowed`}
         >
           <FileCode2 size={14} aria-hidden /> Télécharger UBL (XML)
         </button>
@@ -68,7 +67,7 @@ export function PeppolActions({
           type="button"
           onClick={handleSendPeppol}
           disabled={pending}
-          className={`${btnBase} bg-navy text-white hover:opacity-90 disabled:opacity-50`}
+          className={`${btnBase} bg-navy text-cream hover:opacity-90 disabled:opacity-50`}
         >
           <Send size={14} aria-hidden /> {pending ? 'Envoi…' : 'Envoyer via Peppol'}
         </button>
@@ -83,7 +82,7 @@ export function PeppolActions({
                 ? 'Document annulé — envoi Peppol refusé.'
                 : 'Disponible après émission du document.'
           }
-          className={`${btnBase} bg-sand-mid text-ink-muted border border-sand-border cursor-not-allowed`}
+          className={`${btnBase} bg-sand-mid text-ink-mid border border-sand-border cursor-not-allowed`}
         >
           <Send size={14} aria-hidden /> Envoyer via Peppol
         </button>
@@ -91,7 +90,7 @@ export function PeppolActions({
 
       {facture.peppol_status === 'envoyee' && (
         <span
-          className="text-[11px] font-bold px-2 py-1 rounded-md bg-ok-light border border-ok-mid text-ok"
+          className="fx-small font-semibold px-2 py-1 rounded-lg bg-ok-light border border-ok-mid text-ok"
           title={facture.peppol_sent_at ? `Transmis le ${new Date(facture.peppol_sent_at).toLocaleString('fr-BE')}` : undefined}
         >
           Peppol : envoyée
@@ -99,11 +98,11 @@ export function PeppolActions({
       )}
       {facture.peppol_status === 'erreur' && (
         <span className="inline-flex flex-col gap-0.5 max-w-[260px]">
-          <span className="text-[11px] font-bold px-2 py-1 rounded-md bg-terra-light border border-terra-mid text-terra self-start">
+          <span className="fx-small font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra self-start">
             Peppol : erreur
           </span>
           {facture.peppol_last_error && (
-            <span className="text-[10px] text-ink-muted leading-snug" title={facture.peppol_last_error}>
+            <span className="fx-small text-ink-mid leading-snug" title={facture.peppol_last_error}>
               {facture.peppol_last_error.length > 120
                 ? `${facture.peppol_last_error.slice(0, 120)}…`
                 : facture.peppol_last_error}

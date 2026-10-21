@@ -128,12 +128,12 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — code, description, prix…"
-          className="flex-1 min-w-[200px] px-3.5 py-2.5 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+          className="fx-meta flex-1 min-w-[200px] px-3.5 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="px-3 py-2.5 border border-sand-border rounded-lg text-xs bg-cream cursor-pointer"
+          className="fx-meta px-3 py-2.5 border border-sand-border rounded-lg bg-cream cursor-pointer"
           title="Filtrer par statut"
         >
           <option value="tous">Tous statuts</option>
@@ -143,7 +143,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="bg-navy text-white px-3.5 py-2.5 rounded-lg text-xs font-bold hover:opacity-90"
+          className="fx-label bg-navy text-cream px-3.5 py-2.5 rounded-lg font-semibold hover:opacity-90"
         >
           + Nouvel article
         </button>
@@ -151,8 +151,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
 
       {feedback && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
               : 'bg-terra-light border-terra-mid text-terra')
@@ -173,7 +172,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                 <SortableTh label="TVA"         sortKey="tva_pct"     currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Prix HT"     sortKey="prix_htva"   currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
                 <SortableTh label="Statut"      sortKey="actif"       currentKey={sortKey} dir={sortDir} onClick={toggleSort} />
-                <th className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                <th className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                   Actions
                 </th>
               </tr>
@@ -181,7 +180,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={7} className="fx-body-dense text-center py-12 text-ink-mid">
                     {query.trim() || statusFilter !== 'tous'
                       ? 'Aucun article ne correspond au filtre.'
                       : 'Aucun article. Crée-en un pour démarrer.'}
@@ -189,17 +188,17 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                 </tr>
               ) : sorted.map((a) => (
                 <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                  <td className="px-3.5 py-2.5 font-mono text-xs font-bold text-navy">
+                  <td className="fx-body-dense px-3.5 py-2.5 fx-ref font-semibold text-navy">
                     {a.code ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[13px]">{a.description}</td>
-                  <td className="px-3.5 py-2.5 text-[13px] font-mono font-bold whitespace-nowrap dark:text-white">
+                  <td className="fx-body-dense px-3.5 py-2.5">{a.description}</td>
+                  <td className="fx-body-dense px-3.5 py-2.5 tabular-nums font-semibold whitespace-nowrap">
                     {fmtMoney(a.prix_ttc)}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                     {a.tva_pct}%
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                     {fmtMoney(Number(a.prix_htva))}
                   </td>
                   <td className="px-3.5 py-2.5">
@@ -208,10 +207,9 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                       onClick={() => handleToggleActif(a)}
                       disabled={pending}
                       title={a.actif ? 'Cliquer pour désactiver (disparaît des sélecteurs de lignes).' : 'Cliquer pour réactiver.'}
-                      className={
-                        'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold cursor-pointer hover:opacity-75 disabled:opacity-50 ' +
+                      className={'fx-badge inline-block rounded-full px-2 py-0.5 font-semibold cursor-pointer hover:opacity-75 disabled:opacity-50 ' +
                         (a.actif
-                          ? 'bg-ok-light text-ok dark:text-white'
+                          ? 'bg-ok-light text-ok'
                           : 'bg-sand-mid text-ink-mid')
                       }
                     >
@@ -222,7 +220,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                     <button
                       type="button"
                       onClick={() => setEditing(a)}
-                      className="text-[11px] font-semibold text-navy hover:underline inline-flex items-center gap-1 mr-3"
+                      className="fx-small font-semibold text-navy hover:underline inline-flex items-center gap-1 mr-3"
                     >
                       <Pencil size={12} aria-hidden /> Modifier
                     </button>
@@ -230,7 +228,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                       type="button"
                       onClick={() => handleDelete(a.id)}
                       disabled={pending}
-                      className="text-[11px] font-semibold text-terra hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+                      className="fx-small font-semibold text-terra hover:underline inline-flex items-center gap-1 disabled:opacity-50"
                     >
                       <Trash2 size={12} aria-hidden /> Supprimer
                     </button>
@@ -270,12 +268,10 @@ function SortableTh({
   return (
     <th
       onClick={() => onClick(sortKey)}
-      className={
-        'px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider border-b border-sand-border whitespace-nowrap cursor-pointer select-none transition-colors ' +
+      className={'fx-eyebrow px-3.5 py-2.5 text-left font-semibold border-b border-sand-border whitespace-nowrap cursor-pointer select-none transition-colors ' +
         (active
           ? 'text-navy'
-          : 'text-ink-muted hover:text-ink') +
-        ''
+          : 'text-ink-mid hover:text-ink') + ''
       }
     >
       <span className="inline-flex items-center gap-1">
@@ -349,7 +345,7 @@ function ArticleEditor({
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="DEP001"
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
               />
             </div>
             <div className="sm:col-span-2">
@@ -358,7 +354,7 @@ function ArticleEditor({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Déplacement"
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
               />
             </div>
           </div>
@@ -371,7 +367,7 @@ function ArticleEditor({
                 step="0.01"
                 value={prixTtc}
                 onChange={(e) => setPrixTtc(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
               />
             </div>
             <div>
@@ -383,33 +379,33 @@ function ArticleEditor({
                 max="100"
                 value={tvaPct}
                 onChange={(e) => setTvaPct(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
               />
             </div>
           </div>
 
-          <div className="bg-sand border border-sand-border rounded-lg px-3 py-2 text-[12px]">
+          <div className="fx-meta bg-sand border border-sand-border rounded-lg px-3 py-2">
             <div className="flex justify-between items-center text-ink-mid">
               <span>HTVA calculé</span>
-              <span className="font-mono font-bold">{fmtMoney(prixHtva)}</span>
+              <span className="tabular-nums font-semibold">{fmtMoney(prixHtva)}</span>
             </div>
             <div className="flex justify-between items-center mt-0.5 text-ink-mid">
               <span>TVA {tvaPct}%</span>
-              <span className="font-mono">{fmtMoney(prixTtc - prixHtva)}</span>
+              <span className="tabular-nums">{fmtMoney(prixTtc - prixHtva)}</span>
             </div>
             <div className="flex justify-between items-center mt-1 pt-1 border-t border-sand-border">
-              <span className="font-bold text-ink">Total TTC</span>
-              <span className="font-mono font-extrabold text-navy dark:text-white">{fmtMoney(prixTtc)}</span>
+              <span className="font-semibold text-ink">Total TTC</span>
+              <span className="fx-ref font-semibold text-navy">{fmtMoney(prixTtc)}</span>
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-[13px] cursor-pointer">
-            <input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} className="accent-[#1B3A6B]" />
+          <label className="fx-label flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={actif} onChange={(e) => setActif(e.target.checked)} className="accent-[var(--color-navy)]" />
             Article actif (sélectionnable dans les factures)
           </label>
 
           {error && (
-            <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 font-semibold">
+            <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
               {error}
             </div>
           )}
@@ -420,7 +416,7 @@ function ArticleEditor({
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50"
+            className="fx-label bg-sand-mid text-ink-mid px-3.5 py-2 rounded-lg font-semibold disabled:opacity-50"
           >
             Annuler
           </button>
@@ -428,7 +424,7 @@ function ArticleEditor({
             type="button"
             onClick={submit}
             disabled={pending}
-            className="bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+            className="fx-label bg-navy text-cream px-4 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
           >
             {pending ? '…' : initial ? 'Enregistrer' : 'Créer'}
           </button>
@@ -440,7 +436,7 @@ function ArticleEditor({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs font-semibold text-ink-mid block mb-1">
+    <label className="fx-label font-semibold text-ink-mid block mb-1">
       {children}
     </label>
   );

@@ -42,7 +42,7 @@ export default async function ExportComptablePage() {
         <h1 className="fxs-page-title mb-1">
           Export comptable
         </h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
           Génère et envoie l&apos;export CSV des factures à ton comptable
         </div>

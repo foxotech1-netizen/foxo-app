@@ -93,9 +93,9 @@ export default async function EditFacturePage({
       <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">
-            Facture <span className="font-mono">{facture.numero}</span>
+            Facture <span className="tabular-nums">{facture.numero}</span>
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             Statut : <strong className="capitalize">{facture.statut}</strong>
             {facture.date_paiement && ` · Payée le ${new Date(facture.date_paiement).toLocaleDateString('fr-BE')}`}
@@ -126,7 +126,7 @@ export default async function EditFacturePage({
           <FactureActions facture={facture} />
           <Link
             href="/admin/facturation"
-            className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
+            className="fx-meta text-[var(--color-ink-mid)] hover:text-[var(--color-navy)] min-h-[44px] inline-flex items-center"
           >
             ← Retour
           </Link>
@@ -135,25 +135,25 @@ export default async function EditFacturePage({
 
       <div>
         {avoirs.length > 0 && (
-          <div className="mb-4 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded-2xl px-4 py-3">
+          <div className="mb-4 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded-modal px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold text-[var(--color-amber-foxo)] uppercase tracking-wider mb-1 inline-flex items-center gap-1.5">
+                <div className="fx-eyebrow font-semibold text-[var(--color-amber-foxo)] mb-1 inline-flex items-center gap-1.5">
                   <FileEdit size={12} aria-hidden /> {avoirs.length} avoir(s) lié(s) — solde réel
                 </div>
-                <div className="flex flex-wrap items-baseline gap-3 text-[13px]">
+                <div className="fx-body flex flex-wrap items-baseline gap-3">
                   <span className="text-ink-mid">
-                    Facture : <strong className="font-mono">{factureTtc.toFixed(2)} €</strong>
+                    Facture : <strong className="tabular-nums">{factureTtc.toFixed(2)} €</strong>
                   </span>
                   <span className="text-terra">
-                    − Avoirs émis : <strong className="font-mono">{totalCrediteEmis.toFixed(2)} €</strong>
+                    − Avoirs émis : <strong className="tabular-nums">{totalCrediteEmis.toFixed(2)} €</strong>
                   </span>
-                  <span className="text-navy font-bold">
-                    = Solde réel : <span className="font-mono">{soldeReel.toFixed(2)} €</span>
+                  <span className="text-navy font-semibold">
+                    = Solde réel : <span className="tabular-nums">{soldeReel.toFixed(2)} €</span>
                   </span>
                 </div>
                 {totalCredite > totalCrediteEmis && (
-                  <div className="text-[11px] text-ink-muted mt-1 italic">
+                  <div className="fx-small text-ink-mid mt-1 italic">
                     + {(totalCredite - totalCrediteEmis).toFixed(2)} € en brouillon (non encore émis).
                   </div>
                 )}
@@ -163,7 +163,7 @@ export default async function EditFacturePage({
                   <Link
                     key={a.id}
                     href={`/admin/facturation/notes-credit/${a.id}`}
-                    className="text-[10px] font-mono font-bold bg-white text-terra border border-terra-mid rounded px-2 py-1 hover:bg-terra-light"
+                    className="fx-small tabular-nums font-semibold bg-cream text-terra border border-terra-mid rounded px-2 py-1 hover:bg-terra-light"
                     title={`${a.statut} · ${Math.abs(Number(a.montant_ttc ?? 0)).toFixed(2)} €`}
                   >
                     {a.numero}

@@ -7,21 +7,21 @@ import { categorieComptable } from '@/lib/types/database';
 import { NoteFraisDrawer } from './NoteFraisDrawer';
 
 const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
-  carburant:      'Carburant',
-  materiel:       'Matériel',
-  outillage:      'Outillage',
-  transport:      'Transport',
-  restauration:   'Restauration (legacy)',
-  fournitures:    'Fournitures',
+  carburant: 'Carburant',
+  materiel: 'Matériel',
+  outillage: 'Outillage',
+  transport: 'Transport',
+  restauration: 'Restauration (legacy)',
+  fournitures: 'Fournitures',
   sous_traitance: 'Sous-traitance',
-  autre:          'Autre',
-  restaurant:     'Restaurant',
-  cafe_client:    'Café client',
-  repas_travail:  'Repas de travail',
-  reception:      'Réception',
-  telephonie:     'Téléphonie',
-  formation:      'Formation',
-  autre_achat:    'Autre achat',
+  autre: 'Autre',
+  restaurant: 'Restaurant',
+  cafe_client: 'Café client',
+  repas_travail: 'Repas de travail',
+  reception: 'Réception',
+  telephonie: 'Téléphonie',
+  formation: 'Formation',
+  autre_achat: 'Autre achat',
 };
 
 // Tabs de filtrage. 'tous' = pas de filtre statut.
@@ -36,11 +36,11 @@ const STATUT_TABS: { key: StatutFilter; label: string }[] = [
 ];
 
 const STATUT_BADGE: Record<StatutNoteFrais, { fg: string; bg: string; label: string }> = {
-  brouillon:  { fg: '#6B6558', bg: '#EDEAE3', label: 'Brouillon'  },
-  soumise:    { fg: '#1B3A6B', bg: '#D6E4F7', label: 'Soumise'    },
-  approuvee:  { fg: '#1F6B45', bg: '#D4EDE2', label: 'Approuvée'  },
-  rejetee:    { fg: '#C4622D', bg: '#F7EDE5', label: 'Rejetée'    },
-  remboursee: { fg: '#7C3AED', bg: '#F5F3FF', label: 'Remboursée' },
+  brouillon:  { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)', label: 'Brouillon'  },
+  soumise:    { fg: 'var(--color-navy)', bg: 'var(--color-sky-light-foxo)', label: 'Soumise'    },
+  approuvee:  { fg: 'var(--color-ok)', bg: 'var(--color-ok-light)', label: 'Approuvée'  },
+  rejetee:    { fg: 'var(--color-terra-ink)', bg: 'var(--color-terra-light)', label: 'Rejetée'    },
+  remboursee: { fg: 'var(--color-navy)', bg: 'var(--color-navy-pale)', label: 'Remboursée' },
 };
 
 function fmtDate(iso: string | null): string {
@@ -89,7 +89,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
           <h1 className="fxs-page-title mb-1">
             Notes de frais
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {notes.length} note{notes.length > 1 ? 's' : ''} — gestion des dépenses techniciens
           </div>
@@ -97,7 +97,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
         <button
           type="button"
           onClick={() => alert('Drawer de création à implémenter dans le prochain sprint.')}
-          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm inline-flex items-center gap-1.5"
+          className="fx-label bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-lg font-medium shadow-sm inline-flex items-center gap-1.5"
         >
           <Plus size={14} />
           Nouvelle note
@@ -114,15 +114,14 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
               key={t.key}
               type="button"
               onClick={() => setFilter(t.key)}
-              className={
-                'flex items-center gap-1.5 px-3.5 py-2 rounded-t-lg text-[12px] font-bold border-b-2 transition-colors ' +
+              className={'fx-label flex items-center gap-1.5 px-3.5 py-2 rounded-t-lg font-semibold border-b-2 transition-colors ' +
                 (active
                   ? 'bg-cream border-navy text-navy'
-                  : 'border-transparent text-ink-muted hover:text-ink hover:border-[rgba(27,58,107,.2)]')
+                  : 'border-transparent text-ink-mid hover:text-ink hover:border-[rgba(27,58,107,.2)]')
               }
             >
               {t.label}
-              <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-1.5 py-0.5 rounded-full">
+              <span className="fx-badge font-semibold text-ink-mid bg-sand-mid px-1.5 py-0.5 rounded-full">
                 {count}
               </span>
             </button>
@@ -142,7 +141,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                 {['Date', 'Technicien', 'Titre', 'Catégorie', 'Déductibilité', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
                   <th
                     key={h}
-                    className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap"
+                    className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -152,7 +151,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={8} className="fx-body-dense text-center py-12 text-ink-mid">
                     Aucune note de frais{filter !== 'tous' ? ` au statut « ${STATUT_BADGE[filter as StatutNoteFrais]?.label.toLowerCase() ?? filter} »` : ''}.
                   </td>
                 </tr>
@@ -161,26 +160,26 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                   const badge = STATUT_BADGE[n.statut];
                   return (
                     <tr key={n.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                         {fmtDate(n.date_depense)}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <div className="text-xs font-semibold">
+                        <div className="fx-label font-semibold">
                           {n.technicien_nom ?? n.technicien_email}
                         </div>
                         {n.technicien_nom && (
-                          <div className="text-[10px] text-ink-muted font-mono">
+                          <div className="fx-small text-ink-mid tabular-nums">
                             {n.technicien_email}
                           </div>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-xs">
+                      <td className="fx-body-dense px-3.5 py-2.5">
                         <div className="font-semibold">{n.titre}</div>
                         {n.fournisseur && (
-                          <div className="text-[10px] text-ink-muted">{n.fournisseur}</div>
+                          <div className="fx-small text-ink-mid">{n.fournisseur}</div>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
+                      <td className="fx-small px-3.5 py-2.5 text-ink-mid">
                         {CATEGORIE_LABEL[n.categorie]}
                       </td>
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
@@ -189,11 +188,10 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                           const isFull = d.taux >= 100;
                           return (
                             <span
-                              className={
-                                'inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ' +
+                              className={'fx-eyebrow inline-block font-semibold px-2 py-0.5 rounded-full border ' +
                                 (isFull
                                   ? 'bg-ok-light text-ok border-ok-mid'
-                                  : 'bg-amber-light text-[#8A5A1A] border-[#E8C896]')
+                                  : 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30')
                               }
                               title={d.comptable === 'representation'
                                 ? 'Frais de représentation — TVA non récupérable'
@@ -204,12 +202,12 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                           );
                         })()}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap">
+                      <td className="fx-body-dense px-3.5 py-2.5 tabular-nums font-semibold whitespace-nowrap">
                         {fmtMoney(n.montant_ttc)}
                       </td>
                       <td className="px-3.5 py-2.5">
                         <span
-                          className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                          className="fx-eyebrow inline-block font-semibold px-2 py-0.5 rounded-full"
                           style={{ color: badge.fg, background: badge.bg }}
                         >
                           {badge.label}
@@ -219,7 +217,7 @@ export function NotesFraisClient({ initialData }: { initialData: NoteFrais[] }) 
                         <button
                           type="button"
                           onClick={() => setSelectedNote(n)}
-                          className="text-[11px] text-navy hover:underline font-bold"
+                          className="fx-small text-navy hover:underline font-semibold"
                         >
                           Voir
                         </button>

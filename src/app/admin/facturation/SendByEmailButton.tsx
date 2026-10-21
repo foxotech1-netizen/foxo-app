@@ -97,7 +97,7 @@ export function SendByEmailButton({
         onClick={() => setOpen(true)}
         disabled={Boolean(disabledReason)}
         title={disabledReason ?? 'Envoyer par email'}
-        className="bg-ok text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="fx-label bg-ok text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 min-h-[44px] inline-flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Mail size={14} aria-hidden /> Envoyer par email
       </button>
@@ -118,9 +118,9 @@ export function SendByEmailButton({
             className="relative bg-cream rounded-modal border border-sand-border shadow-overlay w-full max-w-lg p-5 max-h-[90vh] overflow-y-auto"
           >
             <h2 id="send-email-dialog-title" className="fxs-section-title text-ink mb-1">
-              Envoyer {labelForType(facture.type)} <span className="font-mono">{facture.numero}</span>
+              Envoyer {labelForType(facture.type)} <span className="tabular-nums">{facture.numero}</span>
             </h2>
-            <p className="text-[12px] text-ink-muted mb-4">
+            <p className="fx-meta text-ink-mid mb-4">
               Le PDF sera joint automatiquement. {facture.statut === 'brouillon' && 'Le statut passera à « envoyé ».'}
             </p>
 
@@ -134,7 +134,7 @@ export function SendByEmailButton({
                   onChange={(e) => setTo(e.target.value)}
                   disabled={pending}
                   placeholder="contact@exemple.be"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                 />
               </Field>
 
@@ -146,7 +146,7 @@ export function SendByEmailButton({
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   disabled={pending}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                 />
               </Field>
 
@@ -158,15 +158,14 @@ export function SendByEmailButton({
                   disabled={pending}
                   rows={4}
                   placeholder="Ajoute un mot personnel — le texte standard « Veuillez trouver ci-joint… » est déjà inclus dans le mail."
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
                 />
               </Field>
             </div>
 
             {feedback && (
               <div
-                className={
-                  'mt-3 px-3 py-2 text-xs rounded-md font-semibold ' +
+                className={'fx-label mt-3 px-3 py-2 rounded-lg font-semibold ' +
                   (feedback.kind === 'ok'
                     ? 'bg-ok-light border border-ok-mid text-ok'
                     : 'bg-terra-light border border-terra-mid text-terra')
@@ -181,14 +180,14 @@ export function SendByEmailButton({
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={pending}
-                className="px-3.5 py-2 rounded-lg text-xs font-bold border border-sand-border bg-cream text-ink-mid hover:bg-sand-mid disabled:opacity-50"
+                className="fx-label px-3.5 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid hover:bg-sand-mid disabled:opacity-50"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={pending}
-                className="px-3.5 py-2 rounded-lg text-xs font-bold bg-ok text-white hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+                className="fx-label px-3.5 py-2 rounded-lg font-semibold bg-ok text-cream hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
               >
                 {pending ? 'Envoi…' : (<><Mail size={14} aria-hidden /> Envoyer</>)}
               </button>
@@ -203,7 +202,7 @@ export function SendByEmailButton({
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (
     <div>
-      <label htmlFor={htmlFor} className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+      <label htmlFor={htmlFor} className="fx-eyebrow block font-semibold text-ink-mid mb-1">
         {label}
       </label>
       {children}

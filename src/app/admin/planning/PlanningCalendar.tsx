@@ -1,6 +1,7 @@
 'use client';
 
 import { fmtDateISO, fmtTime } from '@/lib/format';
+import { TECH_COLORS_FALLBACK, hexToSoft } from '@/lib/planning/couleurs';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -14,9 +15,7 @@ import { ProposeSlotModal } from './ProposeSlotModal';
 import { MAIL_PREFILL_PROMPTED_KEY, readFreshMailPrefillRaw } from '@/lib/mails/mail-prefill';
 import { FOXO_SLOTS, FOXO_DAYS, slotIdxForTime, slotIdxForRange } from '@/lib/foxo-slots';
 
-const MONTHS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+const MONTHS = [ 'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -27,32 +26,7 @@ function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Palette de fallback si un technicien n'a pas de couleur personnalisée
-// (utilisateurs.couleur IS NULL). Couleurs distinguables alignées avec
-// la palette FoxO.
-const TECH_COLORS_FALLBACK = [
-  { bg: '#1B3A6B', soft: '#D6E4F7' },  // navy
-  { bg: '#A17244', soft: '#F0DCC4' },  // ambre
-  { bg: '#1F6B45', soft: '#D4EDE2' },  // ok
-  { bg: '#C4622D', soft: '#F7EDE5' },  // terra
-];
-
-// Convertit un hex #RRGGBB en version "soft" (mix avec blanc 80%).
-// Utilisée pour les fonds de cellules réservées en vue mois (lecture
-// confortable du texte navy/foncé sur fond clair).
-function hexToSoft(hex: string): string {
-  const m = hex.match(/^#([0-9A-Fa-f]{6})$/);
-  if (!m) return '#D6E4F7';
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 0xff;
-  const g = (n >> 8) & 0xff;
-  const b = n & 0xff;
-  // Mix 20% couleur, 80% blanc (#FFFFFF) → version pastel
-  const sr = Math.round(r * 0.2 + 255 * 0.8);
-  const sg = Math.round(g * 0.2 + 255 * 0.8);
-  const sb = Math.round(b * 0.2 + 255 * 0.8);
-  return `#${[sr, sg, sb].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-}
+// Palette de repli et mélange « soft » : src/lib/planning/couleurs.ts (hex de données).
 
 export interface PlanningColors {
   libre: string;
@@ -322,17 +296,16 @@ export function PlanningCalendar({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-bold text-ink-muted uppercase tracking-widest mr-2">
+          <span className="fx-th font-semibold text-ink-mid mr-2">
             Filtre tech
           </span>
           <button
             type="button"
             onClick={() => setTechFilter('all')}
-            className={
-              'px-3 py-1.5 rounded-md text-[12px] font-semibold border ' +
+            className={'fx-label px-3 py-1.5 rounded-lg font-semibold border ' +
               (techFilter === 'all'
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                ? 'bg-navy text-cream border-navy'
+                : 'bg-cream text-ink-mid border-sand-border hover:border-navy-mid')
             }
           >
             Tous
@@ -345,9 +318,8 @@ export function PlanningCalendar({
                 key={t.id}
                 type="button"
                 onClick={() => setTechFilter(t.id)}
-                className={
-                  'px-3 py-1.5 rounded-md text-[12px] font-semibold border flex items-center gap-1.5 ' +
-                  (active ? 'text-white border-transparent' : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                className={'fx-label px-3 py-1.5 rounded-lg font-semibold border flex items-center gap-1.5 ' +
+                  (active ? 'text-cream border-transparent' : 'bg-cream text-ink-mid border-sand-border hover:border-navy-mid')
                 }
                 style={active ? { background: c.bg } : undefined}
               >
@@ -363,20 +335,19 @@ export function PlanningCalendar({
           <button
             type="button"
             onClick={() => setShowPropose(true)}
-            className="px-3 py-1.5 rounded-md text-[12px] font-bold border border-navy bg-navy text-white hover:opacity-90 inline-flex items-center gap-1.5"
+            className="fx-label px-3 py-1.5 rounded-lg font-semibold border border-navy bg-navy text-cream hover:opacity-90 inline-flex items-center gap-1.5"
             title="Trouver les meilleurs créneaux libres selon l'adresse et l'urgence"
           >
             <Sparkles size={14} /> Proposer un créneau
           </button>
 
           {/* Toggle Semaine / Mois */}
-          <div className="flex bg-sand-mid rounded-md p-0.5 dark:bg-[rgba(255,255,255,.06)]">
+          <div className="flex bg-sand-mid rounded-lg p-0.5">
             <button
               type="button"
               onClick={() => setViewMode('week')}
-              className={
-                'px-3 py-1 rounded text-[11px] font-bold ' +
-                (viewMode === 'week' ? 'bg-navy text-white' : 'text-ink-mid')
+              className={'fx-small px-3 py-1 rounded font-semibold ' +
+                (viewMode === 'week' ? 'bg-navy text-cream' : 'text-ink-mid')
               }
             >
               Semaine
@@ -384,9 +355,8 @@ export function PlanningCalendar({
             <button
               type="button"
               onClick={() => setViewMode('month')}
-              className={
-                'px-3 py-1 rounded text-[11px] font-bold ' +
-                (viewMode === 'month' ? 'bg-navy text-white' : 'text-ink-mid')
+              className={'fx-small px-3 py-1 rounded font-semibold ' +
+                (viewMode === 'month' ? 'bg-navy text-cream' : 'text-ink-mid')
               }
             >
               Mois
@@ -403,7 +373,7 @@ export function PlanningCalendar({
                   d.setDate(d.getDate() - 7);
                   setWeekMonday(d);
                 }}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)]"
+                className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid flex items-center justify-center hover:bg-sand-border"
               >‹</button>
               <button
                 type="button"
@@ -416,7 +386,7 @@ export function PlanningCalendar({
                   m.setHours(0, 0, 0, 0);
                   setWeekMonday(m);
                 }}
-                className="bg-sand-mid px-2 h-8 rounded-md text-ink-mid text-[11px] font-bold hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)]"
+                className="fx-small bg-sand-mid px-2 h-8 rounded-lg text-ink-mid font-semibold hover:bg-sand-border"
               >
                 Aujourd&apos;hui
               </button>
@@ -427,7 +397,7 @@ export function PlanningCalendar({
                   d.setDate(d.getDate() + 7);
                   setWeekMonday(d);
                 }}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border dark:bg-[rgba(255,255,255,.06)]"
+                className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid flex items-center justify-center hover:bg-sand-border"
               >›</button>
             </>
           )}
@@ -437,18 +407,18 @@ export function PlanningCalendar({
             <>
               <Link
                 href={prevHref}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
+                className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid flex items-center justify-center hover:bg-sand-border"
               >‹</Link>
               <Link
                 href={nextHref}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid flex items-center justify-center hover:bg-sand-border"
+                className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid flex items-center justify-center hover:bg-sand-border"
               >›</Link>
             </>
           )}
         </div>
       </div>
 
-      <div className="text-[11px] text-ink-muted mb-3">
+      <div className="fx-small text-ink-mid mb-3">
         {viewMode === 'week'
           ? (() => {
               const sun = new Date(weekMonday);
@@ -482,8 +452,8 @@ export function PlanningCalendar({
             );
           })}
           {filtered.some((c) => c.intervention_color) && (
-            <span className="flex items-center gap-1.5 text-[11px] text-ink-mid">
-              <span className="w-3 h-3 rounded-sm border" style={{ background: 'linear-gradient(135deg, #1B3A6B, #7C3AED, #C4622D)' }} />
+            <span className="fx-small flex items-center gap-1.5 text-ink-mid">
+              <span className="w-3 h-3 rounded-sm border" style={{ background: 'linear-gradient(135deg, var(--color-navy), var(--color-amber-foxo), var(--color-terra))' }} />
               Couleur custom
             </span>
           )}
@@ -498,19 +468,19 @@ export function PlanningCalendar({
         <div className="flex items-center gap-2 flex-wrap">
           {googleConnected ? (
             <>
-              <label className="flex items-center gap-2 text-[12px] text-ink-mid cursor-pointer">
+              <label className="fx-label flex items-center gap-2 text-ink-mid cursor-pointer">
                 <input
                   type="checkbox"
                   checked={showGoogle}
                   onChange={(e) => setShowGoogle(e.target.checked)}
-                  className="accent-[#4F46E5]"
+                  className="accent-navy"
                 />
                 <span className="inline-flex items-center gap-1.5"><Calendar size={14} /> Afficher Google Calendar{gcalLoading ? ' …' : gcalEvents.length > 0 ? ` (${gcalEvents.length})` : ''}</span>
               </label>
               <ResyncButton />
             </>
           ) : (
-            <span className="text-[11px] text-ink-muted italic inline-flex items-center gap-1.5">
+            <span className="fx-small text-ink-mid italic inline-flex items-center gap-1.5">
               <Calendar size={12} /> Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
             </span>
           )}
@@ -622,16 +592,14 @@ export function PlanningCalendar({
                   key={iso}
                   className="bg-sand text-center py-2 border-b border-r border-sand-border last:border-r-0"
                 >
-                  <div className={
-                    'text-[10px] font-bold uppercase tracking-wider ' +
-                    (isToday ? 'text-navy' : 'text-ink-muted')
+                  <div className={'fx-eyebrow font-semibold ' +
+                    (isToday ? 'text-navy' : 'text-ink-mid')
                   }>
                     {DAYS[(d.getDay() + 6) % 7]}
                   </div>
-                  <div className={
-                    'mt-0.5 text-[13px] font-extrabold inline-flex items-center justify-center w-7 h-7 ' +
+                  <div className={'fx-body mt-0.5 font-semibold inline-flex items-center justify-center w-7 h-7 ' +
                     (isToday
-                      ? 'rounded-full bg-navy text-white'
+                      ? 'rounded-full bg-navy text-cream'
                       : 'text-ink-mid')
                   }>
                     {d.getDate()}
@@ -644,10 +612,10 @@ export function PlanningCalendar({
             {FOXO_SLOTS.map((slot, slotIdx) => (
               <Fragment key={slotIdx}>
                 <div className="bg-sand border-b border-r border-sand-border text-center py-2">
-                  <div className="text-[11px] font-mono font-extrabold text-ink">
+                  <div className="fx-small tabular-nums font-semibold text-ink">
                     {slot.heure_debut}
                   </div>
-                  <div className="text-[9px] font-mono text-ink-muted">
+                  <div className="fx-small tabular-nums text-ink-mid">
                     →{slot.heure_fin}
                   </div>
                 </div>
@@ -673,10 +641,9 @@ export function PlanningCalendar({
                   return (
                     <div
                       key={`${iso}-${slotIdx}`}
-                      className={
-                        'border-b border-r border-sand-border last:border-r-0 min-h-[64px] p-1 space-y-0.5 relative ' +
+                      className={'border-b border-r border-sand-border last:border-r-0 min-h-[64px] p-1 space-y-0.5 relative ' +
                         (isTodayCell
-                          ? 'bg-navy-pale dark:bg-[rgba(122,168,232,.08)]'
+                          ? 'bg-navy-pale'
                           : 'bg-cream')
                       }
                     >
@@ -690,7 +657,7 @@ export function PlanningCalendar({
                             key={`g-${ev.id}`}
                             type="button"
                             onClick={() => setImportEvent(ev)}
-                            className="w-full text-left text-[10px] font-semibold rounded px-1 py-0.5 truncate flex items-center gap-1 hover:brightness-95 cursor-pointer"
+                            className="fx-small w-full text-left font-semibold rounded px-1 py-0.5 truncate flex items-center gap-1 hover:brightness-95 cursor-pointer"
                             title={tooltip}
                             style={ev.is_foxo_event
                               ? { background: hexToSoft(planningColors.foxo_importe), color: planningColors.foxo_importe, borderLeft: `3px solid ${planningColors.foxo_importe}` }
@@ -729,11 +696,11 @@ export function PlanningCalendar({
                                 color: planningColors.libre,
                               }}
                             >
-                              <span className="text-[10px] font-bold flex-1 truncate">
+                              <span className="fx-small font-semibold flex-1 truncate">
                                 {heureReelle ? `Libre · ${heureReelle}` : 'Libre'}
                               </span>
                               {techBadge && techColor && (
-                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF' }}>
+                                <span className="fx-small font-semibold px-1 py-px rounded" style={{ background: techColor.bg, color: 'var(--color-cream)' }}>
                                   {techBadge}
                                 </span>
                               )}
@@ -752,14 +719,14 @@ export function PlanningCalendar({
                               onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
                               className="w-full text-left rounded px-1.5 py-1 hover:brightness-95 cursor-pointer flex items-center gap-1"
                               title={`Cliquer pour modifier — ${clientLabel}${plageReelle}`}
-                              style={{ background: bg, color: '#FFFFFF', borderLeft: techColor ? `3px solid ${techColor.bg}` : undefined }}
+                              style={{ background: bg, color: 'var(--color-cream)', borderLeft: techColor ? `3px solid ${techColor.bg}` : undefined }}
                             >
                               <Check size={10} />
-                              <span className="text-[11px] font-bold flex-1 truncate">
+                              <span className="fx-small font-semibold flex-1 truncate">
                                 {heureReelle ? `${heureReelle} ${clientLabel}` : clientLabel}
                               </span>
                               {techBadge && techColor && (
-                                <span className="text-[9px] font-extrabold px-1 py-px rounded" style={{ background: techColor.bg, color: '#FFFFFF', filter: 'brightness(1.1)' }}>
+                                <span className="fx-small font-semibold px-1 py-px rounded" style={{ background: techColor.bg, color: 'var(--color-cream)', filter: 'brightness(1.1)' }}>
                                   {techBadge}
                                 </span>
                               )}
@@ -770,14 +737,14 @@ export function PlanningCalendar({
                         return (
                           <div
                             key={cr.id}
-                            className="w-full rounded px-1.5 py-1 bg-sand-mid text-ink-muted text-[10px] font-bold flex items-center gap-1"
+                            className="fx-small w-full rounded px-1.5 py-1 bg-sand-mid text-ink-mid font-semibold flex items-center gap-1"
                             title={`Créneau bloqué${plageReelle}`}
                           >
                             <Construction size={10} />
                             <span className="flex-1 truncate">
                               {heureReelle ? `Bloqué · ${heureReelle}` : 'Bloqué'}
                             </span>
-                            {techBadge && <span className="text-[9px] opacity-70">{techBadge}</span>}
+                            {techBadge && <span className="fx-small opacity-70">{techBadge}</span>}
                           </div>
                         );
                       })}
@@ -785,7 +752,7 @@ export function PlanningCalendar({
                         <button
                           type="button"
                           onClick={() => createSlotAndOpenModal(iso, slotIdx, techFilter)}
-                          className="absolute inset-0 flex items-center justify-center text-[18px] font-bold text-ink-muted/30 hover:text-navy hover:bg-sand-hover/50 transition-colors cursor-pointer/30"
+                          className="fx-panel-title absolute inset-0 flex items-center justify-center font-semibold text-ink-mid/30 hover:text-navy hover:bg-sand-hover/50 transition-colors cursor-pointer/30"
                           title="Créer un créneau libre pour ce technicien"
                           aria-label="Créer un créneau"
                         >
@@ -806,24 +773,22 @@ export function PlanningCalendar({
       <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
         <div className="grid grid-cols-7 gap-px bg-sand-border">
           {DAYS.map((d) => (
-            <div key={d} className="bg-sand text-center py-2 text-[10px] font-bold text-ink-muted uppercase">
+            <div key={d} className="fx-eyebrow bg-sand text-center py-2 font-semibold text-ink-mid">
               {d}
             </div>
           ))}
           {cells.map((c) => (
             <div
               key={c.key}
-              className={
-                'p-2 min-h-[110px] ' +
+              className={'p-2 min-h-[110px] ' +
                 (c.inMonth
                   ? c.iso === todayStr ? 'bg-navy-pale' : 'bg-cream'
-                  : 'bg-[#FAFAF8] opacity-50')
+                  : 'bg-sand opacity-50')
               }
             >
               {c.inMonth && (
-                <div className={
-                  'text-[11px] font-semibold mb-1.5 ' +
-                  (c.iso === todayStr ? 'text-navy font-extrabold' : 'text-ink-mid')
+                <div className={'fx-small font-semibold mb-1.5 ' +
+                  (c.iso === todayStr ? 'text-navy font-semibold' : 'text-ink-mid')
                 }>
                   {c.day}
                 </div>
@@ -841,7 +806,7 @@ export function PlanningCalendar({
                       key={`g-${ev.id}`}
                       type="button"
                       onClick={() => setImportEvent(ev)}
-                      className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer flex items-center gap-1"
+                      className="fx-small w-full text-left font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer flex items-center gap-1"
                       title={tooltip}
                       style={ev.is_foxo_event
                         ? { background: hexToSoft(planningColors.foxo_importe), color: planningColors.foxo_importe, borderLeft: `3px solid ${planningColors.foxo_importe}` }
@@ -865,12 +830,12 @@ export function PlanningCalendar({
                         key={cr.id}
                         type="button"
                         onClick={() => setOpenModal({ kind: 'free', slot: cr })}
-                        className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer"
+                        className="fx-small w-full text-left font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer"
                         title="Cliquer pour planifier une intervention"
                         style={
                           techColor
-                            ? { background: planningColors.libre, color: '#FFFFFF', borderLeft: `3px solid ${techColor.bg}` }
-                            : { background: planningColors.libre, color: '#FFFFFF' }
+                            ? { background: planningColors.libre, color: 'var(--color-cream)', borderLeft: `3px solid ${techColor.bg}` }
+                            : { background: planningColors.libre, color: 'var(--color-cream)' }
                         }
                       >
                         {time}
@@ -881,7 +846,7 @@ export function PlanningCalendar({
                     // Priorité : couleur intervention > couleur tech > couleur réservé par défaut
                     const customColor = cr.intervention_color ?? null;
                     const reserveStyle = customColor
-                      ? { background: customColor, color: '#FFFFFF', borderLeft: `3px solid ${customColor}` }
+                      ? { background: customColor, color: 'var(--color-cream)', borderLeft: `3px solid ${customColor}` }
                       : techColor
                         ? { background: techColor.soft, color: techColor.bg, borderLeft: `3px solid ${techColor.bg}` }
                         : { background: hexToSoft(planningColors.reserve), color: planningColors.reserve, borderLeft: `3px solid ${planningColors.reserve}` };
@@ -890,7 +855,7 @@ export function PlanningCalendar({
                         key={cr.id}
                         type="button"
                         onClick={() => setOpenModal({ kind: 'reserved', slot: cr })}
-                        className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer inline-flex items-center gap-1 w-full"
+                        className="fx-small w-full text-left font-semibold rounded px-1.5 py-0.5 truncate hover:brightness-95 cursor-pointer inline-flex items-center gap-1"
                         title="Cliquer pour modifier l'intervention"
                         style={reserveStyle}
                       >
@@ -904,7 +869,7 @@ export function PlanningCalendar({
                       key={cr.id}
                       type="button"
                       onClick={() => setOpenModal({ kind: 'blocked', slot: cr })}
-                      className="w-full text-left text-[10px] font-semibold rounded px-1.5 py-0.5 truncate bg-sand-mid text-ink-muted hover:bg-sand-border cursor-pointer"
+                      className="fx-small w-full text-left font-semibold rounded px-1.5 py-0.5 truncate bg-sand-mid text-ink-mid hover:bg-sand-border cursor-pointer"
                       title="Cliquer pour modifier le motif ou débloquer"
                     >
                       {time}
@@ -923,7 +888,7 @@ export function PlanningCalendar({
 
 function Legend({ swatch, label }: { swatch: string; label: string }) {
   return (
-    <div className="flex items-center gap-1.5 text-[11px] text-ink-mid">
+    <div className="fx-small flex items-center gap-1.5 text-ink-mid">
       <span className={`w-3 h-3 rounded-sm ${swatch} border`} />
       {label}
     </div>
@@ -934,7 +899,7 @@ function Legend({ swatch, label }: { swatch: string; label: string }) {
 // Utilisé pour les couleurs dynamiques des paramètres planning.
 function LegendSwatch({ color, label }: { color: string; label: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-1.5 text-[11px] text-ink-mid">
+    <span className="fx-small flex items-center gap-1.5 text-ink-mid">
       <span className="w-3 h-3 rounded-sm border" style={{ background: color, borderColor: color }} />
       {label}
     </span>
@@ -979,15 +944,14 @@ function ResyncButton() {
         type="button"
         onClick={run}
         disabled={pending}
-        className="text-[11px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] inline-flex items-center gap-1.5"
+        className="fx-small bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded font-semibold hover:bg-sand-hover disabled:opacity-50 inline-flex items-center gap-1.5"
         title="Crée les events Google Calendar manquants pour les créneaux libres futurs"
       >
         <RefreshCw size={12} className={pending ? 'animate-spin' : ''} />
         {pending ? 'Resync en cours…' : 'Resync Google Calendar'}
       </button>
       {msg && (
-        <span className={
-          'text-[10px] font-bold ' +
+        <span className={'fx-small font-semibold ' +
           (msg.kind === 'ok' ? 'text-ok' : 'text-terra')
         }>
           {msg.msg}

@@ -14,7 +14,7 @@ export default function NewClientPage() {
         </div>
         <Link
           href="/admin/clients"
-          className="text-[12px] text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
+          className="fx-meta text-[var(--color-ink-mid)] hover:text-[var(--color-navy)]"
         >
           ← Retour
         </Link>

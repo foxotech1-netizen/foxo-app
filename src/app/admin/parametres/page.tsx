@@ -27,7 +27,7 @@ export default async function ParametresPage() {
         <h1 className="fxs-page-title mb-1">
           Paramètres
         </h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
           Configuration de la plateforme Fox Group SRL
         </div>

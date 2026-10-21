@@ -11,10 +11,8 @@ export const maxDuration = 120;
 const PAGE = 1_000;
 const PAGES_MAX = 10;
 
-const COLONNES_FACTURE =
-  'id, odoo_id, sens, est_note_credit, numero, reference, tiers_nom, date_facture, date_echeance, montant_ttc, etat_paiement, reglements, date_dernier_reglement, dossier_ref, intervention_id';
-const COLONNES_MOUVEMENT =
-  'id, odoo_id, odoo_move_id, date_mouvement, montant, tiers_nom, communication, rapproche';
+const COLONNES_FACTURE = 'id, odoo_id, sens, est_note_credit, numero, reference, tiers_nom, date_facture, date_echeance, montant_ttc, etat_paiement, reglements, date_dernier_reglement, dossier_ref, intervention_id';
+const COLONNES_MOUVEMENT = 'id, odoo_id, odoo_move_id, date_mouvement, montant, tiers_nom, communication, rapproche';
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 

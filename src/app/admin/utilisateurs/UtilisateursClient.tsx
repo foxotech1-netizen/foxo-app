@@ -28,9 +28,9 @@ const CHIPS: { id: ChipId; label: string }[] = [
 ];
 
 const ROLE_COLORS: Record<NonNullable<UtilisateurRow['role']>, string> = {
-  syndic:     '#1B3A6B',
-  courtier:   '#1D6FA4',
-  technicien: '#1F6B45',
+  syndic: 'var(--color-navy)',
+  courtier: 'var(--color-navy-mid)',
+  technicien: 'var(--color-ok)',
 };
 
 function fmtDate(iso: string | null): string {
@@ -177,7 +177,7 @@ export function UtilisateursClient({
           <h1 className="fxs-page-title mb-1">
             Utilisateurs partenaires
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {users.length} utilisateur{users.length > 1 ? 's' : ''} — {counts.syndic} syndic{counts.syndic > 1 ? 's' : ''}, {counts.courtier} courtier{counts.courtier > 1 ? 's' : ''}, {counts.technicien} technicien{counts.technicien > 1 ? 's' : ''}
           </div>
@@ -185,7 +185,7 @@ export function UtilisateursClient({
         <button
           type="button"
           onClick={() => { setFormOpen((v) => !v); setFeedback(null); }}
-          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm"
+          className="fx-label bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-lg font-medium shadow-sm"
         >
           {formOpen ? 'Annuler' : '+ Nouvel utilisateur'}
         </button>
@@ -193,16 +193,15 @@ export function UtilisateursClient({
 
       <div className="space-y-4">
         {loadError && (
-          <div className="px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
+          <div className="fx-label px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg font-semibold">
             Connexion limitée : {loadError}
           </div>
         )}
 
         {feedback && (
-          <div className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          <div className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok'
-              : feedback.kind === 'amber' ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A]'
+              : feedback.kind === 'amber' ? 'bg-amber-light border-[var(--color-amber-foxo)]/30 text-amber-ink'
               : 'bg-terra-light border-terra-mid text-terra')
           }>
             {feedback.msg}
@@ -212,12 +211,12 @@ export function UtilisateursClient({
         {/* Form inline collapsible */}
         {formOpen && (
           <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted">
+            <div className="fx-th font-semibold text-ink-mid">
               Nouvel utilisateur
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+                <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
                   Email *
                 </label>
                 <input
@@ -225,17 +224,17 @@ export function UtilisateursClient({
                   value={fEmail}
                   onChange={(e) => setFEmail(e.target.value)}
                   placeholder="contact@partenaire.be"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+                <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
                   Rôle *
                 </label>
                 <select
                   value={fRole}
                   onChange={(e) => setFRole(e.target.value as typeof fRole)}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white cursor-pointer"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream cursor-pointer"
                 >
                   <option value="syndic">Syndic</option>
                   <option value="courtier">Courtier</option>
@@ -243,14 +242,14 @@ export function UtilisateursClient({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+                <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
                   Organisation {fRole === 'technicien' ? '' : '*'}
                 </label>
                 <select
                   value={fOrgId}
                   onChange={(e) => setFOrgId(e.target.value)}
                   disabled={fRole === 'technicien'}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white cursor-pointer disabled:opacity-50"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream cursor-pointer disabled:opacity-50"
                 >
                   <option value="">{fRole === 'technicien' ? '— (interne)' : 'Sélectionner…'}</option>
                   {orgs.map((o) => (
@@ -264,7 +263,7 @@ export function UtilisateursClient({
                 type="button"
                 onClick={() => { setFormOpen(false); resetForm(); }}
                 disabled={pending}
-                className="bg-sand-mid text-ink-mid px-3 py-2 rounded-lg text-[12px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
+                className="fx-label bg-sand-mid text-ink-mid px-3 py-2 rounded-lg font-semibold disabled:opacity-50"
               >
                 Annuler
               </button>
@@ -272,7 +271,7 @@ export function UtilisateursClient({
                 type="button"
                 onClick={submitCreate}
                 disabled={pending || !fEmail.trim() || (fRole !== 'technicien' && !fOrgId)}
-                className="bg-navy text-white px-4 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                className="fx-label bg-navy text-cream px-4 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
               >
                 {pending ? '…' : 'Créer'}
               </button>
@@ -290,15 +289,14 @@ export function UtilisateursClient({
                 key={c.id}
                 type="button"
                 onClick={() => setChip(c.id)}
-                className={
-                  'text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ' +
+                className={'fx-pill font-semibold px-3 py-1.5 rounded-full border transition-colors ' +
                   (active
-                    ? 'bg-navy text-white border-navy'
+                    ? 'bg-navy text-cream border-navy'
                     : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-mid')
                 }
               >
                 {c.label}
-                <span className={'ml-1.5 text-[10px] font-semibold ' + (active ? 'opacity-80' : 'opacity-60')}>
+                <span className={'fx-small ml-1.5 font-semibold ' + (active ? 'opacity-80' : 'opacity-60')}>
                   ({n})
                 </span>
               </button>
@@ -313,7 +311,7 @@ export function UtilisateursClient({
               <thead>
                 <tr className="bg-sand">
                   {['Email', 'Rôle', 'Organisation', 'Actif', 'Créé le', 'Actions'].map((h) => (
-                    <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                    <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -322,32 +320,32 @@ export function UtilisateursClient({
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px]">
+                    <td colSpan={6} className="fx-body-dense text-center py-12 text-ink-mid">
                       Aucun utilisateur ne correspond au filtre.
                     </td>
                   </tr>
                 ) : filtered.map((u) => (
                   <tr key={u.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                    <td className="px-3.5 py-3 font-mono text-xs font-semibold text-ink">
+                    <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-ink">
                       {u.email ?? '—'}
                     </td>
                     <td className="px-3.5 py-3">
                       {u.role && (
                         <span
-                          className="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white whitespace-nowrap"
+                          className="fx-badge inline-block rounded-full px-2 py-0.5 font-semibold text-cream whitespace-nowrap"
                           style={{ background: ROLE_COLORS[u.role] }}
                         >
                           {u.role}
                         </span>
                       )}
                     </td>
-                    <td className="px-3.5 py-3 text-[12px]">
-                      {u.org_nom ?? <span className="text-ink-muted italic">—</span>}
+                    <td className="fx-body-dense px-3.5 py-3">
+                      {u.org_nom ?? <span className="text-ink-mid italic">—</span>}
                     </td>
                     <td className="px-3.5 py-3">
                       <Toggle active={u.actif} onChange={() => toggleActif(u)} disabled={pending} />
                     </td>
-                    <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                    <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">
                       {fmtDate(u.created_at)}
                     </td>
                     <td className="px-3.5 py-3 whitespace-nowrap">
@@ -355,7 +353,7 @@ export function UtilisateursClient({
                         type="button"
                         onClick={() => setConfirmDelete(u)}
                         disabled={pending}
-                        className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center justify-center"
+                        className="fx-small bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center justify-center"
                         title="Supprimer"
                         aria-label="Supprimer"
                       >
@@ -399,14 +397,12 @@ function Toggle({
       aria-checked={active}
       onClick={onChange}
       disabled={disabled}
-      className={
-        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ' +
+      className={'relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ' +
         (active ? 'bg-ok' : 'bg-sand-border')
       }
     >
       <span
-        className={
-          'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ' +
+        className={'inline-block h-4 w-4 transform rounded-full bg-cream shadow transition-transform ' +
           (active ? 'translate-x-4' : 'translate-x-0.5')
         }
       />

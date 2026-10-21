@@ -37,7 +37,7 @@ function statusClass(s: string): string {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${statusClass(status)}`}>
+    <span className={`fx-badge inline-block px-2 py-0.5 rounded-full font-semibold ${statusClass(status)}`}>
       {status}
     </span>
   );
@@ -47,9 +47,9 @@ function KindBadge({ kind }: { kind: 'canonical' | 'utility' }) {
   const cls =
     kind === 'canonical'
       ? 'bg-navy-pale text-navy'
-      : 'bg-sand-mid text-ink-muted';
+      : 'bg-sand-mid text-ink-mid';
   return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>
+    <span className={`fx-badge inline-block px-2 py-0.5 rounded-full font-semibold ${cls}`}>
       {kind}
     </span>
   );
@@ -59,7 +59,7 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
   const base = 'px-2.5 py-1 rounded-md text-xs transition-colors';
   const cls = active
     ? `${base} bg-navy-pale text-navy font-semibold`
-    : `${base} text-ink-muted hover:text-ink hover:bg-sand-mid`;
+    : `${base} text-ink-mid hover:text-ink hover:bg-sand-mid`;
   return <Link href={href} className={cls}>{children}</Link>;
 }
 
@@ -223,7 +223,7 @@ export default async function ObservabilitePage({
       <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">Observabilité IA</h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {periodLabel(period)} • {agentTotal} appels agents • {autoTotal} jobs autos
           </div>
@@ -250,7 +250,7 @@ export default async function ObservabilitePage({
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="fxs-section-title text-ink">Par agent</h2>
-            <span className="text-[10px] text-ink-muted italic">
+            <span className="fx-small text-ink-mid italic">
               Tous les agents connus apparaissent, même à 0 sur la période.
             </span>
           </div>
@@ -260,7 +260,7 @@ export default async function ObservabilitePage({
               <thead>
                 <tr className="bg-sand">
                   {['Agent', 'Type', 'Appels', 'Erreurs', 'Taux erreur', 'Coût', 'Durée moy.'].map((h) => (
-                    <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                    <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -273,7 +273,7 @@ export default async function ObservabilitePage({
                     : Math.round((row.nb_errors / row.nb_calls) * 100);
                   return (
                     <tr key={row.agent_name} className="border-b border-sand-mid hover:bg-sand-hover">
-                      <td className="px-3.5 py-3 text-[12px] font-mono">
+                      <td className="fx-body-dense px-3.5 py-3 tabular-nums">
                         <Link
                           href={buildHref({ agent: row.agent_name, agent_status: 'all' })}
                           className="hover:underline text-navy"
@@ -282,19 +282,19 @@ export default async function ObservabilitePage({
                         </Link>
                       </td>
                       <td className="px-3.5 py-3"><KindBadge kind={row.agent_kind} /></td>
-                      <td className="px-3.5 py-3 text-[12px] font-mono text-ink whitespace-nowrap">{row.nb_calls}</td>
-                      <td className="px-3.5 py-3 text-[12px] font-mono whitespace-nowrap">
+                      <td className="fx-body-dense px-3.5 py-3 tabular-nums text-ink whitespace-nowrap">{row.nb_calls}</td>
+                      <td className="fx-body-dense px-3.5 py-3 tabular-nums whitespace-nowrap">
                         <span className={row.nb_errors > 0 ? 'text-[var(--color-terra)] font-semibold' : 'text-ink-mid'}>
                           {row.nb_errors}
                         </span>
                       </td>
-                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid whitespace-nowrap">
                         {taux == null ? '—' : `${taux}%`}
                       </td>
-                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid whitespace-nowrap">
                         {fmtCostEur(row.total_cost_eur_cents)}
                       </td>
-                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid whitespace-nowrap">
                         {row.avg_duration_ms == null ? '—' : `${row.avg_duration_ms}ms`}
                       </td>
                     </tr>
@@ -317,7 +317,7 @@ export default async function ObservabilitePage({
           </div>
 
           {agentLogs.length === 0 ? (
-            <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
+            <p className="fx-meta text-ink-mid bg-cream border border-sand-border rounded-lg p-4 text-center">
               Aucun appel agent sur ce filtre.
             </p>
           ) : (
@@ -326,7 +326,7 @@ export default async function ObservabilitePage({
                 <thead>
                   <tr className="bg-sand">
                     {['Quand', 'Agent', 'Modèle', 'Statut', 'Tokens in/out', 'Coût', 'Durée', 'Confiance', 'Intervention', 'Erreur'].map((h) => (
-                      <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                      <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -335,20 +335,20 @@ export default async function ObservabilitePage({
                 <tbody>
                   {agentLogs.map((log) => (
                     <tr key={log.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                      <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDateTime(log.created_at)}</td>
-                      <td className="px-3.5 py-3 text-[12px] font-mono">{log.agent_name}</td>
-                      <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono">{log.model_used ?? '—'}</td>
+                      <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{fmtDateTime(log.created_at)}</td>
+                      <td className="fx-body-dense px-3.5 py-3 tabular-nums">{log.agent_name}</td>
+                      <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums">{log.model_used ?? '—'}</td>
                       <td className="px-3.5 py-3"><StatusBadge status={log.status} /></td>
-                      <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid whitespace-nowrap">
                         {fmtTokens(log.tokens_input)} / {fmtTokens(log.tokens_output)}
                       </td>
-                      <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">
                         {log.cost_eur_cents != null ? fmtCostEur(log.cost_eur_cents) : '—'}
                       </td>
-                      <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">
                         {log.duration_ms != null ? `${log.duration_ms}ms` : '—'}
                       </td>
-                      <td className="px-3.5 py-3 text-[11px] font-mono whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-3 tabular-nums whitespace-nowrap">
                         {log.confidence_score != null ? (
                           <span className={log.confidence_score < 0.7 ? 'text-[var(--color-terra)] font-semibold' : 'text-ink-mid'}>
                             {log.confidence_score.toFixed(2)}
@@ -357,15 +357,15 @@ export default async function ObservabilitePage({
                           <span className="text-ink-mid">—</span>
                         )}
                       </td>
-                      <td className="px-3.5 py-3 text-[11px]">
+                      <td className="fx-small px-3.5 py-3">
                         {log.intervention_id ? (
-                          <Link href={`/admin/interventions/${log.intervention_id}`} className="font-mono text-navy hover:underline">
+                          <Link href={`/admin/interventions/${log.intervention_id}`} className="fx-ref text-navy hover:underline">
                             {log.intervention_id.slice(0, 8)}
                           </Link>
                         ) : '—'}
                       </td>
                       <td
-                        className="px-3.5 py-3 text-[11px] text-ink-mid max-w-xs truncate"
+                        className="fx-small px-3.5 py-3 text-ink-mid max-w-xs truncate"
                         title={log.error_message ?? undefined}
                       >
                         {log.error_message ?? '—'}
@@ -376,7 +376,7 @@ export default async function ObservabilitePage({
               </table>
             </div>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
+          <p className="fx-small text-ink-mid mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
         </section>
 
         {/* Section Automatisations */}
@@ -391,7 +391,7 @@ export default async function ObservabilitePage({
           </div>
 
           {autoJobs.length === 0 ? (
-            <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
+            <p className="fx-meta text-ink-mid bg-cream border border-sand-border rounded-lg p-4 text-center">
               Aucun job d'automatisation sur ce filtre.
             </p>
           ) : (
@@ -400,7 +400,7 @@ export default async function ObservabilitePage({
                 <thead>
                   <tr className="bg-sand">
                     {['Quand', 'Automatisation', 'Action', 'Statut', 'Intervention', 'Erreur'].map((h) => (
-                      <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                      <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -409,25 +409,25 @@ export default async function ObservabilitePage({
                 <tbody>
                   {autoJobs.map((job) => (
                     <tr key={job.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                      <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDateTime(job.executed_at)}</td>
-                      <td className="px-3.5 py-3 text-[12px] font-mono">{job.automation_name}</td>
+                      <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{fmtDateTime(job.executed_at)}</td>
+                      <td className="fx-body-dense px-3.5 py-3 tabular-nums">{job.automation_name}</td>
                       <td className="px-3.5 py-3">
                         {job.action ? (
-                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-700">
+                          <span className="fx-badge inline-block px-2 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-700">
                             {job.action}
                           </span>
                         ) : '—'}
                       </td>
                       <td className="px-3.5 py-3"><StatusBadge status={job.status} /></td>
-                      <td className="px-3.5 py-3 text-[11px]">
+                      <td className="fx-small px-3.5 py-3">
                         {job.intervention_id ? (
-                          <Link href={`/admin/interventions/${job.intervention_id}`} className="font-mono text-navy hover:underline">
+                          <Link href={`/admin/interventions/${job.intervention_id}`} className="fx-ref text-navy hover:underline">
                             {job.intervention_id.slice(0, 8)}
                           </Link>
                         ) : '—'}
                       </td>
                       <td
-                        className="px-3.5 py-3 text-[11px] text-ink-mid max-w-xs truncate"
+                        className="fx-small px-3.5 py-3 text-ink-mid max-w-xs truncate"
                         title={job.error_message ?? undefined}
                       >
                         {job.error_message ?? '—'}
@@ -438,18 +438,18 @@ export default async function ObservabilitePage({
               </table>
             </div>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
+          <p className="fx-small text-ink-mid mt-2 italic">Affichage des 50 dernières lignes sur la période.</p>
         </section>
 
         {/* Section Erreurs cron mails (lot E) — détail texte depuis sms_logs */}
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="fxs-section-title text-ink">Erreurs cron mails</h2>
-            <span className="text-[10px] text-ink-muted">{cronErrors.length} récente(s)</span>
+            <span className="fx-small text-ink-mid">{cronErrors.length} récente(s)</span>
           </div>
 
           {cronErrors.length === 0 ? (
-            <p className="text-xs text-ink-muted bg-cream border border-sand-border rounded-lg p-4 text-center">
+            <p className="fx-meta text-ink-mid bg-cream border border-sand-border rounded-lg p-4 text-center">
               Aucune erreur du cron mails sur la période.
             </p>
           ) : (
@@ -458,7 +458,7 @@ export default async function ObservabilitePage({
                 <thead>
                   <tr className="bg-sand">
                     {['Quand', 'Sujet', 'Erreur'].map((h) => (
-                      <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                      <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -470,9 +470,9 @@ export default async function ObservabilitePage({
                     const sujet = (e.message ?? '').replace(/^\[[^\]]*\]\s*/, '') || '—';
                     return (
                       <tr key={e.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                        <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDateTime(e.created_at)}</td>
-                        <td className="px-3.5 py-3 text-[12px] max-w-[200px] truncate" title={sujet}>{sujet}</td>
-                        <td className="px-3.5 py-3 text-[11px] text-terra max-w-md break-words" title={e.error ?? undefined}>
+                        <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{fmtDateTime(e.created_at)}</td>
+                        <td className="fx-body-dense px-3.5 py-3 max-w-[200px] truncate" title={sujet}>{sujet}</td>
+                        <td className="fx-small px-3.5 py-3 text-terra max-w-md break-words" title={e.error ?? undefined}>
                           {e.error ?? '—'}
                         </td>
                       </tr>
@@ -482,7 +482,7 @@ export default async function ObservabilitePage({
               </table>
             </div>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 italic">
+          <p className="fx-small text-ink-mid mt-2 italic">
             Source : <code>sms_logs</code> (<code>sent_by=cron:check-mails</code>, <code>status=failed</code>). 20 dernières sur la période.
           </p>
         </section>
@@ -495,7 +495,7 @@ function KpiCard({ label, value, accent }: { label: string; value: string; accen
   const valueCls = accent === 'red' ? 'text-2xl font-bold text-[var(--color-terra)]' : 'text-2xl font-bold text-ink';
   return (
     <div className="bg-cream rounded-xl border border-sand-border p-4">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-1">{label}</div>
       <div className={valueCls}>{value}</div>
     </div>
   );

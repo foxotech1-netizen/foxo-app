@@ -171,30 +171,30 @@ export function RappelsClient({
       <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-4">
         <div>
           <h2 className="fxs-block-title text-ink inline-flex items-center gap-1.5"><Settings size={14} aria-hidden /> Paramètres rappels</h2>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            Variables disponibles dans le template : <code className="font-mono">{'{ref}'}</code>{' '}
-            <code className="font-mono">{'{montant}'}</code>{' '}
-            <code className="font-mono">{'{jours}'}</code>{' '}
-            <code className="font-mono">{'{client}'}</code>
+          <p className="fx-small text-ink-mid mt-0.5">
+            Variables disponibles dans le template : <code className="tabular-nums">{'{ref}'}</code>{' '}
+            <code className="tabular-nums">{'{montant}'}</code>{' '}
+            <code className="tabular-nums">{'{jours}'}</code>{' '}
+            <code className="tabular-nums">{'{client}'}</code>
           </p>
         </div>
 
-        <label className="flex items-center gap-2.5 cursor-pointer text-[13px]">
+        <label className="fx-label flex items-center gap-2.5 cursor-pointer">
           <input
             type="checkbox"
             checked={params.rappels_auto_actifs}
             onChange={(e) => setParams((p) => ({ ...p, rappels_auto_actifs: e.target.checked }))}
-            className="w-4 h-4 accent-[#1B3A6B]"
+            className="w-4 h-4 accent-[var(--color-navy)]"
           />
-          <span className="font-bold">Rappels automatiques actifs</span>
-          <span className="text-[10px] text-ink-muted">
+          <span className="font-semibold">Rappels automatiques actifs</span>
+          <span className="fx-small text-ink-mid">
             (un cron enverra les rappels selon les délais ci-dessous)
           </span>
         </label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+            <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
               Délai avant 1ᵉʳ rappel (jours après échéance)
             </label>
             <input
@@ -202,11 +202,11 @@ export function RappelsClient({
               min={0}
               value={params.rappel_delai_j1}
               onChange={(e) => setParams((p) => ({ ...p, rappel_delai_j1: e.target.value }))}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+            <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
               Délai avant 2ᵉ rappel (jours après le 1er)
             </label>
             <input
@@ -214,20 +214,20 @@ export function RappelsClient({
               min={0}
               value={params.rappel_delai_j2}
               onChange={(e) => setParams((p) => ({ ...p, rappel_delai_j2: e.target.value }))}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
             />
           </div>
         </div>
 
         <div>
-          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+          <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
             Template email rappel
           </label>
           <textarea
             value={params.rappel_template_email}
             onChange={(e) => setParams((p) => ({ ...p, rappel_template_email: e.target.value }))}
             rows={8}
-            className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid resize-y font-mono"
+            className="fx-meta w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y tabular-nums"
           />
         </div>
 
@@ -236,13 +236,12 @@ export function RappelsClient({
             type="button"
             onClick={saveAllParams}
             disabled={paramsSaving}
-            className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50"
+            className="fx-label bg-navy text-cream px-4 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
           >
             {paramsSaving ? 'Enregistrement…' : (<span className="inline-flex items-center gap-1.5"><Save size={14} aria-hidden /> Enregistrer les paramètres</span>)}
           </button>
           {paramSaveMsg && (
-            <span className={
-              'text-[11px] font-semibold ' +
+            <span className={'fx-small font-semibold ' +
               (paramSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra')
             }>
               {paramSaveMsg.msg}
@@ -256,7 +255,7 @@ export function RappelsClient({
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
           <h2 className="fxs-block-title text-ink flex items-center gap-2">
             <Bell size={14} aria-hidden /> Factures en retard
-            <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
+            <span className="fx-badge font-semibold text-ink-mid bg-sand-mid px-2 py-0.5 rounded-full">
               {enRetard.length}
             </span>
           </h2>
@@ -264,7 +263,7 @@ export function RappelsClient({
             type="button"
             onClick={sendBulk}
             disabled={selected.size === 0 || Boolean(batch)}
-            className="bg-navy text-white px-3 py-1.5 rounded text-[11px] font-bold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="fx-small bg-navy text-cream px-3 py-1.5 rounded font-semibold hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {batch
               ? `Envoi ${batch.current}/${batch.total}…`
@@ -273,8 +272,8 @@ export function RappelsClient({
         </div>
 
         {batch && (
-          <div className="mb-2 bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5">
-            <div className="text-[11px] text-navy font-semibold mb-1">
+          <div className="mb-2 bg-navy-pale border border-navy-light rounded-lg px-2.5 py-1.5">
+            <div className="fx-small text-navy font-semibold mb-1">
               Envoi en cours… {batch.current}/{batch.total}
               {batch.errors > 0 && (
                 <span className="text-terra ml-2">· {batch.errors} erreur{batch.errors > 1 ? 's' : ''}</span>
@@ -290,8 +289,7 @@ export function RappelsClient({
         )}
 
         {batchMsg && (
-          <div className={
-            'mb-2 px-3 py-2 text-[11px] font-semibold rounded-md border ' +
+          <div className={'fx-small mb-2 px-3 py-2 font-semibold rounded-lg border ' +
             (batchMsg.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
               : 'bg-terra-light border-terra-mid text-terra')
@@ -300,7 +298,7 @@ export function RappelsClient({
           </div>
         )}
         {enRetard.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted inline-flex items-center justify-center gap-1.5 w-full">
+          <div className="fx-meta bg-cream rounded-xl border border-sand-border p-6 text-center text-ink-mid inline-flex items-center justify-center gap-1.5 w-full">
             Aucune facture en retard. <PartyPopper size={14} aria-hidden />
           </div>
         ) : (
@@ -315,12 +313,12 @@ export function RappelsClient({
                         checked={allChecked}
                         ref={(el) => { if (el) el.indeterminate = someChecked; }}
                         onChange={(e) => toggleAll(e.target.checked)}
-                        className="w-4 h-4 accent-[#1B3A6B] cursor-pointer"
+                        className="w-4 h-4 accent-[var(--color-navy)] cursor-pointer"
                         aria-label="Tout sélectionner"
                       />
                     </th>
                     {['N°', 'Client', 'Référence', 'Échéance', 'Retard', 'Montant', 'Dernier rappel', 'Prochain rappel', 'Action'].map((h) => (
-                      <th key={h} className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                      <th key={h} className="fx-eyebrow px-3 py-2 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -339,33 +337,33 @@ export function RappelsClient({
                             checked={checked}
                             onChange={(e) => toggleOne(f.id, e.target.checked)}
                             disabled={Boolean(batch) || state?.sending}
-                            className="w-4 h-4 accent-[#1B3A6B] cursor-pointer"
+                            className="w-4 h-4 accent-[var(--color-navy)] cursor-pointer"
                             aria-label={`Sélectionner ${f.numero}`}
                           />
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <Link href={`/admin/facturation/${f.id}`} className="font-mono text-xs font-bold text-navy hover:underline">
+                          <Link href={`/admin/facturation/${f.id}`} className="fx-label fx-ref font-semibold text-navy hover:underline">
                             {f.numero}
                           </Link>
                         </td>
                         <td className="px-3 py-2">
-                          <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
-                          {f.client_syndic && <div className="text-[10px] text-ink-muted">{f.client_syndic}</div>}
+                          <div className="fx-label font-semibold">{f.client_nom ?? '—'}</div>
+                          {f.client_syndic && <div className="fx-small text-ink-mid">{f.client_syndic}</div>}
                         </td>
-                        <td className="px-3 py-2 text-[11px] text-ink-mid">{f.reference ?? '—'}</td>
-                        <td className="px-3 py-2 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
+                        <td className="fx-small px-3 py-2 text-ink-mid">{f.reference ?? '—'}</td>
+                        <td className="fx-small px-3 py-2 text-ink-mid tabular-nums whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <span className="inline-block text-[10px] font-bold rounded-full px-2 py-0.5 bg-terra-light text-terra border border-terra-mid">
+                          <span className="fx-badge inline-block font-semibold rounded-full px-2 py-0.5 bg-terra-light text-terra border border-terra-mid">
                             {retardJours}j
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-[12px] font-mono font-bold whitespace-nowrap dark:text-white">{fmtMoney(f.montant_ttc)}</td>
-                        <td className="px-3 py-2 text-[10px] text-ink-mid whitespace-nowrap">
+                        <td className="fx-body-dense px-3 py-2 tabular-nums font-semibold whitespace-nowrap">{fmtMoney(f.montant_ttc)}</td>
+                        <td className="fx-small px-3 py-2 text-ink-mid whitespace-nowrap">
                           {f.rappel_envoye_at
                             ? <>{fmtDate(f.rappel_envoye_at)} {f.rappel_count && f.rappel_count > 1 ? `(×${f.rappel_count})` : ''}</>
                             : <span className="italic">jamais</span>}
                         </td>
-                        <td className="px-3 py-2 text-[10px] text-ink-mid whitespace-nowrap">
+                        <td className="fx-small px-3 py-2 text-ink-mid whitespace-nowrap">
                           {nextRappelEstimate(f.rappel_envoye_at)}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
@@ -373,12 +371,12 @@ export function RappelsClient({
                             type="button"
                             onClick={() => sendRappel(f.id)}
                             disabled={state?.sending || Boolean(batch)}
-                            className="bg-[#A17244] text-white px-2.5 py-1 rounded text-[10px] font-bold hover:opacity-90 disabled:opacity-50"
+                            className="fx-small bg-navy text-cream px-2.5 py-1 rounded font-semibold hover:opacity-90 disabled:opacity-50"
                           >
                             {state?.sending ? '…' : (<span className="inline-flex items-center gap-1"><Send size={12} aria-hidden /> Envoyer rappel</span>)}
                           </button>
                           {state?.msg && (
-                            <div className={'mt-1 text-[10px] font-semibold ' + (state.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                            <div className={'fx-small mt-1 font-semibold ' + (state.kind === 'ok' ? 'text-ok' : 'text-terra')}>
                               {state.msg}
                             </div>
                           )}

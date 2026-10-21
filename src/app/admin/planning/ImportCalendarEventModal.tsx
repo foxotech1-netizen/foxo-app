@@ -5,12 +5,7 @@ import { useState } from 'react';
 import { Calendar, X, Clock, MapPin, AlertTriangle, ClipboardList } from 'lucide-react';
 import type { TypeIntervention, Utilisateur } from '@/lib/types/database';
 
-const TYPES: TypeIntervention[] = [
-  'Fuite canalisation',
-  'Fuite chauffage',
-  'Fuite infiltration',
-  'Surconsommation eau',
-  'Autre',
+const TYPES: TypeIntervention[] = [ 'Fuite canalisation', 'Fuite chauffage', 'Fuite infiltration', 'Surconsommation eau', 'Autre',
 ];
 
 export interface CalendarEventLite {
@@ -100,7 +95,7 @@ export function ImportCalendarEventModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       {/* Pattern D4 : header fixe, corps scrollable unique, actions fixes. */}
-      <div className="bg-cream border border-sand-border rounded-2xl w-full max-w-[560px] max-h-[90vh] flex flex-col">
+      <div className="bg-cream border border-sand-border rounded-modal w-full max-w-[560px] max-h-[90vh] flex flex-col">
         <div className="px-5 pt-5 pb-3 flex items-center justify-between flex-shrink-0">
           <h2 className="fxs-block-title text-ink inline-flex items-center gap-1.5">
             <Calendar size={14} /> Importer cet événement Calendar
@@ -109,18 +104,18 @@ export function ImportCalendarEventModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)] inline-flex items-center justify-center"
+            className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid inline-flex items-center justify-center"
             aria-label="Fermer"
           ><X size={16} /></button>
         </div>
 
         <div className="px-5 pb-2 flex-1 min-h-0 overflow-y-auto">
         {/* Aperçu de l'event Calendar */}
-        <div className="bg-[#EEF2FF] border border-[#C7D2FE] rounded-lg p-3 mb-4">
-          <div className="text-[13px] font-bold text-[#4338CA]">
+        <div className="bg-navy-pale border border-navy-light rounded-lg p-3 mb-4">
+          <div className="fx-body font-semibold text-navy">
             {event.title}
           </div>
-          <div className="text-[11px] text-[#6366F1] mt-0.5 inline-flex items-center gap-1.5 flex-wrap">
+          <div className="fx-small text-navy mt-0.5 inline-flex items-center gap-1.5 flex-wrap">
             <Clock size={12} /> {fmtDateTime(event.start, event.all_day)}
             {event.location && (
               <>
@@ -130,14 +125,14 @@ export function ImportCalendarEventModal({
             )}
           </div>
           {event.description && (
-            <div className="text-[11px] text-ink-mid mt-2 line-clamp-3">
+            <div className="fx-small text-ink-mid mt-2 line-clamp-3">
               {event.description}
             </div>
           )}
         </div>
 
         {event.is_foxo_event && (
-          <div className="bg-amber-light border border-[#E8C896] text-[#8A5A1A] rounded-md px-3 py-2 text-[12px] mb-3 inline-flex items-start gap-1.5">
+          <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg px-3 py-2 mb-3 inline-flex items-start gap-1.5">
             <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
             <span>Cet événement a déjà été importé comme intervention FoxO. Tu peux le ré-ouvrir mais pas le ré-importer.</span>
           </div>
@@ -146,14 +141,14 @@ export function ImportCalendarEventModal({
         {/* Form */}
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+            <label className="fx-eyebrow block font-semibold text-ink-mid mb-1">
               Type d&apos;intervention *
             </label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as TypeIntervention)}
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
             >
               <option value="">— Choisir —</option>
               {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -161,7 +156,7 @@ export function ImportCalendarEventModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+            <label className="fx-eyebrow block font-semibold text-ink-mid mb-1">
               Adresse d&apos;intervention
             </label>
             <input
@@ -169,19 +164,19 @@ export function ImportCalendarEventModal({
               onChange={(e) => setAdresse(e.target.value)}
               placeholder="Pré-rempli depuis le lieu de l'event"
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+            <label className="fx-eyebrow block font-semibold text-ink-mid mb-1">
               Technicien assigné
             </label>
             <select
               value={technicienId}
               onChange={(e) => setTechnicienId(e.target.value)}
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
             >
               <option value="">— Non assigné —</option>
               {techs.map((t) => (
@@ -193,7 +188,7 @@ export function ImportCalendarEventModal({
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+            <label className="fx-eyebrow block font-semibold text-ink-mid mb-1">
               Description / Notes *
             </label>
             <textarea
@@ -201,13 +196,13 @@ export function ImportCalendarEventModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
               disabled={event.is_foxo_event || submitting}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
             />
           </div>
         </div>
 
         {error && (
-          <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 text-[12px] font-semibold">
+          <div className="fx-label mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
             {error}
           </div>
         )}
@@ -218,7 +213,7 @@ export function ImportCalendarEventModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
+            className="fx-label px-3 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid"
           >
             Annuler
           </button>
@@ -226,7 +221,7 @@ export function ImportCalendarEventModal({
             type="button"
             onClick={submit}
             disabled={submitting || event.is_foxo_event}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="fx-label px-3 py-2 rounded-lg font-semibold bg-navy text-cream disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             {submitting ? 'Import…' : (<><ClipboardList size={14} /> Importer comme intervention</>)}
           </button>

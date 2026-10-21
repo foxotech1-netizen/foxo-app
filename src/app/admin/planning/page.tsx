@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DEFAULT_PLANNING_COLORS } from '@/lib/planning/couleurs';
 import { createClient } from '@/lib/supabase/server';
 import { loadTokens } from '@/lib/google-auth';
 import type { CreneauDisponible, ParticulierContact, Utilisateur } from '@/lib/types/database';
@@ -61,12 +62,7 @@ export default async function PlanningPage({
     supabase
       .from('parametres')
       .select('cle, valeur')
-      .in('cle', [
-        'planning_couleur_libre',
-        'planning_couleur_reserve',
-        'planning_couleur_bloque',
-        'planning_couleur_google',
-        'planning_couleur_foxo_importe',
+      .in('cle', [ 'planning_couleur_libre', 'planning_couleur_reserve', 'planning_couleur_bloque', 'planning_couleur_google', 'planning_couleur_foxo_importe',
       ]),
   ]);
 
@@ -79,11 +75,11 @@ export default async function PlanningPage({
     if (p.valeur) paramMap.set(p.cle, p.valeur);
   }
   const planningColors = {
-    libre: paramMap.get('planning_couleur_libre') ?? '#1F6B45',
-    reserve: paramMap.get('planning_couleur_reserve') ?? '#1B3A6B',
-    bloque: paramMap.get('planning_couleur_bloque') ?? '#6B7280',
-    google: paramMap.get('planning_couleur_google') ?? '#4338CA',
-    foxo_importe: paramMap.get('planning_couleur_foxo_importe') ?? '#7C3AED',
+    libre: paramMap.get('planning_couleur_libre') ?? DEFAULT_PLANNING_COLORS.libre,
+    reserve: paramMap.get('planning_couleur_reserve') ?? DEFAULT_PLANNING_COLORS.reserve,
+    bloque: paramMap.get('planning_couleur_bloque') ?? DEFAULT_PLANNING_COLORS.bloque,
+    google: paramMap.get('planning_couleur_google') ?? DEFAULT_PLANNING_COLORS.google,
+    foxo_importe: paramMap.get('planning_couleur_foxo_importe') ?? DEFAULT_PLANNING_COLORS.foxo_importe,
   };
   // Le join `intervention:interventions(color)` renvoie un tableau
   // (pattern Supabase pour les relations) — on prend le premier élément
@@ -131,7 +127,7 @@ export default async function PlanningPage({
         <h1 className="fxs-page-title mb-1">
           Planning
         </h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
           Créneaux fermés par défaut. Crée-les explicitement dans l&apos;onglet « Gérer »
         </div>
@@ -142,22 +138,20 @@ export default async function PlanningPage({
         <div className="flex gap-1 border-b border-[var(--color-sand-border)]">
           <Link
             href={tabHref('calendar')}
-            className={
-              'px-4 py-2 rounded-t-lg text-[12px] font-medium border-b-2 -mb-px ' +
+            className={'fx-label px-4 py-2 rounded-t-lg font-medium border-b-2 -mb-px ' +
               (tab === 'calendar'
                 ? 'bg-[var(--color-cream)] border-[var(--color-navy)] text-[var(--color-navy)]'
-                : 'border-transparent text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]')
+                : 'border-transparent text-ink-mid hover:text-[var(--color-ink)]')
             }
           >
             Calendrier
           </Link>
           <Link
             href={tabHref('manage')}
-            className={
-              'px-4 py-2 rounded-t-lg text-[12px] font-medium border-b-2 -mb-px ' +
+            className={'fx-label px-4 py-2 rounded-t-lg font-medium border-b-2 -mb-px ' +
               (tab === 'manage'
                 ? 'bg-[var(--color-cream)] border-[var(--color-navy)] text-[var(--color-navy)]'
-                : 'border-transparent text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]')
+                : 'border-transparent text-ink-mid hover:text-[var(--color-ink)]')
             }
           >
             Gérer les disponibilités
