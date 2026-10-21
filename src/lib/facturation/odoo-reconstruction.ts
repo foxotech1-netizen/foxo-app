@@ -224,7 +224,7 @@ function adresseDepuisReference(reference: string | null): string | null {
 export function nomNettoye(tiersNom: string): string {
   return tiersNom
     .replace(/\([^)]*\)/g, ' ')
-    .replace(/\b(?:BCE|BE)\b[\s:.\-–—]*\d[\d .]*.*$/i, ' ')
+    .replace(/\b(?:BCE|BE)[\s:.\-–—]*\d[\d .]*.*$/i, ' ')
     .replace(/[\s\-–—:,;.]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim();
