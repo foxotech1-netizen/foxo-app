@@ -9,12 +9,14 @@
 // Même habillage que les blocs du dossier (cf. Block dans InterventionsClient).
 
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, Plus } from 'lucide-react';
+import { ExternalLink, Plus, QrCode } from 'lucide-react';
 import { CLASSES_TON, etatFacture, type TonEtat } from '@/lib/facturation/odoo-libelles';
 import { TZ_BRUSSELS } from '@/lib/format';
 import { facturesOdooDuDossier, type FactureOdooDossier, type FacturesOdooDossier } from './facturation/odoo/actions';
-import { brouillonsDuDossier, type BrouillonDossier, type BrouillonsDossier } from './facturation/odoo/brouillon-actions';
+import { brouillonsDuDossier, qrPaiementAction, type BrouillonDossier, type BrouillonsDossier } from './facturation/odoo/brouillon-actions';
+import type { PaiementBrouillon } from '@/lib/facturation/odoo-brouillon';
 import { BrouillonOdooForm } from './BrouillonOdooForm';
+import { QrPaiement } from './QrPaiement';
 
 // Date calendaire AAAA-MM-JJ → JJ/MM/AAAA, sans passer par un fuseau.
 function fmtJour(d: string | null): string {
@@ -68,6 +70,14 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
   const formulaireOuvert = dossierDuFormulaire === interventionId;
   // Incrémenté pour relire le bloc (après création d'un brouillon).
   const [version, setVersion] = useState(0);
+  // QR de paiement affiché pour un brouillon en attente (par identifiant).
+  const [qr, setQr] = useState<{ pour: string; paiement: PaiementBrouillon | null; erreur: string | null } | null>(null);
+
+  const afficherQr = useCallback(async (brouillonId: string) => {
+    setQr({ pour: brouillonId, paiement: null, erreur: null });
+    const res = await qrPaiementAction(brouillonId);
+    setQr(res.ok ? { pour: brouillonId, paiement: res.paiement, erreur: null } : { pour: brouillonId, paiement: null, erreur: res.erreur });
+  }, []);
 
   useEffect(() => {
     let actif = true;
@@ -173,6 +183,28 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
             <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-navy-pale text-[12px] text-ink-mid">
               À faire dans Odoo : vérifier, valider, envoyer. Une fois validée, la facture apparaît ici avec son numéro à la synchronisation suivante.
             </div>
+            {b.communication && (
+              <div className="mt-1.5">
+                {qr?.pour !== b.id ? (
+                  <button
+                    type="button"
+                    onClick={() => afficherQr(b.id)}
+                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy-pale border border-navy-light text-navy text-[13px] font-semibold hover:bg-navy-light"
+                  >
+                    <QrCode size={15} aria-hidden /> QR de paiement sur place
+                  </button>
+                ) : qr.erreur ? (
+                  <div className="text-terra font-semibold text-[12px]">{qr.erreur}</div>
+                ) : qr.paiement ? (
+                  <div>
+                    <QrPaiement paiement={qr.paiement} />
+                    <button type="button" onClick={() => setQr(null)} className="mt-1 min-h-[44px] text-navy font-semibold underline text-[12px]">Masquer le QR</button>
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-ink-mid">Préparation du QR…</div>
+                )}
+              </div>
+            )}
           </div>
         ))}
 
