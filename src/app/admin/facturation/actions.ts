@@ -1376,10 +1376,14 @@ export async function loadInterventionForFacture(interventionId: string): Promis
   const supabase = await createClient();
   const { data: iv, error } = await supabase
     .from('interventions')
-    .select('id, ref, syndic_id, acp_id, demandeur_type, particulier_contact, adresse, billing_override, syndic:organisations(nom, email, bce, adresse, type), acp:acps(nom, adresse, code_postal, ville, bce)')
+    // interventions porte DEUX clés vers organisations (syndic_id et
+    // organisation_id) : l'embed doit nommer la colonne, sinon PostgREST
+    // refuse la requête (relation ambiguë) et le pré-remplissage échoue.
+    .select('id, ref, syndic_id, acp_id, demandeur_type, particulier_contact, adresse, billing_override, syndic:organisations!syndic_id(nom, email, bce, adresse, type), acp:acps(nom, adresse, code_postal, ville, bce)')
     .eq('id', interventionId)
     .maybeSingle();
-  if (error || !iv) return { ok: false, error: 'Intervention introuvable.' };
+  if (error) return { ok: false, error: `Intervention illisible : ${error.message}` };
+  if (!iv) return { ok: false, error: 'Intervention introuvable.' };
 
   type IvJoined = {
     id: string; ref: string | null; syndic_id: string | null;
