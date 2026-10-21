@@ -1,8 +1,10 @@
 // Synchronisation Odoo → FoxO — miroir en LECTURE SEULE.
 //
 // FoxO recopie dans des tables À PART (odoo_factures, odoo_mouvements_bancaires)
-// ce qu'Odoo contient : les factures de vente et d'achat comptabilisées, et les
-// mouvements bancaires (= paiements reçus et envoyés). Rien n'est écrit dans
+// ce qu'Odoo contient : les factures de vente et d'achat comptabilisées (avec
+// leurs lignes et la fiche du tiers facturé : BCE, e-mail, téléphone, adresse —
+// de quoi reconstruire un dossier), et les mouvements bancaires (= paiements
+// reçus et envoyés). Rien n'est écrit dans
 // Odoo, et rien n'est écrit dans les factures FoxO (factures / factures_achat) :
 // aucun bouton existant ne peut agir sur ces pièces.
 //
@@ -42,6 +44,10 @@ const CHAMPS_MOUVEMENT = [
   'date', 'amount', 'payment_ref', 'partner_id', 'partner_name', 'is_reconciled', 'journal_id',
   'company_id', 'move_id', 'write_date',
 ];
+// Fiche du tiers telle qu'Odoo la connaît (lue pour tous les tiers facturés).
+const CHAMPS_TIERS = ['name', 'vat', 'email', 'phone', 'mobile', 'street', 'street2', 'zip', 'city'];
+// Lignes de facture (produits uniquement : ni sections, ni notes).
+const CHAMPS_LIGNE = ['move_id', 'name', 'product_id', 'quantity', 'price_unit', 'price_subtotal'];
 
 type Ligne = Record<string, unknown>;
 type Admin = ReturnType<typeof createAdminClient>;
@@ -56,6 +62,24 @@ export interface OdooReglement {
   odoo_move_id: number | null;
 }
 
+/** Ligne de facture Odoo (display_type = product). */
+export interface OdooLigneFacture {
+  libelle: string | null;
+  produit: string | null;
+  quantite: number | null;
+  prix_unitaire: number | null;
+  sous_total: number | null;
+}
+
+/** Fiche res.partner réduite à ce que le miroir recopie. */
+interface FicheTiers {
+  nom: string | null;
+  bce: string | null;
+  email: string | null;
+  telephone: string | null;
+  adresse: string | null;
+}
+
 export interface OdooFactureRow {
   societe_id: string | null;
   odoo_id: number;
@@ -67,6 +91,11 @@ export interface OdooFactureRow {
   communication: string | null;
   tiers_nom: string | null;
   odoo_tiers_id: number | null;
+  /** BCE au format 0000.000.000, lue dans le champ TVA ou dans le nom du tiers. */
+  tiers_bce: string | null;
+  tiers_email: string | null;
+  tiers_telephone: string | null;
+  tiers_adresse: string | null;
   date_facture: string | null;
   date_echeance: string | null;
   montant_ht: number | null;
@@ -76,6 +105,7 @@ export interface OdooFactureRow {
   devise: string | null;
   /** Valeur Odoo brute : not_paid, in_payment, paid, partial, reversed… */
   etat_paiement: string;
+  lignes: OdooLigneFacture[];
   reglements: OdooReglement[];
   date_dernier_reglement: string | null;
   dossier_ref: string | null;
@@ -207,7 +237,8 @@ function lireReglements(widget: unknown): OdooReglement[] {
 
 export function mapperFacture(
   r: Ligne,
-  nomsTiers: Map<number, string>,
+  fiches: Map<number, FicheTiers>,
+  lignesParFacture: Map<number, OdooLigneFacture[]>,
   commun: Commun,
 ): OdooFactureRow | null {
   const odooId = idDe(r.id);
@@ -230,6 +261,7 @@ export function mapperFacture(
     .filter((d): d is string => d !== null)
     .sort();
   const tiersId = idDe(r.partner_id);
+  const fiche = tiersId != null ? fiches.get(tiersId) ?? null : null;
 
   return {
     societe_id: commun.societeId,
@@ -240,8 +272,12 @@ export function mapperFacture(
     numero,
     reference,
     communication: texte(r.payment_reference),
-    tiers_nom: nomDe(r.partner_id) ?? (tiersId != null ? nomsTiers.get(tiersId) ?? null : null),
+    tiers_nom: nomDe(r.partner_id) ?? fiche?.nom ?? null,
     odoo_tiers_id: tiersId,
+    tiers_bce: fiche?.bce ?? null,
+    tiers_email: fiche?.email ?? null,
+    tiers_telephone: fiche?.telephone ?? null,
+    tiers_adresse: fiche?.adresse ?? null,
     date_facture: jour(r.invoice_date),
     date_echeance: jour(r.invoice_date_due),
     montant_ht: nombre(r.amount_untaxed),
@@ -250,6 +286,7 @@ export function mapperFacture(
     montant_restant: nombre(r.amount_residual),
     devise: nomDe(r.currency_id),
     etat_paiement: texte(r.payment_state) ?? 'inconnu',
+    lignes: lignesParFacture.get(odooId) ?? [],
     reglements,
     date_dernier_reglement: datesReglement.length > 0 ? datesReglement[datesReglement.length - 1] : null,
     dossier_ref: dossierRef,
@@ -261,7 +298,7 @@ export function mapperFacture(
 
 export function mapperMouvement(
   r: Ligne,
-  nomsTiers: Map<number, string>,
+  fiches: Map<number, FicheTiers>,
   commun: Commun,
 ): OdooMouvementRow | null {
   const odooId = idDe(r.id);
@@ -279,7 +316,7 @@ export function mapperMouvement(
     montant,
     tiers_nom:
       nomDe(r.partner_id)
-      ?? (tiersId != null ? nomsTiers.get(tiersId) ?? null : null)
+      ?? (tiersId != null ? fiches.get(tiersId)?.nom ?? null : null)
       ?? texte(r.partner_name),
     communication: texte(r.payment_ref),
     journal: nomDe(r.journal_id),
@@ -374,30 +411,136 @@ async function lireTout(
   return { lignes, tronque: true };
 }
 
-// Noms des tiers quand Odoo n'a renvoyé que leur identifiant.
-async function nomsDesTiers(lire: Lire, lignes: Ligne[]): Promise<Map<number, string>> {
-  const manquants = new Set<number>();
-  for (const r of lignes) {
-    const id = idDe(r.partner_id);
-    if (id != null && nomDe(r.partner_id) === null) manquants.add(id);
-  }
-  const noms = new Map<number, string>();
-  const ids = [...manquants];
-  for (let i = 0; i < ids.length; i += LOT_RECHERCHE) {
-    const lot = ids.slice(i, i + LOT_RECHERCHE);
-    const rows = await lire<Ligne[]>('res.partner', 'search_read', {
-      domain: [['id', 'in', lot]],
-      fields: ['name'],
-      limit: lot.length,
-      context: { active_test: false },
-    });
-    for (const p of rows) {
-      const id = idDe(p.id);
-      const nom = texte(p.name);
-      if (id != null && nom) noms.set(id, nom);
+// Un champ demandé qu'Odoo ne connaît pas (version, module absent) : on le
+// retire et on relit, plutôt que de faire échouer le passage.
+function champInvalide(msg: string, champs: string[]): string | null {
+  if (!/invalid field/i.test(msg)) return null;
+  const m = msg.match(/invalid field\s+['"]?([a-z0-9_.]+)['"]?/i);
+  const cite = m ? m[1].split('.').pop() ?? null : null;
+  if (cite && champs.includes(cite)) return cite;
+  return champs.find((c) => new RegExp(`\\b${c}\\b`).test(msg)) ?? null;
+}
+
+// search_read tolérant : `champs` est réduit SUR PLACE quand Odoo refuse un
+// champ, pour que les lots suivants n'y reviennent pas.
+async function lireTolerant(
+  lire: Lire,
+  model: string,
+  named: Record<string, unknown>,
+  champs: string[],
+  avertissements: string[],
+): Promise<Ligne[]> {
+  for (;;) {
+    try {
+      return await lire<Ligne[]>(model, 'search_read', { ...named, fields: champs });
+    } catch (e) {
+      const invalide = champInvalide(message(e), champs);
+      if (!invalide || champs.length <= 1) throw e;
+      champs.splice(champs.indexOf(invalide), 1);
+      avertissements.push(`Odoo refuse le champ ${model}.${invalide} — lu sans ce champ.`);
     }
   }
-  return noms;
+}
+
+/**
+ * BCE belge au format 0000.000.000 : d'abord le champ TVA (« BE 0850.924.580 »
+ * → 0850924580), sinon une suite de 10 chiffres dans le nom du tiers
+ * (« ACP PACIFIC – BCE 0850.924.580 », « BE 0850 597 948 », « BCE0873275063 »).
+ */
+export function bceDepuis(vat: string | null, nom: string | null): string | null {
+  let chiffres: string | null = null;
+  const depuisTva = (vat ?? '').replace(/^\s*BE/i, '').replace(/\D/g, '');
+  if (depuisTva.length === 10) chiffres = depuisTva;
+  if (!chiffres) {
+    const m = (nom ?? '').match(/(?:^|\D)(\d{4})[ .]?(\d{3})[ .]?(\d{3})(?!\d)/);
+    if (m) chiffres = m[1] + m[2] + m[3];
+  }
+  return chiffres ? `${chiffres.slice(0, 4)}.${chiffres.slice(4, 7)}.${chiffres.slice(7)}` : null;
+}
+
+// « Rue Willems 14, 1210 Saint-Josse » — morceaux vides ignorés.
+function adresseDe(p: Ligne): string | null {
+  const rue = [texte(p.street), texte(p.street2)].filter(Boolean).join(' ');
+  const localite = [texte(p.zip), texte(p.city)].filter(Boolean).join(' ');
+  const adresse = [rue, localite].filter(Boolean).join(', ');
+  return adresse || null;
+}
+
+/**
+ * Fiches res.partner de TOUS les tiers des factures (ventes et achats), plus
+ * celles des tiers de mouvements dont Odoo n'a renvoyé que l'identifiant (le
+ * nom reste le repli, comme avant). Lecture par lots, actifs ou archivés.
+ */
+async function fichesTiers(
+  lire: Lire,
+  factures: Ligne[],
+  mouvements: Ligne[],
+  avertissements: string[],
+): Promise<Map<number, FicheTiers>> {
+  const ids = new Set<number>();
+  for (const r of factures) {
+    const id = idDe(r.partner_id);
+    if (id != null) ids.add(id);
+  }
+  for (const r of mouvements) {
+    const id = idDe(r.partner_id);
+    if (id != null && nomDe(r.partner_id) === null) ids.add(id);
+  }
+  const fiches = new Map<number, FicheTiers>();
+  const liste = [...ids];
+  const champs = [...CHAMPS_TIERS];
+  for (let i = 0; i < liste.length; i += LOT_RECHERCHE) {
+    const lot = liste.slice(i, i + LOT_RECHERCHE);
+    const rows = await lireTolerant(lire, 'res.partner', {
+      domain: [['id', 'in', lot]],
+      limit: lot.length,
+      context: { active_test: false },
+    }, champs, avertissements);
+    for (const p of rows) {
+      const id = idDe(p.id);
+      if (id == null) continue;
+      const nom = texte(p.name);
+      fiches.set(id, {
+        nom,
+        bce: bceDepuis(texte(p.vat), nom),
+        email: texte(p.email),
+        telephone: texte(p.phone) ?? texte(p.mobile),
+        adresse: adresseDe(p),
+      });
+    }
+  }
+  return fiches;
+}
+
+/** Lignes « produit » des factures, regroupées par identifiant de facture. */
+async function lignesDesFactures(
+  lire: Lire,
+  ids: number[],
+  avertissements: string[],
+): Promise<Map<number, OdooLigneFacture[]>> {
+  const parFacture = new Map<number, OdooLigneFacture[]>();
+  const champs = [...CHAMPS_LIGNE];
+  for (let i = 0; i < ids.length; i += LOT_RECHERCHE) {
+    const lot = ids.slice(i, i + LOT_RECHERCHE);
+    const rows = await lireTolerant(lire, 'account.move.line', {
+      domain: [['move_id', 'in', lot], ['display_type', '=', 'product']],
+      order: 'id asc',
+    }, champs, avertissements);
+    for (const l of rows) {
+      const factureId = idDe(l.move_id);
+      if (factureId == null) continue;
+      const liste = parFacture.get(factureId) ?? [];
+      liste.push({
+        libelle: texte(l.name),
+        produit: nomDe(l.product_id),
+        quantite: nombre(l.quantity),
+        prix_unitaire: nombre(l.price_unit),
+        sous_total: nombre(l.price_subtotal),
+      });
+      parFacture.set(factureId, liste);
+    }
+  }
+  return parFacture;
 }
 
 // ─── Écriture du miroir ─────────────────────────────────────────────────────
@@ -485,13 +628,19 @@ async function executer(admin: Admin, reglages: Reglages, commun: Commun): Promi
     PAGE_MOUVEMENTS,
   );
 
-  const nomsTiers = await nomsDesTiers(lire, [...lectureFactures.lignes, ...lectureMouvements.lignes]);
+  // Fiches des tiers puis lignes des factures : toujours par la même file
+  // d'attente, l'un après l'autre (jamais en parallèle).
+  const fiches = await fichesTiers(lire, lectureFactures.lignes, lectureMouvements.lignes, avertissements);
+  const idsFactures = lectureFactures.lignes
+    .map((r) => idDe(r.id))
+    .filter((id): id is number => id !== null);
+  const lignesParFacture = await lignesDesFactures(lire, idsFactures, avertissements);
 
   const factures = lectureFactures.lignes
-    .map((r) => mapperFacture(r, nomsTiers, commun))
+    .map((r) => mapperFacture(r, fiches, lignesParFacture, commun))
     .filter((f): f is OdooFactureRow => f !== null);
   const mouvements = lectureMouvements.lignes
-    .map((r) => mapperMouvement(r, nomsTiers, commun))
+    .map((r) => mapperMouvement(r, fiches, commun))
     .filter((m): m is OdooMouvementRow => m !== null);
 
   // Numéro et référence qui ne désignent pas le même dossier : on le signale.
