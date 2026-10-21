@@ -324,7 +324,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
 
             {modeClient === 'nouveau' && nouveau && (
               <div className="px-3 py-3 border border-sand-border rounded-lg bg-white space-y-2">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-0">
                   <div className="font-semibold">Nouvelle fiche client dans Odoo</div>
                   {(prep.client.propose || client) && (
                     <button type="button" onClick={() => setModeClient('existant')} className="min-h-[44px] text-navy font-semibold underline">
@@ -391,43 +391,50 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
               {lignes.map((l, i) => {
                 const total = arrondi(nombre(l.quantite) * nombre(l.prix_unitaire));
                 return (
-                  <div key={i} className="grid grid-cols-[minmax(0,1fr)_64px_104px_80px_96px_40px] gap-2 items-end">
-                    <div>
-                      <label htmlFor={`bo-prod-${i}`} className={i === 0 ? ETIQUETTE : 'sr-only'}>Produit Odoo</label>
-                      <select id={`bo-prod-${i}`} className={CHAMP} value={l.produit_id ?? ''} onChange={(e) => choisirProduit(i, e.target.value)}>
-                        <option value="">— Libellé libre —</option>
-                        {produitsTries.frequents.length > 0 && (
-                          <optgroup label="Fréquents">
-                            {produitsTries.frequents.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                  // Deux rangées par ligne : le volet du dossier est étroit, le
+                  // produit prend toute la largeur, les chiffres passent dessous.
+                  <div key={i} className="rounded-lg border border-sand-border bg-white/60 p-2 space-y-2">
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor={`bo-prod-${i}`} className={ETIQUETTE}>Produit Odoo{lignes.length > 1 ? ` — ligne ${i + 1}` : ''}</label>
+                        <select id={`bo-prod-${i}`} className={CHAMP} value={l.produit_id ?? ''} onChange={(e) => choisirProduit(i, e.target.value)}>
+                          <option value="">— Libellé libre —</option>
+                          {produitsTries.frequents.length > 0 && (
+                            <optgroup label="Fréquents">
+                              {produitsTries.frequents.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
+                            </optgroup>
+                          )}
+                          <optgroup label="Tout le catalogue">
+                            {produitsTries.autres.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
                           </optgroup>
+                        </select>
+                        {l.produit_id === null && (
+                          <input aria-label={`Libellé ligne ${i + 1}`} className={`${CHAMP} mt-1`} value={l.libelle} placeholder="Libellé de la ligne" onChange={(e) => majLigne(i, { libelle: e.target.value })} />
                         )}
-                        <optgroup label="Tout le catalogue">
-                          {produitsTries.autres.map((p) => <option key={p.id} value={p.id}>{p.nom}</option>)}
-                        </optgroup>
-                      </select>
-                      {l.produit_id === null && (
-                        <input aria-label={`Libellé ligne ${i + 1}`} className={`${CHAMP} mt-1`} value={l.libelle} placeholder="Libellé de la ligne" onChange={(e) => majLigne(i, { libelle: e.target.value })} />
-                      )}
-                    </div>
-                    <div>
-                      <label htmlFor={`bo-q-${i}`} className={i === 0 ? ETIQUETTE : 'sr-only'}>Qté</label>
-                      <input id={`bo-q-${i}`} type="number" min={0} step={1} className={`${CHAMP} text-right tabular-nums`} value={l.quantite} onChange={(e) => majLigne(i, { quantite: nombre(e.target.value) })} />
-                    </div>
-                    <div>
-                      <label htmlFor={`bo-pu-${i}`} className={i === 0 ? ETIQUETTE : 'sr-only'}>P.U. HT</label>
-                      <input id={`bo-pu-${i}`} type="number" min={0} step={0.01} className={`${CHAMP} text-right tabular-nums`} value={l.prix_unitaire} onChange={(e) => majLigne(i, { prix_unitaire: nombre(e.target.value) })} />
-                    </div>
-                    <div>
-                      <label htmlFor={`bo-tva-${i}`} className={i === 0 ? ETIQUETTE : 'sr-only'}>TVA</label>
-                      <select id={`bo-tva-${i}`} className={CHAMP} value={l.taux_tva} onChange={(e) => majLigne(i, { taux_tva: nombre(e.target.value) })}>
-                        {prep.catalogue.taux.map((t) => <option key={t} value={t}>{t} %</option>)}
-                      </select>
-                    </div>
-                    <div className="text-right tabular-nums font-semibold pb-2.5">{fmtMontant(total)}</div>
-                    <div className="pb-0.5">
-                      <button type="button" onClick={() => retirerLigne(i)} aria-label={`Retirer la ligne ${i + 1}`} disabled={lignes.length <= 1} className="min-h-[40px] w-10 inline-flex items-center justify-center rounded-lg text-ink-mid hover:text-terra hover:bg-sand-hover disabled:opacity-30">
+                      </div>
+                      <button type="button" onClick={() => retirerLigne(i)} aria-label={`Retirer la ligne ${i + 1}`} disabled={lignes.length <= 1} className="min-h-[40px] w-10 shrink-0 inline-flex items-center justify-center rounded-lg text-ink-mid hover:text-terra hover:bg-sand-hover disabled:opacity-30">
                         <Trash2 size={15} aria-hidden />
                       </button>
+                    </div>
+                    <div className="grid grid-cols-[64px_minmax(0,1fr)_84px_minmax(0,1fr)] gap-2 items-end">
+                      <div>
+                        <label htmlFor={`bo-q-${i}`} className={ETIQUETTE}>Qté</label>
+                        <input id={`bo-q-${i}`} type="number" min={0} step={1} className={`${CHAMP} text-right tabular-nums`} value={l.quantite} onChange={(e) => majLigne(i, { quantite: nombre(e.target.value) })} />
+                      </div>
+                      <div>
+                        <label htmlFor={`bo-pu-${i}`} className={ETIQUETTE}>P.U. HT</label>
+                        <input id={`bo-pu-${i}`} type="number" min={0} step={0.01} className={`${CHAMP} text-right tabular-nums`} value={l.prix_unitaire} onChange={(e) => majLigne(i, { prix_unitaire: nombre(e.target.value) })} />
+                      </div>
+                      <div>
+                        <label htmlFor={`bo-tva-${i}`} className={ETIQUETTE}>TVA</label>
+                        <select id={`bo-tva-${i}`} className={CHAMP} value={l.taux_tva} onChange={(e) => majLigne(i, { taux_tva: nombre(e.target.value) })}>
+                          {prep.catalogue.taux.map((t) => <option key={t} value={t}>{t} %</option>)}
+                        </select>
+                      </div>
+                      <div className="text-right">
+                        <span className={ETIQUETTE}>Total HT</span>
+                        <div className="min-h-[40px] flex items-center justify-end tabular-nums font-semibold">{fmtMontant(total)}</div>
+                      </div>
                     </div>
                   </div>
                 );
