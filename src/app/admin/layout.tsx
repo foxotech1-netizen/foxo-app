@@ -48,8 +48,17 @@ export default async function AdminLayout({
   ).length;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar alertCount={alertCount} recentResponsesCount={recentResponsesCount} validationCount={validationCount} />
+    <div className="flex min-h-screen fx-admin">
+      <Sidebar
+        alertCount={alertCount}
+        recentResponsesCount={recentResponsesCount}
+        validationCount={validationCount}
+        utilisateur={{
+          email: user.email ?? null,
+          // Nom éventuel déjà porté par la session (aucune requête ajoutée).
+          nom: typeof user.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null,
+        }}
+      />
       {/* Right column en flex-col : topbar (sticky) + MainContent (Design
           System FoxO — sand bg + radial gradients). Le `<main>` sémantique
           est porté par MainContent, donc cette div extérieure reste un
