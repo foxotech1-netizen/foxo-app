@@ -12,12 +12,19 @@
 //                        catalogue (produits, taxes), propose lignes et note.
 //   creerBrouillonOdoo : écrit — crée la fiche client si demandé, puis la
 //                        facture brouillon ; enregistre odoo_brouillons.
-// Rien n'est codé en dur côté métier : produits, prix, taux et comptes
-// viennent d'Odoo ; le numéro de facture est laissé à Odoo.
+// Rien n'est codé en dur côté métier : produits, prix, taux, comptes et
+// condition de paiement viennent d'Odoo ; le numéro de facture est laissé à
+// Odoo. Une exception voulue : la COMMUNICATION STRUCTURÉE est dérivée par
+// FoxO du numéro de dossier (2026-238 → +++000/2026/238xx+++) et posée sur le
+// brouillon, pour qu'un client puisse payer sur place (QR) avant la
+// validation ; Odoo la conserve à la validation si elle est déjà remplie.
 
 import { TYPE_OCCUPANT_LABEL, type TypeOccupant } from '@/lib/types/database';
 import { TZ_BRUSSELS } from '@/lib/format';
+import { VENDOR } from '@/lib/constants/vendor';
 import { loadInterventionForFacture } from '@/app/admin/facturation/actions';
+import { generateBBA } from './bba';
+import { generateEpcQrDataUrl } from './epc-qr';
 import { odooHost } from './odoo-transport';
 import {
   creerJournalise,
@@ -85,14 +92,27 @@ export interface PreparationBrouillon {
   saisie: SaisieBrouillon;
   /** `frequents` : identifiants des produits les plus utilisés, du plus au moins fréquent. */
   catalogue: { produits: ProduitOdoo[]; taux: number[]; frequents: number[] };
+  /** Condition de paiement la plus utilisée sur les dernières factures (nom Odoo), ou null. */
+  condition_paiement: string | null;
+  /** Communication structurée que portera le brouillon. */
+  communication: string;
   /** Raison pour laquelle on ne crée PAS de brouillon (déjà un, déjà facturé). */
   blocage: string | null;
   ecriture_active: boolean;
   odoo_url: string | null;
 }
 
+/** De quoi faire payer sur place : QR EPC (image) + données lisibles. */
+export interface PaiementBrouillon {
+  iban: string;
+  beneficiaire: string;
+  montant_ttc: number;
+  communication: string;
+  qr_data_url: string;
+}
+
 export type ResultatCreation =
-  | { ok: true; brouillon_id: string; odoo_move_id: number; odoo_url: string | null; partner_cree: boolean }
+  | { ok: true; brouillon_id: string; odoo_move_id: number; odoo_url: string | null; partner_cree: boolean; paiement: PaiementBrouillon }
   | { ok: false; erreur: string };
 
 type Ligne = Record<string, unknown>;
@@ -155,7 +175,8 @@ function decouperAdresse(adresse: string | null): { ligne: string | null; code_p
 // ─── Catalogue Odoo (produits, taxes), mémorisé dix minutes ─────────────────
 
 interface TaxeOdoo { id: number; nom: string; taux: number }
-interface Catalogue { taxes: TaxeOdoo[]; produits: ProduitOdoo[]; produitParDefaut: number | null; frequents: number[]; expire: number }
+interface TermeOdoo { id: number; nom: string }
+interface Catalogue { taxes: TaxeOdoo[]; produits: ProduitOdoo[]; produitParDefaut: number | null; frequents: number[]; terme: TermeOdoo | null; expire: number }
 
 const catalogueCache = new Map<number, Catalogue>();
 
@@ -232,7 +253,40 @@ async function lireCatalogue(ctx: ContexteOdoo): Promise<Catalogue> {
     frequents = [];
   }
 
-  const catalogue: Catalogue = { taxes, produits, produitParDefaut, frequents, expire: Date.now() + CACHE_TTL_MS };
+  // Condition de paiement = la plus utilisée sur les dernières factures de
+  // vente validées (les fiches clients n'en portent pas toujours).
+  let terme: TermeOdoo | null = null;
+  try {
+    const factures = await lireJournalise<Ligne[]>(ctx, 'account.move', 'search_read', {
+      domain: [
+        ['move_type', '=', 'out_invoice'],
+        ['state', '=', 'posted'],
+        ['company_id', '=', ctx.societeOdoo],
+        ['invoice_payment_term_id', '!=', false],
+      ],
+      fields: ['invoice_payment_term_id'],
+      order: 'id desc',
+      limit: 100,
+    }, { quoi: 'condition de paiement la plus utilisée (100 dernières factures)' });
+    const compte = new Map<number, { n: number; nom: string }>();
+    for (const f of factures) {
+      const id = idDe(f.invoice_payment_term_id);
+      if (id == null) continue;
+      const nom = Array.isArray(f.invoice_payment_term_id) && typeof f.invoice_payment_term_id[1] === 'string'
+        ? f.invoice_payment_term_id[1]
+        : (f.invoice_payment_term_id as { display_name?: string } | null)?.display_name ?? `condition ${id}`;
+      const c = compte.get(id) ?? { n: 0, nom };
+      c.n += 1;
+      compte.set(id, c);
+    }
+    for (const [id, c] of compte) {
+      if (terme === null || c.n > (compte.get(terme.id)?.n ?? 0)) terme = { id, nom: c.nom };
+    }
+  } catch {
+    terme = null;
+  }
+
+  const catalogue: Catalogue = { taxes, produits, produitParDefaut, frequents, terme, expire: Date.now() + CACHE_TTL_MS };
   catalogueCache.set(ctx.societeOdoo, catalogue);
   return catalogue;
 }
@@ -527,6 +581,8 @@ export async function preparerBrouillon(interventionId: string, appelePar: strin
       note: composerNote(dossier) || null,
     },
     catalogue: { produits: catalogue.produits, taux: tauxDisponibles, frequents: catalogue.frequents },
+    condition_paiement: catalogue.terme?.nom ?? null,
+    communication: generateBBA(dossier.ref),
     blocage,
     ecriture_active: await odooEcritureActive(ctx.admin),
     odoo_url: hote ? `https://${hote}` : null,
@@ -578,7 +634,13 @@ function totaux(lignes: LigneBrouillon[]): { ht: number; tva: number; ttc: numbe
   return { ht, tva, ttc: arrondi(ht + tva) };
 }
 
-function valsMove(s: SaisieBrouillon, partnerId: number, catalogue: Catalogue, societeOdoo: number): Record<string, unknown> {
+function valsMove(
+  s: SaisieBrouillon,
+  partnerId: number,
+  catalogue: Catalogue,
+  societeOdoo: number,
+  communication: string,
+): Record<string, unknown> {
   const lignes: unknown[] = s.lignes.map((l) => {
     const taxe = taxePourTaux(catalogue, nombre(l.taux_tva));
     return [0, 0, {
@@ -596,8 +658,28 @@ function valsMove(s: SaisieBrouillon, partnerId: number, catalogue: Catalogue, s
     partner_id: partnerId,
     ref: s.reference.trim(),
     invoice_date: s.date_facture,
+    // Communication structurée posée dès le brouillon (cf. en-tête) ; Odoo ne
+    // la remplace à la validation que si elle est vide.
+    payment_reference: communication,
+    ...(catalogue.terme ? { invoice_payment_term_id: catalogue.terme.id } : {}),
     invoice_line_ids: lignes,
   };
+}
+
+async function paiementPour(montantTtc: number, communication: string): Promise<PaiementBrouillon> {
+  const qr = await generateEpcQrDataUrl({
+    beneficiaryName: VENDOR.name,
+    iban: VENDOR.iban,
+    bic: VENDOR.bic,
+    amountEur: montantTtc,
+    bba: communication,
+  });
+  return { iban: VENDOR.iban, beneficiaire: VENDOR.name, montant_ttc: montantTtc, communication, qr_data_url: qr };
+}
+
+/** QR de paiement d'un brouillon déjà créé (ré-affichage depuis le bloc du dossier). */
+export async function paiementBrouillon(montantTtc: number, communication: string): Promise<PaiementBrouillon> {
+  return paiementPour(montantTtc, communication);
 }
 
 // ─── Essai à blanc : ce qui serait envoyé, sans rien envoyer ────────────────
@@ -617,7 +699,7 @@ export async function essaiABlanc(interventionId: string, appelePar: string | nu
     ? valsPartner(s.nouveau_client, await idBelgique(ctx))
     : null;
   // Sans client existant, l'identifiant 0 tient lieu de « celui qui serait créé ».
-  const accountMove = valsMove(s, s.partner_id ?? 0, catalogue, ctx.societeOdoo);
+  const accountMove = valsMove(s, s.partner_id ?? 0, catalogue, ctx.societeOdoo, preparation.communication);
   return { preparation, enverrait: { res_partner: resPartner, account_move: accountMove }, totaux: totaux(s.lignes) };
 }
 
@@ -652,8 +734,9 @@ export async function creerBrouillonOdoo(
     }
     if (partnerId == null) return { ok: false, erreur: 'Aucun client.' };
 
-    // 2. Facture brouillon.
-    const vals = valsMove(saisie, partnerId, catalogue, ctx.societeOdoo);
+    // 2. Facture brouillon, avec la communication structurée du dossier.
+    const communication = generateBBA(dossier.ref);
+    const vals = valsMove(saisie, partnerId, catalogue, ctx.societeOdoo, communication);
     const moveId = await creerJournalise(ctx, 'account.move', vals, {
       dossier: dossier.ref, reference: saisie.reference, partner_id: partnerId, nb_lignes: saisie.lignes.length,
     });
@@ -671,6 +754,7 @@ export async function creerBrouillonOdoo(
         odoo_partner_nom: partnerNom,
         partner_cree: partnerCree,
         reference: saisie.reference.trim(),
+        communication,
         date_facture: saisie.date_facture,
         montant_ht: t.ht,
         montant_tva: t.tva,
@@ -693,6 +777,7 @@ export async function creerBrouillonOdoo(
       odoo_move_id: moveId,
       odoo_url: hote ? `https://${hote}/web#id=${moveId}&model=account.move&view_type=form` : null,
       partner_cree: partnerCree,
+      paiement: await paiementPour(t.ttc, communication),
     };
   } catch (e) {
     return { ok: false, erreur: e instanceof Error ? e.message : 'Erreur Odoo.' };

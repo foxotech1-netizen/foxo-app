@@ -14,9 +14,11 @@ import type {
   ClientOdoo,
   LigneBrouillon,
   NouveauClient,
+  PaiementBrouillon,
   PreparationBrouillon,
   ProduitOdoo,
 } from '@/lib/facturation/odoo-brouillon';
+import { QrPaiement } from './QrPaiement';
 import {
   chercherClientsAction,
   creerBrouillonAction,
@@ -77,7 +79,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
   // Envoi
   const [pending, startTransition] = useTransition();
   const [erreur, setErreur] = useState<string | null>(null);
-  const [succes, setSucces] = useState<{ odoo_move_id: number; odoo_url: string | null; partner_cree: boolean } | null>(null);
+  const [succes, setSucces] = useState<{ odoo_move_id: number; odoo_url: string | null; partner_cree: boolean; paiement: PaiementBrouillon } | null>(null);
 
   // ── Préparation (lecture d'Odoo) ── Le composant est monté pour UN dossier
   // (le bloc parent le referme quand le dossier change) : l'état initial
@@ -184,7 +186,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
         note: note.trim() || null,
       });
       if (!res.ok) { setErreur(res.erreur); return; }
-      setSucces({ odoo_move_id: res.odoo_move_id, odoo_url: res.odoo_url, partner_cree: res.partner_cree });
+      setSucces({ odoo_move_id: res.odoo_move_id, odoo_url: res.odoo_url, partner_cree: res.partner_cree, paiement: res.paiement });
       onCree(res.odoo_move_id);
     });
   }
@@ -243,6 +245,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
               Fermer
             </button>
           </div>
+          <QrPaiement paiement={succes.paiement} />
         </div>
       )}
 
@@ -380,7 +383,9 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
             <div>
               <label htmlFor="bo-date" className={ETIQUETTE}>Date de facture</label>
               <input id="bo-date" type="date" className={CHAMP} value={dateFacture} onChange={(e) => setDateFacture(e.target.value)} />
-              <div className="mt-1 text-[11px] text-ink-mid">Échéance et numéro : attribués par Odoo.</div>
+              <div className="mt-1 text-[11px] text-ink-mid">
+                Échéance : {prep.condition_paiement ? `« ${prep.condition_paiement} », comme tes dernières factures` : 'selon Odoo'} · numéro : attribué par Odoo.
+              </div>
             </div>
           </div>
 
@@ -462,6 +467,10 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
               <span className="text-ink-mid">TVA</span><span>{fmtMontant(totaux.tva)}</span>
               <span className="font-bold">Total TTC</span><span className="font-bold text-[15px]">{fmtMontant(totaux.ttc)}</span>
             </div>
+          </div>
+
+          <div className="text-[12px] text-ink-mid">
+            Communication structurée posée sur le brouillon : <span className="font-mono text-ink">{prep.communication}</span> — dérivée du n° de dossier, utilisable pour un paiement sur place (QR affiché après création) ; Odoo la conserve à la validation.
           </div>
 
           {erreur && <div className="text-terra font-semibold">{erreur}</div>}
