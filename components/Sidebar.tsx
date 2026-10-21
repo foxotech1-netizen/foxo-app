@@ -1,198 +1,126 @@
 // components/Sidebar.tsx
-// FoxO — Sidebar Admin
-// Desktop : sidebar gauche 220px
-// Mobile : bottom navigation bar
+// FoxO — navigation du portail admin (maquette « marine iconique », 22/10/2026).
+//
+// Desktop (> 768 px) : sidebar gauche 264 px, entrées regroupées (Pilotage,
+// Terrain, Relations, Gestion), icônes dans des pastilles colorées, carte
+// utilisateur + déconnexion en pied.
+// Mobile (≤ 768 px) : en-tête fixe (logo + bouton Déconnexion), barre du bas
+// à 5 items dont « Menu », qui ouvre le bottom sheet AdminMobileMenu avec
+// la liste complète des sections.
+//
+// Le breakpoint (768 px), les href, les sources des compteurs (alertes et
+// validation passés par le layout, mails lus côté client) et le mécanisme de
+// déconnexion sont inchangés. Aucun hex ici : tout vient de globals.css.
 
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Logo } from '@/components/Logo'
 import {
-  BarChart3, Bell, Calendar, Wrench, Sparkles,
-  Handshake, Building2, Scale, Search, Hammer,
-  User, BookOpen, Mail, Lock, Settings, Inbox,
-  Activity, ClipboardCheck, ClipboardList, FileUp,
+  Activity, Bell, BriefcaseBusiness, Building2, CalendarDays, CircleCheck,
+  ClipboardList, FileUp, Handshake, Inbox, Landmark, LayoutDashboard, LogOut,
+  Mail, Menu, Settings, ShieldCheck, Sparkles, User, Users, Wrench,
   type LucideIcon,
 } from 'lucide-react'
+import { AdminMobileMenu } from './AdminMobileMenu'
 
-interface NavItem { href: string; Icon: LucideIcon; label: string; badge?: boolean }
+export type TeinteNav = 'sky' | 'amber' | 'terra' | 'ok' | 'neutral'
+export type BadgeNav = 'alertes' | 'validation' | 'mails' | 'reponses'
 
-const NAV_MAIN: NavItem[] = [
-  // Item "Accueil" supprimé Sprint 1 — la page /admin/home a été retirée
-  // au profit du Tableau de bord adaptive qui intègre désormais le
-  // briefing IA + les missions du jour en tête de page.
-  { href: '/admin',             Icon: BarChart3,   label: 'Tableau de bord' },
-  { href: '/admin/interventions', Icon: ClipboardList, label: 'Interventions' },
-  { href: '/admin/alertes',     Icon: Bell,        label: 'Alertes', badge: true },
-  { href: '/admin/validation',  Icon: ClipboardCheck, label: 'À valider', badge: true },
-  { href: '/admin/observabilite', Icon: Activity,  label: 'Observabilité' },
-  { href: '/admin/planning',    Icon: Calendar,    label: 'Planning'    },
-  { href: '/admin/techniciens', Icon: Wrench,      label: 'Techniciens' },
-  { href: '/admin/assistant',   Icon: Sparkles,    label: 'Assistant'   },
+export interface NavItem {
+  href: string
+  Icon: LucideIcon
+  label: string
+  teinte: TeinteNav
+  badge?: BadgeNav
+  /** Libellé court de la barre du bas. */
+  court?: string
+}
+export interface NavGroupe { label: string; items: NavItem[] }
+export interface Compteurs { alertes: number; validation: number; mails: number; reponses: number }
+export interface UtilisateurSidebar { affichage: string; initiales: string; role: string }
+
+// Toutes les entrées historiques, href inchangés, réparties en 4 groupes.
+// « Import » (absent de la maquette) rejoint Gestion.
+export const NAV_GROUPES: NavGroupe[] = [
+  {
+    label: 'Pilotage',
+    items: [
+      { href: '/admin',           Icon: LayoutDashboard, label: 'Tableau de bord', teinte: 'sky',   badge: 'reponses', court: 'Tableau' },
+      { href: '/admin/alertes',   Icon: Bell,            label: 'Alertes',         teinte: 'terra', badge: 'alertes' },
+      { href: '/admin/assistant', Icon: Sparkles,        label: 'Assistant IA',    teinte: 'amber' },
+    ],
+  },
+  {
+    label: 'Terrain',
+    items: [
+      { href: '/admin/interventions', Icon: ClipboardList, label: 'Interventions', teinte: 'amber', court: 'Interventions' },
+      { href: '/admin/planning',      Icon: CalendarDays,  label: 'Planning',      teinte: 'sky',   court: 'Planning' },
+      { href: '/admin/validation',    Icon: CircleCheck,   label: 'À valider',     teinte: 'terra', badge: 'validation', court: 'À valider' },
+      { href: '/admin/techniciens',   Icon: Wrench,        label: 'Techniciens',   teinte: 'ok' },
+    ],
+  },
+  {
+    label: 'Relations',
+    items: [
+      { href: '/admin/mails',     Icon: Mail,        label: 'Mails',     teinte: 'amber', badge: 'mails' },
+      { href: '/admin/clients',   Icon: Building2,   label: 'Clients',   teinte: 'ok' },
+      { href: '/admin/syndics',   Icon: Users,       label: 'Syndics',   teinte: 'sky' },
+      { href: '/admin/courtiers', Icon: Handshake,   label: 'Courtiers', teinte: 'sky' },
+      { href: '/admin/experts',   Icon: ShieldCheck, label: 'Experts',   teinte: 'sky' },
+    ],
+  },
+  {
+    label: 'Gestion',
+    items: [
+      { href: '/admin/comptabilite',  Icon: Landmark,          label: 'Comptabilité',     teinte: 'ok' },
+      { href: '/admin/import',        Icon: FileUp,            label: 'Import',           teinte: 'neutral' },
+      { href: '/admin/metiers',       Icon: BriefcaseBusiness, label: 'Métiers',          teinte: 'ok' },
+      { href: '/admin/utilisateurs',  Icon: User,              label: 'Utilisateurs',     teinte: 'sky' },
+      { href: '/admin/observabilite', Icon: Activity,          label: 'Observabilité IA', teinte: 'terra' },
+      { href: '/admin/parametres',    Icon: Settings,          label: 'Paramètres',       teinte: 'neutral' },
+    ],
+  },
 ]
 
-// NAV_GESTION ne contient PLUS Syndics — celui-ci est désormais le 1er
-// élément du menu dépliable "Partenaires" (rendu séparément avant
-// la map ci-dessous).
-const NAV_GESTION: NavItem[] = [
-  { href: '/admin/clients',      Icon: User,     label: 'Clients'       },
-  // /admin/comptabilite redirige vers /admin/facturation (cf. page.tsx
-  // dédiée). Le label "Comptabilité" reflète mieux le périmètre actuel
-  // (factures + devis + avoirs + paiements + rappels + export comptable).
-  { href: '/admin/comptabilite', Icon: BookOpen, label: 'Comptabilité'  },
-  { href: '/admin/import',       Icon: FileUp,   label: 'Import'        },
-  { href: '/admin/mails',        Icon: Mail,     label: 'Mails'         },
-  { href: '/admin/utilisateurs', Icon: Lock,     label: 'Utilisateurs'  },
-  { href: '/admin/parametres',   Icon: Settings, label: 'Paramètres'    },
+const TOUS_LES_ITEMS = NAV_GROUPES.flatMap((g) => g.items)
+const trouver = (href: string): NavItem => TOUS_LES_ITEMS.find((i) => i.href === href)!
+
+// Barre du bas : Tableau · Interventions · À valider · Planning · Menu.
+const BOTTOM_NAV: NavItem[] = [
+  trouver('/admin'),
+  trouver('/admin/interventions'),
+  trouver('/admin/validation'),
+  trouver('/admin/planning'),
 ]
 
-// Sous-items du menu Partenaires — chaque item pointe vers une page
-// /admin/{slug} qui affiche les organisations filtrées par type.
-const PARTENAIRES_SUB: NavItem[] = [
-  { href: '/admin/syndics',   Icon: Building2, label: 'Syndics'   },
-  { href: '/admin/courtiers', Icon: Scale,     label: 'Courtiers' },
-  { href: '/admin/experts',   Icon: Search,    label: 'Experts'   },
-  { href: '/admin/metiers',   Icon: Hammer,    label: 'Métiers'   },
-]
+export function estActif(pathname: string, href: string): boolean {
+  // /admin : correspondance exacte ; /admin/comptabilite redirige vers
+  // /admin/facturation : l'entrée Comptabilité est active sur les deux.
+  if (href === '/admin') return pathname === '/admin'
+  if (href === '/admin/comptabilite') {
+    return pathname.startsWith('/admin/comptabilite') || pathname.startsWith('/admin/facturation')
+  }
+  return pathname.startsWith(href)
+}
 
-// ─── Styles inline (pas de Tailwind JIT requis) ────────────────────────────────
-const S = {
-  // Desktop sidebar — gradient navy FoxO fixe (calque sur PortalNav).
-  sidebar: {
-    width: 220,
-    minHeight: '100vh',
-    background: 'linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%)',
-    display: 'flex' as const,
-    flexDirection: 'column' as const,
-    flexShrink: 0,
-    borderRight: '1px solid rgba(255,255,255,.04)',
-    position: 'sticky' as const,
-    top: 0,
-    height: '100vh',
-    overflowY: 'auto' as const,
-  },
-  // Zone logo
-  logoZone: {
-    padding: '20px 16px 16px',
-    display: 'flex' as const,
-    flexDirection: 'column' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    borderBottom: '1px solid rgba(255,255,255,.08)',
-    flexShrink: 0,
-  },
-  logoLabel: {
-    fontSize: 9,
-    color: 'rgba(253, 251, 247, 0.55)',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '.15em',
-    fontWeight: 600,
-  },
-  // Nav
-  nav: { padding: '10px 8px', flex: 1 },
-  divider: {
-    height: 1,
-    background: 'rgba(255,255,255,.06)',
-    margin: '6px 10px',
-  },
-  navItem: (active: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 9,
-    padding: '9px 12px',
-    borderRadius: 8,
-    marginBottom: 2,
-    fontSize: 13,
-    fontWeight: active ? 600 : 500,
-    color: active ? 'var(--color-cream)' : 'rgba(253, 251, 247, 0.65)',
-    background: active ? 'rgba(168, 212, 232, 0.10)' : 'transparent',
-    borderLeft: active ? '2px solid var(--color-sky-foxo)' : '2px solid transparent',
-    paddingLeft: active ? 10 : 12,
-    cursor: 'pointer',
-    textDecoration: 'none',
-    transition: 'all .15s',
-    justifyContent: 'space-between' as const,
-  }),
-  badge: {
-    background: 'var(--color-amber-foxo)',
-    color: 'var(--color-cream)',
-    borderRadius: 20,
-    fontSize: 10,
-    fontWeight: 600,
-    padding: '1px 7px',
-    marginLeft: 'auto',
-  },
-  // Footer (sticky bottom : juste Déconnexion — ThemeSelector retiré
-  // dans la migration mono-thème FoxO)
-  footer: {
-    padding: '10px 14px 14px',
-    borderTop: '1px solid rgba(255,255,255,.05)',
-    flexShrink: 0,
-    display: 'flex' as const,
-    flexDirection: 'column' as const,
-    gap: 6,
-  },
+function initialesDe(nom: string | null, email: string | null): string {
+  const base = (nom ?? '').trim() || (email ?? '').split('@')[0].replace(/[._-]+/g, ' ')
+  const mots = base.split(/\s+/).filter(Boolean)
+  const ini = (mots[0]?.[0] ?? '') + (mots[1]?.[0] ?? mots[0]?.[1] ?? '')
+  return ini.toUpperCase() || 'AD'
+}
 
-  // ── MOBILE bottom nav ──────────────────────────────────────────────────────
-  // Visibilité gérée via la classe `.foxo-sidebar-mobile` :
-  //   default desktop : display: none
-  //   @media max-width 768px : display: flex !important
-  // On NE met PAS `display` ici en inline pour que la classe CSS gagne.
-  bottomNav: {
-    position: 'fixed' as const,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: 'linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%)',
-    borderTop: '1px solid rgba(255,255,255,.08)',
-    justifyContent: 'space-around' as const,
-    alignItems: 'center' as const,
-    padding: '8px 0',
-    paddingBottom: 'env(safe-area-inset-bottom, 8px)',
-    zIndex: 100,
-  },
-  bottomNavItem: (active: boolean): React.CSSProperties => ({
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 3,
-    // Padding horizontal resserré (12 → 6) : 6 items (dont « Mails »)
-    // doivent tenir sur un écran de 360 px sans tronquer les libellés.
-    padding: '4px 6px',
-    color: active ? 'var(--color-cream)' : 'rgba(253, 251, 247, 0.65)',
-    textDecoration: 'none',
-    fontSize: 10,
-    fontWeight: active ? 600 : 500,
-    minWidth: 48,
-    minHeight: 44,
-    justifyContent: 'center',
-    position: 'relative' as const,
-    transition: 'color .15s',
-  }),
-  bottomNavIcon: (active: boolean): React.CSSProperties => ({
-    fontSize: 18,
-    opacity: active ? 1 : 0.7,
-    transition: 'opacity .15s',
-  }),
-  // Pastille compteur superposée sur un item de la bottom nav
-  // (À valider, Mails).
-  bottomNavBadge: {
-    position: 'absolute' as const,
-    top: 6,
-    right: '50%',
-    transform: 'translateX(8px)',
-    background: 'var(--color-amber-foxo)',
-    color: 'var(--color-cream)',
-    borderRadius: 20,
-    fontSize: 9,
-    fontWeight: 600,
-    padding: '0 5px',
-    minWidth: 16,
-    textAlign: 'center' as const,
-  },
+function affichageDe(nom: string | null, email: string | null): string {
+  if (nom && nom.trim()) return nom.trim()
+  const e = (email ?? '').trim()
+  if (!e) return 'Administrateur'
+  const [local, domaine] = e.split('@')
+  const court = local.length > 16 ? `${local.slice(0, 15)}…` : local
+  return domaine ? `${court}@${domaine}` : court
 }
 
 // ─── Composant ─────────────────────────────────────────────────────────────────
@@ -200,28 +128,18 @@ export default function Sidebar({
   alertCount = 0,
   recentResponsesCount = 0,
   validationCount = 0,
+  utilisateur,
 }: {
   alertCount?: number
   recentResponsesCount?: number
   validationCount?: number
+  utilisateur?: { email: string | null; nom: string | null }
 }) {
   const pathname = usePathname()
   const router   = useRouter()
   const supabase = createClient()
-  // Logo BLANC fixe — la sidebar admin est désormais sur gradient navy
-  // permanent (post-migration mono-thème FoxO).
 
-  // Menu Partenaires : ouvert par défaut si on est déjà sur une de ses
-  // sous-pages (lazy init useState — pas de useEffect → pas de souci
-  // avec react-hooks/set-state-in-effect).
-  const [partenairesOpen, setPartenairesOpen] = useState(
-    pathname.startsWith('/admin/syndics')   ||
-    pathname.startsWith('/admin/courtiers') ||
-    pathname.startsWith('/admin/experts')   ||
-    pathname.startsWith('/admin/metiers')
-  )
-
-  // Badge unread mails (Gmail) — fetch lazy une fois monté côté client
+  // Badge mails non lus (Gmail) — fetch lazy une fois monté côté client.
   const [unreadMails, setUnreadMails] = useState<number>(0)
   useEffect(() => {
     let cancelled = false
@@ -234,10 +152,7 @@ export default function Sidebar({
     return () => { cancelled = true }
   }, [])
 
-  // Re-fetch debounced du compteur quand MailsClient émet un event
-  // foxo:mails-updated. Le debounce 800ms coalesce les bursts (5 mails
-  // sélectionnés + bulk action = 1 seul fetch). Plus fiable qu'une
-  // approche delta : la source de vérité reste Gmail.
+  // Re-fetch debounced du compteur quand MailsClient émet foxo:mails-updated.
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
     function onMailsUpdated() {
@@ -261,231 +176,164 @@ export default function Sidebar({
     router.push('/auth/login')
   }
 
-  const isActive = (href: string) => {
-    // Cas spéciaux : /admin (exact match pour éviter de match toutes les
-    // sous-routes), et /admin/comptabilite qui redirige vers /admin/
-    // facturation — on highlight l'item Comptabilité sur les 2 paths.
-    if (href === '/admin') return pathname === '/admin'
-    if (href === '/admin/comptabilite') {
-      return pathname.startsWith('/admin/comptabilite')
-        || pathname.startsWith('/admin/facturation')
-    }
-    return pathname.startsWith(href)
+  const isActive = useCallback((href: string) => estActif(pathname, href), [pathname])
+
+  // Menu mobile : ouvert « pour » un pathname — un changement de page le
+  // referme de lui-même, sans effet.
+  const [menuOuvertPour, setMenuOuvertPour] = useState<string | null>(null)
+  const menuOpen = menuOuvertPour === pathname
+  const menuBtnRef = useRef<HTMLButtonElement>(null)
+  const fermerMenu = useCallback(() => {
+    setMenuOuvertPour(null)
+    // Le focus revient sur le bouton qui a ouvert le menu.
+    requestAnimationFrame(() => menuBtnRef.current?.focus())
+  }, [])
+
+  const compteurs: Compteurs = {
+    alertes: alertCount,
+    validation: validationCount,
+    mails: unreadMails,
+    reponses: recentResponsesCount,
+  }
+  const user: UtilisateurSidebar = {
+    affichage: affichageDe(utilisateur?.nom ?? null, utilisateur?.email ?? null),
+    initiales: initialesDe(utilisateur?.nom ?? null, utilisateur?.email ?? null),
+    role: 'Administrateur',
   }
 
-  // ── Mobile bottom nav — 6 items fixes ──────────────────────────────────
-  // Item "Menu" (qui pointait vers /admin/home, retiré Sprint 1) supprimé.
-  // L'accès aux pages secondaires (clients, comptabilité, …) se fait via
-  // /admin/hub depuis le sélecteur de portail. « Mails » ajouté (ergo2) :
-  // même icône/libellé que l'entrée desktop, badge non-lus partagé.
-  const BOTTOM_NAV: NavItem[] = [
-    { href: '/admin',               Icon: BarChart3,      label: 'Tableau'       },
-    { href: '/admin/interventions', Icon: ClipboardList,  label: 'Interventions' },
-    { href: '/admin/validation',    Icon: ClipboardCheck, label: 'À valider'     },
-    { href: '/admin/planning',      Icon: Calendar,       label: 'Planning'      },
-    { href: '/admin/mails',         Icon: Mail,           label: 'Mails'         },
-    { href: '/admin/assistant',     Icon: Sparkles,       label: 'Assistant'     },
-  ]
+  const hrefDe = (item: NavItem) =>
+    item.href === '/admin' && recentResponsesCount > 0 ? '/admin?recent_responses=1' : item.href
+
+  function badgeDesktop(item: NavItem) {
+    const n = compteurDe(item, compteurs)
+    if (n <= 0) return null
+    if (item.badge === 'reponses') {
+      return (
+        <span className="fx-badge" title="Réponses occupants reçues (< 48 h)">
+          <Inbox size={11} aria-hidden /> {n}
+        </span>
+      )
+    }
+    return <span className={`fx-badge${item.badge === 'alertes' ? ' fx-badge-terra' : ''}`}>{n}</span>
+  }
 
   return (
     <>
-      {/* ── DESKTOP sidebar ─────────────────────────────────────────────────── */}
-      <aside style={S.sidebar} className="foxo-sidebar-desktop">
-        {/* Logo */}
-        <div style={S.logoZone}>
-          <Logo size={90} variant="blanc" priority />
-          <span style={S.logoLabel}>Interface Admin</span>
-        </div>
+      {/* ── DESKTOP ───────────────────────────────────────────────────────── */}
+      <aside className="foxo-sidebar-desktop fx-sidebar-bg" aria-label="Navigation principale">
+        <Link href="/admin" className="fx-sb-logo" aria-label="FoxO — tableau de bord">
+          <span className="fx-sb-logo-mark"><Logo size={38} variant="blanc" priority /></span>
+          <span className="flex flex-col gap-0.5 min-w-0">
+            <span className="fx-wordmark text-cream">FoxO</span>
+            <span className="fx-eyebrow fx-eyebrow-dim">Interface admin</span>
+          </span>
+        </Link>
 
-        {/* Nav principale */}
-        <nav style={S.nav}>
-          {NAV_MAIN.map(item => (
-            <Link
-              key={item.href}
-              href={item.href === '/admin' && recentResponsesCount > 0
-                ? '/admin?recent_responses=1'
-                : item.href}
-              style={S.navItem(isActive(item.href))}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <item.Icon size={16} aria-hidden />
-                <span>{item.label}</span>
-              </span>
-              {item.href === '/admin/alertes' && alertCount > 0 && (
-                <span style={S.badge}>{alertCount}</span>
-              )}
-              {item.href === '/admin/validation' && validationCount > 0 && (
-                <span style={S.badge}>{validationCount}</span>
-              )}
-              {item.href === '/admin' && recentResponsesCount > 0 && (
-                <span
-                  style={{ ...S.badge, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                  title="Réponses occupants reçues (< 48 h)"
-                ><Inbox size={11} aria-hidden /> {recentResponsesCount}</span>
-              )}
-            </Link>
-          ))}
-
-          <div style={S.divider} />
-
-          {/* Partenaires — menu dépliable avec 4 sous-items */}
-          <div>
-            <button
-              type="button"
-              onClick={() => setPartenairesOpen(v => !v)}
-              style={{
-                ...S.navItem(false),
-                width: '100%',
-                border: 'none',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                textAlign: 'left',
-                background: PARTENAIRES_SUB.some(s => isActive(s.href))
-                  ? 'rgba(255,255,255,.05)'
-                  : 'transparent',
-              }}
-              aria-expanded={partenairesOpen}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <Handshake size={16} aria-hidden />
-                <span>Partenaires</span>
-              </span>
-              <span style={{ fontSize: 10, opacity: 0.7 }}>
-                {partenairesOpen ? '▾' : '▸'}
-              </span>
-            </button>
-            {partenairesOpen && (
-              <div>
-                {PARTENAIRES_SUB.map(sub => (
+        <nav className="flex flex-col gap-4 flex-1" aria-label="Sections">
+          {NAV_GROUPES.map((g) => (
+            <div key={g.label} className="flex flex-col gap-0.5">
+              <div className="fx-eyebrow fx-eyebrow-faint px-2.5 pb-1.5">{g.label}</div>
+              {g.items.map((item) => {
+                const active = isActive(item.href)
+                return (
                   <Link
-                    key={sub.href}
-                    href={sub.href}
-                    style={{
-                      ...S.navItem(isActive(sub.href)),
-                      padding: '7px 12px 7px 32px',
-                      fontSize: 12,
-                    }}
+                    key={item.href}
+                    href={hrefDe(item)}
+                    aria-current={active ? 'page' : undefined}
+                    className={`fx-nav-item${active ? ' is-active' : ''}`}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <sub.Icon size={16} aria-hidden />
-                      <span>{sub.label}</span>
+                    <span className={`fx-ico fx-ico-${item.teinte}${active ? ' is-full' : ''}`}>
+                      <item.Icon size={16} strokeWidth={active ? 2.2 : 2} aria-hidden />
                     </span>
+                    <span className="fx-nav flex-1 min-w-0 truncate">{item.label}</span>
+                    {badgeDesktop(item)}
                   </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {NAV_GESTION.map(item => (
-            <Link key={item.href} href={item.href} style={S.navItem(isActive(item.href))}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                <item.Icon size={16} aria-hidden />
-                <span>{item.label}</span>
-              </span>
-              {item.href === '/admin/mails' && unreadMails > 0 && (
-                <span style={S.badge}>{unreadMails}</span>
-              )}
-            </Link>
+                )
+              })}
+            </div>
           ))}
         </nav>
 
-        {/* Footer : Déconnexion (sélecteur de thème retiré dans la
-            migration mono-thème FoxO). */}
-        <div style={S.footer}>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'rgba(255,255,255,.05)',
-              border: '1px solid rgba(255,255,255,.08)',
-              borderRadius: 7,
-              padding: '10px 12px',
-              color: 'rgba(253, 251, 247, 0.65)',
-              fontSize: 11,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              width: '100%',
-            }}
-          >
-            Déconnexion
+        <div className="fx-user-card">
+          <span className="fx-avatar fx-avatar-sky" aria-hidden>{user.initiales}</span>
+          <div className="min-w-0 flex-1">
+            <div className="fx-tile-label text-cream truncate">{user.affichage}</div>
+            <div className="fx-role">{user.role}</div>
+          </div>
+          <button type="button" onClick={handleLogout} aria-label="Déconnexion" title="Déconnexion" className="fx-sb-iconbtn">
+            <LogOut size={16} aria-hidden />
           </button>
         </div>
       </aside>
 
-      {/* ── MOBILE : header fixe en haut avec logo (toggle thème retiré) ─────────── */}
-      <header className="foxo-mobile-header">
-        <Logo size={36} variant="blanc" />
-        <span className="foxo-mobile-header-label">Interface Admin</span>
+      {/* ── MOBILE : en-tête fixe ─────────────────────────────────────────── */}
+      <header className="foxo-mobile-header fx-sidebar-bg">
+        <Link href="/admin" className="flex items-center gap-2.5 min-w-0" aria-label="FoxO — tableau de bord">
+          <span className="fx-sb-logo-mark fx-sb-logo-mark-sm"><Logo size={32} variant="blanc" /></span>
+          <span className="flex flex-col gap-0.5 min-w-0">
+            <span className="fx-wordmark fx-wordmark-sm text-cream">FoxO</span>
+            <span className="fx-eyebrow fx-eyebrow-dim">Interface admin</span>
+          </span>
+        </Link>
+        <button type="button" onClick={handleLogout} className="fx-sb-logout">
+          <LogOut size={15} aria-hidden /> Déconnexion
+        </button>
       </header>
 
-      {/* ── MOBILE bottom nav ────────────────────────────────────────────────── */}
-      <nav style={S.bottomNav} className="foxo-sidebar-mobile">
-        {BOTTOM_NAV.map(item => {
+      {/* ── MOBILE : barre du bas ─────────────────────────────────────────── */}
+      <nav className="foxo-sidebar-mobile fx-sidebar-bg" aria-label="Navigation principale">
+        {BOTTOM_NAV.map((item) => {
           const active = isActive(item.href)
+          const n = item.badge === 'validation' ? validationCount : 0
           return (
-          <Link key={item.href} href={item.href} style={S.bottomNavItem(active)}>
-            <span style={S.bottomNavIcon(active)}><item.Icon size={18} aria-hidden /></span>
-            <span>{item.label}</span>
-            {item.href === '/admin/validation' && validationCount > 0 && (
-              <span style={S.bottomNavBadge}>{validationCount}</span>
-            )}
-            {item.href === '/admin/mails' && unreadMails > 0 && (
-              <span style={S.bottomNavBadge}>{unreadMails}</span>
-            )}
-          </Link>
+            <Link
+              key={item.href}
+              href={hrefDe(item)}
+              aria-current={active ? 'page' : undefined}
+              className={`fx-tab${active ? ' is-active' : ''}`}
+            >
+              <span className={`fx-ico fx-ico-tab fx-ico-${item.teinte}${active ? ' is-full' : ''}`}>
+                <item.Icon size={17} strokeWidth={active ? 2.2 : 2} aria-hidden />
+              </span>
+              <span className="fx-nav-mobile">{item.court ?? item.label}</span>
+              {n > 0 && <span className="fx-badge fx-tab-badge">{n}</span>}
+            </Link>
           )
         })}
+        <button
+          ref={menuBtnRef}
+          type="button"
+          onClick={() => setMenuOuvertPour(pathname)}
+          aria-haspopup="dialog"
+          aria-expanded={menuOpen}
+          className={`fx-tab${menuOpen ? ' is-active' : ''}`}
+        >
+          <span className={`fx-ico fx-ico-tab fx-ico-neutral${menuOpen ? ' is-full' : ''}`}>
+            <Menu size={17} strokeWidth={2} aria-hidden />
+          </span>
+          <span className="fx-nav-mobile">Menu</span>
+        </button>
       </nav>
 
-      {/* ── CSS responsive ──────────────────────────────────────────────────── */}
-      <style>{`
-        .foxo-sidebar-desktop { display: flex; }
-        .foxo-sidebar-mobile  { display: none; }
-        .foxo-mobile-header   { display: none; }
-
-        @media (max-width: 768px) {
-          .foxo-sidebar-desktop { display: none !important; }
-          .foxo-sidebar-mobile  { display: flex !important; }
-          .foxo-mobile-header {
-            display: flex !important;
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            z-index: 80;
-            background: linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%);
-            border-bottom: 1px solid rgba(255,255,255,.08);
-            padding: max(env(safe-area-inset-top, 8px), 8px) 16px 8px;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-          }
-          .foxo-mobile-header-label {
-            font-size: 9px;
-            color: rgba(253, 251, 247, 0.55);
-            text-transform: uppercase;
-            letter-spacing: .15em;
-            font-weight: 600;
-          }
-          /* Espace pour le header fixe en haut (#E2C9A1 + logo + label)
-             et la bottom nav en bas. Marge confortable au-dessus de la
-             nav (90px = 64 nav + 26 padding) pour que les boutons d'action
-             ne soient jamais collés. */
-          main {
-            padding-top: calc(80px + env(safe-area-inset-top, 0px)) !important;
-            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
-          }
-        }
-
-        /* Hover desktop */
-        @media (hover: hover) {
-          .foxo-sidebar-desktop a:hover {
-            background: rgba(255,255,255,.07) !important;
-            color: #F0ECE4 !important;
-          }
-          .foxo-theme-toggle-desktop:hover {
-            background: rgba(255,255,255,.12) !important;
-            color: #F0ECE4 !important;
-          }
-        }
-      `}</style>
+      <AdminMobileMenu
+        open={menuOpen}
+        onClose={fermerMenu}
+        groupes={NAV_GROUPES}
+        compteurs={compteurs}
+        isActive={isActive}
+        onLogout={handleLogout}
+        utilisateur={user}
+      />
     </>
   )
+}
+
+function compteurDe(item: NavItem, c: Compteurs): number {
+  switch (item.badge) {
+    case 'alertes': return c.alertes
+    case 'validation': return c.validation
+    case 'mails': return c.mails
+    case 'reponses': return c.reponses
+    default: return 0
+  }
 }
