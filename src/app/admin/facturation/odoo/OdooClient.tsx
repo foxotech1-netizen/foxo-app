@@ -8,10 +8,11 @@
 import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, Info, Lock, RefreshCw } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, FolderPlus, Info, Lock, RefreshCw } from 'lucide-react';
 import { CLASSES_TON, etatFacture, type GroupeEtat, type TonEtat } from '@/lib/facturation/odoo-libelles';
 import { TZ_BRUSSELS } from '@/lib/format';
 import { lancerSynchronisationOdoo, reglerPassageNocturne } from './actions';
+import { ReconstructionPanel } from './ReconstructionPanel';
 
 export interface ReglementOdoo {
   date: string | null;
@@ -195,6 +196,8 @@ export function OdooClient({
   const [tri, setTri] = useState<Tri>({ cle: 'date', sens: 'desc' });
   const [recherche, setRecherche] = useState('');
   const [retour, setRetour] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
+  // Panneau « Reconstruire les dossiers depuis Odoo » (tuile Ventes).
+  const [reconstruction, setReconstruction] = useState(false);
 
   const ventes = useMemo(() => factures.filter((f) => f.sens === 'vente'), [factures]);
   const achats = useMemo(() => factures.filter((f) => f.sens === 'achat'), [factures]);
@@ -389,24 +392,40 @@ export function OdooClient({
           {/* Tuiles : une par liste */}
           <div className="flex flex-wrap gap-3">
             {tuiles.map((t) => (
-              <button
-                key={t.cle}
-                type="button"
-                onClick={() => choisirVue(t.cle)}
-                aria-pressed={vue === t.cle}
-                className={
-                  'flex-1 basis-[220px] min-w-0 text-left bg-cream rounded-xl border-2 px-4 py-3.5 shadow-card flex flex-col gap-1.5 ' +
-                  (vue === t.cle ? 'border-navy' : 'border-transparent hover:border-navy-light')
-                }
-              >
-                <span className="fxs-block-title text-ink">{t.label}</span>
-                <span className="font-sora text-[30px] font-semibold leading-none tracking-tight tabular-nums text-ink">
-                  {t.nombre}
-                </span>
-                <span className="text-[12px] text-ink-mid">{t.detail}</span>
-              </button>
+              <div key={t.cle} className="flex-1 basis-[220px] min-w-0 flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => choisirVue(t.cle)}
+                  aria-pressed={vue === t.cle}
+                  className={
+                    'w-full flex-1 text-left bg-cream rounded-xl border-2 px-4 py-3.5 shadow-card flex flex-col gap-1.5 ' +
+                    (vue === t.cle ? 'border-navy' : 'border-transparent hover:border-navy-light')
+                  }
+                >
+                  <span className="fxs-block-title text-ink">{t.label}</span>
+                  <span className="font-sora text-[30px] font-semibold leading-none tracking-tight tabular-nums text-ink">
+                    {t.nombre}
+                  </span>
+                  <span className="text-[12px] text-ink-mid">{t.detail}</span>
+                </button>
+                {t.cle === 'ventes' && (
+                  <button
+                    type="button"
+                    onClick={() => setReconstruction((o) => !o)}
+                    aria-expanded={reconstruction}
+                    className="self-start inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg border border-sand-border bg-white text-navy text-[12px] font-bold hover:border-navy-mid"
+                    data-testid="odoo-reconstruction-ouvrir"
+                  >
+                    <FolderPlus size={14} aria-hidden /> Reconstruire les dossiers depuis Odoo
+                  </button>
+                )}
+              </div>
             ))}
           </div>
+
+          {reconstruction && (
+            <ReconstructionPanel onFerme={() => setReconstruction(false)} onTermine={() => router.refresh()} />
+          )}
 
           {nonRapproches > 0 && (
             <div role="note" className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-light border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-deep)] text-[13px]">
