@@ -7,7 +7,7 @@
 // ne sont jamais modifiés : leurs écarts sont seulement signalés.
 
 import { useMemo, useState } from 'react';
-import { FolderPlus, RefreshCw, X } from 'lucide-react';
+import { Check, Copy, FolderPlus, RefreshCw, X } from 'lucide-react';
 import type {
   LigneJournal,
   PlanReconstruction,
@@ -89,6 +89,8 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
   const [arme, setArme] = useState(false);
   const [creation, setCreation] = useState<{ total: number; envoyes: number } | null>(null);
   const [journal, setJournal] = useState<LigneJournal[]>([]);
+  // Retour visuel du bouton « Copier le tableau » (2 s).
+  const [copie, setCopie] = useState(false);
 
   const occupe = verification || creation !== null;
   const aCreer = useMemo(
@@ -136,6 +138,22 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
     }
   }
 
+  // Texte brut : résumé, puis une ligne par verdict du filtre courant.
+  async function copierTableau(): Promise<void> {
+    if (!plan) return;
+    const resume = ORDRE_VERDICTS.map((s) => `${s}: ${plan.resume[s]}`).join(' · ');
+    const lignes = affiches.map((v) =>
+      [v.ref, v.statut, v.date_facture ?? '', v.tiers_nom ?? '', v.adresse ?? '', v.client ?? '', v.details.join(' ; ')].join(' | '),
+    );
+    try {
+      await navigator.clipboard.writeText([resume, ...lignes].join('\n'));
+      setCopie(true);
+      setTimeout(() => setCopie(false), 2_000);
+    } catch (e) {
+      setErreur(`Copie impossible : ${message(e)}`);
+    }
+  }
+
   const nbCrees = journal.filter((l) => l.resultat === 'cree').length;
   const nbRejets = journal.filter((l) => l.resultat === 'rejet').length;
 
@@ -177,6 +195,19 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
           <RefreshCw size={15} aria-hidden className={verification ? 'animate-spin' : undefined} />
           {verification ? 'Vérification…' : plan ? 'Vérifier à nouveau (à blanc)' : 'Vérifier (à blanc)'}
         </button>
+
+        {plan && (
+          <button
+            type="button"
+            onClick={copierTableau}
+            disabled={occupe}
+            className="min-h-[44px] px-3 rounded-lg border border-sand-border bg-white text-[13px] font-semibold text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center gap-1.5"
+            data-testid="odoo-reconstruction-copier"
+          >
+            {copie ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
+            {copie ? 'Copié' : 'Copier le tableau'}
+          </button>
+        )}
 
         {!arme ? (
           <button
