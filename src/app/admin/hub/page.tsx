@@ -207,7 +207,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">Interventions urgentes</span>
-                  <span className="text-terra font-semibold">{urgentCount}</span>
+                  <span className="text-terra-ink font-semibold">{urgentCount}</span>
                 </Link>
               )}
               {overdueCount > 0 && (
@@ -216,7 +216,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">Factures en retard</span>
-                  <span className="text-terra font-semibold">{overdueCount}</span>
+                  <span className="text-terra-ink font-semibold">{overdueCount}</span>
                 </Link>
               )}
               {unreadCount > 0 && (
@@ -225,7 +225,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">Messages non lus</span>
-                  <span className="text-terra font-semibold">{unreadCount}</span>
+                  <span className="text-terra-ink font-semibold">{unreadCount}</span>
                 </Link>
               )}
               {aValiderCount > 0 && (
@@ -234,7 +234,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">À valider</span>
-                  <span className="text-terra font-semibold">{aValiderCount}</span>
+                  <span className="text-terra-ink font-semibold">{aValiderCount}</span>
                 </Link>
               )}
             </div>

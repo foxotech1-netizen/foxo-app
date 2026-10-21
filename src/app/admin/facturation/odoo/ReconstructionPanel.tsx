@@ -32,7 +32,7 @@ const VERDICTS: Record<StatutVerdict, { label: string; classes: string; aide: st
   },
   a_qualifier: {
     label: 'À qualifier',
-    classes: 'bg-terra-light text-terra border-terra-mid',
+    classes: 'bg-terra-light text-terra-ink border-terra-mid',
     aide: 'Client introuvable dans le référentiel : à compléter avant création.',
   },
   existant_ok: {
@@ -251,7 +251,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
       </div>
 
       {erreur && (
-        <div role="alert" className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+        <div role="alert" className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           {erreur}
         </div>
       )}
@@ -282,7 +282,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
                           (l.resultat === 'cree'
                             ? 'bg-ok-light text-ok border-ok-mid'
                             : l.resultat === 'rejet'
-                              ? 'bg-terra-light text-terra border-terra-mid'
+                              ? 'bg-terra-light text-terra-ink border-terra-mid'
                               : 'bg-sand-mid text-ink-mid border-sand-border')
                         }>
                           {l.resultat === 'cree' ? 'Créé' : l.resultat === 'rejet' ? 'Rejet' : 'Ignoré'}

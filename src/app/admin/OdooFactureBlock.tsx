@@ -123,7 +123,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
         {!res && <span className="text-ink-mid">Chargement…</span>}
 
         {res && !res.ok && (
-          <span className="text-terra font-semibold">Lecture impossible : {res.erreur}</span>
+          <span className="text-terra-ink font-semibold">Lecture impossible : {res.erreur}</span>
         )}
 
         {res && res.ok && res.factures.length === 0 && enAttente.length === 0 && (
@@ -160,7 +160,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
         })}
 
         {resB && !resB.ok && (
-          <div className="text-terra font-semibold">Brouillons illisibles : {resB.erreur}</div>
+          <div className="text-terra-ink font-semibold">Brouillons illisibles : {resB.erreur}</div>
         )}
 
         {enAttente.map((b, i) => (
@@ -194,7 +194,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
                     <QrCode size={15} aria-hidden /> QR de paiement sur place
                   </button>
                 ) : qr.erreur ? (
-                  <div className="fx-label text-terra font-semibold">{qr.erreur}</div>
+                  <div className="fx-label text-terra-ink font-semibold">{qr.erreur}</div>
                 ) : qr.paiement ? (
                   <div>
                     <QrPaiement paiement={qr.paiement} />

@@ -98,7 +98,7 @@ export function PeppolActions({
       )}
       {facture.peppol_status === 'erreur' && (
         <span className="inline-flex flex-col gap-0.5 max-w-[260px]">
-          <span className="fx-small font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra self-start">
+          <span className="fx-small font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra-ink self-start">
             Peppol : erreur
           </span>
           {facture.peppol_last_error && (

@@ -520,7 +520,7 @@ export function NoteFraisDrawer({
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="fx-label w-full px-3 py-2 rounded-lg font-semibold text-terra border border-terra-mid bg-terra-light hover:opacity-80 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                  className="fx-label w-full px-3 py-2 rounded-lg font-semibold text-terra-ink border border-terra-mid bg-terra-light hover:opacity-80 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                 >
                   <Trash2 size={14} />
                   Supprimer (soft-delete)
@@ -536,7 +536,7 @@ export function NoteFraisDrawer({
             className={'fx-small border-t px-5 py-3 font-semibold ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }
           >
             {feedback.msg}
@@ -582,7 +582,7 @@ function ConfidenceBadge({ value }: { value: number }) {
     ? 'bg-ok-light border-ok-mid text-ok'
     : color === 'amber'
       ? 'bg-amber-light border-[var(--color-amber-foxo)]/30 text-amber-ink'
-      : 'bg-terra-light border-terra-mid text-terra';
+      : 'bg-terra-light border-terra-mid text-terra-ink';
   return (
     <span className={'fx-eyebrow inline-block font-semibold px-2 py-0.5 rounded border ' + cls}>
       Confiance {pct}%

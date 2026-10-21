@@ -193,7 +193,7 @@ export function UtilisateursClient({
 
       <div className="space-y-4">
         {loadError && (
-          <div className="fx-label px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg font-semibold">
+          <div className="fx-label px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
             Connexion limitée : {loadError}
           </div>
         )}
@@ -202,7 +202,7 @@ export function UtilisateursClient({
           <div className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok'
               : feedback.kind === 'amber' ? 'bg-amber-light border-[var(--color-amber-foxo)]/30 text-amber-ink'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }>
             {feedback.msg}
           </div>
@@ -353,7 +353,7 @@ export function UtilisateursClient({
                         type="button"
                         onClick={() => setConfirmDelete(u)}
                         disabled={pending}
-                        className="fx-small bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center justify-center"
+                        className="fx-small bg-terra-light text-terra-ink border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center justify-center"
                         title="Supprimer"
                         aria-label="Supprimer"
                       >

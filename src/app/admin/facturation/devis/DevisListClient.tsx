@@ -209,7 +209,7 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
 
       {feedback && (
         <div className={'fx-label mb-3 px-3 py-2 rounded-lg font-semibold ' +
-          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra')
+          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra-ink')
         }>
           {feedback.msg}
         </div>

@@ -19,7 +19,7 @@ import { SyndicMapWrapper, type SyndicMapPin } from '@/components/portal/SyndicM
 // Avatars techniciens — palette FoxO sémantique. Cycle 4 couleurs pour
 // différencier visuellement chaque tech dans la grille DashboardTechs.
 const TECH_AVATAR_COLORS = [
-  { bg: 'var(--color-amber-foxo)', soft: 'var(--color-amber-light)' },
+  { bg: 'var(--color-amber-ink)', soft: 'var(--color-amber-light)' },
   { bg: 'var(--color-navy)',       soft: 'var(--color-navy-pale)' },
   { bg: 'var(--color-ok)',         soft: 'var(--color-ok-light)' },
   { bg: 'var(--color-terra)',      soft: 'var(--color-terra-light)' },
@@ -583,7 +583,7 @@ function RecentResponsesCard({
       return { Icon: Check, label: 'Présent', cls: 'bg-ok-light text-ok border-ok-mid' };
     }
     if (r.conf === 'decline') {
-      return { Icon: X, label: 'Décline', cls: 'bg-terra-light text-terra border-terra-mid' };
+      return { Icon: X, label: 'Décline', cls: 'bg-terra-light text-terra-ink border-terra-mid' };
     }
     return { Icon: null, label: 'En attente', cls: 'bg-sand-mid text-ink-mid border-sand-border' };
   }
@@ -597,7 +597,7 @@ function RecentResponsesCard({
     <section>
       <h3 className="fx-eyebrow mb-2 flex items-center gap-1.5">
         <Inbox size={14} aria-hidden /> Réponses occupants reçues (&lt; 48 h)
-        <span className="fx-badge ml-2 inline-block px-2 py-0.5 bg-terra text-cream rounded-full font-semibold">
+        <span className="fx-badge fx-badge-terra-solid ml-2">
           {visible.length}
         </span>
       </h3>
@@ -643,7 +643,7 @@ function RecentResponsesCard({
                 onClick={() => ackResponse(r.occupant_id)}
                 title="Marquer comme vu"
                 aria-label="Marquer comme vu"
-                className="shrink-0 p-1.5 rounded-full text-ink-mid hover:text-ink hover:bg-sand-mid transition-colors"
+                className="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-full text-ink-mid hover:text-ink hover:bg-sand-mid transition-colors"
               >
                 <X size={14} aria-hidden />
               </button>
@@ -874,7 +874,7 @@ function NewMailSection({
         <div className="mb-2 bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)] rounded-lg px-2.5 py-1.5">
           <div className="fx-small text-[var(--color-navy)] font-medium mb-1">
             Analyse en cours… {batchState.current}/{batchState.total}
-            {batchState.updated > 0 && <span className="text-[var(--color-amber-foxo)] ml-2">· {batchState.updated} avec diff</span>}
+            {batchState.updated > 0 && <span className="text-amber-ink ml-2">· {batchState.updated} avec diff</span>}
           </div>
           <div className="h-1.5 bg-[var(--color-sand-mid)] rounded-full overflow-hidden">
             <div
@@ -890,8 +890,8 @@ function NewMailSection({
           (toast.kind === 'ok'
             ? 'bg-[var(--color-ok-light)] border-[var(--color-ok-mid)] text-[var(--color-ok)]'
             : toast.kind === 'warn'
-              ? 'bg-[var(--color-amber-light)] border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)]'
-              : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
+              ? 'bg-[var(--color-amber-light)] border-[var(--color-amber-foxo)]/30 text-amber-ink'
+              : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-terra-ink')
         }>
           {toast.msg}
         </div>
@@ -919,7 +919,7 @@ function NewMailSection({
                   onClick={() => onOpenIntervention(iv.id)}
                   className="flex-1 flex items-center gap-2 text-left min-w-0"
                 >
-                  <span className="fx-eyebrow inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] font-semibold flex-shrink-0">
+                  <span className="fx-eyebrow inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink font-semibold flex-shrink-0">
                     <Mail size={11} aria-hidden /> Mail
                   </span>
                   <span className="fx-label font-sora font-semibold flex-shrink-0 text-[var(--color-navy)] tracking-[0.01em]">
@@ -932,11 +932,11 @@ function NewMailSection({
                     {iv.type ?? ''}
                   </span>
                   {iv.priorite === 'urgente' && (
-                    <Zap size={12} className="text-terra flex-shrink-0" aria-hidden />
+                    <Zap size={12} className="text-terra-ink flex-shrink-0" aria-hidden />
                   )}
                   {hasDiff && (
                     <span
-                      className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30"
+                      className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink border border-[var(--color-amber-foxo)]/30"
                       title="Différences détectées par la dernière réanalyse"
                     >
                       <AlertTriangle size={11} aria-hidden /> À vérifier
@@ -1020,7 +1020,7 @@ function NewMailSection({
             className="border border-terra rounded-modal p-5 w-full max-w-[420px]"
             style={{ background: 'var(--color-cream)'}}
           >
-            <h2 className="fxs-block-title text-terra mb-2 flex items-center gap-1.5">
+            <h2 className="fxs-block-title text-terra-ink mb-2 flex items-center gap-1.5">
               <Trash2 size={16} aria-hidden /> Supprimer cette intervention
             </h2>
             <p className="fx-body text-ink-mid leading-relaxed">
@@ -1028,7 +1028,7 @@ function NewMailSection({
               <strong className="tabular-nums text-ink">
                 {mails.find((m) => m.id === confirmDeleteId)?.ref ?? '?'}
               </strong> ?{' '}
-              <strong className="text-terra">Action irréversible.</strong>
+              <strong className="text-terra-ink">Action irréversible.</strong>
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -1072,7 +1072,7 @@ function MenuItem({
       disabled={disabled}
       className={'fx-label w-full text-left px-3 py-2 font-semibold flex items-center gap-2 disabled:opacity-50 ' +
         (danger
-          ? 'text-terra hover:bg-terra-light'
+          ? 'text-terra-ink hover:bg-terra-light'
           : 'text-ink hover:bg-sand-hover')
       }
     >

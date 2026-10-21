@@ -294,7 +294,7 @@ function StatCard({
     <div className="bg-cream rounded-xl border border-sand-border p-3.5">
       <div className="fx-eyebrow font-semibold text-ink-mid mb-1">{label}</div>
       <div className={'fx-panel-title tabular-nums font-semibold tracking-tight ' +
-        (tone === 'ok' ? 'text-ok' : tone === 'warn' ? 'text-terra' : 'text-navy')
+        (tone === 'ok' ? 'text-ok' : tone === 'warn' ? 'text-terra-ink' : 'text-navy')
       }>
         {value}
       </div>
@@ -333,7 +333,7 @@ function RentaTable({
               <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right whitespace-nowrap">{fmtMoney(l.ca)}</td>
               <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right whitespace-nowrap text-ink-mid">{fmtMoney(l.couts)}</td>
               <td className={'fx-body-dense px-2.5 py-1.5 tabular-nums font-semibold text-right whitespace-nowrap ' +
-                (l.marge < 0 ? 'text-terra' : 'text-ok')
+                (l.marge < 0 ? 'text-terra-ink' : 'text-ok')
               }>
                 {fmtMoney(l.marge)}
               </td>

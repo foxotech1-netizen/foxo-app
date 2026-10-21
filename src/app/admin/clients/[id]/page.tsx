@@ -111,7 +111,7 @@ export default async function ClientDetailPage({
             </span>
             <p className="fx-body text-ink flex-1 min-w-[200px]">{c360.resume}</p>
             {c360.impayes.count > 0 && (
-              <span className="fx-pill inline-flex items-center gap-1.5 bg-terra-light border border-terra-mid text-terra rounded-full px-3 py-1 font-semibold whitespace-nowrap">
+              <span className="fx-pill inline-flex items-center gap-1.5 bg-terra-light border border-terra-mid text-terra-ink rounded-full px-3 py-1 font-semibold whitespace-nowrap">
                 <AlertTriangle size={12} /> Impayé : {c360.impayes.max_jours} j
               </span>
             )}
@@ -188,7 +188,7 @@ export default async function ClientDetailPage({
                       <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                         {fmtDate(f.date_echeance)}
                         {f.en_retard && (
-                          <span className="fx-badge ml-1.5 inline-flex items-center bg-terra-light border border-terra-mid text-terra rounded-full px-2 py-0.5 font-semibold">
+                          <span className="fx-badge ml-1.5 inline-flex items-center bg-terra-light border border-terra-mid text-terra-ink rounded-full px-2 py-0.5 font-semibold">
                             En retard ({f.jours_retard} j)
                           </span>
                         )}

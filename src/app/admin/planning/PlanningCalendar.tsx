@@ -952,7 +952,7 @@ function ResyncButton() {
       </button>
       {msg && (
         <span className={'fx-small font-semibold ' +
-          (msg.kind === 'ok' ? 'text-ok' : 'text-terra')
+          (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
         }>
           {msg.msg}
         </span>

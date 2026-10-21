@@ -344,7 +344,7 @@ export function SocieteSection({ initial }: { initial: Record<string, string> })
         {feedback && (
           <span
             className={'fx-small font-semibold ' +
-              (feedback.kind === 'ok' ? 'text-ok' : 'text-terra')
+              (feedback.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
             }
           >
             {feedback.msg}

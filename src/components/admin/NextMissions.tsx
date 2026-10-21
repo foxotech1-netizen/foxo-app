@@ -66,12 +66,12 @@ export function NextMissions({ missions, limit = 10, onOpenIntervention }: NextM
                 />
                 <div className="flex-1 min-w-0">
                   <div className="fx-body font-medium truncate">{adresse || demandeur || '—'}</div>
-                  <div className="fx-meta truncate flex items-center gap-1.5">
-                    <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: dot }} aria-hidden />
+                  <div className="fx-meta truncate">
+                    <span className="inline-block w-2 h-2 rounded-full align-middle mr-1.5" style={{ background: dot }} aria-hidden />
                     {iv.type && <span>{iv.type}</span>}
-                    {iv.ref && <><span aria-hidden>·</span><span className="fx-ref">{iv.ref}</span></>}
-                    {demandeur && adresse && <><span aria-hidden>·</span><span className="truncate">{demandeur}</span></>}
-                    {techLabel && <><span aria-hidden>·</span><span className="truncate">{techLabel}</span></>}
+                    {iv.ref && <> · <span className="fx-ref">{iv.ref}</span></>}
+                    {demandeur && adresse && <> · {demandeur}</>}
+                    {techLabel && <> · {techLabel}</>}
                   </div>
                 </div>
                 <span className={`fx-pill ${isPending ? 'fx-pill-amber' : 'fx-pill-ok'}`}>

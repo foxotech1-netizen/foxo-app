@@ -284,7 +284,7 @@ export default async function ObservabilitePage({
                       <td className="px-3.5 py-3"><KindBadge kind={row.agent_kind} /></td>
                       <td className="fx-body-dense px-3.5 py-3 tabular-nums text-ink whitespace-nowrap">{row.nb_calls}</td>
                       <td className="fx-body-dense px-3.5 py-3 tabular-nums whitespace-nowrap">
-                        <span className={row.nb_errors > 0 ? 'text-[var(--color-terra)] font-semibold' : 'text-ink-mid'}>
+                        <span className={row.nb_errors > 0 ? 'text-terra-ink font-semibold' : 'text-ink-mid'}>
                           {row.nb_errors}
                         </span>
                       </td>
@@ -350,7 +350,7 @@ export default async function ObservabilitePage({
                       </td>
                       <td className="fx-small px-3.5 py-3 tabular-nums whitespace-nowrap">
                         {log.confidence_score != null ? (
-                          <span className={log.confidence_score < 0.7 ? 'text-[var(--color-terra)] font-semibold' : 'text-ink-mid'}>
+                          <span className={log.confidence_score < 0.7 ? 'text-terra-ink font-semibold' : 'text-ink-mid'}>
                             {log.confidence_score.toFixed(2)}
                           </span>
                         ) : (
@@ -472,7 +472,7 @@ export default async function ObservabilitePage({
                       <tr key={e.id} className="border-b border-sand-mid hover:bg-sand-hover">
                         <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{fmtDateTime(e.created_at)}</td>
                         <td className="fx-body-dense px-3.5 py-3 max-w-[200px] truncate" title={sujet}>{sujet}</td>
-                        <td className="fx-small px-3.5 py-3 text-terra max-w-md break-words" title={e.error ?? undefined}>
+                        <td className="fx-small px-3.5 py-3 text-terra-ink max-w-md break-words" title={e.error ?? undefined}>
                           {e.error ?? '—'}
                         </td>
                       </tr>
@@ -492,7 +492,7 @@ export default async function ObservabilitePage({
 }
 
 function KpiCard({ label, value, accent }: { label: string; value: string; accent?: 'red' | 'neutral' }) {
-  const valueCls = accent === 'red' ? 'text-2xl font-bold text-[var(--color-terra)]' : 'text-2xl font-bold text-ink';
+  const valueCls = accent === 'red' ? 'text-2xl font-bold text-terra-ink' : 'text-2xl font-bold text-ink';
   return (
     <div className="bg-cream rounded-xl border border-sand-border p-4">
       <div className="fx-eyebrow font-semibold text-ink-mid mb-1">{label}</div>

@@ -114,7 +114,7 @@ export function NotesCreditListClient({
 
       {feedback && (
         <div className={'fx-label mb-3 px-3 py-2 rounded-lg font-semibold ' +
-          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra')
+          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra-ink')
         }>
           {feedback.msg}
         </div>
@@ -144,7 +144,7 @@ export function NotesCreditListClient({
               const origNum = a.facture_origine_id ? origineMap[a.facture_origine_id] : null;
               return (
                 <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-terra">
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-terra-ink">
                     <button
                       type="button"
                       onClick={() => setPreview(a)}
@@ -172,7 +172,7 @@ export function NotesCreditListClient({
                   </td>
                   <td className="fx-body-dense px-3.5 py-3">{a.client_nom ?? '—'}</td>
                   <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid">{fmtDate(a.date_emission)}</td>
-                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-terra">{fmtMoney(a.montant_ttc)}</td>
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-terra-ink">{fmtMoney(a.montant_ttc)}</td>
                   <td className="px-3.5 py-3">
                     <span className="fx-badge inline-block rounded-full px-2 py-0.5 font-semibold whitespace-nowrap" style={{ color: sc.fg, background: sc.bg }}>
                       {label}

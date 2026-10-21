@@ -379,7 +379,7 @@ export function ColdInterventionModal({
                 {selectedAcp ? (
                   <div className="fx-body flex items-center justify-between gap-2 px-3 py-2.5 border border-navy-mid rounded-lg bg-cream">
                     <span className="font-semibold text-ink truncate">{selectedAcp.nom}</span>
-                    <button type="button" onClick={() => { setSelectedAcp(null); setAcpQuery(''); }} className="text-ink-mid hover:text-terra flex-shrink-0" aria-label="Changer d'ACP"><X size={14} /></button>
+                    <button type="button" onClick={() => { setSelectedAcp(null); setAcpQuery(''); }} className="text-ink-mid hover:text-terra-ink flex-shrink-0" aria-label="Changer d'ACP"><X size={14} /></button>
                   </div>
                 ) : (
                   <>
@@ -447,7 +447,7 @@ export function ColdInterventionModal({
                 {selectedOrg ? (
                   <div className="fx-body flex items-center justify-between gap-2 px-3 py-2.5 border border-navy-mid rounded-lg bg-cream">
                     <span className="font-semibold text-ink truncate">{selectedOrg.nom}</span>
-                    <button type="button" onClick={() => { setSelectedOrg(null); setOrgQuery(''); }} className="text-ink-mid hover:text-terra flex-shrink-0" aria-label="Changer de syndic"><X size={14} /></button>
+                    <button type="button" onClick={() => { setSelectedOrg(null); setOrgQuery(''); }} className="text-ink-mid hover:text-terra-ink flex-shrink-0" aria-label="Changer de syndic"><X size={14} /></button>
                   </div>
                 ) : (
                   <>
@@ -543,7 +543,7 @@ export function ColdInterventionModal({
         />
 
         {error && (
-          <div className="fx-label px-3 py-2.5 rounded-lg font-semibold bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] text-[var(--color-terra)]">
+          <div className="fx-label px-3 py-2.5 rounded-lg font-semibold bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] text-terra-ink">
             {error}
           </div>
         )}

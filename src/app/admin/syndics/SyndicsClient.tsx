@@ -86,7 +86,7 @@ export function SyndicsClient({
 
       <div>
         {loadError && (
-          <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg font-semibold">
+          <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
             Connexion à la base limitée : {loadError}
           </div>
         )}
@@ -216,7 +216,7 @@ export function SyndicsClient({
               </div>
 
               {error && (
-                <div className="fx-meta bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5">
+                <div className="fx-meta bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3.5 py-2.5">
                   {error}
                 </div>
               )}

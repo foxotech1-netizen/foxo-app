@@ -92,7 +92,7 @@ export function ResumeIASection({
         </p>
       )}
       {error && (
-        <div className="fx-small mt-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-lg font-semibold">
+        <div className="fx-small mt-2 px-3 py-1.5 bg-terra-light border border-terra-mid text-terra-ink rounded-lg font-semibold">
           {error}
         </div>
       )}

@@ -448,7 +448,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         <button
           type="button"
           onClick={clearAll}
-          className="fx-small bg-terra-light text-terra border border-terra-mid px-2.5 py-1 rounded font-semibold inline-flex items-center gap-1.5"
+          className="fx-small bg-terra-light text-terra-ink border border-terra-mid px-2.5 py-1 rounded font-semibold inline-flex items-center gap-1.5"
         >
           <X size={12} /> Tout effacer
         </button>
@@ -596,7 +596,7 @@ export function WeeklyDispoGrid({ techs }: { techs: Utilisateur[] }) {
         <div ref={msgRef} tabIndex={-1} role="status" className={'fx-label mt-2 px-3 py-2 rounded-lg border font-semibold outline-none focus-visible:ring-2 focus-visible:ring-navy-mid ' +
           (msg.kind === 'ok'
             ? 'bg-ok-light border-ok-mid text-ok'
-            : 'bg-terra-light border-terra-mid text-terra')
+            : 'bg-terra-light border-terra-mid text-terra-ink')
         }>
           {msg.msg}
         </div>

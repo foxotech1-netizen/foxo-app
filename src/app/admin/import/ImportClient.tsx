@@ -24,7 +24,7 @@ interface ResultatLigne {
 const STATUS_BADGE: Record<ResultatLigne['status'], { label: string; cls: string }> = {
   ok:      { label: 'OK',      cls: 'bg-ok-light text-ok border-ok-mid' },
   doublon: { label: 'Doublon', cls: 'bg-sand-mid text-ink-mid border-sand-border' },
-  rejet:   { label: 'Rejet',   cls: 'bg-terra-light text-terra border-terra-mid' },
+  rejet:   { label: 'Rejet',   cls: 'bg-terra-light text-terra-ink border-terra-mid' },
 };
 
 export function ImportClient() {
@@ -190,7 +190,7 @@ export function ImportClient() {
       )}
 
       {error && (
-        <div className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+        <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           {error}
         </div>
       )}
@@ -242,7 +242,7 @@ export function ImportClient() {
             <span className="px-2 py-1 rounded-lg bg-sand-mid text-ink-mid border border-sand-border">
               {compteurs.doublon} doublon(s) ignoré(s)
             </span>
-            <span className="px-2 py-1 rounded-lg bg-terra-light text-terra border border-terra-mid">
+            <span className="px-2 py-1 rounded-lg bg-terra-light text-terra-ink border border-terra-mid">
               {compteurs.rejet} rejetée(s)
             </span>
             {compteurs.rejet > 0 && (

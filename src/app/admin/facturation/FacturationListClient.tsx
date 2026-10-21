@@ -369,7 +369,7 @@ export function FacturationListClient({
             <button
               type="button"
               onClick={resetFilters}
-              className="fx-small inline-flex items-center gap-1 px-3 py-2 rounded-lg font-semibold text-terra hover:bg-terra-light border border-terra-mid"
+              className="fx-small inline-flex items-center gap-1 px-3 py-2 rounded-lg font-semibold text-terra-ink hover:bg-terra-light border border-terra-mid"
             >
               <X size={12} aria-hidden /> Réinitialiser
             </button>
@@ -382,7 +382,7 @@ export function FacturationListClient({
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -474,7 +474,7 @@ export function FacturationListClient({
                             );
                           }
                           return (
-                            <span className="fx-eyebrow inline-flex items-center gap-1 self-start font-semibold px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
+                            <span className="fx-eyebrow inline-flex items-center gap-1 self-start font-semibold px-1.5 py-0.5 rounded-full bg-terra-light text-terra-ink border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
                               <FileEdit size={12} aria-hidden /> Avoir partiel
                             </span>
                           );
@@ -569,7 +569,7 @@ export function FacturationListClient({
                         <XCircle size={12} aria-hidden /> Annulée par avoir
                       </span>
                     ) : (
-                      <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid">
+                      <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded-full bg-terra-light text-terra-ink border border-terra-mid">
                         <FileEdit size={12} aria-hidden /> Avoir partiel ({a.totalEmis.toFixed(2)} €)
                       </span>
                     )}
@@ -674,7 +674,7 @@ function StatCard({
   if (warning) {
     bg = 'bg-terra-light';
     border = 'border-terra-mid';
-    numColor = 'text-terra';
+    numColor = 'text-terra-ink';
     labelColor = 'text-ink-mid';
   }
   return (

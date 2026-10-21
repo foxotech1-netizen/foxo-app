@@ -42,7 +42,7 @@ export default async function PaiementsPage() {
       </div>
 
       {error && (
-        <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg font-semibold">
+        <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
           Erreur de chargement : {error.message}
         </div>
       )}

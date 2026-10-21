@@ -138,14 +138,14 @@ export default async function EditFacturePage({
           <div className="mb-4 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded-modal px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="fx-eyebrow font-semibold text-[var(--color-amber-foxo)] mb-1 inline-flex items-center gap-1.5">
+                <div className="fx-eyebrow font-semibold text-amber-ink mb-1 inline-flex items-center gap-1.5">
                   <FileEdit size={12} aria-hidden /> {avoirs.length} avoir(s) lié(s) — solde réel
                 </div>
                 <div className="fx-body flex flex-wrap items-baseline gap-3">
                   <span className="text-ink-mid">
                     Facture : <strong className="tabular-nums">{factureTtc.toFixed(2)} €</strong>
                   </span>
-                  <span className="text-terra">
+                  <span className="text-terra-ink">
                     − Avoirs émis : <strong className="tabular-nums">{totalCrediteEmis.toFixed(2)} €</strong>
                   </span>
                   <span className="text-navy font-semibold">
@@ -163,7 +163,7 @@ export default async function EditFacturePage({
                   <Link
                     key={a.id}
                     href={`/admin/facturation/notes-credit/${a.id}`}
-                    className="fx-small tabular-nums font-semibold bg-cream text-terra border border-terra-mid rounded px-2 py-1 hover:bg-terra-light"
+                    className="fx-small tabular-nums font-semibold bg-cream text-terra-ink border border-terra-mid rounded px-2 py-1 hover:bg-terra-light"
                     title={`${a.statut} · ${Math.abs(Number(a.montant_ttc ?? 0)).toFixed(2)} €`}
                   >
                     {a.numero}

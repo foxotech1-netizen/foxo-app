@@ -60,7 +60,7 @@ export function BaremeKmSection({ initial }: { initial: BaremeKm[] }) {
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}

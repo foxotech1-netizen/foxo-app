@@ -242,7 +242,7 @@ export function RappelsClient({
           </button>
           {paramSaveMsg && (
             <span className={'fx-small font-semibold ' +
-              (paramSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra')
+              (paramSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
             }>
               {paramSaveMsg.msg}
             </span>
@@ -276,7 +276,7 @@ export function RappelsClient({
             <div className="fx-small text-navy font-semibold mb-1">
               Envoi en cours… {batch.current}/{batch.total}
               {batch.errors > 0 && (
-                <span className="text-terra ml-2">· {batch.errors} erreur{batch.errors > 1 ? 's' : ''}</span>
+                <span className="text-terra-ink ml-2">· {batch.errors} erreur{batch.errors > 1 ? 's' : ''}</span>
               )}
             </div>
             <div className="h-1.5 bg-sand-mid rounded-full overflow-hidden">
@@ -292,7 +292,7 @@ export function RappelsClient({
           <div className={'fx-small mb-2 px-3 py-2 font-semibold rounded-lg border ' +
             (batchMsg.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }>
             {batchMsg.msg}
           </div>
@@ -353,7 +353,7 @@ export function RappelsClient({
                         <td className="fx-small px-3 py-2 text-ink-mid">{f.reference ?? '—'}</td>
                         <td className="fx-small px-3 py-2 text-ink-mid tabular-nums whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">
-                          <span className="fx-badge inline-block font-semibold rounded-full px-2 py-0.5 bg-terra-light text-terra border border-terra-mid">
+                          <span className="fx-badge inline-block font-semibold rounded-full px-2 py-0.5 bg-terra-light text-terra-ink border border-terra-mid">
                             {retardJours}j
                           </span>
                         </td>
@@ -376,7 +376,7 @@ export function RappelsClient({
                             {state?.sending ? '…' : (<span className="inline-flex items-center gap-1"><Send size={12} aria-hidden /> Envoyer rappel</span>)}
                           </button>
                           {state?.msg && (
-                            <div className={'fx-small mt-1 font-semibold ' + (state.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                            <div className={'fx-small mt-1 font-semibold ' + (state.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                               {state.msg}
                             </div>
                           )}

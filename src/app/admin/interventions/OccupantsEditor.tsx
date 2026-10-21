@@ -70,7 +70,7 @@ export function OccupantsEditor({
                 <button
                   type="button"
                   onClick={() => removeOccupant(i)}
-                  className="fx-small text-terra hover:underline"
+                  className="fx-small text-terra-ink hover:underline"
                 >
                   Retirer
                 </button>

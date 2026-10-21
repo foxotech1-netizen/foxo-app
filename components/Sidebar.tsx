@@ -296,7 +296,7 @@ export default function Sidebar({
                 <item.Icon size={17} strokeWidth={active ? 2.2 : 2} aria-hidden />
               </span>
               <span className="fx-nav-mobile">{item.court ?? item.label}</span>
-              {n > 0 && <span className="fx-badge fx-tab-badge">{n}</span>}
+              {n > 0 && <span className="fx-badge fx-tab-badge" data-fx-overlay>{n}</span>}
             </Link>
           )
         })}

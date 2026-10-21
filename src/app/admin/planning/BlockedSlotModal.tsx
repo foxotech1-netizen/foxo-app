@@ -92,7 +92,7 @@ export function BlockedSlotModal({
         </div>
 
         {error && (
-          <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+          <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
             {error}
           </div>
         )}

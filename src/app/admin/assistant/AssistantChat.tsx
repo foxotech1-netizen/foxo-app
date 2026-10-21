@@ -175,7 +175,7 @@ export function AssistantChat({
           <button
             type="button"
             onClick={clearChat}
-            className="fx-small ml-auto bg-sand-mid text-ink-mid hover:text-terra font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"
+            className="fx-small ml-auto bg-sand-mid text-ink-mid hover:text-terra-ink font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"
           >
             <X size={14} />
             Effacer
@@ -247,7 +247,7 @@ export function AssistantChat({
       </div>
 
       {error && (
-        <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 mb-2 font-semibold flex-shrink-0">
+        <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 mb-2 font-semibold flex-shrink-0">
           {error}
         </div>
       )}

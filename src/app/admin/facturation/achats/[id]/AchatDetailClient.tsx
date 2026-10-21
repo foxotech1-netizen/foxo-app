@@ -439,7 +439,7 @@ export function AchatDetailClient({
                   type="button"
                   onClick={() => removeLigne(i)}
                   title="Retirer la ligne"
-                  className="text-terra hover:opacity-70 p-1"
+                  className="text-terra-ink hover:opacity-70 p-1"
                 >
                   <XCircle size={14} aria-hidden />
                 </button>
@@ -494,11 +494,11 @@ export function AchatDetailClient({
             Renseignez l&apos;IBAN pour générer le QR de paiement.
           </p>
         ) : !ibanValide ? (
-          <div className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+          <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
             IBAN invalide (contrôle mod-97) — corrigez-le pour générer le QR de paiement.
           </div>
         ) : ttcPaiement <= 0 ? (
-          <div className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+          <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
             Montant TTC nul ou négatif — renseignez un montant pour générer le QR.
           </div>
         ) : (
@@ -511,7 +511,7 @@ export function AchatDetailClient({
               </div>
             ) : ibanDiffere ? (
               <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2.5 space-y-2">
-                <div className="fx-label flex items-start gap-2 text-terra font-semibold">
+                <div className="fx-label flex items-start gap-2 text-terra-ink font-semibold">
                   <ShieldAlert size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
                   <span>
                     ⚠️ L&apos;IBAN de cette facture diffère de celui enregistré pour ce fournisseur
@@ -695,7 +695,7 @@ export function AchatDetailClient({
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -731,7 +731,7 @@ export function AchatDetailClient({
                 handleSave(() => rejeterFactureAchat(achat.id));
               }}
               disabled={pending}
-              className="fx-body bg-cream text-terra border border-terra-mid px-4 py-2.5 rounded-lg font-semibold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+              className="fx-body bg-cream text-terra-ink border border-terra-mid px-4 py-2.5 rounded-lg font-semibold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
             >
               <XCircle size={14} aria-hidden /> Rejeter
             </button>
@@ -767,7 +767,7 @@ export function AchatDetailClient({
           type="button"
           onClick={() => setShowDeleteConfirm(true)}
           disabled={pending}
-          className="fx-body ml-auto bg-cream text-terra border border-terra-mid px-4 py-2.5 rounded-lg font-semibold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+          className="fx-body ml-auto bg-cream text-terra-ink border border-terra-mid px-4 py-2.5 rounded-lg font-semibold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
         >
           <Trash2 size={14} aria-hidden /> Supprimer
         </button>
@@ -784,7 +784,7 @@ export function AchatDetailClient({
               Le justificatif reste archivé sur Drive.
             </p>
             {achat.statut === 'payee' && (
-              <p className="fx-label font-semibold text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2">
+              <p className="fx-label font-semibold text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2">
                 ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.
               </p>
             )}

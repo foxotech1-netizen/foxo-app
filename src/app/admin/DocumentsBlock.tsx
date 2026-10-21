@@ -192,7 +192,7 @@ function UploadCard({
           <button
             onClick={onDelete}
             disabled={busy}
-            className="fx-small text-terra hover:underline disabled:opacity-50"
+            className="fx-small text-terra-ink hover:underline disabled:opacity-50"
           >Supprimer</button>
         </div>
       ) : (
@@ -240,7 +240,7 @@ function UploadCard({
       )}
 
       {error && (
-        <div className="fx-small mt-2 text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-1.5 font-semibold">
+        <div className="fx-small mt-2 text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-1.5 font-semibold">
           {error}
         </div>
       )}

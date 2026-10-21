@@ -154,7 +154,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -228,7 +228,7 @@ export function ArticlesClient({ initial }: { initial: Article[] }) {
                       type="button"
                       onClick={() => handleDelete(a.id)}
                       disabled={pending}
-                      className="fx-small font-semibold text-terra hover:underline inline-flex items-center gap-1 disabled:opacity-50"
+                      className="fx-small font-semibold text-terra-ink hover:underline inline-flex items-center gap-1 disabled:opacity-50"
                     >
                       <Trash2 size={12} aria-hidden /> Supprimer
                     </button>
@@ -405,7 +405,7 @@ function ArticleEditor({
           </label>
 
           {error && (
-            <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+            <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
               {error}
             </div>
           )}

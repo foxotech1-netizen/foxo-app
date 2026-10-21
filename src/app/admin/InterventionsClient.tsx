@@ -93,7 +93,8 @@ function Badge({ statut, big = false }: { statut: StatutIntervention; big?: bool
   const info = STATUT_INFO[statut];
   return (
     <span
-      className="inline-block rounded-full font-semibold whitespace-nowrap"
+      className="statut-badge inline-block rounded-full font-semibold whitespace-nowrap"
+      data-statut={statut}
       style={{
         color: info.fg,
         background: info.bg,
@@ -111,7 +112,7 @@ function Pipebar({ statut }: { statut: StatutIntervention }) {
     return (
       <div className="flex gap-0.5 mt-1.5 items-center">
         <div className="h-[3px] flex-1 rounded-lg bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)]" />
-        <span className="fx-small text-terra font-semibold ml-1.5 whitespace-nowrap tabular-nums">
+        <span className="fx-small text-terra-ink font-semibold ml-1.5 whitespace-nowrap tabular-nums">
           EN SUSPENS
         </span>
       </div>
@@ -1389,7 +1390,7 @@ export function InterventionsClient({
             title="Alertes"
           >
             <Bell size={17} aria-hidden />
-            {nbAlertes > 0 && <span className="fx-alert-dot" aria-hidden />}
+            {nbAlertes > 0 && <span className="fx-alert-dot" data-fx-overlay aria-hidden />}
           </Link>
         </div>
 
@@ -1421,7 +1422,7 @@ export function InterventionsClient({
       )}
 
       {loadError && (
-        <div className="fx-label mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg font-semibold flex-shrink-0">
+        <div className="fx-label mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold flex-shrink-0">
           Connexion à la base limitée : {loadError}
         </div>
       )}
@@ -1583,13 +1584,13 @@ export function InterventionsClient({
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {iv.priorite === 'urgente' && (
-                            <span className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
+                            <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                               <Zap size={12} />URGENT
                             </span>
                           )}
                           {iv.source === 'mail' && (
                             <span
-                              className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)]"
+                              className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink"
                               title="Demande créée automatiquement depuis un mail entrant"
                             >
                               <Mail size={12} />Mail
@@ -1599,7 +1600,7 @@ export function InterventionsClient({
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); openDrawer(iv.id, 'historique'); }}
-                              className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5 hover:opacity-80 cursor-pointer transition-opacity"
+                              className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5 hover:opacity-80 cursor-pointer transition-opacity"
                               title={`${iv.recidive_count} intervention(s) similaire(s) sur cette ACP dans les 12 mois — voir Historique`}
                             >
                               <RefreshCw size={12} />Récidive ({iv.recidive_count})
@@ -1624,7 +1625,7 @@ export function InterventionsClient({
                             </div>
                           </>
                         ) : iv.source === 'mail' ? (
-                          <span className="fx-small inline-flex items-center gap-1 font-semibold text-[var(--color-amber-foxo)] bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5"
+                          <span className="fx-small inline-flex items-center gap-1 font-semibold text-amber-ink bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5"
                                 title="ACP non identifiée — associer manuellement dans le drawer">
                             <AlertTriangle size={12} />à associer
                           </span>
@@ -1643,7 +1644,7 @@ export function InterventionsClient({
                         {iv.technicien ? (
                           <span>{(iv.technicien.prenom ?? '')[0]}. {iv.technicien.nom}</span>
                         ) : (
-                          <span className="fx-small text-[var(--color-terra)] font-semibold">Non assigné</span>
+                          <span className="fx-small text-terra-ink font-semibold">Non assigné</span>
                         )}
                       </td>
                       <td className="fx-small px-3.5 py-2.5 text-[var(--color-ink-mid)] tabular-nums whitespace-nowrap">
@@ -1697,7 +1698,7 @@ export function InterventionsClient({
                               : relanceMsg?.id === iv.id
                                 ? (relanceMsg.kind === 'ok'
                                     ? <Check size={15} className="text-[var(--color-ok)]" />
-                                    : <XCircle size={15} className="text-[var(--color-terra)]" />)
+                                    : <XCircle size={15} className="text-terra-ink" />)
                                 : <Send size={15} />}
                           </button>
                         )}
@@ -1708,7 +1709,7 @@ export function InterventionsClient({
                             setRowDeleteErr(null);
                             setDeletingRow({ id: iv.id, ref: iv.ref });
                           }}
-                          className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-terra)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)] align-middle"
+                          className="text-[var(--color-ink-muted)]/40 hover:text-terra-ink transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)] align-middle"
                           title="Supprimer cette intervention"
                           aria-label="Supprimer cette intervention"
                         >
@@ -1763,17 +1764,17 @@ export function InterventionsClient({
                     || (iv.unread_messages_count ?? 0) > 0) && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {iv.priorite === 'urgente' && (
-                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
+                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                           <Zap size={12} />URGENT
                         </span>
                       )}
                       {iv.source === 'mail' && (
-                        <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)]">
+                        <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink">
                           <Mail size={12} />Mail
                         </span>
                       )}
                       {(iv.recidive_count ?? 0) > 0 && (
-                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
+                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                           <RefreshCw size={12} />Récidive ({iv.recidive_count})
                         </span>
                       )}
@@ -1802,7 +1803,7 @@ export function InterventionsClient({
                       <div className="fx-small truncate text-[var(--color-ink)]">
                         {iv.technicien
                           ? `${(iv.technicien.prenom ?? '')[0]}. ${iv.technicien.nom ?? ''}`
-                          : <span className="text-[var(--color-terra)] font-semibold">Non assigné</span>}
+                          : <span className="text-terra-ink font-semibold">Non assigné</span>}
                       </div>
                     </div>
                     <div className="col-span-2 min-w-0">
@@ -1854,7 +1855,7 @@ export function InterventionsClient({
                   <div className="flex gap-2 items-center flex-wrap mb-0.5">
                     <span className="fx-label font-sora font-semibold text-[var(--color-navy)] tracking-[0.01em]">{selected.ref ?? '—'}</span>
                     {selected.priorite === 'urgente' && (
-                      <span className="fx-badge inline-flex items-center gap-1 font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2 py-0.5">
+                      <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2 py-0.5">
                         <Zap size={12} />URGENT
                       </span>
                     )}
@@ -1933,7 +1934,7 @@ export function InterventionsClient({
                           />
                           {reanalyzeMsg && (
                             <div className={'fx-small mt-2 font-semibold ' +
-                              (reanalyzeMsg.kind === 'ok' ? 'text-ok' : 'text-terra')
+                              (reanalyzeMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                             }>
                               {reanalyzeMsg.msg}
                             </div>
@@ -1952,10 +1953,10 @@ export function InterventionsClient({
                         if (!text) return null;
                         return (
                           <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3">
-                            <div className="font-semibold mb-1 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5">
+                            <div className="font-semibold mb-1 text-amber-ink inline-flex items-center gap-1.5">
                               <ClipboardList size={14} />Action requise
                             </div>
-                            <div className="text-[var(--color-amber-foxo)]">{text}</div>
+                            <div className="text-amber-ink">{text}</div>
                           </div>
                         );
                       })()}
@@ -1979,7 +1980,7 @@ export function InterventionsClient({
                           </button>
                           {selected.statut !== 'nouvelle' && reanalyzeMsg && (
                             <span className={'fx-small font-semibold ' +
-                              (reanalyzeMsg.kind === 'ok' ? 'text-ok' : 'text-terra')
+                              (reanalyzeMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                             }>
                               {reanalyzeMsg.msg}
                             </span>
@@ -2109,7 +2110,7 @@ export function InterventionsClient({
                           {formPending ? '…' : (<><Save size={14} />Sauvegarder</>)}
                         </button>
                         {formMsg && (
-                          <span className={'fx-small font-semibold ' + (formMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                          <span className={'fx-small font-semibold ' + (formMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                             {formMsg.msg}
                           </span>
                         )}
@@ -2308,7 +2309,7 @@ export function InterventionsClient({
                       </button>
                     </div>
                     {assignMessage && (
-                      <p className={'fx-small mt-1.5 font-semibold ' + (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                      <p className={'fx-small mt-1.5 font-semibold ' + (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                         {assignMessage.msg}
                       </p>
                     )}
@@ -2374,7 +2375,7 @@ export function InterventionsClient({
                       {schedulePending ? '…' : (<><Calendar size={14} />Planifier</>)}
                     </button>
                     {scheduleMsg && (
-                      <p className={'fx-small mt-1.5 font-semibold ' + (scheduleMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                      <p className={'fx-small mt-1.5 font-semibold ' + (scheduleMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                         {scheduleMsg.msg}
                       </p>
                     )}
@@ -2434,7 +2435,7 @@ export function InterventionsClient({
                             : o.conf === 'decline' ? (<span className="inline-flex items-center gap-1"><XCircle size={12}/>Pas d&apos;accès</span>)
                             : (<span>En attente</span>);
                           const confColor = o.conf === 'confirme' ? 'text-ok'
-                            : o.conf === 'decline' ? 'text-terra'
+                            : o.conf === 'decline' ? 'text-terra-ink'
                             : 'text-amber-ink';
                           // Marqueur "extrait du mail" posé par le cron
                           const fromMail = (o.instructions ?? '').includes('[extrait du mail]');
@@ -2611,7 +2612,7 @@ export function InterventionsClient({
                         {notifyPending ? '…' : (<><Send size={14} />Envoyer ({notifySelectedIds.size})</>)}
                       </button>
                       {notifyMsg && (
-                        <p className={'fx-small mt-1.5 font-semibold ' + (notifyMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        <p className={'fx-small mt-1.5 font-semibold ' + (notifyMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                           {notifyMsg.msg}
                         </p>
                       )}
@@ -2633,7 +2634,7 @@ export function InterventionsClient({
                         {confirmMailPending ? 'Envoi…' : (<><Send size={14} />Envoyer confirmation au client</>)}
                       </button>
                       {confirmMailMsg && (
-                        <p className={'fx-small mt-1.5 font-semibold ' + (confirmMailMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        <p className={'fx-small mt-1.5 font-semibold ' + (confirmMailMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                           {confirmMailMsg.msg}
                         </p>
                       )}
@@ -2642,10 +2643,10 @@ export function InterventionsClient({
 
                   {selected.statut === 'en_suspens' && selected.suspens_motif && (
                     <div className="bg-terra-light border border-terra-mid rounded-lg p-3.5 mb-3">
-                      <div className="fx-eyebrow font-semibold text-terra mb-2">
+                      <div className="fx-eyebrow font-semibold text-terra-ink mb-2">
                         Motif suspension
                       </div>
-                      <div className="fx-body text-terra">{selected.suspens_motif}</div>
+                      <div className="fx-body text-terra-ink">{selected.suspens_motif}</div>
                     </div>
                   )}
 
@@ -2661,7 +2662,7 @@ export function InterventionsClient({
                         <Trash2 size={14} />Supprimer cette intervention
                       </button>
                       {deleteMsg && (
-                        <p className={'fx-small mt-1.5 font-semibold ' + (deleteMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        <p className={'fx-small mt-1.5 font-semibold ' + (deleteMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                           {deleteMsg.msg}
                         </p>
                       )}
@@ -2687,7 +2688,7 @@ export function InterventionsClient({
                         </div>
                       </div>
                     ) : (
-                      <div className="fx-label bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-terra font-semibold mb-3 inline-flex items-center gap-1.5">
+                      <div className="fx-label bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-terra-ink font-semibold mb-3 inline-flex items-center gap-1.5">
                         <AlertTriangle size={14} />Aucun technicien assigné
                       </div>
                     )}
@@ -2718,7 +2719,7 @@ export function InterventionsClient({
 
                     {assignMessage && (
                       <p className={'fx-label mt-2 font-semibold ' +
-                        (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                        (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                       }>
                         {assignMessage.msg}
                       </p>
@@ -2921,7 +2922,7 @@ export function InterventionsClient({
                           )}
 
                           {rapportSaveMsg && (
-                            <p className={'fx-label font-semibold ' + (rapportSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                            <p className={'fx-label font-semibold ' + (rapportSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                               {rapportSaveMsg.msg}
                             </p>
                           )}
@@ -2974,7 +2975,7 @@ export function InterventionsClient({
                             </button>
                             {emailMessage && (
                               <p className={'fx-label mt-2 font-semibold ' +
-                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                               }>
                                 {emailMessage.msg}
                               </p>
@@ -3015,7 +3016,7 @@ export function InterventionsClient({
                             </button>
                             {emailMessage && (
                               <p className={'fx-label mt-2 font-semibold ' +
-                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                               }>
                                 {emailMessage.msg}
                               </p>
@@ -3094,7 +3095,7 @@ export function InterventionsClient({
                     <div className={'fx-label rounded-lg px-3 py-2 mb-2 border font-semibold ' +
                       (iaSaveMessage.kind === 'ok'
                         ? 'bg-ok-light border-ok-mid text-ok'
-                        : 'bg-terra-light border-terra-mid text-terra')
+                        : 'bg-terra-light border-terra-mid text-terra-ink')
                     }>
                       {iaSaveMessage.msg}
                     </div>
@@ -3138,7 +3139,7 @@ function StatCard({
   let numColor = 'text-ink';
   if (accent) { bg = 'bg-navy-pale'; border = 'border-navy-light'; numColor = 'text-navy'; }
   if (muted) numColor = 'text-ink-mid';
-  if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra'; }
+  if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra-ink'; }
   return (
     <div className={`${bg}${border} border rounded-xl px-4 py-3.5`}>
       <div className={`fx-kpi font-semibold leading-none ${numColor}`}>{num}</div>
@@ -3233,7 +3234,7 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
                 )}
               </>
             ) : (
-              <span className="fx-small italic text-terra">Aucun email configuré</span>
+              <span className="fx-small italic text-terra-ink">Aucun email configuré</span>
             )}
           </div>
           );
@@ -3272,7 +3273,7 @@ function SoftDeleteRowModal({
         </p>
 
         {error && (
-          <div className="fx-label mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+          <div className="fx-label mt-3 bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
             {error}
           </div>
         )}
@@ -3315,12 +3316,12 @@ function DeleteInterventionModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-modal p-5 w-full max-w-[460px]">
-        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5">
+        <h2 className="fxs-block-title text-terra-ink mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={16} />Supprimer l&apos;intervention
         </h2>
         <p className="fx-body text-ink-mid leading-relaxed">
           Êtes-vous sûr de vouloir supprimer l&apos;intervention <strong className="tabular-nums text-ink">{ref ?? '?'}</strong> ?
-          Cette action est <strong className="text-terra">irréversible</strong>.
+          Cette action est <strong className="text-terra-ink">irréversible</strong>.
         </p>
         <p className="fx-small text-ink-mid leading-relaxed mt-2">
           Tous les éléments liés (timeline, SMS logs, photos, occupants) seront aussi supprimés.
@@ -3523,7 +3524,7 @@ function DemandeurBadge({
         </span>
       )}
       {info.kind === 'unknown' && !organisationId && !clientId && (
-        <span className="text-terra italic">— à associer manuellement</span>
+        <span className="text-terra-ink italic">— à associer manuellement</span>
       )}
       {referenceExterne && (
         <span className="fx-small tabular-nums opacity-80">· réf : {referenceExterne}</span>
@@ -3602,12 +3603,12 @@ function RefEditor({
         <button
           type="button"
           onClick={() => { setEditing(false); setErr(null); }}
-          className="fx-small text-ink-mid hover:text-terra"
+          className="fx-small text-ink-mid hover:text-terra-ink"
         >
           Annuler
         </button>
       </div>
-      {err && <p className="fx-small text-terra mt-1 font-semibold">{err}</p>}
+      {err && <p className="fx-small text-terra-ink mt-1 font-semibold">{err}</p>}
     </div>
   );
 }
@@ -3699,7 +3700,7 @@ function OccupantEditCard({
             type="button"
             onClick={onDelete}
             disabled={saving}
-            className="fx-small bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
+            className="fx-small bg-terra-light text-terra-ink border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
           >
             <Trash2 size={12} />Supprimer
           </button>
@@ -3774,7 +3775,7 @@ function ColorPicker({
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="fx-small ml-1 text-ink-mid hover:text-terra underline"
+          className="fx-small ml-1 text-ink-mid hover:text-terra-ink underline"
           title="Retirer la couleur"
         >
           Réinitialiser
@@ -3824,7 +3825,7 @@ function AcpSuggestionBanner({
   return (
     <div className="mb-2 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="fx-meta text-[var(--color-amber-foxo)] flex-1 min-w-[200px]">
+        <div className="fx-meta text-amber-ink flex-1 min-w-[200px]">
           <span className="font-semibold inline-flex items-center gap-1"><Lightbulb size={12} />ACP suggérée :</span>{' '}
           <span className="font-semibold">{labelAcp}</span>
           <span className="fx-small opacity-80"> (score {scorePct} %)</span>
@@ -3848,7 +3849,7 @@ function AcpSuggestionBanner({
             type="button"
             disabled={pending}
             onClick={() => startTransition(async () => { await onIgnore(); })}
-            className="fx-small font-semibold bg-cream text-terra border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 inline-flex items-center gap-1"
+            className="fx-small font-semibold bg-cream text-terra-ink border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 inline-flex items-center gap-1"
             title="Effacer la suggestion (l'ACP restera non associée)"
           >
             <XCircle size={12} />Ignorer
@@ -3960,13 +3961,13 @@ function AcpPicker({
             type="button"
             onClick={clearAcp}
             disabled={saving}
-            className="fx-small bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
+            className="fx-small bg-terra-light text-terra-ink border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
           >
             <X size={12} />Retirer
           </button>
         </div>
         {msg && (
-          <div className={'fx-small mt-1.5 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+          <div className={'fx-small mt-1.5 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
             {msg.msg}
           </div>
         )}
@@ -3998,7 +3999,7 @@ function AcpPicker({
             </Link>
           </div>
           {msg && (
-            <div className={'fx-small mt-1.5 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+            <div className={'fx-small mt-1.5 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
               {msg.msg}
             </div>
           )}
@@ -4109,7 +4110,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
   }
   if (error) {
     return (
-      <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+      <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
         {error}
       </div>
     );
@@ -4126,7 +4127,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
     <div className="space-y-4">
       {data.recidives_detectees > 0 && (
         <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5">
-          <div className="font-semibold text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5">
+          <div className="font-semibold text-amber-ink inline-flex items-center gap-1.5">
             <RefreshCw size={14} />{data.recidives_detectees} récidive{data.recidives_detectees > 1 ? 's' : ''} détectée{data.recidives_detectees > 1 ? 's' : ''}
           </div>
           <div className="fx-small text-amber-ink">
@@ -4208,7 +4209,7 @@ function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: st
           <span className="fx-small fx-ref font-semibold text-navy">{iv.ref ?? '?'}</span>
           <span className="fx-small tabular-nums text-ink-mid">{date}</span>
           {iv.is_recidive && (
-            <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-amber-light text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30">
+            <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30">
               <RefreshCw size={10} />Récidive
             </span>
           )}
@@ -4323,7 +4324,7 @@ function CourtierMandatePanel({
                 type="button"
                 onClick={() => retirer(c)}
                 disabled={busyId === c.id}
-                className="fx-small text-terra inline-flex items-center gap-1 font-semibold disabled:opacity-50 hover:underline"
+                className="fx-small text-terra-ink inline-flex items-center gap-1 font-semibold disabled:opacity-50 hover:underline"
               >
                 <Trash2 size={12} />Retirer
               </button>
@@ -4382,7 +4383,7 @@ function CourtierMandatePanel({
       )}
 
       {msg && (
-        <div className={'fx-small mt-2 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+        <div className={'fx-small mt-2 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
           {msg.msg}
         </div>
       )}
@@ -4511,7 +4512,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
     <>
       {doublonLink && (
         <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3">
-          <div className="font-semibold mb-0.5 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5"><AlertTriangle size={12} />Doublon possible</div>
+          <div className="font-semibold mb-0.5 text-amber-ink inline-flex items-center gap-1.5"><AlertTriangle size={12} />Doublon possible</div>
           <div className="text-amber-ink">
             Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="tabular-nums font-semibold underline">{doublonLink.liee_ref ?? '?'}</Link>
             {doublonLink.note && <> · <span className="italic">{doublonLink.note}</span></>}
@@ -4521,7 +4522,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
 
       {unresolvedLinks.length > 0 && (
         <div className="fx-meta bg-terra-light border border-terra-mid rounded-xl px-3 py-2.5 mb-3">
-          <div className="font-semibold mb-1 text-terra inline-flex items-center gap-1.5">
+          <div className="font-semibold mb-1 text-terra-ink inline-flex items-center gap-1.5">
             <AlertTriangle size={14} />Dossier antérieur non résolu possible — voir historique
           </div>
           <div className="text-terra-ink flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -4664,7 +4665,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
               </>
             )}
             {msg && (
-              <div className={'fx-small font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+              <div className={'fx-small font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                 {msg.msg}
               </div>
             )}
@@ -4710,7 +4711,7 @@ function LienBadge({ type, source }: { type: string; source: string }) {
     : type === 'suivi' ? 'Suivi'
     : type === 'doublon' ? 'Doublon'
     : 'Lié';
-  const color = type === 'doublon' ? 'bg-amber-light text-[var(--color-amber-foxo)] border-[var(--color-amber-foxo)]/30'
+  const color = type === 'doublon' ? 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30'
     : type === 'meme_dossier' ? 'bg-navy-pale text-navy border-navy-light'
     : type === 'suivi' ? 'bg-ok-light text-ok border-ok-mid'
     : 'bg-sand-mid text-ink-mid border-sand-border';

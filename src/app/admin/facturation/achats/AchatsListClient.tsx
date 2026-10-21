@@ -31,7 +31,7 @@ export const STATUT_ACHAT_INFO: Record<StatutFactureAchat, { label: string; cls:
   a_valider: { label: 'À valider', cls: 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30' },
   a_payer:   { label: 'À payer',   cls: 'bg-navy-pale text-navy border-navy-light' },
   payee:     { label: 'Payée',     cls: 'bg-ok-light text-ok border-ok-mid' },
-  rejetee:   { label: 'Rejetée',   cls: 'bg-terra-light text-terra border-terra-mid' },
+  rejetee:   { label: 'Rejetée',   cls: 'bg-terra-light text-terra-ink border-terra-mid' },
 };
 
 function fmtDate(iso: string | null): string {
@@ -282,7 +282,7 @@ export function AchatsListClient({
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (toast.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {toast.msg}
@@ -290,7 +290,7 @@ export function AchatsListClient({
       )}
 
       {uploadError && !showUpload && (
-        <div className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+        <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           {uploadError}
         </div>
       )}
@@ -364,7 +364,7 @@ export function AchatsListClient({
                         onClick={() => setToDelete(f)}
                         disabled={pending}
                         title="Supprimer cette facture d'achat (le justificatif reste sur Drive)."
-                        className="text-ink-mid hover:text-terra p-1 disabled:opacity-50"
+                        className="text-ink-mid hover:text-terra-ink p-1 disabled:opacity-50"
                       >
                         <Trash2 size={14} aria-hidden />
                       </button>
@@ -451,7 +451,7 @@ export function AchatsListClient({
                     const st = antiFraudeState(preview);
                     if (st === 'differe') {
                       return (
-                        <div className="fx-small flex items-start gap-1.5 text-terra bg-terra-light border border-terra-mid rounded px-2 py-1.5 font-semibold">
+                        <div className="fx-small flex items-start gap-1.5 text-terra-ink bg-terra-light border border-terra-mid rounded px-2 py-1.5 font-semibold">
                           <ShieldAlert size={13} aria-hidden className="flex-shrink-0 mt-0.5" />
                           <span>
                             ⚠️ IBAN différent de la fiche fournisseur
@@ -589,7 +589,7 @@ export function AchatsListClient({
               </div>
             )}
             {uploadError && (
-              <div className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+              <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
                 {uploadError}
               </div>
             )}

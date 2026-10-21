@@ -218,7 +218,7 @@ export function ReservedSlotModal({
           </div>
 
           {error && (
-            <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+            <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
               {error}
             </div>
           )}
@@ -236,7 +236,7 @@ export function ReservedSlotModal({
               type="button"
               onClick={applyFree}
               disabled={pending}
-              className="fx-label bg-terra-light text-terra border border-terra-mid px-3 py-2 rounded-lg font-semibold disabled:opacity-50"
+              className="fx-label bg-terra-light text-terra-ink border border-terra-mid px-3 py-2 rounded-lg font-semibold disabled:opacity-50"
             >
               ↩ Libérer le créneau
             </button>

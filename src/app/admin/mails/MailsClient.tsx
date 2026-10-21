@@ -822,7 +822,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               {f === 'a_traiter' && inboxUnread > 0 && (
                 <span
                   className={'fx-badge font-semibold px-1.5 py-0.5 rounded-full tabular-nums ' +
-                    (filter === f ? 'bg-white/25 text-cream' : 'bg-terra-light text-terra')
+                    (filter === f ? 'bg-white/25 text-cream' : 'bg-terra-light text-terra-ink')
                   }
                 >
                   {inboxUnread}
@@ -985,7 +985,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <span className="font-semibold truncate flex-1">{l.name}</span>
                       {l.messages_unread > 0 && (
                         <span className={'fx-badge font-semibold px-1.5 py-0.5 rounded-full ' +
-                          (active ? 'bg-white/25 text-cream' : 'bg-terra-light text-terra')
+                          (active ? 'bg-white/25 text-cream' : 'bg-terra-light text-terra-ink')
                         }>
                           {l.messages_unread}
                         </span>
@@ -1020,7 +1020,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         {/* Liste — `min-h-0` permet le shrink en flex-col. */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {error && (
-            <div className="fx-label m-3 bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+            <div className="fx-label m-3 bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
               {error}
             </div>
           )}
@@ -1329,7 +1329,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 className={'fx-label mx-4 mt-3 px-3 py-2 font-semibold border rounded-lg ' +
                   (feedback.kind === 'ok'
                     ? 'bg-ok-light border-ok-mid text-ok'
-                    : 'bg-terra-light border-terra-mid text-terra')
+                    : 'bg-terra-light border-terra-mid text-terra-ink')
                 }
               >
                 {feedback.msg}
@@ -1660,7 +1660,7 @@ function BulkActionBar({
         <button
           type="button"
           onClick={onClear}
-          className="fx-small text-ink-mid hover:text-terra inline-flex items-center gap-1"
+          className="fx-small text-ink-mid hover:text-terra-ink inline-flex items-center gap-1"
           title="Désélectionner tout"
         >
           <X size={12} />
@@ -1739,7 +1739,7 @@ function BulkBtn({
   color: 'navy' | 'navy-outline' | 'amber' | 'muted' | 'terra' | 'terra-soft';
   children: React.ReactNode;
 }) {
-  const className = { 'navy': 'bg-navy text-white border border-navy', 'navy-outline': 'bg-white text-navy border border-navy', 'amber': 'bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30', 'muted': 'bg-sand-mid text-ink-mid border border-sand-border', 'terra': 'bg-terra text-white border border-terra', 'terra-soft': 'bg-terra-light text-terra border border-terra-mid',
+  const className = { 'navy': 'bg-navy text-white border border-navy', 'navy-outline': 'bg-white text-navy border border-navy', 'amber': 'bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30', 'muted': 'bg-sand-mid text-ink-mid border border-sand-border', 'terra': 'bg-terra text-white border border-terra', 'terra-soft': 'bg-terra-light text-terra-ink border border-terra-mid',
   }[color];
   return (
     <button
@@ -2052,7 +2052,7 @@ function DetailMoreMenu({
                 <Star size={14} aria-hidden />
                 {important ? 'Important ✓' : 'Marquer important'}
               </button>
-              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('trash'))} className={itemClass + 'text-terra'}>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('trash'))} className={itemClass + 'text-terra-ink'}>
                 <Trash2 size={14} aria-hidden />
                 Corbeille
               </button>
@@ -2063,7 +2063,7 @@ function DetailMoreMenu({
                 <Undo2 size={14} aria-hidden />
                 Restaurer
               </button>
-              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onRequestPermanentDelete)} className={itemClass + 'text-terra'}>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onRequestPermanentDelete)} className={itemClass + 'text-terra-ink'}>
                 <Trash2 size={14} aria-hidden />
                 Supprimer définitivement
               </button>
@@ -2252,13 +2252,13 @@ function ConfirmDeleteModal({
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
       <div className="bg-cream border border-terra rounded-modal p-5 w-full max-w-[420px]">
-        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5">
+        <h2 className="fxs-block-title text-terra-ink mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={14} />
           Supprimer définitivement
         </h2>
         <p className="fx-meta text-ink-mid leading-relaxed">
           Tu vas supprimer définitivement <strong>{count} mail{count > 1 ? 's' : ''}</strong>.
-          Cette action est <strong className="text-terra">irréversible</strong> — les mails ne seront pas récupérables même depuis la corbeille Gmail.
+          Cette action est <strong className="text-terra-ink">irréversible</strong> — les mails ne seront pas récupérables même depuis la corbeille Gmail.
         </p>
 
         <div className="mt-4 flex justify-end gap-2">

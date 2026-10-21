@@ -162,7 +162,7 @@ export function NotesAppelSection({
           </button>
         </div>
         {sendError && (
-          <div className="fx-small px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-lg font-semibold">
+          <div className="fx-small px-3 py-1.5 bg-terra-light border border-terra-mid text-terra-ink rounded-lg font-semibold">
             {sendError}
           </div>
         )}
@@ -170,7 +170,7 @@ export function NotesAppelSection({
 
       {/* Liste */}
       {loadError ? (
-        <div className="fx-small px-3 py-2 bg-terra-light border border-terra-mid text-terra rounded-lg font-semibold">
+        <div className="fx-small px-3 py-2 bg-terra-light border border-terra-mid text-terra-ink rounded-lg font-semibold">
           {loadError}
         </div>
       ) : notes === null ? (

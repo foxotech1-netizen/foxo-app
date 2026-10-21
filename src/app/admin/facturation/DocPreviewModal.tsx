@@ -122,7 +122,7 @@ export function DocPreviewModal({
         {!loading && error && (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="text-center space-y-2 max-w-[420px]">
-              <p className="fx-body font-semibold text-terra">
+              <p className="fx-body font-semibold text-terra-ink">
                 Impossible d&apos;afficher l&apos;aperçu.
               </p>
               <p className="fx-meta text-ink-mid">{error}</p>

@@ -40,7 +40,7 @@ export default async function FournisseursPage() {
         </div>
       </div>
       {error ? (
-        <div className="fx-body text-terra bg-terra-light border border-terra-mid rounded-xl px-4 py-3">
+        <div className="fx-body text-terra-ink bg-terra-light border border-terra-mid rounded-xl px-4 py-3">
           Erreur de chargement des fournisseurs : {error.message}
         </div>
       ) : (

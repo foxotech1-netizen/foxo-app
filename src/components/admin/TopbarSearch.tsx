@@ -153,7 +153,7 @@ export function TopbarSearch() {
         {showDropdown && (
           <div className="absolute left-0 right-0 top-full mt-1.5 bg-cream border border-sand-border rounded-xl shadow-lg overflow-hidden max-h-[70vh] overflow-y-auto z-50">
             {state === 'error' && (
-              <p className="fx-label px-4 py-3 font-semibold text-terra">
+              <p className="fx-label px-4 py-3 font-semibold text-terra-ink">
                 Recherche indisponible — réessayez.
               </p>
             )}

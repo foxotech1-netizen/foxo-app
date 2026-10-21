@@ -177,7 +177,7 @@ export function ExportClient({
             <Send size={14} aria-hidden /> Envoyer au comptable
           </button>
           {!emailComptable && (
-            <span className="fx-small text-terra italic self-center inline-flex items-center gap-1.5">
+            <span className="fx-small text-terra-ink italic self-center inline-flex items-center gap-1.5">
               <AlertTriangle size={12} aria-hidden /> Configure d&apos;abord l&apos;email comptable dans <Link href="/admin/parametres" className="underline">Paramètres</Link>.
             </span>
           )}
@@ -185,7 +185,7 @@ export function ExportClient({
 
         {feedback && (
           <div className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
-            (feedback.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra')
+            (feedback.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra-ink')
           }>
             {feedback.msg}
           </div>
@@ -220,7 +220,7 @@ export function ExportClient({
                       <span className={'fx-badge inline-flex items-center gap-1 font-semibold rounded-full px-2 py-0.5 ' +
                         (h.status === 'sent'
                           ? 'bg-ok-light text-ok border border-ok-mid'
-                          : 'bg-terra-light text-terra border border-terra-mid')
+                          : 'bg-terra-light text-terra-ink border border-terra-mid')
                       }>
                         {h.status === 'sent'
                           ? (<><Check size={12} aria-hidden /> Envoyé</>)

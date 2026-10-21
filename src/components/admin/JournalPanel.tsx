@@ -33,11 +33,11 @@ function Block({ title, children }: { title: React.ReactNode; children: React.Re
     >
       <div className="flex items-center gap-2.5 mb-2">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
-        <div className="font-sora text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] flex-1">
+        <div className="fx-eyebrow font-medium text-ink-mid flex-1">
           {title}
         </div>
       </div>
-      <div className="text-[13px] text-[var(--color-ink)] leading-relaxed">{children}</div>
+      <div className="fx-body text-[var(--color-ink)] leading-relaxed">{children}</div>
     </div>
   );
 }
@@ -78,7 +78,7 @@ export function JournalPanel({ interventionId }: { interventionId: string }) {
   if (!loaded) return <SkeletonText lines={3} />;
   if (error) {
     return (
-      <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-md px-3 py-2 font-semibold">
+      <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
         {error}
       </div>
     );
@@ -88,7 +88,7 @@ export function JournalPanel({ interventionId }: { interventionId: string }) {
   return (
     <Block title={<span className="inline-flex items-center gap-1.5"><CalendarClock size={12} />Journal des événements ({events.length})</span>}>
       {events.length === 0 ? (
-        <div className="text-[11px] text-ink-muted italic">
+        <div className="fx-small text-ink-mid italic">
           Aucun événement enregistré pour ce dossier.
         </div>
       ) : (
@@ -96,8 +96,8 @@ export function JournalPanel({ interventionId }: { interventionId: string }) {
           {events.map((ev) => (
             <li key={ev.id} className="ml-3 relative">
               <span className="absolute -left-[17px] mt-1 w-2.5 h-2.5 rounded-full bg-[var(--color-navy)]" />
-              <div className="text-[12px] text-ink font-medium">{ev.message ?? ev.type}</div>
-              <div className="text-[10px] text-ink-muted mt-0.5">
+              <div className="fx-label text-ink font-medium">{ev.message ?? ev.type}</div>
+              <div className="fx-small text-ink-mid mt-0.5">
                 {fmtJournalDate(ev.created_at)}{ev.created_by ? ` — ${ev.created_by}` : ''}
               </div>
             </li>

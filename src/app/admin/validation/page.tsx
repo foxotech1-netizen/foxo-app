@@ -180,7 +180,7 @@ export default async function ValidationPage() {
                 <td className="fx-body-dense px-3.5 py-3 text-ink-mid">{a.expediteur ?? '—'}</td>
                 <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{a.recu_le ? fmtDate(a.recu_le) : a.created_at ? fmtDate(a.created_at) : '—'}</td>
                 <td className="px-3.5 py-3">
-                  {a.urgence ? <AlertTriangle size={14} className="text-terra" aria-hidden /> : <span className="text-ink-mid">—</span>}
+                  {a.urgence ? <AlertTriangle size={14} className="text-terra-ink" aria-hidden /> : <span className="text-ink-mid">—</span>}
                 </td>
               </tr>
             ))}
@@ -247,12 +247,7 @@ export default async function ValidationPage() {
                   <td className="fx-body-dense px-3.5 py-3 font-semibold whitespace-nowrap">{fmtMoney(f.montant_ttc)}</td>
                   <td className="fx-body-dense px-3.5 py-3">{f.client_nom ?? '—'}</td>
                   <td className="px-3.5 py-3">
-                    <span
-                      className="inline-block rounded-full font-semibold whitespace-nowrap"
-                      style={{ color: info.fg, background: info.bg, fontSize: 11, padding: '3px 9px' }}
-                    >
-                      {info.label}
-                    </span>
+                    <span className="fx-pill fx-pill-amber">{info.label}</span>
                   </td>
                 </tr>
               );
@@ -279,9 +274,7 @@ export default async function ValidationPage() {
                 <td className="px-3.5 py-3">
                   {/* Pas de label-map exporté pour StatutNoteFrais — on rend la
                       valeur de statut telle quelle (data-driven, sans recréer de labels). */}
-                  <span className="inline-block rounded-full font-semibold bg-sand text-ink-mid" style={{ fontSize: 11, padding: '3px 9px' }}>
-                    {n.statut}
-                  </span>
+                  <span className="fx-pill">{n.statut}</span>
                 </td>
               </tr>
             ))}

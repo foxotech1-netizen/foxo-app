@@ -220,7 +220,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
 
       {erreurPrep && (
         <div className="fx-body">
-          <div className="text-terra font-semibold">Lecture d&apos;Odoo impossible : {erreurPrep}</div>
+          <div className="text-terra-ink font-semibold">Lecture d&apos;Odoo impossible : {erreurPrep}</div>
           <button type="button" onClick={onFerme} className="fx-body mt-2 min-h-[44px] px-3 rounded-lg border border-sand-border font-semibold text-navy hover:bg-sand-hover">
             Fermer
           </button>
@@ -417,7 +417,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
                           <input aria-label={`Libellé ligne ${i + 1}`} className={`${CHAMP} mt-1`} value={l.libelle} placeholder="Libellé de la ligne" onChange={(e) => majLigne(i, { libelle: e.target.value })} />
                         )}
                       </div>
-                      <button type="button" onClick={() => retirerLigne(i)} aria-label={`Retirer la ligne ${i + 1}`} disabled={lignes.length <= 1} className="min-h-[40px] w-10 shrink-0 inline-flex items-center justify-center rounded-lg text-ink-mid hover:text-terra hover:bg-sand-hover disabled:opacity-30">
+                      <button type="button" onClick={() => retirerLigne(i)} aria-label={`Retirer la ligne ${i + 1}`} disabled={lignes.length <= 1} className="min-h-[40px] w-10 shrink-0 inline-flex items-center justify-center rounded-lg text-ink-mid hover:text-terra-ink hover:bg-sand-hover disabled:opacity-30">
                         <Trash2 size={15} aria-hidden />
                       </button>
                     </div>
@@ -473,7 +473,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
             Communication structurée posée sur le brouillon : <span className="tabular-nums text-ink">{prep.communication}</span> — dérivée du n° de dossier, utilisable pour un paiement sur place (QR affiché après création) ; Odoo la conserve à la validation.
           </div>
 
-          {erreur && <div className="text-terra font-semibold">{erreur}</div>}
+          {erreur && <div className="text-terra-ink font-semibold">{erreur}</div>}
 
           <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-sand-border">
             <button

@@ -361,7 +361,7 @@ export function OdooClient({
       </div>
 
       {erreurChargement && (
-        <div className="fx-body text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+        <div className="fx-body text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           Erreur de chargement : {erreurChargement}
         </div>
       )}
@@ -369,14 +369,14 @@ export function OdooClient({
         <div
           role="status"
           className={'fx-body rounded-lg px-3 py-2 border font-semibold ' +
-            (retour.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra')
+            (retour.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {retour.msg}
         </div>
       )}
       {!retour && dernierPassage?.statut === 'erreur' && (
-        <div className="fx-body text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+        <div className="fx-body text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           Le dernier passage ({fmtMoment(dernierPassage.demarree_le)}) a échoué : {dernierPassage.erreur ?? 'erreur inconnue'}.
           Les données affichées sont celles du dernier passage réussi.
         </div>

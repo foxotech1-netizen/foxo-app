@@ -76,7 +76,7 @@ export function RelancesAutoBlock() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="fx-h3 font-semibold text-ink flex items-center gap-1.5">
-            <Zap size={15} aria-hidden className="text-[var(--color-amber-foxo)]" /> Relances automatiques
+            <Zap size={15} aria-hidden className="text-amber-ink" /> Relances automatiques
           </h2>
           <p className="fx-small text-ink-mid mt-0.5 max-w-[560px]">
             Niveaux selon les délais de <code>relance_delais_jours</code> (défaut 7, 14, 30 jours après
@@ -111,7 +111,7 @@ export function RelancesAutoBlock() {
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -153,7 +153,7 @@ export function RelancesAutoBlock() {
                           ? 'bg-navy-pale text-navy border-navy-light'
                           : c.niveau_du === 2
                             ? 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30'
-                            : 'bg-terra-light text-terra border-terra-mid')
+                            : 'bg-terra-light text-terra-ink border-terra-mid')
                       }>
                         {c.niveau_du} — {NIVEAU_LABEL[c.niveau_du]}
                       </span>
@@ -164,7 +164,7 @@ export function RelancesAutoBlock() {
                         onClick={() => handlePause(c)}
                         disabled={pending || pausePending === c.facture_id}
                         title="Suspendre les relances pour cette facture (relances_pause)."
-                        className="fx-small font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+                        className="fx-small font-semibold text-ink-mid hover:text-terra-ink inline-flex items-center gap-1 disabled:opacity-50"
                       >
                         <PauseCircle size={13} aria-hidden /> Suspendre
                       </button>
@@ -205,7 +205,7 @@ export function RelancesPauseBadge({
         onClick={toggle}
         disabled={pending}
         title="Suspendre les relances automatiques pour cette facture."
-        className="fx-small font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+        className="fx-small font-semibold text-ink-mid hover:text-terra-ink inline-flex items-center gap-1 disabled:opacity-50"
       >
         <PauseCircle size={12} aria-hidden /> Suspendre les relances
       </button>

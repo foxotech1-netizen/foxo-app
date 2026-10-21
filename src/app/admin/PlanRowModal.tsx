@@ -137,7 +137,7 @@ export function PlanRowModal({ intervention, onClose, onScheduled }: PlanRowModa
             className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
               (msg.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }
           >
             {msg.text}

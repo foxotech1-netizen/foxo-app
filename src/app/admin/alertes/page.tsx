@@ -148,7 +148,7 @@ function Section({
       : 'bg-navy-pale border-navy-light';
   const accentFg =
     color === 'terra'
-      ? 'text-terra'
+      ? 'text-terra-ink'
       : color === 'amber'
       ? 'text-amber-ink'
       : 'text-navy';

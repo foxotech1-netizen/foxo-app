@@ -168,7 +168,7 @@ export function SendByEmailButton({
                 className={'fx-label mt-3 px-3 py-2 rounded-lg font-semibold ' +
                   (feedback.kind === 'ok'
                     ? 'bg-ok-light border border-ok-mid text-ok'
-                    : 'bg-terra-light border border-terra-mid text-terra')
+                    : 'bg-terra-light border border-terra-mid text-terra-ink')
                 }
               >
                 {feedback.msg}

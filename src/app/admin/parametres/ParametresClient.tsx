@@ -369,7 +369,7 @@ export function ParametresClient({
             className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }
           >
             {feedback.msg}
@@ -498,7 +498,7 @@ export function ParametresClient({
               <div className={'fx-label mt-2 rounded-lg px-3 py-2 border font-semibold ' +
                 (mailCheckResult.kind === 'ok'
                   ? 'bg-ok-light border-ok-mid text-ok'
-                  : 'bg-terra-light border-terra-mid text-terra')
+                  : 'bg-terra-light border-terra-mid text-terra-ink')
               }>
                 {mailCheckResult.msg}
                 {mailCheckResult.details && mailCheckResult.details.length > 0 && (
@@ -765,7 +765,7 @@ export function ParametresClient({
                       }
                     });
                   }}
-                  className="fx-label bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg font-semibold hover:opacity-90"
+                  className="fx-label bg-terra-light text-terra-ink border border-terra-mid px-3.5 py-2 rounded-lg font-semibold hover:opacity-90"
                 >
                   Déconnecter
                 </button>
@@ -848,14 +848,14 @@ export function ParametresClient({
               <div className={'fx-label mt-3 rounded-lg px-3 py-2 border font-semibold ' +
                 (googleTestMsg.kind === 'ok'
                   ? 'bg-ok-light border-ok-mid text-ok'
-                  : 'bg-terra-light border-terra-mid text-terra')
+                  : 'bg-terra-light border-terra-mid text-terra-ink')
               }>
                 {googleTestMsg.msg}
               </div>
             )}
 
             {driveTest?.scopes && driveTest.scopes.has_drive_file_only && (
-              <div className="fx-meta mt-3 bg-terra-light border border-terra-mid text-terra rounded-lg p-3">
+              <div className="fx-meta mt-3 bg-terra-light border border-terra-mid text-terra-ink rounded-lg p-3">
                 <div className="font-semibold mb-1 inline-flex items-center gap-1.5"><AlertTriangle size={14} />Scope Drive insuffisant : <code>drive.file</code> au lieu de <code>drive</code></div>
                 <p className="leading-relaxed">
                   Ton token Google n&apos;a accès qu&apos;aux fichiers créés par l&apos;app — pas aux dossiers existants.
@@ -1020,13 +1020,13 @@ export function ParametresClient({
                   Présentes
                 </span>
               ) : (
-                <span className="fx-label font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra">
+                <span className="fx-label font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra-ink">
                   Absentes
                 </span>
               )}
             </Row>
             {storecoveEnabled && !storecoveConfigured && (
-              <p className="fx-small text-terra font-semibold">
+              <p className="fx-small text-terra-ink font-semibold">
                 Interrupteur activé mais clés serveur absentes : l&apos;envoi Peppol restera refusé tant que les variables ne sont pas configurées dans Vercel.
               </p>
             )}
@@ -1060,13 +1060,13 @@ export function ParametresClient({
                   Présentes
                 </span>
               ) : (
-                <span className="fx-label font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra">
+                <span className="fx-label font-semibold px-2 py-1 rounded-lg bg-terra-light border border-terra-mid text-terra-ink">
                   Absentes
                 </span>
               )}
             </Row>
             {odooEnabled && !odooConfigured && (
-              <p className="fx-small text-terra font-semibold">
+              <p className="fx-small text-terra-ink font-semibold">
                 Interrupteur activé mais clés serveur absentes : le push Odoo restera refusé tant que les variables ne sont pas configurées dans Vercel.
               </p>
             )}
@@ -1289,7 +1289,7 @@ function CalendarWatchPanel({
     }
     if (watch.status === 'expired') {
       return {
-        cls: 'bg-terra-light border-terra-mid text-terra',
+        cls: 'bg-terra-light border-terra-mid text-terra-ink',
         text: <span className="inline-flex items-center gap-1.5"><XCircle size={14} />Expirée — <strong className="tabular-nums">{watch.expiry_iso ? new Date(watch.expiry_iso).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS }) : '?'}</strong>. Cliquer « Activer » pour en créer une nouvelle.</span>,
       };
     }
@@ -1329,7 +1329,7 @@ function CalendarWatchPanel({
               type="button"
               onClick={onUnsubscribe}
               disabled={pending}
-              className="fx-label bg-terra-light text-terra border border-terra-mid px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+              className="fx-label bg-terra-light text-terra-ink border border-terra-mid px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
             >
               <X size={14} />Désactiver
             </button>
@@ -1341,7 +1341,7 @@ function CalendarWatchPanel({
         <div className={'fx-label mt-3 rounded-lg px-3 py-2 border font-semibold ' +
           (msg.kind === 'ok'
             ? 'bg-ok-light border-ok-mid text-ok'
-            : 'bg-terra-light border-terra-mid text-terra')
+            : 'bg-terra-light border-terra-mid text-terra-ink')
         }>
           {msg.msg}
         </div>
@@ -1556,7 +1556,7 @@ function PlanningCouleursPanel() {
         </button>
         {msg && (
           <span className={'fx-small font-semibold ' +
-            (msg.kind === 'ok' ? 'text-ok' : 'text-terra')
+            (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
           }>
             {msg.msg}
           </span>
@@ -1630,7 +1630,7 @@ function DriveFolderCard({
         : 'bg-terra-light border-terra-mid')
     }>
       <div className={'font-semibold ' +
-        (ok ? 'text-ok' : 'text-terra')
+        (ok ? 'text-ok' : 'text-terra-ink')
       }>
         {label} — {headline}
       </div>

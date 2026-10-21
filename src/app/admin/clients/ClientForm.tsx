@@ -267,7 +267,7 @@ export function ClientForm({
                 <button
                   type="button"
                   onClick={() => setSyndicIdRef(null)}
-                  className="fx-small text-terra hover:underline flex-shrink-0 inline-flex items-center gap-1"
+                  className="fx-small text-terra-ink hover:underline flex-shrink-0 inline-flex items-center gap-1"
                 >
                   <X size={12} />
                   Retirer
@@ -400,7 +400,7 @@ export function ClientForm({
           </div>
           <div>
             <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
-              Description {Number(remiseAutoValeur) > 0 && <span className="text-terra">*</span>}
+              Description {Number(remiseAutoValeur) > 0 && <span className="text-terra-ink">*</span>}
             </label>
             <input
               type="text"
@@ -424,7 +424,7 @@ export function ClientForm({
       </Section>
 
       {error && (
-        <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold">
+        <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
           {error}
         </div>
       )}
@@ -544,7 +544,7 @@ function NewSyndicInline({
         <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" className={cls + ' tabular-nums'} />
         <input value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Adresse" className={cls} />
       </div>
-      {error && <p className="fx-small text-terra mt-1.5">{error}</p>}
+      {error && <p className="fx-small text-terra-ink mt-1.5">{error}</p>}
       <div className="flex justify-end gap-1.5 mt-2">
         <button
           type="button"

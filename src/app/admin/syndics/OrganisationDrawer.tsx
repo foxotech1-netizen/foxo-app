@@ -333,7 +333,7 @@ export function OrganisationDrawer({
             <div className={'fx-label mb-3 px-3 py-2 font-semibold border rounded-lg ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }>
               {feedback.msg}
             </div>
@@ -362,7 +362,7 @@ export function OrganisationDrawer({
             <>
               {loading && <div className="fx-meta text-ink-mid">Chargement…</div>}
               {error && (
-                <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold mb-2">
+                <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold mb-2">
                   {error}
                 </div>
               )}
@@ -383,7 +383,7 @@ export function OrganisationDrawer({
                   }
                   const fullName = [d.prenom, d.nom].filter(Boolean).join(' ') || d.email;
                   const status = !d.actif
-                    ? { label: (<span className="inline-flex items-center gap-1.5"><XCircle size={12} />Inactif</span>), cls: 'text-terra' }
+                    ? { label: (<span className="inline-flex items-center gap-1.5"><XCircle size={12} />Inactif</span>), cls: 'text-terra-ink' }
                     : d.invite_sent_at
                       ? { label: (<span className="inline-flex items-center gap-1.5"><CheckCircle2 size={12} />Actif</span>), cls: 'text-ok' }
                       : { label: (<span>Pas encore invité</span>), cls: 'text-amber-ink' };
@@ -446,7 +446,7 @@ export function OrganisationDrawer({
                           type="button"
                           onClick={() => deleteDelegue(d.id)}
                           disabled={saving}
-                          className="fx-small inline-flex items-center gap-1.5 bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-semibold"
+                          className="fx-small inline-flex items-center gap-1.5 bg-terra-light text-terra-ink border border-terra-mid px-2 py-1 rounded font-semibold"
                         >
                           <Trash2 size={12} />Supprimer
                         </button>
@@ -488,7 +488,7 @@ export function OrganisationDrawer({
             <>
               {acpsLoading && <div className="fx-meta text-ink-mid">Chargement…</div>}
               {acpsError && (
-                <div className="fx-label bg-terra-light border border-terra-mid text-terra rounded-lg px-3 py-2 font-semibold mb-2">
+                <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold mb-2">
                   {acpsError}
                 </div>
               )}
@@ -607,7 +607,7 @@ export function OrganisationDrawer({
                       className="fx-meta w-full px-2 py-1.5 border border-sand-border rounded bg-cream tabular-nums outline-none focus:border-navy-mid"
                     />
                     {acpError && (
-                      <div className="fx-small bg-terra-light border border-terra-mid text-terra rounded-lg px-2.5 py-1.5 font-semibold">
+                      <div className="fx-small bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-2.5 py-1.5 font-semibold">
                         {acpError}
                       </div>
                     )}
@@ -784,7 +784,7 @@ function SyndicInfosBlock({
       </div>
 
       {error && (
-        <div className="fx-small mb-3 px-2.5 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-lg font-semibold">
+        <div className="fx-small mb-3 px-2.5 py-1.5 bg-terra-light border border-terra-mid text-terra-ink rounded-lg font-semibold">
           {error}
         </div>
       )}
@@ -846,7 +846,7 @@ function InfoEditField({
   return (
     <div className="grid grid-cols-3 gap-2 items-center">
       <label className="fx-eyebrow font-semibold text-ink-mid">
-        {label}{required && <span className="text-terra ml-0.5">*</span>}
+        {label}{required && <span className="text-terra-ink ml-0.5">*</span>}
       </label>
       <div className="col-span-2">
         {children}

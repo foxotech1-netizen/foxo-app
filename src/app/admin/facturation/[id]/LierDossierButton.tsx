@@ -115,7 +115,7 @@ export function LierDossierButton({
                   type="button"
                   onClick={() => apply(null)}
                   disabled={pending}
-                  className="fx-small font-semibold text-terra hover:underline disabled:opacity-50"
+                  className="fx-small font-semibold text-terra-ink hover:underline disabled:opacity-50"
                 >
                   Délier
                 </button>
@@ -150,7 +150,7 @@ export function LierDossierButton({
             )}
 
             {error && (
-              <div className="fx-label text-terra bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
+              <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
                 {error}
               </div>
             )}

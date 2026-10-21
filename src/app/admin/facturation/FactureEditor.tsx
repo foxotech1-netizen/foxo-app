@@ -745,7 +745,7 @@ export function FactureEditor({
                   <button
                     type="button"
                     onClick={() => removeLigne(i)}
-                    className="fx-small text-terra hover:underline font-semibold flex-shrink-0"
+                    className="fx-small text-terra-ink hover:underline font-semibold flex-shrink-0"
                   >
                     Retirer
                   </button>
@@ -891,7 +891,7 @@ export function FactureEditor({
               </select>
             </div>
             <div>
-              <Label>Description {Number(remiseGlobaleValeur) > 0 && <span className="text-terra">*</span>}</Label>
+              <Label>Description {Number(remiseGlobaleValeur) > 0 && <span className="text-terra-ink">*</span>}</Label>
               <input
                 value={remiseGlobaleDescription}
                 onChange={(e) => setRemiseGlobaleDescription(e.target.value)}
@@ -910,13 +910,13 @@ export function FactureEditor({
                 <span className="tabular-nums">{fmtMoney(totals.sousTotalBrut)} €</span>
               </div>
               {totals.totalRemisesLignes > 0 && (
-                <div className="fx-meta flex justify-between py-1 text-terra">
+                <div className="fx-meta flex justify-between py-1 text-terra-ink">
                   <span>Remises lignes</span>
                   <span className="tabular-nums">−{fmtMoney(totals.totalRemisesLignes)} €</span>
                 </div>
               )}
               {totals.remiseGlobale > 0 && (
-                <div className="fx-meta flex justify-between py-1 text-terra">
+                <div className="fx-meta flex justify-between py-1 text-terra-ink">
                   <span>
                     Remise globale
                     {remiseGlobaleType === 'pct' ? ` (${Number(remiseGlobaleValeur)}%)` : ''}
@@ -946,7 +946,7 @@ export function FactureEditor({
           className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -1066,7 +1066,7 @@ function RemiseLigneRow({
             setOpen(false);
             onChange({ remise_valeur: 0, remise_type: undefined, remise_description: undefined });
           }}
-          className="fx-small text-terra hover:underline"
+          className="fx-small text-terra-ink hover:underline"
         >
           Retirer
         </button>
@@ -1090,7 +1090,7 @@ function RemiseLigneRow({
           </select>
         </div>
         <div>
-          <Label>Description {Number(ligne.remise_valeur ?? 0) > 0 && <span className="text-terra">*</span>}</Label>
+          <Label>Description {Number(ligne.remise_valeur ?? 0) > 0 && <span className="text-terra-ink">*</span>}</Label>
           <input
             value={ligne.remise_description ?? ''}
             onChange={(e) => onChange({ remise_description: e.target.value })}

@@ -107,7 +107,7 @@ export function PaiementsClient({
             className={'fx-label mt-3 rounded-lg px-3 py-2 border font-semibold ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }
           >
             {feedback.msg}
@@ -207,7 +207,7 @@ function FactureTable({
                       <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
                         {retardJours > 0 ? (
-                          <span className="fx-badge inline-block font-semibold rounded-full px-2 py-0.5 bg-terra-light text-terra border border-terra-mid">
+                          <span className="fx-badge inline-block font-semibold rounded-full px-2 py-0.5 bg-terra-light text-terra-ink border border-terra-mid">
                             {retardJours}j
                           </span>
                         ) : (
@@ -229,7 +229,7 @@ function FactureTable({
                         onClick={() => onRetirer(f)}
                         disabled={retirerPending}
                         title="Retirer le paiement — la facture repasse « envoyée », la date de paiement est effacée."
-                        className="fx-small font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+                        className="fx-small font-semibold text-ink-mid hover:text-terra-ink inline-flex items-center gap-1 disabled:opacity-50"
                       >
                         <Undo2 size={12} aria-hidden /> Retirer
                       </button>

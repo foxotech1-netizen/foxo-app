@@ -129,7 +129,7 @@ export function TechnicienDrawer({
             <div className={'fx-label mb-3 px-3 py-2 font-semibold border rounded-lg ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }>
               {feedback.msg}
             </div>
@@ -198,7 +198,7 @@ export function TechnicienDrawer({
                   disabled={pending}
                   className={'fx-label font-semibold px-3 py-2 rounded-lg disabled:opacity-50 ' +
                     (actif
-                      ? 'bg-terra-light text-terra border border-terra-mid'
+                      ? 'bg-terra-light text-terra-ink border border-terra-mid'
                       : 'bg-ok-light text-ok border border-ok-mid')
                   }
                 >
@@ -286,7 +286,7 @@ function HistoriqueTab({ techId }: { techId: string }) {
 
   if (error) {
     return (
-      <div className="fx-meta bg-terra-light border border-terra-mid text-terra rounded-xl p-4">
+      <div className="fx-meta bg-terra-light border border-terra-mid text-terra-ink rounded-xl p-4">
         Erreur de chargement : {error}
       </div>
     );

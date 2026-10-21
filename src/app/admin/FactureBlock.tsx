@@ -120,7 +120,7 @@ export function FactureBlock({
                 <button
                   type="button"
                   onClick={() => removeItem(i)}
-                  className="fx-small text-terra hover:underline"
+                  className="fx-small text-terra-ink hover:underline"
                 >
                   Retirer
                 </button>
@@ -232,7 +232,7 @@ export function FactureBlock({
 
       {feedback && (
         <p className={'fx-label mt-2 font-semibold ' +
-          (feedback.kind === 'ok' ? 'text-ok' : 'text-terra')
+          (feedback.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
         }>
           {feedback.msg}
         </p>

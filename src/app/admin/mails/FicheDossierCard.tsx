@@ -226,7 +226,7 @@ export function FicheDossierCard({ analyse, onScrollToActions, onReply, onAnalys
                 type="button"
                 onClick={unlink}
                 disabled={linkPosting}
-                className="fx-small inline-flex items-center gap-1 font-medium text-ink-mid hover:text-terra hover:underline disabled:opacity-50"
+                className="fx-small inline-flex items-center gap-1 font-medium text-ink-mid hover:text-terra-ink hover:underline disabled:opacity-50"
                 title="Retirer le lien entre ce fil et le dossier"
               >
                 {linkPosting ? <Loader2 size={11} className="animate-spin" aria-hidden /> : <X size={11} aria-hidden />}
