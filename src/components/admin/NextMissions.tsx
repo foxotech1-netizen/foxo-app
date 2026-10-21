@@ -37,124 +37,74 @@ export function NextMissions({ missions, limit = 10, onOpenIntervention }: NextM
   const overflow = Math.max(0, missions.length - limit);
 
   return (
-    <div
-      className="rounded-card overflow-hidden"
-      style={{
-        background: 'var(--color-cream)',
-        boxShadow:
-          '0 1px 2px rgba(15,32,64,0.04), 0 4px 12px rgba(15,32,64,0.05), 0 0 0 1px rgba(15,32,64,0.04)',
-      }}
-    >
-      {/* Panel head — swatch navy + titre + badge count */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[var(--color-sand-mid)]">
-        <span
-          className="inline-block rounded-sm"
-          style={{ width: 3, height: 14, background: 'var(--color-navy)' }}
-          aria-hidden
-        />
-        <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] flex-1 m-0">
-          Missions aujourd&apos;hui
-        </h3>
-        <span
-          className="font-sora text-[11px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ background: 'var(--color-navy-pale)', color: 'var(--color-navy)' }}
-        >
-          {missions.length}
-        </span>
+    <section className="fx-card overflow-hidden" aria-label="Aujourd'hui">
+      <div className="fx-card-head">
+        <h2 className="fx-h2">Aujourd&apos;hui</h2>
+        <span className="fx-badge fx-badge-navy">{missions.length}</span>
       </div>
 
-      {/* Liste */}
-      <div>
-        {visible.length === 0 ? (
-          <p className="text-[12px] text-[var(--color-ink-muted)] text-center py-5 m-0">
-            Aucune mission prévue aujourd&apos;hui.
-          </p>
-        ) : (
-          <ul className="m-0 p-0 list-none divide-y divide-[var(--color-sand-mid)]">
-            {visible.map((iv) => {
-              const time = fmtTime(iv.creneau_debut);
-              const dot = techDotColor(iv.technicien_id);
-              const techLabel = iv.technicien
-                ? [iv.technicien.prenom, iv.technicien.nom].filter(Boolean).join(' ').trim()
-                : null;
-              const adresse = [iv.acp?.adresse, iv.acp?.ville].filter(Boolean).join(', ');
-              const isPending = iv.statut !== 'confirmee';
+      {visible.length === 0 ? (
+        <p className="fx-card-row fx-meta text-center py-6 m-0">Aucune mission prévue aujourd&apos;hui.</p>
+      ) : (
+        <ul className="m-0 p-0 list-none">
+          {visible.map((iv) => {
+            const time = fmtTime(iv.creneau_debut);
+            const dot = techDotColor(iv.technicien_id);
+            const techLabel = iv.technicien
+              ? [iv.technicien.prenom, iv.technicien.nom].filter(Boolean).join(' ').trim()
+              : null;
+            const adresse = [iv.acp?.adresse, iv.acp?.ville].filter(Boolean).join(', ');
+            const demandeur = iv.acp?.nom ?? iv.particulier_contact?.nom ?? null;
+            const isPending = iv.statut !== 'confirmee';
 
-              const inner = (
-                <div className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[var(--color-sand-hover)]">
-                  <span
-                    className="font-sora text-[11px] font-semibold tabular-nums flex-shrink-0"
-                    style={{ color: 'var(--color-navy)' }}
-                  >
-                    {time}
-                  </span>
-                  <span
-                    className="inline-block rounded-full flex-shrink-0"
-                    style={{ width: 8, height: 8, background: dot }}
-                    aria-hidden
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[12.5px] text-[var(--color-ink)] flex items-center gap-1.5 flex-wrap">
-                      {iv.ref && (
-                        <span
-                          className="font-sora text-[11px] font-semibold"
-                          style={{ color: 'var(--color-navy)', letterSpacing: '0.01em' }}
-                        >
-                          {iv.ref}
-                        </span>
-                      )}
-                      <span className="font-medium truncate">
-                        {iv.acp?.nom ?? iv.particulier_contact?.nom ?? '—'}
-                      </span>
-                    </div>
-                    <div className="text-[10.5px] text-[var(--color-ink-muted)] truncate mt-0.5">
-                      {adresse || (iv.type ?? '—')}
-                      {techLabel && <span className="ml-1.5">· {techLabel}</span>}
-                      {iv.type && adresse && <span className="ml-1.5">· {iv.type}</span>}
-                    </div>
+            const inner = (
+              <div className="fx-card-row flex items-center gap-3 hover:bg-sand-hover">
+                <span className="fx-time">{time}</span>
+                <span
+                  className={`w-[3px] self-stretch min-h-[34px] rounded-sm shrink-0 ${isPending ? 'bg-amber-foxo' : 'bg-ok'}`}
+                  aria-hidden
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="fx-body font-medium truncate">{adresse || demandeur || '—'}</div>
+                  <div className="fx-meta truncate flex items-center gap-1.5">
+                    <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: dot }} aria-hidden />
+                    {iv.type && <span>{iv.type}</span>}
+                    {iv.ref && <><span aria-hidden>·</span><span className="fx-ref">{iv.ref}</span></>}
+                    {demandeur && adresse && <><span aria-hidden>·</span><span className="truncate">{demandeur}</span></>}
+                    {techLabel && <><span aria-hidden>·</span><span className="truncate">{techLabel}</span></>}
                   </div>
-                  <span
-                    className="text-[9px] font-semibold uppercase tracking-[0.1em] px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0"
-                    style={
-                      isPending
-                        ? { background: 'var(--color-amber-light)', color: 'var(--color-amber-foxo)' }
-                        : { background: 'var(--color-ok-light)', color: 'var(--color-ok)' }
-                    }
-                  >
-                    {isPending ? 'En attente' : 'Confirmé'}
-                  </span>
                 </div>
-              );
+                <span className={`fx-pill ${isPending ? 'fx-pill-amber' : 'fx-pill-ok'}`}>
+                  {isPending ? 'En attente' : 'Confirmé'}
+                </span>
+              </div>
+            );
 
-              return (
-                <li key={iv.id}>
-                  {onOpenIntervention ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenIntervention(iv.id)}
-                      className="w-full text-left bg-transparent border-0 cursor-pointer block"
-                    >
-                      {inner}
-                    </button>
-                  ) : (
-                    <Link
-                      href={`/admin/interventions/${iv.id}`}
-                      className="block"
-                    >
-                      {inner}
-                    </Link>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {overflow > 0 && (
-          <div className="px-4 py-2 text-[11px] text-[var(--color-ink-muted)] italic text-center border-t border-[var(--color-sand-mid)]">
-            +{overflow} autre{overflow > 1 ? 's' : ''} mission{overflow > 1 ? 's' : ''} aujourd&apos;hui — utilise la liste complète plus bas.
-          </div>
-        )}
-      </div>
-    </div>
+            return (
+              <li key={iv.id}>
+                {onOpenIntervention ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenIntervention(iv.id)}
+                    className="w-full text-left bg-transparent border-0 cursor-pointer block"
+                  >
+                    {inner}
+                  </button>
+                ) : (
+                  <Link href={`/admin/interventions/${iv.id}`} className="block">
+                    {inner}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {overflow > 0 && (
+        <div className="fx-card-row fx-meta text-center">
+          +{overflow} autre{overflow > 1 ? 's' : ''} mission{overflow > 1 ? 's' : ''} aujourd&apos;hui — voir la liste complète plus bas.
+        </div>
+      )}
+    </section>
   );
 }

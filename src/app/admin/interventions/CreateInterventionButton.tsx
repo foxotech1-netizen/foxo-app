@@ -11,7 +11,17 @@ import { Plus } from 'lucide-react';
 import type { Utilisateur } from '@/lib/types/database';
 import { ColdInterventionModal } from './ColdInterventionModal';
 
-export function CreateInterventionButton({ techs }: { techs: Utilisateur[] }) {
+export function CreateInterventionButton({
+  techs,
+  label = 'Créer une intervention',
+  variante = 'navy',
+}: {
+  techs: Utilisateur[];
+  /** Libellé du bouton (« Nouvelle intervention » sur le tableau de bord). */
+  label?: string;
+  /** primaire = bouton ambre de la maquette ; navy = bouton secondaire marine. */
+  variante?: 'primaire' | 'navy';
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -20,9 +30,9 @@ export function CreateInterventionButton({ techs }: { techs: Utilisateur[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-bold bg-navy text-white hover:opacity-90 min-h-[40px]"
+        className={variante === 'primaire' ? 'fx-btn-primary' : 'fx-btn-small fx-btn-small-navy'}
       >
-        <Plus size={15} /> Créer une intervention
+        <Plus size={15} aria-hidden /> {label}
       </button>
       {open && (
         <ColdInterventionModal

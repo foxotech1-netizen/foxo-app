@@ -70,6 +70,16 @@ export function TopbarSearch() {
     return () => clearTimeout(timer);
   }, [query]);
 
+  // « Mode appel » (tableau de bord) → focus sur la recherche universelle.
+  useEffect(() => {
+    function onFocusSearch() {
+      inputRef.current?.focus();
+      setOpen(true);
+    }
+    window.addEventListener('foxo:focus-search', onFocusSearch);
+    return () => window.removeEventListener('foxo:focus-search', onFocusSearch);
+  }, []);
+
   // Ctrl+K / Cmd+K → focus, Échap → fermeture.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -111,13 +121,13 @@ export function TopbarSearch() {
   const showDropdown = open && query.trim().length >= MIN_CHARS;
 
   return (
-    <header className="sticky top-0 z-40 bg-[var(--color-sand)]/95 backdrop-blur border-b border-[var(--color-sand-border)] px-6 py-2.5">
+    <header className="fx-topbar sticky top-0 z-40 bg-[var(--color-sand)]/95 backdrop-blur border-b border-[var(--color-sand-border)] px-6 py-2.5">
       <div ref={containerRef} className="relative max-w-[600px]">
         <div className="relative">
           <Search
             size={15}
             aria-hidden
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-ink-muted)] pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-mid pointer-events-none"
           />
           <input
             ref={inputRef}
@@ -127,7 +137,7 @@ export function TopbarSearch() {
             onFocus={() => setOpen(true)}
             placeholder="Rechercher : nom, téléphone, adresse, référence…"
             aria-label="Recherche globale"
-            className="w-full pl-9 pr-16 py-2 bg-cream border border-sand-border rounded-lg text-[13px] text-ink outline-none focus:border-navy-mid placeholder:text-ink-muted placeholder:italic"
+            className="fx-body w-full pl-9 pr-16 py-2 bg-cream border border-sand-border rounded-lg text-ink outline-none focus:border-navy-mid placeholder:text-ink-muted placeholder:italic"
           />
           <span className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
             {state === 'loading' && (
@@ -136,24 +146,22 @@ export function TopbarSearch() {
                 className="w-3.5 h-3.5 rounded-full border-2 border-[var(--color-sand-border)] border-t-[var(--color-navy)] animate-spin"
               />
             )}
-            <kbd className="hidden md:inline text-[9px] font-mono font-bold text-ink-muted border border-sand-border rounded px-1 py-0.5 bg-sand">
-              Ctrl K
-            </kbd>
+            <kbd className="fx-kbd hidden md:inline-flex">Ctrl K</kbd>
           </span>
         </div>
 
         {showDropdown && (
           <div className="absolute left-0 right-0 top-full mt-1.5 bg-cream border border-sand-border rounded-xl shadow-lg overflow-hidden max-h-[70vh] overflow-y-auto z-50">
             {state === 'error' && (
-              <p className="px-4 py-3 text-[12px] font-semibold text-terra">
+              <p className="fx-label px-4 py-3 font-semibold text-terra">
                 Recherche indisponible — réessayez.
               </p>
             )}
             {state === 'done' && results && isEmpty(results) && (
-              <p className="px-4 py-3 text-[12px] text-ink-muted italic">Aucun résultat</p>
+              <p className="fx-meta px-4 py-3 text-ink-mid italic">Aucun résultat</p>
             )}
             {state === 'loading' && !results && (
-              <p className="px-4 py-3 text-[12px] text-ink-muted italic">Recherche…</p>
+              <p className="fx-meta px-4 py-3 text-ink-mid italic">Recherche…</p>
             )}
 
             {results && !isEmpty(results) && (
@@ -161,8 +169,8 @@ export function TopbarSearch() {
                 <Group label="Interventions" count={results.interventions.length}>
                   {results.interventions.map((iv) => (
                     <Row key={iv.id} onClick={() => go(`/admin/interventions/${iv.id}`)}>
-                      <span className="font-mono text-[11px] font-bold text-navy shrink-0">{iv.ref ?? '—'}</span>
-                      <span className="text-[12px] text-ink-mid truncate flex-1">
+                      <span className="fx-small fx-ref font-semibold text-navy shrink-0">{iv.ref ?? '—'}</span>
+                      <span className="fx-meta text-ink-mid truncate flex-1">
                         {iv.adresse ?? iv.type ?? ''}
                         {iv.reference_externe ? ` · ${iv.reference_externe}` : ''}
                       </span>
@@ -173,12 +181,12 @@ export function TopbarSearch() {
                 <Group label="Occupants" count={results.occupants.length}>
                   {results.occupants.map((o) => (
                     <Row key={o.id} onClick={() => go(`/admin/interventions/${o.intervention_id}`)}>
-                      <span className="text-[12px] font-bold text-ink shrink-0">
+                      <span className="fx-label font-semibold text-ink shrink-0">
                         {[o.prenom, o.nom].filter(Boolean).join(' ') || '—'}
                       </span>
-                      {o.telephone && <span className="font-mono text-[11px] text-ink-mid shrink-0">{o.telephone}</span>}
-                      {o.appartement && <span className="text-[11px] text-ink-muted shrink-0">Apt. {o.appartement}</span>}
-                      <span className="font-mono text-[10px] text-ink-muted truncate ml-auto">
+                      {o.telephone && <span className="fx-small tabular-nums text-ink-mid shrink-0">{o.telephone}</span>}
+                      {o.appartement && <span className="fx-small text-ink-mid shrink-0">Apt. {o.appartement}</span>}
+                      <span className="fx-small tabular-nums text-ink-mid truncate ml-auto">
                         {o.intervention_ref ?? ''}
                       </span>
                     </Row>
@@ -187,11 +195,11 @@ export function TopbarSearch() {
                 <Group label="Clients" count={results.clients.length}>
                   {results.clients.map((c) => (
                     <Row key={c.id} onClick={() => go(`/admin/clients/${c.id}`)}>
-                      <span className="text-[12px] font-bold text-ink truncate">{c.nom}</span>
-                      <span className="text-[11px] text-ink-muted shrink-0">
+                      <span className="fx-label font-semibold text-ink truncate">{c.nom}</span>
+                      <span className="fx-small text-ink-mid shrink-0">
                         {[c.type, c.ville].filter(Boolean).join(' · ')}
                       </span>
-                      {c.bce && <span className="font-mono text-[10px] text-ink-muted ml-auto shrink-0">{c.bce}</span>}
+                      {c.bce && <span className="fx-small tabular-nums text-ink-mid ml-auto shrink-0">{c.bce}</span>}
                     </Row>
                   ))}
                 </Group>
@@ -200,8 +208,8 @@ export function TopbarSearch() {
                     // La fiche /admin/clients/[id] résout aussi un id d'ACP
                     // (repli clients.acp_id — client miroir 2026-05-30).
                     <Row key={a.id} onClick={() => go(`/admin/clients/${a.id}`)}>
-                      <span className="text-[12px] font-bold text-ink truncate">{a.nom}</span>
-                      <span className="text-[11px] text-ink-muted truncate ml-auto">
+                      <span className="fx-label font-semibold text-ink truncate">{a.nom}</span>
+                      <span className="fx-small text-ink-mid truncate ml-auto">
                         {[a.adresse, a.ville].filter(Boolean).join(', ')}
                       </span>
                     </Row>
@@ -210,9 +218,9 @@ export function TopbarSearch() {
                 <Group label="Organisations" count={results.organisations.length}>
                   {results.organisations.map((org) => (
                     <Row key={org.id} onClick={() => go('/admin/syndics')}>
-                      <span className="text-[12px] font-bold text-ink truncate">{org.nom}</span>
-                      <span className="text-[11px] text-ink-muted shrink-0 capitalize">{org.type ?? ''}</span>
-                      {org.email && <span className="font-mono text-[10px] text-ink-muted ml-auto truncate">{org.email}</span>}
+                      <span className="fx-label font-semibold text-ink truncate">{org.nom}</span>
+                      <span className="fx-small text-ink-mid shrink-0 capitalize">{org.type ?? ''}</span>
+                      {org.email && <span className="fx-small tabular-nums text-ink-mid ml-auto truncate">{org.email}</span>}
                     </Row>
                   ))}
                 </Group>
@@ -231,7 +239,7 @@ function Group({ label, count, children }: { label: string; count: number; child
   if (count === 0) return null;
   return (
     <div className="border-b border-sand-mid last:border-b-0">
-      <div className="px-4 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand">
+      <div className="fx-eyebrow px-4 pt-2.5 pb-1 font-semibold text-ink-mid bg-sand">
         {label}
       </div>
       {children}
