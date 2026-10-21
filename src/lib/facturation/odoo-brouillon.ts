@@ -83,7 +83,8 @@ export interface PreparationBrouillon {
     nouveau: NouveauClient;
   };
   saisie: SaisieBrouillon;
-  catalogue: { produits: ProduitOdoo[]; taux: number[] };
+  /** `frequents` : identifiants des produits les plus utilisés, du plus au moins fréquent. */
+  catalogue: { produits: ProduitOdoo[]; taux: number[]; frequents: number[] };
   /** Raison pour laquelle on ne crée PAS de brouillon (déjà un, déjà facturé). */
   blocage: string | null;
   ecriture_active: boolean;
@@ -154,7 +155,7 @@ function decouperAdresse(adresse: string | null): { ligne: string | null; code_p
 // ─── Catalogue Odoo (produits, taxes), mémorisé dix minutes ─────────────────
 
 interface TaxeOdoo { id: number; nom: string; taux: number }
-interface Catalogue { taxes: TaxeOdoo[]; produits: ProduitOdoo[]; produitParDefaut: number | null; expire: number }
+interface Catalogue { taxes: TaxeOdoo[]; produits: ProduitOdoo[]; produitParDefaut: number | null; frequents: number[]; expire: number }
 
 const catalogueCache = new Map<number, Catalogue>();
 
@@ -203,8 +204,10 @@ async function lireCatalogue(ctx: ContexteOdoo): Promise<Catalogue> {
     }))
     .filter((p) => p.id > 0 && p.nom);
 
-  // Produit par défaut = le plus utilisé sur les dernières factures de vente.
+  // Produits les plus utilisés sur les dernières factures de vente ; le
+  // premier sert de produit par défaut.
   let produitParDefaut: number | null = null;
+  let frequents: number[] = [];
   try {
     const lignes = await lireJournalise<Ligne[]>(ctx, 'account.move.line', 'search_read', {
       domain: [
@@ -222,14 +225,14 @@ async function lireCatalogue(ctx: ContexteOdoo): Promise<Catalogue> {
       const id = idDe(l.product_id);
       if (id != null && produits.some((p) => p.id === id)) compte.set(id, (compte.get(id) ?? 0) + 1);
     }
-    for (const [id, n] of compte) {
-      if (produitParDefaut === null || n > (compte.get(produitParDefaut) ?? 0)) produitParDefaut = id;
-    }
+    frequents = [...compte.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+    produitParDefaut = frequents[0] ?? null;
   } catch {
     produitParDefaut = null;
+    frequents = [];
   }
 
-  const catalogue: Catalogue = { taxes, produits, produitParDefaut, expire: Date.now() + CACHE_TTL_MS };
+  const catalogue: Catalogue = { taxes, produits, produitParDefaut, frequents, expire: Date.now() + CACHE_TTL_MS };
   catalogueCache.set(ctx.societeOdoo, catalogue);
   return catalogue;
 }
@@ -266,6 +269,7 @@ interface DossierCharge {
   client_id: string | null;
   reference_externe: string | null;
   reference_sinistre: string | null;
+  assureur_nom: string | null;
   client_nom: string | null;
   client_email: string | null;
   client_adresse: string | null;
@@ -287,7 +291,7 @@ async function chargerDossier(ctx: ContexteOdoo, interventionId: string): Promis
   if (error || !iv) throw new Error('Dossier introuvable.');
   const row = iv as unknown as {
     id: string; ref: string | null; acp_id: string | null; client_id: string | null;
-    reference_externe: string | null; assureur: { reference_sinistre?: string | null } | null;
+    reference_externe: string | null; assureur: { nom?: string | null; reference_sinistre?: string | null } | null;
     acp: { nom: string | null } | { nom: string | null }[] | null;
   };
   const ref = texte(row.ref);
@@ -312,6 +316,7 @@ async function chargerDossier(ctx: ContexteOdoo, interventionId: string): Promis
     client_id: row.client_id,
     reference_externe: texte(row.reference_externe),
     reference_sinistre: texte(row.assureur?.reference_sinistre),
+    assureur_nom: texte(row.assureur?.nom),
     client_nom: partie.data.client_nom,
     client_email: partie.data.client_email,
     client_adresse: partie.data.client_adresse,
@@ -451,8 +456,13 @@ function nouveauClientDepuis(dossier: DossierCharge): NouveauClient {
 
 function composerNote(dossier: DossierCharge): string {
   const blocs: string[] = [];
+  // « RÉF. ETTIK 2026-0846 » : la référence du courtier/syndic, précédée de
+  // son nom quand on le connaît.
   if (dossier.reference_externe) blocs.push(`RÉF. ${dossier.reference_externe}`);
-  else if (dossier.reference_sinistre) blocs.push(`RÉF. SINISTRE ${dossier.reference_sinistre}`);
+  else if (dossier.reference_sinistre) {
+    const qui = dossier.assureur_nom ? dossier.assureur_nom.toUpperCase() : 'SINISTRE';
+    blocs.push(`RÉF. ${qui} ${dossier.reference_sinistre}`);
+  }
 
   const lieu = [dossier.adresse_intervention, dossier.acp_nom].filter(Boolean).join(' – ');
   if (lieu) blocs.push(lieu);
@@ -516,7 +526,7 @@ export async function preparerBrouillon(interventionId: string, appelePar: strin
       lignes,
       note: composerNote(dossier) || null,
     },
-    catalogue: { produits: catalogue.produits, taux: tauxDisponibles },
+    catalogue: { produits: catalogue.produits, taux: tauxDisponibles, frequents: catalogue.frequents },
     blocage,
     ecriture_active: await odooEcritureActive(ctx.admin),
     odoo_url: hote ? `https://${hote}` : null,

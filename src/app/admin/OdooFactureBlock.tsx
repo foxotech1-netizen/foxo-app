@@ -1,16 +1,20 @@
 'use client';
 
 // Bloc « Facture Odoo » d'un dossier : la ou les pièces Odoo reliées à ce
-// dossier (miroir odoo_factures, lien posé par la synchronisation), en
-// LECTURE SEULE. Rien n'est modifiable ici : pour corriger une pièce, on
-// l'ouvre dans Odoo. Même habillage que les blocs du dossier
-// (cf. Block dans InterventionsClient).
+// dossier (miroir odoo_factures, lien posé par la synchronisation), plus les
+// brouillons créés depuis FoxO (odoo_brouillons). Les pièces validées sont en
+// LECTURE SEULE : pour corriger une pièce, on l'ouvre dans Odoo. La seule
+// action est « Créer un brouillon dans Odoo » (formulaire BrouillonOdooForm),
+// proposée quand le dossier n'a ni facture validée ni brouillon en attente.
+// Même habillage que les blocs du dossier (cf. Block dans InterventionsClient).
 
-import { useEffect, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { ExternalLink, Plus } from 'lucide-react';
 import { CLASSES_TON, etatFacture, type TonEtat } from '@/lib/facturation/odoo-libelles';
 import { TZ_BRUSSELS } from '@/lib/format';
 import { facturesOdooDuDossier, type FactureOdooDossier, type FacturesOdooDossier } from './facturation/odoo/actions';
+import { brouillonsDuDossier, type BrouillonDossier, type BrouillonsDossier } from './facturation/odoo/brouillon-actions';
+import { BrouillonOdooForm } from './BrouillonOdooForm';
 
 // Date calendaire AAAA-MM-JJ → JJ/MM/AAAA, sans passer par un fuseau.
 function fmtJour(d: string | null): string {
@@ -57,6 +61,13 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
   // Réponse du serveur, étiquetée par le dossier demandé : tant que
   // l'étiquette ne correspond pas, on est en cours de chargement.
   const [reponse, setReponse] = useState<{ pour: string; res: FacturesOdooDossier } | null>(null);
+  const [brouillons, setBrouillons] = useState<{ pour: string; res: BrouillonsDossier } | null>(null);
+  // Dossier pour lequel le formulaire est ouvert : un changement de dossier
+  // le referme de lui-même (aucun effet nécessaire).
+  const [dossierDuFormulaire, setDossierDuFormulaire] = useState<string | null>(null);
+  const formulaireOuvert = dossierDuFormulaire === interventionId;
+  // Incrémenté pour relire le bloc (après création d'un brouillon).
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let actif = true;
@@ -65,10 +76,26 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
       .catch((e: unknown) => {
         if (actif) setReponse({ pour: interventionId, res: { ok: false, erreur: e instanceof Error ? e.message : 'lecture impossible' } });
       });
+    brouillonsDuDossier(interventionId)
+      .then((res) => { if (actif) setBrouillons({ pour: interventionId, res }); })
+      .catch((e: unknown) => {
+        if (actif) setBrouillons({ pour: interventionId, res: { ok: false, erreur: e instanceof Error ? e.message : 'lecture impossible' } });
+      });
     return () => { actif = false; };
-  }, [interventionId]);
+  }, [interventionId, version]);
+
+  const relire = useCallback(() => setVersion((v) => v + 1), []);
 
   const res = reponse?.pour === interventionId ? reponse.res : null;
+  const resB = brouillons?.pour === interventionId ? brouillons.res : null;
+  const enAttente: BrouillonDossier[] = resB && resB.ok ? resB.brouillons.filter((b) => b.etat === 'brouillon') : [];
+  // Le bouton n'apparaît que sans facture validée (hors note de crédit) et
+  // sans brouillon en attente ; le serveur refait la même vérification.
+  const peutCreer = Boolean(
+    res && res.ok && resB && resB.ok
+    && res.factures.every((f) => f.est_note_credit)
+    && enAttente.length === 0,
+  );
 
   return (
     <div
@@ -89,7 +116,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
           <span className="text-terra font-semibold">Lecture impossible : {res.erreur}</span>
         )}
 
-        {res && res.ok && res.factures.length === 0 && (
+        {res && res.ok && res.factures.length === 0 && enAttente.length === 0 && (
           <span className="text-ink-mid">Aucune facture pour ce dossier dans Odoo.</span>
         )}
 
@@ -121,6 +148,55 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
             </div>
           );
         })}
+
+        {resB && !resB.ok && (
+          <div className="text-terra font-semibold">Brouillons illisibles : {resB.erreur}</div>
+        )}
+
+        {enAttente.map((b, i) => (
+          <div key={b.id} className={i > 0 || (res && res.ok && res.factures.length > 0) ? 'mt-2 pt-2 border-t border-sand-border' : undefined} data-testid="odoo-brouillon-attente">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Pastille ton="partiel">Brouillon dans Odoo</Pastille>
+              <span className="text-ink-mid">sans numéro</span>
+              <span className="ml-auto font-semibold tabular-nums whitespace-nowrap">
+                {typeof b.montant_ttc === 'number' ? `${fmtMontant(b.montant_ttc)} TTC` : '—'}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[12px] text-ink-mid">
+              <span>Créé depuis FoxO le {fmtMoment(b.cree_le)} · référence « {b.reference} »</span>
+              {b.odoo_url && (
+                <a href={b.odoo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline whitespace-nowrap">
+                  Ouvrir dans Odoo <ExternalLink size={12} aria-hidden />
+                </a>
+              )}
+            </div>
+            <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-navy-pale text-[12px] text-ink-mid">
+              À faire dans Odoo : vérifier, valider, envoyer. Une fois validée, la facture apparaît ici avec son numéro à la synchronisation suivante.
+            </div>
+          </div>
+        ))}
+
+        {peutCreer && !formulaireOuvert && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setDossierDuFormulaire(interventionId)}
+              className="bg-navy text-white px-3.5 rounded-lg text-[13px] font-bold hover:opacity-90 inline-flex items-center gap-2 min-h-[44px]"
+              data-testid="odoo-brouillon-ouvrir"
+            >
+              <Plus size={15} aria-hidden /> Créer un brouillon dans Odoo
+            </button>
+            <span className="text-[12px] text-ink-mid">Pré-rempli depuis ce dossier. Le brouillon reste sans numéro : tu le vérifies, le valides et l&apos;envoies depuis Odoo.</span>
+          </div>
+        )}
+
+        {formulaireOuvert && (
+          <BrouillonOdooForm
+            interventionId={interventionId}
+            onFerme={() => setDossierDuFormulaire(null)}
+            onCree={relire}
+          />
+        )}
 
         {res && res.ok && (
           <div className="mt-2 text-[11px] text-ink-mid">
