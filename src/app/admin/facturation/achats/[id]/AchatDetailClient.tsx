@@ -514,7 +514,7 @@ export function AchatDetailClient({
                 <div className="fx-label flex items-start gap-2 text-terra-ink font-semibold">
                   <ShieldAlert size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
                   <span>
-                    ⚠️ L&apos;IBAN de cette facture diffère de celui enregistré pour ce fournisseur
+                    L&apos;IBAN de cette facture diffère de celui enregistré pour ce fournisseur
                     (<span className="tabular-nums">{formatIban(ficheIbanNorm)}</span>). Fraude au virement
                     possible : vérifiez par téléphone auprès d&apos;un contact connu avant de payer.
                   </span>
@@ -785,7 +785,7 @@ export function AchatDetailClient({
             </p>
             {achat.statut === 'payee' && (
               <p className="fx-label font-semibold text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2">
-                ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.
+                Attention : cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.
               </p>
             )}
             <div className="flex gap-2 pt-1">

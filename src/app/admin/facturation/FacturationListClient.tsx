@@ -307,7 +307,7 @@ export function FacturationListClient({
                 {c.label}
                 <span
                   className={'fx-badge font-semibold px-1.5 py-0 rounded-full ' +
-                    (active ? 'bg-white/20 text-cream' : 'bg-sand-mid text-ink-mid')
+                    (active ? 'bg-cream/20 text-cream' : 'bg-sand-mid text-ink-mid')
                   }
                 >
                   {count}

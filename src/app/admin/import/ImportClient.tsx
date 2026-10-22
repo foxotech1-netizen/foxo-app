@@ -167,7 +167,7 @@ export function ImportClient() {
           const f = e.target.files?.[0];
           if (f) void handleFile(f);
         }}
-        className="fx-meta w-full file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-white file:font-bold file:cursor-pointer"
+        className="fx-meta w-full file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-cream file:font-semibold file:cursor-pointer"
       />
       {fileName && (
         <div className="fx-small text-ink-mid">

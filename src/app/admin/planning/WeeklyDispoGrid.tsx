@@ -656,15 +656,15 @@ function Row({
         if (conflit) {
           cellClass += 'bg-amber-light cursor-not-allowed text-amber-deep ';
         } else if (locked) {
-          cellClass += 'bg-navy/40 cursor-not-allowed text-white/70 ';
+          cellClass += 'bg-navy/40 cursor-not-allowed text-cream/70 ';
         } else if (on && existing) {
-          cellClass += 'bg-navy hover:brightness-110 cursor-pointer text-white/90 ';
+          cellClass += 'bg-navy hover:brightness-110 cursor-pointer text-cream/90 ';
         } else if (willCreate) {
           cellClass += 'bg-navy-light/60 hover:brightness-110 cursor-pointer text-navy border-2 border-navy-mid ';
         } else if (willDelete) {
           cellClass += 'bg-amber-light hover:brightness-95 cursor-pointer text-amber-ink border-2 border-[var(--color-amber-foxo)]/30 ';
         } else {
-          cellClass += 'bg-white hover:bg-sand-hover cursor-pointer ';
+          cellClass += 'bg-cream hover:bg-sand-hover cursor-pointer ';
         }
         return (
           <button

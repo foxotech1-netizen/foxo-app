@@ -454,7 +454,7 @@ export function AchatsListClient({
                         <div className="fx-small flex items-start gap-1.5 text-terra-ink bg-terra-light border border-terra-mid rounded px-2 py-1.5 font-semibold">
                           <ShieldAlert size={13} aria-hidden className="flex-shrink-0 mt-0.5" />
                           <span>
-                            ⚠️ IBAN différent de la fiche fournisseur
+                            IBAN différent de la fiche fournisseur
                             (<span className="tabular-nums">{formatIban(preview.fournisseur_fiche_iban)}</span>) —
                             fraude au virement possible, vérifiez avant de payer.
                           </span>
@@ -541,7 +541,7 @@ export function AchatsListClient({
         title={`Supprimer la facture d'achat ${toDelete?.fournisseur_nom ?? toDelete?.numero_piece ?? ''} ?`}
         message={ 'Le justificatif reste archivé sur Drive.'
           + (toDelete?.statut === 'payee'
-            ? ' ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.'
+            ? ' Attention : cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.'
             : '')
         }
         confirmLabel="Supprimer"
@@ -580,7 +580,7 @@ export function AchatsListClient({
                 const f = e.target.files?.[0];
                 if (f) void handleUpload(f);
               }}
-              className="fx-meta w-full file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-white file:font-bold file:cursor-pointer"
+              className="fx-meta w-full file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-cream file:font-semibold file:cursor-pointer"
             />
             {uploading && (
               <div className="fx-label flex items-center gap-2 text-ink-mid font-semibold">

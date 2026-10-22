@@ -398,7 +398,7 @@ export function BrouillonOdooForm({ interventionId, onFerme, onCree }: Props) {
                 return (
                   // Deux rangées par ligne : le volet du dossier est étroit, le
                   // produit prend toute la largeur, les chiffres passent dessous.
-                  <div key={i} className="rounded-lg border border-sand-border bg-white/60 p-2 space-y-2">
+                  <div key={i} className="rounded-lg border border-sand-border bg-cream/60 p-2 space-y-2">
                     <div className="flex items-end gap-2">
                       <div className="flex-1 min-w-0">
                         <label htmlFor={`bo-prod-${i}`} className={ETIQUETTE}>Produit Odoo{lignes.length > 1 ? ` — ligne ${i + 1}` : ''}</label>

@@ -822,7 +822,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               {f === 'a_traiter' && inboxUnread > 0 && (
                 <span
                   className={'fx-badge font-semibold px-1.5 py-0.5 rounded-full tabular-nums ' +
-                    (filter === f ? 'bg-white/25 text-cream' : 'bg-terra-light text-terra-ink')
+                    (filter === f ? 'bg-cream/25 text-cream' : 'bg-terra-light text-terra-ink')
                   }
                 >
                   {inboxUnread}
@@ -985,7 +985,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <span className="font-semibold truncate flex-1">{l.name}</span>
                       {l.messages_unread > 0 && (
                         <span className={'fx-badge font-semibold px-1.5 py-0.5 rounded-full ' +
-                          (active ? 'bg-white/25 text-cream' : 'bg-terra-light text-terra-ink')
+                          (active ? 'bg-cream/25 text-cream' : 'bg-terra-light text-terra-ink')
                         }>
                           {l.messages_unread}
                         </span>
@@ -1739,7 +1739,7 @@ function BulkBtn({
   color: 'navy' | 'navy-outline' | 'amber' | 'muted' | 'terra' | 'terra-soft';
   children: React.ReactNode;
 }) {
-  const className = { 'navy': 'bg-navy text-white border border-navy', 'navy-outline': 'bg-white text-navy border border-navy', 'amber': 'bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30', 'muted': 'bg-sand-mid text-ink-mid border border-sand-border', 'terra': 'bg-terra text-white border border-terra', 'terra-soft': 'bg-terra-light text-terra-ink border border-terra-mid',
+  const className = { 'navy': 'bg-navy text-cream border border-navy', 'navy-outline': 'bg-cream text-navy border border-navy', 'amber': 'bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30', 'muted': 'bg-sand-mid text-ink-mid border border-sand-border', 'terra': 'bg-terra-deep text-cream border border-terra-deep', 'terra-soft': 'bg-terra-light text-terra-ink border border-terra-mid',
   }[color];
   return (
     <button

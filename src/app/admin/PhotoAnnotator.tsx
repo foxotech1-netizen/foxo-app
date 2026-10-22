@@ -443,7 +443,7 @@ export default function PhotoAnnotator({
                   title={it.label}
                   aria-label={it.label}
                   onClick={() => { setTool(it.t); if (it.t !== 'select') setSelectedIdx(null); }}
-                  className={`rounded-lg p-1.5 ${tool === it.t ? 'bg-navy text-white' : 'bg-sand text-ink hover:bg-sand-border'}`}
+                  className={`rounded-lg p-1.5 ${tool === it.t ? 'bg-navy text-cream' : 'bg-sand text-ink hover:bg-sand-border'}`}
                 >
                   <Icon size={16} />
                 </button>
@@ -470,7 +470,7 @@ export default function PhotoAnnotator({
                 key={st.label}
                 type="button"
                 onClick={() => setSw(st.sw)}
-                className={`fx-label rounded-lg px-2 py-1.5 font-semibold ${sw === st.sw ? 'bg-navy text-white' : 'bg-sand text-ink hover:bg-sand-border'}`}
+                className={`fx-label rounded-lg px-2 py-1.5 font-semibold ${sw === st.sw ? 'bg-navy text-cream' : 'bg-sand text-ink hover:bg-sand-border'}`}
               >
                 {st.label}
               </button>
