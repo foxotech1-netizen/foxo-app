@@ -5,48 +5,11 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import PhotoAnnotator, { type Annotation } from './PhotoAnnotator';
 import {
-  AlertTriangle,
-  Banknote,
-  BarChart3,
-  Building2,
-  Calendar,
-  CalendarClock,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronsUpDown,
-  ChevronUp,
-  ClipboardList,
-  FileEdit,
-  FileText,
-  HelpCircle,
-  Home,
-  Inbox,
-  Lightbulb,
-  Link2,
-  Mail,
-  MapPin,
-  Megaphone,
-  MessageCircle,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Save,
-  Search,
-  Send,
-  Shield,
-  Smartphone,
-  Sparkles,
-  Trash2,
-  User,
-  Users,
-  UserX,
-  X,
-  XCircle,
-  Zap,
-  type LucideIcon,
+  AlertTriangle, Banknote, BarChart3, Building2, Calendar, CalendarClock, Check, CheckCircle2, ChevronDown, ChevronsUpDown, ChevronUp, ClipboardList, FileEdit, FileText, HelpCircle, Home, Inbox, Lightbulb, Link2, Mail, MapPin, Megaphone, MessageCircle, Pencil, Plus, RefreshCw, Save, Search, Send, Shield, Smartphone, Sparkles, Trash2, User, Users, UserX, X, XCircle, Zap, type LucideIcon, Bell, Phone,
 } from 'lucide-react';
 import type { DashboardData } from './page';
+import { INTERVENTION_COLORS } from '@/lib/interventions/couleurs';
+import { CreateInterventionButton } from './interventions/CreateInterventionButton';
 import { Dashboard, DashboardTechs } from './Dashboard';
 import {
   STATUT_INFO,
@@ -130,7 +93,8 @@ function Badge({ statut, big = false }: { statut: StatutIntervention; big?: bool
   const info = STATUT_INFO[statut];
   return (
     <span
-      className="inline-block rounded-full font-semibold whitespace-nowrap"
+      className="statut-badge inline-block rounded-full font-semibold whitespace-nowrap"
+      data-statut={statut}
       style={{
         color: info.fg,
         background: info.bg,
@@ -147,8 +111,8 @@ function Pipebar({ statut }: { statut: StatutIntervention }) {
   if (statut === 'en_suspens') {
     return (
       <div className="flex gap-0.5 mt-1.5 items-center">
-        <div className="h-[3px] flex-1 rounded-md bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)]" />
-        <span className="text-[9px] text-terra font-bold ml-1.5 whitespace-nowrap font-mono">
+        <div className="h-[3px] flex-1 rounded-lg bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)]" />
+        <span className="fx-small text-terra-ink font-semibold ml-1.5 whitespace-nowrap tabular-nums">
           EN SUSPENS
         </span>
       </div>
@@ -160,7 +124,7 @@ function Pipebar({ statut }: { statut: StatutIntervention }) {
       {STATUT_PIPELINE.map((p, i) => (
         <div
           key={p}
-          className="h-[3px] flex-1 rounded-md"
+          className="h-[3px] flex-1 rounded-lg"
           style={{ background: i <= idx ? STATUT_INFO[p].fg : 'var(--color-sand-border)' }}
         />
       ))}
@@ -215,7 +179,7 @@ export function InterventionsClient({
   );
 
   // Source de temps SSR-stable. Initialisée avec la valeur serveur pour
-  // que le SSR et la 1ʳᵉ hydratation produisent le même HTML (React #418).
+  // que le SSR et la 1ʳᵉ hydratation produisent le même HTML (erreur React 418).
   // Mise à jour côté client après mount + chaque minute pour rafraîchir
   // les "il y a Xh" relatifs.
   const [nowMs, setNowMs] = useState<number>(() => Date.parse(serverNowIso));
@@ -1297,6 +1261,16 @@ export function InterventionsClient({
     });
   }
 
+  // En-tête du tableau de bord : alertes (même règle que le badge de la
+  // sidebar) et rendez-vous du jour, calculés sur les lignes déjà chargées.
+  const nbAlertes = rows.filter((r) => r.statut === 'en_suspens' || (r.statut === 'nouvelle' && !r.technicien_id)).length;
+  const nbRdvJour = rows.filter((r) => {
+    if (!r.creneau_debut || r.statut === 'cloturee') return false;
+    const d = new Date(r.creneau_debut);
+    const t = new Date(nowMs);
+    return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+  }).length;
+
   return (
     <>
       {smsModal && selected && (
@@ -1353,7 +1327,7 @@ export function InterventionsClient({
             <h3 className="fxs-section-title text-[var(--color-ink)] mb-1.5">
               Relancer les occupants de ce dossier ?
             </h3>
-            <p className="text-[13px] text-[var(--color-ink-mid)] leading-relaxed mb-4">
+            <p className="fx-body text-[var(--color-ink-mid)] leading-relaxed mb-4">
               Une demande de confirmation va être renvoyée par email / SMS aux occupants
               {relanceConfirm.ref ? ` du dossier ${relanceConfirm.ref}` : ''}. De vrais messages seront envoyés.
             </p>
@@ -1361,14 +1335,14 @@ export function InterventionsClient({
               <button
                 type="button"
                 onClick={() => setRelanceConfirm(null)}
-                className="px-3 py-2 rounded-lg text-xs font-medium text-[var(--color-ink-mid)] hover:bg-[var(--color-sand)]"
+                className="fx-label px-3 py-2 rounded-lg font-medium text-[var(--color-ink-mid)] hover:bg-[var(--color-sand)]"
               >
                 Annuler
               </button>
               <button
                 type="button"
                 onClick={() => relanceOccupants(relanceConfirm.id)}
-                className="px-3 py-2 rounded-lg text-xs font-bold bg-[var(--color-navy)] text-white inline-flex items-center gap-1.5"
+                className="fx-label px-3 py-2 rounded-lg font-semibold bg-[var(--color-navy)] text-cream inline-flex items-center gap-1.5"
               >
                 <Send size={14} />Relancer les occupants
               </button>
@@ -1381,51 +1355,74 @@ export function InterventionsClient({
       {!fullPage && (
       <>
       {!listOnly && (
-      <div className="px-6 pt-6 flex flex-wrap items-end justify-between gap-3 pb-3.5 border-b border-[var(--color-sand-border)] flex-shrink-0">
-        <div>
-          <h1 className="fxs-page-title mb-1">
-            Tableau de bord
-          </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide capitalize">
-            <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-            {new Date(nowMs).toLocaleDateString('fr-BE', {
-              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-            })}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="px-6 pt-6 flex-shrink-0 space-y-4">
+        {/* Rangée d'actions : création, mode appel (recherche universelle de
+            la barre du haut), alertes, filtres actifs. */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <CreateInterventionButton techs={techs} label="Nouvelle intervention" variante="primaire" />
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('foxo:focus-search'))}
+            className="fx-btn-secondary"
+          >
+            <Phone size={15} aria-hidden /> Mode appel
+          </button>
           {techFilterName && (
-            <div className="bg-[var(--color-amber-foxo)] text-[var(--color-cream)] rounded-full px-3 py-1.5 text-[11px] font-medium flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5"><Search size={12} />Filtré : {techFilterName}</span>
-              <button
-                type="button"
-                onClick={() => router.push('/admin')}
-                className="hover:opacity-70 leading-none"
-                title="Retirer le filtre"
-              >
-                <X size={14} />
+            <span className="fx-pill fx-pill-amber">
+              <Search size={12} aria-hidden />Filtré : {techFilterName}
+              <button type="button" onClick={() => router.push('/admin')} className="leading-none hover:opacity-70" title="Retirer le filtre" aria-label="Retirer le filtre">
+                <X size={13} aria-hidden />
               </button>
-            </div>
+            </span>
           )}
           {recentResponsesFilter && (
-            <div className="bg-[var(--color-terra)] text-[var(--color-cream)] rounded-full px-3 py-1.5 text-[11px] font-medium flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5"><Inbox size={12} />Réponses occupants &lt; 48 h ({recentResponseIvIds.size})</span>
-              <button
-                type="button"
-                onClick={() => router.push('/admin')}
-                className="hover:opacity-70 leading-none"
-                title="Retirer le filtre"
-              >
-                <X size={14} />
+            <span className="fx-pill fx-pill-terra">
+              <Inbox size={12} aria-hidden />Réponses occupants &lt; 48 h ({recentResponseIvIds.size})
+              <button type="button" onClick={() => router.push('/admin')} className="leading-none hover:opacity-70" title="Retirer le filtre" aria-label="Retirer le filtre">
+                <X size={13} aria-hidden />
               </button>
-            </div>
+            </span>
           )}
+          <Link
+            href="/admin/alertes"
+            className="fx-icon-btn ml-auto"
+            aria-label={nbAlertes > 0 ? `${nbAlertes} alerte${nbAlertes > 1 ? 's' : ''}` : 'Alertes'}
+            title="Alertes"
+          >
+            <Bell size={17} aria-hidden />
+            {nbAlertes > 0 && <span className="fx-alert-dot" data-fx-overlay aria-hidden />}
+          </Link>
         </div>
+
+        {/* En-tête de page */}
+        <div className="fx-page-head">
+          <div>
+            <h1 className="fx-h1">Tableau de <span>bord</span></h1>
+            <div className="fx-meta mt-2 flex flex-wrap items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-navy" aria-hidden />
+              <span className="capitalize">
+                {new Date(nowMs).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+              <span aria-hidden>·</span>
+              <span>{nbRdvJour} RDV aujourd&apos;hui</span>
+            </div>
+          </div>
+        </div>
+
+        {nbAlertes > 0 && (
+          <div className="fx-banner" role="status">
+            <span className="fx-ico fx-ico-light-terra-solid"><AlertTriangle size={15} aria-hidden /></span>
+            <span className="flex-1 min-w-[180px]">
+              <strong className="font-semibold">{nbAlertes} dossier{nbAlertes > 1 ? 's' : ''} en alerte</strong> : en suspens ou sans technicien.
+            </span>
+            <Link href="/admin/alertes" className="fx-link text-terra-ink whitespace-nowrap">Voir les alertes →</Link>
+          </div>
+        )}
       </div>
       )}
 
       {loadError && (
-        <div className="mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold flex-shrink-0">
+        <div className="fx-label mx-6 mt-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold flex-shrink-0">
           Connexion à la base limitée : {loadError}
         </div>
       )}
@@ -1451,15 +1448,15 @@ export function InterventionsClient({
       {/* Section 4 : Liste des interventions */}
       <div className="px-6 pt-5 flex-shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-          <h3 className="text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] dark:text-[#C8C2B8]">
+          <h3 className="fx-eyebrow font-medium text-ink-mid">
             {statutFilterLabel
-              ? <>Interventions — <span className="text-[var(--color-navy)] dark:text-[#A8C4F2]">{statutFilterLabel}</span> ({filtered.length})</>
+              ? <>Interventions — <span className="text-[var(--color-navy)]">{statutFilterLabel}</span> ({filtered.length})</>
               : `Toutes les interventions (${filtered.length})`}
           </h3>
           {statutFilterLabel && (
             <a
               href={techFilter ? `/admin?tech=${techFilter}` : '/admin'}
-              className="text-[11px] text-[var(--color-navy)] underline hover:no-underline inline-flex items-center gap-1 dark:text-[#A8C4F2]"
+              className="fx-small text-[var(--color-navy)] underline hover:no-underline inline-flex items-center gap-1"
             >
               <X size={12} />Effacer le filtre
             </a>
@@ -1469,12 +1466,8 @@ export function InterventionsClient({
           <button
             type="button"
             onClick={() => router.push('/admin')}
-            className={
-              'px-3 py-1.5 rounded-md text-[12px] font-medium border transition-colors ' +
-              (!techFilter
-                ? 'bg-[var(--color-navy)] text-[var(--color-cream)] border-[var(--color-navy)]'
-                : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
-            }
+            className="fx-chip"
+            aria-pressed={!techFilter}
           >
             Tous
           </button>
@@ -1485,12 +1478,8 @@ export function InterventionsClient({
                 key={t.id}
                 type="button"
                 onClick={() => router.push(active ? '/admin' : `/admin?tech=${t.id}`)}
-                className={
-                  'px-3 py-1.5 rounded-md text-[12px] font-medium border transition-colors ' +
-                  (active
-                    ? 'bg-[var(--color-amber-foxo)] text-[var(--color-cream)] border-[var(--color-amber-foxo)]'
-                    : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-amber-foxo)]')
-                }
+                className="fx-chip"
+                aria-pressed={active}
               >
                 {[t.prenom, t.nom].filter(Boolean).join(' ') || t.email}
               </button>
@@ -1500,17 +1489,17 @@ export function InterventionsClient({
       </div>
 
       {/* Filtres recherche / statut */}
-      <div className="flex gap-2 px-6 pt-2 flex-shrink-0">
+      <div className="flex flex-wrap gap-2 px-6 pt-2 flex-shrink-0">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — référence, ACP, syndic, adresse…"
-          className="flex-1 px-3.5 py-2.5 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] outline-none focus:border-[var(--color-navy-mid)] transition-colors"
+          className="fx-meta flex-1 px-3.5 py-2.5 border border-[var(--color-sand-border)] rounded-lg bg-[var(--color-cream)] outline-none focus:border-[var(--color-navy-mid)] transition-colors"
         />
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as typeof filter)}
-          className="px-3 py-2.5 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] cursor-pointer outline-none focus:border-[var(--color-navy-mid)]"
+          className="fx-meta px-3 py-2.5 border border-[var(--color-sand-border)] rounded-lg bg-[var(--color-cream)] cursor-pointer outline-none focus:border-[var(--color-navy-mid)]"
         >
           <option value="tous">Tous statuts</option>
           {STATUT_PIPELINE.map((s) => (
@@ -1533,7 +1522,7 @@ export function InterventionsClient({
                   <th
                     key={col.label || `col-${i}`}
                     onClick={col.key ? () => toggleSort(col.key as SortKey) : undefined}
-                    className={`px-3.5 py-2.5 text-left text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] border-b border-[var(--color-sand-border)] whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-[var(--color-navy)]' : ''}`}
+                    className={`fx-eyebrow px-3.5 py-2.5 text-left font-medium text-ink-mid border-b border-[var(--color-sand-border)] whitespace-nowrap ${col.key ? 'cursor-pointer select-none hover:text-[var(--color-navy)]' : ''}`}
                   >
                     <span className="inline-flex items-center gap-1">
                       {col.label}
@@ -1552,7 +1541,7 @@ export function InterventionsClient({
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-12 text-[var(--color-ink-muted)] text-[13px]">
+                  <td colSpan={9} className="fx-body-dense text-center py-12 text-ink-mid">
                     Aucune intervention
                   </td>
                 </tr>
@@ -1576,11 +1565,11 @@ export function InterventionsClient({
                               title={`Couleur ${iv.color}`}
                             />
                           )}
-                          <div className="font-sora text-xs font-semibold text-[var(--color-navy)] tracking-[0.01em]">{iv.ref ?? '—'}</div>
+                          <div className="fx-label font-sora font-semibold text-[var(--color-navy)] tracking-[0.01em]">{iv.ref ?? '—'}</div>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); window.open(`/admin/interventions/${iv.id}`, '_blank'); }}
-                            className="text-[10px] text-[var(--color-ink-muted)]/40 hover:text-[var(--color-navy)] transition-colors"
+                            className="fx-small text-[var(--color-ink-muted)]/40 hover:text-[var(--color-navy)] transition-colors"
                             title="Ouvrir dans un nouvel onglet"
                             aria-label="Ouvrir dans un nouvel onglet"
                           >
@@ -1589,13 +1578,13 @@ export function InterventionsClient({
                         </div>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {iv.priorite === 'urgente' && (
-                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
+                            <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                               <Zap size={12} />URGENT
                             </span>
                           )}
                           {iv.source === 'mail' && (
                             <span
-                              className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)]"
+                              className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink"
                               title="Demande créée automatiquement depuis un mail entrant"
                             >
                               <Mail size={12} />Mail
@@ -1605,7 +1594,7 @@ export function InterventionsClient({
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); openDrawer(iv.id, 'historique'); }}
-                              className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5 hover:opacity-80 cursor-pointer transition-opacity"
+                              className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5 hover:opacity-80 cursor-pointer transition-opacity"
                               title={`${iv.recidive_count} intervention(s) similaire(s) sur cette ACP dans les 12 mois — voir Historique`}
                             >
                               <RefreshCw size={12} />Récidive ({iv.recidive_count})
@@ -1613,7 +1602,7 @@ export function InterventionsClient({
                           )}
                           {(iv.unread_messages_count ?? 0) > 0 && (
                             <span
-                              className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-cream)] bg-[var(--color-terra)] rounded-full px-1.5 py-0.5"
+                              className="fx-badge fx-badge-terra-solid inline-flex items-center gap-1"
                               title={`${iv.unread_messages_count} message(s) non lu(s) du partenaire`}
                             >
                               <MessageCircle size={12} />{iv.unread_messages_count}
@@ -1624,42 +1613,42 @@ export function InterventionsClient({
                       <td className="px-3.5 py-2.5">
                         {iv.acp ? (
                           <>
-                            <div className="font-medium text-[13px] text-[var(--color-ink)]">{iv.acp.nom}</div>
-                            <div className="text-[10px] text-[var(--color-ink-muted)] truncate max-w-[200px]">
+                            <div className="fx-body font-medium text-[var(--color-ink)]">{iv.acp.nom}</div>
+                            <div className="fx-small text-ink-mid truncate max-w-[200px]">
                               {[iv.acp.adresse, iv.acp.ville].filter(Boolean).join(', ') || '—'}
                             </div>
                           </>
                         ) : iv.source === 'mail' ? (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-amber-foxo)] bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5"
+                          <span className="fx-small inline-flex items-center gap-1 font-semibold text-amber-ink bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5"
                                 title="ACP non identifiée — associer manuellement dans le drawer">
                             <AlertTriangle size={12} />à associer
                           </span>
                         ) : (
-                          <span className="text-[var(--color-ink-muted)] text-[12px]">—</span>
+                          <span className="fx-meta text-ink-mid">—</span>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[11px] text-[var(--color-ink-mid)] whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-2.5 text-[var(--color-ink-mid)] whitespace-nowrap">
                         {iv.type ?? '—'}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <div className="text-xs font-medium text-[var(--color-ink)]">{iv.syndic?.nom ?? '—'}</div>
+                        <div className="fx-label font-medium text-[var(--color-ink)]">{iv.syndic?.nom ?? '—'}</div>
                         {iv.syndic?.type && <TypeBadge type={iv.syndic.type} className="mt-1" />}
                       </td>
-                      <td className="px-3.5 py-2.5 text-xs text-[var(--color-ink)]">
+                      <td className="fx-body-dense px-3.5 py-2.5 text-[var(--color-ink)]">
                         {iv.technicien ? (
                           <span>{(iv.technicien.prenom ?? '')[0]}. {iv.technicien.nom}</span>
                         ) : (
-                          <span className="text-[var(--color-terra)] font-semibold text-[11px]">Non assigné</span>
+                          <span className="fx-small text-terra-ink font-semibold">Non assigné</span>
                         )}
                       </td>
-                      <td className="px-3.5 py-2.5 text-[11px] text-[var(--color-ink-mid)] font-mono whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-2.5 text-[var(--color-ink-mid)] tabular-nums whitespace-nowrap">
                         {fmtDate(iv.creneau_debut)}
                       </td>
                       <td className="px-3.5 py-2.5">
                         <Badge statut={iv.statut} />
                         <Pipebar statut={iv.statut} />
                       </td>
-                      <td className="px-3.5 py-2.5 text-[10px] text-[var(--color-ink-muted)] font-mono whitespace-nowrap">
+                      <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                         {relTime(iv.updated_at, nowMs)}
                       </td>
                       <td className="px-2 py-2.5 text-right whitespace-nowrap">
@@ -1703,7 +1692,7 @@ export function InterventionsClient({
                               : relanceMsg?.id === iv.id
                                 ? (relanceMsg.kind === 'ok'
                                     ? <Check size={15} className="text-[var(--color-ok)]" />
-                                    : <XCircle size={15} className="text-[var(--color-terra)]" />)
+                                    : <XCircle size={15} className="text-terra-ink" />)
                                 : <Send size={15} />}
                           </button>
                         )}
@@ -1714,7 +1703,7 @@ export function InterventionsClient({
                             setRowDeleteErr(null);
                             setDeletingRow({ id: iv.id, ref: iv.ref });
                           }}
-                          className="text-[var(--color-ink-muted)]/40 hover:text-[var(--color-terra)] transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)] align-middle"
+                          className="text-[var(--color-ink-muted)]/40 hover:text-terra-ink transition-colors w-7 h-7 inline-flex items-center justify-center rounded hover:bg-[var(--color-terra-light)] align-middle"
                           title="Supprimer cette intervention"
                           aria-label="Supprimer cette intervention"
                         >
@@ -1732,7 +1721,7 @@ export function InterventionsClient({
         {/* Cards mobile (< 768px) — version condensée de chaque ligne */}
         <div className="md:hidden space-y-2">
           {sorted.length === 0 ? (
-            <div className="text-center py-12 text-[var(--color-ink-muted)] text-[13px] fxs-card">
+            <div className="fx-body text-center py-12 text-ink-mid fxs-card">
               Aucune intervention
             </div>
           ) : (
@@ -1744,8 +1733,7 @@ export function InterventionsClient({
                   key={iv.id}
                   type="button"
                   onClick={() => openDrawer(iv.id)}
-                  className={
-                    'w-full text-left fxs-card fxs-card-hover p-3 ' +
+                  className={'w-full text-left fxs-card fxs-card-hover p-3 ' +
                     (sel ? 'ring-2 ring-[var(--color-navy)]/20' : '')
                   }
                 >
@@ -1757,7 +1745,7 @@ export function InterventionsClient({
                           style={{ background: iv.color }}
                         />
                       )}
-                      <span className="font-sora text-[11px] font-semibold text-[var(--color-navy)] truncate tracking-[0.01em]">
+                      <span className="fx-small font-sora font-semibold text-[var(--color-navy)] truncate tracking-[0.01em]">
                         {iv.ref ?? '—'}
                       </span>
                     </div>
@@ -1770,51 +1758,51 @@ export function InterventionsClient({
                     || (iv.unread_messages_count ?? 0) > 0) && (
                     <div className="flex flex-wrap gap-1 mb-1.5">
                       {iv.priorite === 'urgente' && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
+                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                           <Zap size={12} />URGENT
                         </span>
                       )}
                       {iv.source === 'mail' && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)]">
+                        <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink">
                           <Mail size={12} />Mail
                         </span>
                       )}
                       {(iv.recidive_count ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
+                        <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-1.5 py-0.5">
                           <RefreshCw size={12} />Récidive ({iv.recidive_count})
                         </span>
                       )}
                       {(iv.unread_messages_count ?? 0) > 0 && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-cream)] bg-[var(--color-terra)] rounded-full px-1.5 py-0.5">
+                        <span className="fx-badge fx-badge-terra-solid inline-flex items-center gap-1">
                           <MessageCircle size={12} />{iv.unread_messages_count}
                         </span>
                       )}
                     </div>
                   )}
 
-                  <div className="text-[13px] font-medium text-[var(--color-ink)] truncate inline-flex items-center gap-1">
+                  <div className="fx-body font-medium text-[var(--color-ink)] truncate inline-flex items-center gap-1">
                     {iv.acp?.nom ?? (iv.source === 'mail' ? (<><AlertTriangle size={12} />ACP à associer</>) : '—')}
                   </div>
                   {adresse && (
-                    <div className="text-[10px] text-[var(--color-ink-muted)] truncate">{adresse}</div>
+                    <div className="fx-small text-ink-mid truncate">{adresse}</div>
                   )}
 
                   <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-[var(--color-sand-mid)]">
                     <div className="min-w-0">
-                      <div className="text-[9px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">Type</div>
-                      <div className="text-[11px] text-[var(--color-ink)] truncate">{iv.type ?? '—'}</div>
+                      <div className="fx-eyebrow font-medium text-ink-mid">Type</div>
+                      <div className="fx-small text-[var(--color-ink)] truncate">{iv.type ?? '—'}</div>
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[9px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">Tech</div>
-                      <div className="text-[11px] truncate text-[var(--color-ink)]">
+                      <div className="fx-eyebrow font-medium text-ink-mid">Tech</div>
+                      <div className="fx-small truncate text-[var(--color-ink)]">
                         {iv.technicien
                           ? `${(iv.technicien.prenom ?? '')[0]}. ${iv.technicien.nom ?? ''}`
-                          : <span className="text-[var(--color-terra)] font-semibold">Non assigné</span>}
+                          : <span className="text-terra-ink font-semibold">Non assigné</span>}
                       </div>
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <div className="text-[9px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em]">Créneau</div>
-                      <div className="text-[11px] font-mono text-[var(--color-ink)]">{fmtDate(iv.creneau_debut)}</div>
+                      <div className="fx-eyebrow font-medium text-ink-mid">Créneau</div>
+                      <div className="fx-small tabular-nums text-[var(--color-ink)]">{fmtDate(iv.creneau_debut)}</div>
                     </div>
                   </div>
                 </button>
@@ -1823,7 +1811,7 @@ export function InterventionsClient({
           )}
         </div>
 
-        <p className="text-[11px] text-[var(--color-ink-muted)] mt-2 px-0.5">
+        <p className="fx-small text-ink-mid mt-2 px-0.5">
           {filtered.length} intervention{filtered.length > 1 ? 's' : ''}
           {filtered.length !== rows.length ? ` sur ${rows.length}` : ''} · Cliquez une ligne pour ouvrir le détail
         </p>
@@ -1846,14 +1834,12 @@ export function InterventionsClient({
       {selected && (
         <div
           onClick={(e) => { if (!fullPage && e.target === e.currentTarget) closeDrawer(); }}
-          className={
-            fullPage
+          className={fullPage
               ? 'flex flex-col h-full bg-[var(--color-cream)]'
               : 'fixed inset-0 bg-[var(--color-navy-deep)]/45 z-50 flex justify-end'
           }
         >
-          <div className={
-            fullPage
+          <div className={fullPage
               ? 'w-full max-w-[1100px] mx-auto bg-[var(--color-cream)] flex-1 min-h-0 flex flex-col'
               : 'w-[460px] bg-[var(--color-cream)] h-screen shadow-overlay border-l border-[var(--color-sand-border)] flex flex-col'
           }>
@@ -1861,15 +1847,15 @@ export function InterventionsClient({
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex gap-2 items-center flex-wrap mb-0.5">
-                    <span className="font-sora text-xs font-semibold text-[var(--color-navy)] tracking-[0.01em]">{selected.ref ?? '—'}</span>
+                    <span className="fx-label font-sora font-semibold text-[var(--color-navy)] tracking-[0.01em]">{selected.ref ?? '—'}</span>
                     {selected.priorite === 'urgente' && (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-[var(--color-terra)] bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2 py-0.5">
+                      <span className="fx-badge inline-flex items-center gap-1 font-semibold text-terra-ink bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] rounded-full px-2 py-0.5">
                         <Zap size={12} />URGENT
                       </span>
                     )}
                   </div>
-                  <div className="font-sora text-base font-light tracking-tight text-[var(--color-ink)] mt-0.5">{selected.acp?.nom ?? '—'}</div>
-                  <div className="text-xs text-[var(--color-ink-mid)]">
+                  <div className="fx-body font-sora font-light tracking-tight text-[var(--color-ink)] mt-0.5">{selected.acp?.nom ?? '—'}</div>
+                  <div className="fx-meta text-[var(--color-ink-mid)]">
                     {[selected.acp?.adresse, selected.acp?.ville].filter(Boolean).join(', ')}
                   </div>
                 </div>
@@ -1878,7 +1864,7 @@ export function InterventionsClient({
                     <button
                       type="button"
                       onClick={() => window.open(`/admin/interventions/${selected.id}`, '_blank')}
-                      className="bg-[var(--color-sand-mid)] h-8 px-2 rounded-md text-[var(--color-ink-mid)] hover:bg-[var(--color-sand-border)] text-[12px] font-medium transition-colors"
+                      className="fx-label bg-[var(--color-sand-mid)] h-8 px-2 rounded-lg text-[var(--color-ink-mid)] hover:bg-[var(--color-sand-border)] font-medium transition-colors"
                       title="Ouvrir dans un nouvel onglet"
                       aria-label="Ouvrir dans un nouvel onglet"
                     >
@@ -1887,7 +1873,7 @@ export function InterventionsClient({
                   )}
                   <button
                     onClick={closeDrawer}
-                    className="bg-[var(--color-sand-mid)] h-8 px-2.5 rounded-md text-[var(--color-ink-mid)] hover:bg-[var(--color-sand-border)] text-[12px] font-medium inline-flex items-center justify-center transition-colors"
+                    className="fx-label bg-[var(--color-sand-mid)] h-8 px-2.5 rounded-lg text-[var(--color-ink-mid)] hover:bg-[var(--color-sand-border)] font-medium inline-flex items-center justify-center transition-colors"
                     title={fullPage ? 'Retour à la liste' : 'Fermer'}
                   >
                     {fullPage ? '← Retour' : <X size={14} />}
@@ -1897,7 +1883,7 @@ export function InterventionsClient({
               <div className="mt-3"><Pipebar statut={selected.statut} /></div>
               <div className="flex justify-between items-center mt-2 pb-4">
                 <Badge statut={selected.statut} big />
-                <span className="text-[11px] text-[var(--color-ink-muted)] font-mono">{relTime(selected.updated_at, nowMs)}</span>
+                <span className="fx-small text-ink-mid tabular-nums">{relTime(selected.updated_at, nowMs)}</span>
               </div>
             </header>
 
@@ -1909,7 +1895,7 @@ export function InterventionsClient({
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`py-2.5 px-4 text-xs font-medium capitalize border-b-2 transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
+                  className={`fx-label py-2.5 px-4 font-medium capitalize border-b-2 transition-colors whitespace-nowrap inline-flex items-center gap-1.5 ${
                     tab === t ? 'text-[var(--color-navy)] border-[var(--color-navy)]' : 'text-[var(--color-ink-muted)] border-transparent hover:text-[var(--color-ink-mid)]'
                   }`}
                 >
@@ -1933,17 +1919,16 @@ export function InterventionsClient({
                       ]} />
                       {/* Bandeau bleu : seulement statut='nouvelle' (intervention non encore traitée) */}
                       {selected.statut === 'nouvelle' && (
-                        <div className="bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-[12px] text-navy dark:bg-[#1A2540] dark:border-[#2C4878] dark:text-[#A8C4F2]">
-                          <div className="font-bold mb-1 inline-flex items-center gap-1.5"><Mail size={14} />Demande reçue par mail — à traiter</div>
+                        <div className="fx-meta bg-navy-pale border border-navy-light rounded-xl px-3 py-2.5 mb-3 text-navy">
+                          <div className="font-semibold mb-1 inline-flex items-center gap-1.5"><Mail size={14} />Demande reçue par mail — à traiter</div>
                           <DemandeurBadge
                             organisationId={selected.organisation_id}
                             clientId={selected.client_id}
                             referenceExterne={selected.reference_externe}
                           />
                           {reanalyzeMsg && (
-                            <div className={
-                              'mt-2 text-[11px] font-semibold ' +
-                              (reanalyzeMsg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+                            <div className={'fx-small mt-2 font-semibold ' +
+                              (reanalyzeMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                             }>
                               {reanalyzeMsg.msg}
                             </div>
@@ -1961,11 +1946,11 @@ export function InterventionsClient({
                         const text = fromCol ?? (m ? m[1].trim() : null);
                         if (!text) return null;
                         return (
-                          <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-                            <div className="font-bold mb-1 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
+                          <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3">
+                            <div className="font-semibold mb-1 text-amber-ink inline-flex items-center gap-1.5">
                               <ClipboardList size={14} />Action requise
                             </div>
-                            <div className="text-[var(--color-amber-foxo)] dark:text-[#F0D896]">{text}</div>
+                            <div className="text-amber-ink">{text}</div>
                           </div>
                         );
                       })()}
@@ -1982,20 +1967,19 @@ export function InterventionsClient({
                             type="button"
                             onClick={reanalyzeMail}
                             disabled={reanalyzePending}
-                            className="text-[12px] bg-navy text-white px-3 py-1.5 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+                            className="fx-label bg-navy text-cream px-3 py-1.5 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
                           >
                             <RefreshCw size={14} />
                             {reanalyzePending ? 'Analyse…' : 'Réanalyser le mail'}
                           </button>
                           {selected.statut !== 'nouvelle' && reanalyzeMsg && (
-                            <span className={
-                              'text-[11px] font-semibold ' +
-                              (reanalyzeMsg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')
+                            <span className={'fx-small font-semibold ' +
+                              (reanalyzeMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                             }>
                               {reanalyzeMsg.msg}
                             </span>
                           )}
-                          <span className="text-[10px] text-ink-muted font-mono dark:text-[#C8C2B8]">
+                          <span className="fx-small text-ink-mid tabular-nums">
                             mail id : {selected.source_mail_id.slice(0, 16)}…
                           </span>
                         </div>
@@ -2033,11 +2017,11 @@ export function InterventionsClient({
                   <Block id="section-infos" title={`Infos${selected.demandeur_type === 'particulier' ? ' particulier' : ''}`}>
                     <div className="space-y-2">
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Nom client</label>
+                        <label className="fx-eyebrow font-semibold text-ink-mid mb-1 block">Nom client</label>
                         <input
                           value={formDraft.nom_client}
                           onChange={(e) => setFormDraft((f) => ({ ...f, nom_client: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                          className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                         />
                       </div>
                       <div>
@@ -2055,31 +2039,31 @@ export function InterventionsClient({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Téléphone</label>
+                          <label className="fx-eyebrow font-semibold text-ink-mid mb-1 block">Téléphone</label>
                           <input
                             value={formDraft.telephone}
                             onChange={(e) => setFormDraft((f) => ({ ...f, telephone: e.target.value }))}
                             placeholder="+32 ..."
-                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                            className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid tabular-nums"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Email</label>
+                          <label className="fx-eyebrow font-semibold text-ink-mid mb-1 block">Email</label>
                           <input
                             type="email"
                             value={formDraft.email}
                             onChange={(e) => setFormDraft((f) => ({ ...f, email: e.target.value }))}
-                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid font-mono"
+                            className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid tabular-nums"
                           />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Type</label>
+                          <label className="fx-eyebrow font-semibold text-ink-mid mb-1 block">Type</label>
                           <select
                             value={formDraft.type}
                             onChange={(e) => setFormDraft((f) => ({ ...f, type: e.target.value }))}
-                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                            className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                           >
                             <option value="">— Choisir —</option>
                             <option value="Fuite canalisation">Fuite canalisation</option>
@@ -2090,11 +2074,11 @@ export function InterventionsClient({
                           </select>
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Priorité</label>
+                          <label className="fx-eyebrow font-semibold text-ink-mid mb-1 block">Priorité</label>
                           <select
                             value={formDraft.priorite}
                             onChange={(e) => setFormDraft((f) => ({ ...f, priorite: e.target.value as 'normale' | 'urgente' }))}
-                            className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                            className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                           >
                             <option value="normale">Normale</option>
                             <option value="urgente">Urgente</option>
@@ -2102,12 +2086,12 @@ export function InterventionsClient({
                         </div>
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 block dark:text-[#C8C2B8]">Notes / description</label>
+                        <label className="fx-eyebrow font-semibold text-ink-mid mb-1 block">Notes / description</label>
                         <textarea
                           value={formDraft.description}
                           onChange={(e) => setFormDraft((f) => ({ ...f, description: e.target.value }))}
                           rows={3}
-                          className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                          className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid resize-y"
                         />
                       </div>
                       <div className="flex items-center gap-2 pt-1">
@@ -2115,12 +2099,12 @@ export function InterventionsClient({
                           type="button"
                           onClick={saveForm}
                           disabled={formPending}
-                          className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+                          className="fx-label bg-navy text-cream px-3 py-1.5 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
                         >
                           {formPending ? '…' : (<><Save size={14} />Sauvegarder</>)}
                         </button>
                         {formMsg && (
-                          <span className={'text-[11px] font-semibold ' + (formMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                          <span className={'fx-small font-semibold ' + (formMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                             {formMsg.msg}
                           </span>
                         )}
@@ -2135,7 +2119,7 @@ export function InterventionsClient({
                         <div className="mb-2">
                           <Link
                             href={selected.syndic.type === 'syndic' ? `/admin/syndics?id=${selected.syndic.id}` : `/admin/clients?id=${selected.syndic.id}`}
-                            className="font-bold text-[13px] text-navy hover:underline dark:text-[#A8C4F2]"
+                            className="fx-body font-semibold text-navy hover:underline"
                           >
                             {selected.syndic.nom}
                           </Link>
@@ -2143,27 +2127,27 @@ export function InterventionsClient({
                         </div>
                       )}
                       {selected.delegue && (
-                        <div className="bg-white border border-sand-border rounded-md px-2.5 py-1.5 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                        <div className="fx-meta bg-cream border border-sand-border rounded-lg px-2.5 py-1.5">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-ink dark:text-[#F0ECE4]">
+                            <span className="font-semibold text-ink">
                               {[selected.delegue.prenom, selected.delegue.nom].filter(Boolean).join(' ') || selected.delegue.email}
                             </span>
                             {selected.source === 'mail' && (
-                              <span className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[var(--color-amber-foxo)]"
+                              <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1 py-0.5 rounded text-cream bg-[var(--color-amber-foxo)]"
                                     title="Délégué identifié automatiquement depuis le mail">
                                 <Mail size={10} />mail
                               </span>
                             )}
                           </div>
                           {(selected.delegue.email || selected.delegue.telephone) && (
-                            <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
+                            <div className="fx-small tabular-nums text-ink-mid mt-0.5 flex flex-wrap gap-2">
                               {selected.delegue.email && (
-                                <a href={`mailto:${selected.delegue.email}`} className="hover:text-navy inline-flex items-center gap-1 dark:hover:text-[#A8C4F2]">
+                                <a href={`mailto:${selected.delegue.email}`} className="hover:text-navy inline-flex items-center gap-1">
                                   <Mail size={12} />{selected.delegue.email}
                                 </a>
                               )}
                               {selected.delegue.telephone && (
-                                <a href={`tel:${selected.delegue.telephone}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
+                                <a href={`tel:${selected.delegue.telephone}`} className="hover:text-navy">
                                   {selected.delegue.telephone}
                                 </a>
                               )}
@@ -2249,33 +2233,33 @@ export function InterventionsClient({
                     if (!nom && !ass.email && !ass.telephone && !ass.reference_police && !ass.reference_sinistre) return null;
                     return (
                       <Block title={<span className="inline-flex items-center gap-1.5"><Shield size={12}/>Assurance</span>}>
-                        <div className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                        <div className="fx-meta bg-cream border border-sand-border rounded-lg px-2.5 py-2">
                           {nom && (
-                            <div className="font-bold text-ink dark:text-[#F0ECE4]">{nom}</div>
+                            <div className="font-semibold text-ink">{nom}</div>
                           )}
                           {(ass.email || ass.telephone) && (
-                            <div className="text-[11px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8] flex flex-wrap gap-2">
+                            <div className="fx-small tabular-nums text-ink-mid mt-0.5 flex flex-wrap gap-2">
                               {ass.email && (
-                                <a href={`mailto:${ass.email}`} className="hover:text-navy inline-flex items-center gap-1 dark:hover:text-[#A8C4F2]">
+                                <a href={`mailto:${ass.email}`} className="hover:text-navy inline-flex items-center gap-1">
                                   <Mail size={12} />{ass.email}
                                 </a>
                               )}
                               {ass.telephone && (
-                                <a href={`tel:${ass.telephone}`} className="hover:text-navy dark:hover:text-[#A8C4F2]">
+                                <a href={`tel:${ass.telephone}`} className="hover:text-navy">
                                   {ass.telephone}
                                 </a>
                               )}
                             </div>
                           )}
                           {ass.reference_sinistre && (
-                            <div className="text-[10px] font-mono text-ink-mid mt-1 dark:text-[#C8C2B8]">
-                              <span className="text-[9px] uppercase font-bold tracking-wider text-ink-muted">Sinistre : </span>
+                            <div className="fx-small tabular-nums text-ink-mid mt-1">
+                              <span className="fx-eyebrow font-semibold text-ink-mid">Sinistre : </span>
                               {ass.reference_sinistre}
                             </div>
                           )}
                           {ass.reference_police && (
-                            <div className="text-[10px] font-mono text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
-                              <span className="text-[9px] uppercase font-bold tracking-wider text-ink-muted">Réf. police : </span>
+                            <div className="fx-small tabular-nums text-ink-mid mt-0.5">
+                              <span className="fx-eyebrow font-semibold text-ink-mid">Réf. police : </span>
                               {ass.reference_police}
                             </div>
                           )}
@@ -2300,7 +2284,7 @@ export function InterventionsClient({
                       <select
                         value={pendingTechId}
                         onChange={(e) => setPendingTechId(e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                        className="fx-body flex-1 px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                       >
                         <option value="">— Non assigné —</option>
                         {techs.map((t) => (
@@ -2313,13 +2297,13 @@ export function InterventionsClient({
                         type="button"
                         onClick={applyAssignTech}
                         disabled={assignPending || (pendingTechId || '') === (selected.technicien?.id ?? '')}
-                        className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50"
+                        className="fx-label bg-navy text-cream px-3 py-1.5 rounded font-semibold disabled:opacity-50"
                       >
                         Assigner
                       </button>
                     </div>
                     {assignMessage && (
-                      <p className={'text-[11px] mt-1.5 font-semibold ' + (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                      <p className={'fx-small mt-1.5 font-semibold ' + (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                         {assignMessage.msg}
                       </p>
                     )}
@@ -2328,8 +2312,8 @@ export function InterventionsClient({
                   {/* ③ Créneau — picker */}
                   <Block id="section-creneau" title="Créneau">
                     {selected.creneau_debut && (
-                      <p className="text-[12px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
-                        Actuel : <strong className="text-ink dark:text-[#F0ECE4]">{fmtDate(selected.creneau_debut, true)}</strong>
+                      <p className="fx-meta text-ink-mid mb-2">
+                        Actuel : <strong className="text-ink">{fmtDate(selected.creneau_debut, true)}</strong>
                       </p>
                     )}
                     <div className="grid grid-cols-2 gap-2 mb-2">
@@ -2337,18 +2321,18 @@ export function InterventionsClient({
                         type="date"
                         value={scheduleDate}
                         onChange={(e) => { setScheduleDate(e.target.value); setScheduleCreneauId(null); }}
-                        className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                        className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                       />
                       <input
                         type="time"
                         value={scheduleHeure}
                         onChange={(e) => { setScheduleHeure(e.target.value); setScheduleCreneauId(null); }}
-                        className="w-full px-2.5 py-1.5 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid"
+                        className="fx-body w-full px-2.5 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                       />
                     </div>
                     {pendingTechId && availableCreneaux.length > 0 && (
                       <div className="mb-2">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1 dark:text-[#C8C2B8]">
+                        <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                           Ou choisir un créneau libre du tech
                         </div>
                         <div className="flex flex-wrap gap-1 max-h-[100px] overflow-y-auto">
@@ -2363,10 +2347,9 @@ export function InterventionsClient({
                                   setScheduleDate(cr.date);
                                   setScheduleHeure(cr.heure_debut.slice(0, 5));
                                 }}
-                                className={
-                                  'text-[10px] font-semibold px-2 py-1 rounded border ' +
+                                className={'fx-small font-semibold px-2 py-1 rounded border ' +
                                   (active
-                                    ? 'bg-navy text-white border-navy'
+                                    ? 'bg-navy text-cream border-navy'
                                     : 'bg-ok-light text-ok border-ok-mid hover:opacity-80')
                                 }
                               >
@@ -2381,12 +2364,12 @@ export function InterventionsClient({
                       type="button"
                       onClick={applySchedule}
                       disabled={schedulePending || !scheduleDate || !scheduleHeure}
-                      className="bg-navy text-white px-3 py-1.5 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+                      className="fx-label bg-navy text-cream px-3 py-1.5 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
                     >
                       {schedulePending ? '…' : (<><Calendar size={14} />Planifier</>)}
                     </button>
                     {scheduleMsg && (
-                      <p className={'text-[11px] mt-1.5 font-semibold ' + (scheduleMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                      <p className={'fx-small mt-1.5 font-semibold ' + (scheduleMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                         {scheduleMsg.msg}
                       </p>
                     )}
@@ -2445,20 +2428,20 @@ export function InterventionsClient({
                           const confLabel = o.conf === 'confirme' ? (<span className="inline-flex items-center gap-1"><CheckCircle2 size={12}/>Confirmé</span>)
                             : o.conf === 'decline' ? (<span className="inline-flex items-center gap-1"><XCircle size={12}/>Pas d&apos;accès</span>)
                             : (<span>En attente</span>);
-                          const confColor = o.conf === 'confirme' ? 'text-ok dark:text-[#7AC9A0]'
-                            : o.conf === 'decline' ? 'text-terra'
-                            : 'text-[var(--color-amber-foxo)] dark:text-[#E8C896]';
+                          const confColor = o.conf === 'confirme' ? 'text-ok'
+                            : o.conf === 'decline' ? 'text-terra-ink'
+                            : 'text-amber-ink';
                           // Marqueur "extrait du mail" posé par le cron
                           const fromMail = (o.instructions ?? '').includes('[extrait du mail]');
                           return (
-                            <div key={o.id} className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                            <div key={o.id} className="fx-meta bg-cream border border-sand-border rounded-lg px-2.5 py-2">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-bold text-ink dark:text-[#F0ECE4] flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-ink flex items-center gap-1.5 flex-wrap">
                                   {o.appartement ?? '—'}
-                                  {o.etage ? <span className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">· {o.etage}</span> : null}
+                                  {o.etage ? <span className="fx-small text-ink-mid">· {o.etage}</span> : null}
                                   {o.proposed_creneau_debut && (
                                     <span
-                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-[var(--color-navy-light)] text-[var(--color-navy)] border border-[var(--color-navy-light)] dark:bg-[#1B2554] dark:text-[#A8C4F2] dark:border-[#2A4078]"
+                                      className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1 py-0.5 rounded bg-[var(--color-navy-light)] text-[var(--color-navy)] border border-[var(--color-navy-light)]"
                                       title="L'occupant a proposé un autre créneau"
                                     >
                                       <RefreshCw size={10} />Propose: {new Date(o.proposed_creneau_debut).toLocaleString('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}
@@ -2466,7 +2449,7 @@ export function InterventionsClient({
                                   )}
                                   {o.type_occupant && (
                                     <span
-                                      className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                                      className="fx-small inline-block font-semibold px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid"
                                       title="Type d'occupant"
                                     >
                                       {TYPE_OCCUPANT_LABEL[o.type_occupant] ?? o.type_occupant}
@@ -2474,29 +2457,29 @@ export function InterventionsClient({
                                   )}
                                   {fromMail && (
                                     <span
-                                      className="inline-flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded text-white bg-[var(--color-amber-foxo)]"
+                                      className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1 py-0.5 rounded text-cream bg-[var(--color-amber-foxo)]"
                                       title="Occupant extrait automatiquement depuis les CC du mail"
                                     >
                                       <Mail size={10} />mail
                                     </span>
                                   )}
                                 </span>
-                                <span className={'text-[10px] font-bold whitespace-nowrap ' + confColor}>
+                                <span className={'fx-small font-semibold whitespace-nowrap ' + confColor}>
                                   {confLabel}
                                 </span>
                               </div>
                               {(o.prenom || o.nom) && (
-                                <div className="text-[12px] text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
+                                <div className="fx-meta text-ink-mid mt-0.5">
                                   {[o.prenom, o.nom].filter(Boolean).join(' ')}
                                 </div>
                               )}
                               {(o.email || o.telephone) && (
-                                <div className="text-[10px] font-mono text-ink-muted mt-0.5 dark:text-[#C8C2B8]">
+                                <div className="fx-small tabular-nums text-ink-mid mt-0.5">
                                   {[o.email, o.telephone].filter(Boolean).join(' · ')}
                                 </div>
                               )}
                               {o.instructions && !fromMail && (
-                                <div className="text-[11px] text-ink-mid italic mt-1 dark:text-[#C8C2B8]">
+                                <div className="fx-small text-ink-mid italic mt-1">
                                   {o.instructions}
                                 </div>
                               )}
@@ -2505,7 +2488,7 @@ export function InterventionsClient({
                                   <button
                                     type="button"
                                     onClick={() => acceptCounterProposal(o)}
-                                    className="text-[10px] bg-ok text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
+                                    className="fx-small bg-ok text-cream px-2 py-1 rounded font-semibold hover:opacity-90 inline-flex items-center gap-1"
                                     title="Reprogrammer l'intervention sur le créneau proposé par l'occupant"
                                   >
                                     <CheckCircle2 size={12} />Accepter la proposition
@@ -2515,7 +2498,7 @@ export function InterventionsClient({
                                   <button
                                     type="button"
                                     onClick={() => confirmOccupantManuel(o.id)}
-                                    className="text-[10px] bg-ok text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
+                                    className="fx-small bg-ok text-cream px-2 py-1 rounded font-semibold hover:opacity-90 inline-flex items-center gap-1"
                                     title="Marquer cet occupant comme confirmé (confirmation reçue par SMS ou appel)"
                                   >
                                     <CheckCircle2 size={12} />Marquer confirmé
@@ -2524,7 +2507,7 @@ export function InterventionsClient({
                                 <button
                                   type="button"
                                   onClick={() => startEditOccupant(o)}
-                                  className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                                  className="fx-small bg-sand-mid text-ink-mid px-2 py-1 rounded font-semibold hover:opacity-90 inline-flex items-center gap-1"
                                 >
                                   <Pencil size={12} />Modifier
                                 </button>
@@ -2538,7 +2521,7 @@ export function InterventionsClient({
                                       templateKey: 'sms_template_lien_occupant',
                                       preferredChannel: o.contact_preference ?? null,
                                     })}
-                                    className="text-[10px] bg-[var(--color-amber-foxo)] text-white px-2 py-1 rounded font-bold hover:opacity-90 inline-flex items-center gap-1"
+                                    className="fx-small bg-[var(--color-amber-foxo)] text-cream px-2 py-1 rounded font-semibold hover:opacity-90 inline-flex items-center gap-1"
                                   >
                                     <Smartphone size={12} />SMS lien
                                   </button>
@@ -2562,7 +2545,7 @@ export function InterventionsClient({
                           <button
                             type="button"
                             onClick={startAddOccupant}
-                            className="w-full text-[12px] bg-sand-mid text-navy border border-sand-border border-dashed rounded-md px-2.5 py-2 font-bold hover:bg-sand-hover inline-flex items-center justify-center gap-1.5 dark:bg-[rgba(255,255,255,.04)] dark:border-[#3D3A32] dark:text-[#A8C4F2]"
+                            className="fx-label w-full bg-sand-mid text-navy border border-sand-border border-dashed rounded-lg px-2.5 py-2 font-semibold hover:bg-sand-hover inline-flex items-center justify-center gap-1.5"
                           >
                             <Plus size={14} />Ajouter un occupant
                           </button>
@@ -2574,7 +2557,7 @@ export function InterventionsClient({
                   {/* ④ Notifier les occupants — multicanal */}
                   {selected.creneau_debut && drawerOccupants.length > 0 && (
                     <Block title={<span className="inline-flex items-center gap-1.5"><Inbox size={12}/>Notifier les occupants</span>}>
-                      <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                      <p className="fx-small text-ink-mid mb-2">
                         Envoie un lien de confirmation à chaque occupant via le canal préféré
                         (email / SMS / WhatsApp). Décoche pour exclure.
                       </p>
@@ -2587,7 +2570,7 @@ export function InterventionsClient({
                             : Mail;
                           const sentAt = o.token_sent_at;
                           return (
-                            <label key={o.id} className="flex items-center gap-2 bg-white border border-sand-border rounded-md px-2 py-1.5 text-[12px] cursor-pointer dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]">
+                            <label key={o.id} className="fx-label flex items-center gap-2 bg-cream border border-sand-border rounded-lg px-2 py-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -2601,12 +2584,12 @@ export function InterventionsClient({
                                 className="w-4 h-4 accent-[var(--color-navy)]"
                               />
                               <PrefIcon size={14} className="flex-shrink-0" />
-                              <span className="font-bold flex-1 truncate">
+                              <span className="font-semibold flex-1 truncate">
                                 {[o.prenom, o.nom].filter(Boolean).join(' ') || 'Occupant'}
-                                {o.appartement && <span className="text-ink-muted font-normal ml-1.5">· {o.appartement}</span>}
+                                {o.appartement && <span className="text-ink-mid font-normal ml-1.5">· {o.appartement}</span>}
                               </span>
                               {sentAt && (
-                                <span className="text-[9px] text-ok font-bold whitespace-nowrap inline-flex items-center gap-0.5" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS })}`}>
+                                <span className="fx-small text-ok font-semibold whitespace-nowrap inline-flex items-center gap-0.5" title={`Envoyé ${new Date(sentAt).toLocaleString('fr-BE', { timeZone: TZ_BRUSSELS })}`}>
                                   <Check size={10} />envoyé
                                 </span>
                               )}
@@ -2618,12 +2601,12 @@ export function InterventionsClient({
                         type="button"
                         onClick={notifyOccupants}
                         disabled={notifyPending || notifySelectedIds.size === 0}
-                        className="bg-navy text-white px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+                        className="fx-label bg-navy text-cream px-3 py-2 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
                       >
                         {notifyPending ? '…' : (<><Send size={14} />Envoyer ({notifySelectedIds.size})</>)}
                       </button>
                       {notifyMsg && (
-                        <p className={'text-[11px] mt-1.5 font-semibold ' + (notifyMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        <p className={'fx-small mt-1.5 font-semibold ' + (notifyMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                           {notifyMsg.msg}
                         </p>
                       )}
@@ -2633,19 +2616,19 @@ export function InterventionsClient({
                   {/* ⑤ Confirmation client */}
                   {selected.creneau_debut && (selected.particulier_contact?.email || selected.particulier_contact?.mandant?.email) && (
                     <Block id="section-confirmation" title={<span className="inline-flex items-center gap-1.5"><Send size={12}/>Confirmation client</span>}>
-                      <p className="text-[11px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                      <p className="fx-small text-ink-mid mb-2">
                         Envoie un récapitulatif (date, heure, adresse, technicien) au demandeur via Gmail.
                       </p>
                       <button
                         type="button"
                         onClick={sendConfirmMail}
                         disabled={confirmMailPending}
-                        className="bg-[var(--color-ok)] text-[var(--color-cream)] px-3 py-2 rounded text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+                        className="fx-label bg-[var(--color-ok)] text-[var(--color-cream)] px-3 py-2 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
                       >
                         {confirmMailPending ? 'Envoi…' : (<><Send size={14} />Envoyer confirmation au client</>)}
                       </button>
                       {confirmMailMsg && (
-                        <p className={'text-[11px] mt-1.5 font-semibold ' + (confirmMailMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        <p className={'fx-small mt-1.5 font-semibold ' + (confirmMailMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                           {confirmMailMsg.msg}
                         </p>
                       )}
@@ -2654,26 +2637,26 @@ export function InterventionsClient({
 
                   {selected.statut === 'en_suspens' && selected.suspens_motif && (
                     <div className="bg-terra-light border border-terra-mid rounded-lg p-3.5 mb-3">
-                      <div className="text-[10px] font-bold text-terra uppercase tracking-wider mb-2">
+                      <div className="fx-eyebrow font-semibold text-terra-ink mb-2">
                         Motif suspension
                       </div>
-                      <div className="text-[13px] text-terra">{selected.suspens_motif}</div>
+                      <div className="fx-body text-terra-ink">{selected.suspens_motif}</div>
                     </div>
                   )}
 
                   {/* Suppression — visible uniquement pour statuts précoces */}
                   {(selected.statut === 'nouvelle' || selected.statut === 'attente' || selected.statut === 'en_suspens') && (
-                    <div className="mt-6 pt-4 border-t border-sand-border dark:border-[#3D3A32]">
+                    <div className="mt-6 pt-4 border-t border-sand-border">
                       <button
                         type="button"
                         onClick={() => { setDeleteConfirmOpen(true); setDeleteMsg(null); }}
-                        className="w-full bg-terra text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                        className="fx-label w-full bg-terra text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                         style={{ background: 'var(--color-terra)' }}
                       >
                         <Trash2 size={14} />Supprimer cette intervention
                       </button>
                       {deleteMsg && (
-                        <p className={'text-[11px] mt-1.5 font-semibold ' + (deleteMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                        <p className={'fx-small mt-1.5 font-semibold ' + (deleteMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                           {deleteMsg.msg}
                         </p>
                       )}
@@ -2687,19 +2670,19 @@ export function InterventionsClient({
                   <Block title="Technicien assigné">
                     {selected.technicien ? (
                       <div className="flex items-center gap-2 mb-3 bg-navy-pale border border-navy-light rounded-lg px-3 py-2">
-                        <div className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-[11px] font-bold flex-shrink-0">
+                        <div className="fx-small w-8 h-8 rounded-full bg-navy text-cream flex items-center justify-center font-semibold flex-shrink-0">
                           {((selected.technicien.prenom ?? '')[0] ?? '').toUpperCase() +
                             ((selected.technicien.nom ?? '')[0] ?? '').toUpperCase()}
                         </div>
                         <div>
-                          <div className="text-[13px] font-bold text-navy">
+                          <div className="fx-body font-semibold text-navy">
                             {selected.technicien.prenom} {selected.technicien.nom}
                           </div>
-                          <div className="text-[10px] text-navy/70">Actuellement assigné</div>
+                          <div className="fx-small text-navy/70">Actuellement assigné</div>
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-[12px] text-terra font-semibold mb-3 inline-flex items-center gap-1.5">
+                      <div className="fx-label bg-terra-light border border-terra-mid rounded-lg px-3 py-2 text-terra-ink font-semibold mb-3 inline-flex items-center gap-1.5">
                         <AlertTriangle size={14} />Aucun technicien assigné
                       </div>
                     )}
@@ -2707,7 +2690,7 @@ export function InterventionsClient({
                     <select
                       value={pendingTechId}
                       onChange={(e) => setPendingTechId(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-sand-border bg-sand text-xs"
+                      className="fx-meta w-full px-3 py-2.5 rounded-lg border border-sand-border bg-sand"
                     >
                       <option value="">— Non assigné —</option>
                       {techs.map((t) => (
@@ -2723,15 +2706,14 @@ export function InterventionsClient({
                         assignPending ||
                         (pendingTechId || '') === (selected.technicien?.id ?? '')
                       }
-                      className="w-full mt-2.5 bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                      className="fx-label w-full mt-2.5 bg-navy text-cream py-2.5 rounded-lg font-semibold disabled:opacity-50"
                     >
                       {assignPending ? 'Assignation…' : 'Assigner'}
                     </button>
 
                     {assignMessage && (
-                      <p className={
-                        'text-xs mt-2 font-semibold ' +
-                        (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                      <p className={'fx-label mt-2 font-semibold ' +
+                        (assignMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                       }>
                         {assignMessage.msg}
                       </p>
@@ -2742,7 +2724,7 @@ export function InterventionsClient({
                     <select
                       value={pendingStatut}
                       onChange={(e) => setPendingStatut(e.target.value as StatutIntervention)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-sand-border bg-sand text-xs"
+                      className="fx-meta w-full px-3 py-2.5 rounded-lg border border-sand-border bg-sand"
                     >
                       {STATUT_PIPELINE.map((s) => (
                         <option key={s} value={s}>{STATUT_INFO[s].label}</option>
@@ -2755,18 +2737,18 @@ export function InterventionsClient({
                         onChange={(e) => setSuspensMotif(e.target.value)}
                         placeholder="Motif de suspension…"
                         rows={3}
-                        className="w-full mt-2 px-3 py-2 rounded-lg border border-sand-border bg-sand text-xs"
+                        className="fx-meta w-full mt-2 px-3 py-2 rounded-lg border border-sand-border bg-sand"
                       />
                     )}
                     <button
                       onClick={applyStatus}
                       disabled={pending || pendingStatut === selected.statut}
-                      className="w-full mt-2.5 bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50"
+                      className="fx-label w-full mt-2.5 bg-navy text-cream py-2.5 rounded-lg font-semibold disabled:opacity-50"
                     >
                       {pending ? 'Mise à jour…' : 'Appliquer le statut'}
                     </button>
                     {statusMessage && (
-                      <p className="text-xs mt-2 text-ok font-semibold">{statusMessage}</p>
+                      <p className="fx-label mt-2 text-ok font-semibold">{statusMessage}</p>
                     )}
                   </Block>
 
@@ -2778,19 +2760,19 @@ export function InterventionsClient({
                         <div className="mb-4 space-y-3">
                           {/* Date du rapport (cloture « Fait a …, le … ») — editable en brouillon. Vide = date du jour a la generation. */}
                           <div>
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">Date du rapport</div>
+                            <div className="fx-eyebrow font-semibold text-ink-mid mb-1">Date du rapport</div>
                             {rapportInfo.statut === 'brouillon' ? (
                               <>
                                 <input
                                   type="date"
                                   value={rapportDate}
                                   onChange={(e) => setRapportDate(e.target.value)}
-                                  className="px-2.5 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid"
+                                  className="fx-meta px-2.5 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                                 />
-                                <p className="text-[10px] text-ink-muted mt-1">Laisser vide = date du jour à la génération.</p>
+                                <p className="fx-small text-ink-mid mt-1">Laisser vide = date du jour à la génération.</p>
                               </>
                             ) : (
-                              <p className="text-[12px] text-ink bg-cream border border-sand-border rounded-lg px-2.5 py-2">
+                              <p className="fx-meta text-ink bg-cream border border-sand-border rounded-lg px-2.5 py-2">
                                 {rapportDate ? rapportDate.split('-').reverse().join('/') : 'Date du jour à la génération'}
                               </p>
                             )}
@@ -2802,17 +2784,17 @@ export function InterventionsClient({
                             { key: 'recommandations', label: 'Recommandations' },
                           ] as const).map((s) => (
                             <div key={s.key}>
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">{s.label}</div>
+                              <div className="fx-eyebrow font-semibold text-ink-mid mb-1">{s.label}</div>
                               {rapportInfo.statut === 'brouillon' && rapportEdit ? (
                                 <textarea
                                   value={rapportEdit[s.key]}
                                   onChange={(e) => setRapportEdit((cur) => cur ? { ...cur, [s.key]: e.target.value } : cur)}
                                   rows={3}
-                                  className="w-full px-2.5 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid leading-relaxed"
+                                  className="fx-meta w-full px-2.5 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid leading-relaxed"
                                   placeholder={`Aucun contenu pour « ${s.label} »`}
                                 />
                               ) : (
-                                <p className="text-[12px] text-ink whitespace-pre-wrap leading-relaxed bg-cream border border-sand-border rounded-lg px-2.5 py-2">
+                                <p className="fx-meta text-ink whitespace-pre-wrap leading-relaxed bg-cream border border-sand-border rounded-lg px-2.5 py-2">
                                   {(rapportInfo[s.key] ?? '').trim() || '—'}
                                 </p>
                               )}
@@ -2821,7 +2803,7 @@ export function InterventionsClient({
 
                           {/* Techniques d'inspection — 8 cases, éditables en brouillon */}
                           <div>
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">Techniques d&apos;inspection</div>
+                            <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">Techniques d&apos;inspection</div>
                             <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
                               {RAPPORT_TECHNIQUES.map((tech) => {
                                 const checked = rapportTech.has(tech.key);
@@ -2829,8 +2811,7 @@ export function InterventionsClient({
                                 return (
                                   <label
                                     key={tech.key}
-                                    className={
-                                      'flex items-center gap-1.5 text-[12px] ' +
+                                    className={'fx-label flex items-center gap-1.5 ' +
                                       (editable ? 'cursor-pointer text-ink' : 'text-ink-mid')
                                     }
                                   >
@@ -2858,7 +2839,7 @@ export function InterventionsClient({
                           {/* Galerie photos */}
                           {rapportPhotos.length > 0 && (
                             <div>
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+                              <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
                                 Photos ({rapportPhotos.length})
                               </div>
                               <div className="grid grid-cols-3 gap-2">
@@ -2874,12 +2855,12 @@ export function InterventionsClient({
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img src={p.annotated_url ?? p.url} alt={p.caption ?? p.filename ?? 'Photo'} className="w-full h-full object-cover group-hover:opacity-90" />
                                       {p.annotated_url && (
-                                        <span className="absolute left-1 top-1 rounded bg-navy/90 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white">Annotée</span>
+                                        <span className="fx-eyebrow absolute left-1 top-1 rounded bg-navy/90 px-1.5 py-0.5 font-semibold text-cream">Annotée</span>
                                       )}
-                                      <span className="absolute inset-x-0 bottom-0 bg-navy/80 py-0.5 text-center text-[9px] font-bold text-white opacity-0 group-hover:opacity-100">Annoter</span>
+                                      <span className="fx-small absolute inset-x-0 bottom-0 bg-navy/80 py-0.5 text-center font-semibold text-cream opacity-0 group-hover:opacity-100">Annoter</span>
                                     </div>
                                     {(p.caption || p.piece) && (
-                                      <div className="text-[9px] text-ink-muted mt-0.5 truncate">
+                                      <div className="fx-small text-ink-mid mt-0.5 truncate">
                                         {p.piece ? <span className="font-semibold">{p.piece}</span> : null}
                                         {p.piece && p.caption ? ' · ' : ''}
                                         {p.caption ?? ''}
@@ -2905,7 +2886,7 @@ export function InterventionsClient({
                             <button
                               onClick={saveRapportCorrections}
                               disabled={rapportSavePending}
-                              className="w-full bg-sand hover:bg-sand-mid text-ink border border-sand-border py-2 rounded-lg text-xs font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                              className="fx-label w-full bg-sand hover:bg-sand-mid text-ink border border-sand-border py-2 rounded-lg font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                             >
                               {rapportSavePending ? 'Enregistrement…' : (<><Save size={14} />Enregistrer les corrections</>)}
                             </button>
@@ -2916,7 +2897,7 @@ export function InterventionsClient({
                             <button
                               onClick={reopenRapport}
                               disabled={rapportReopenPending}
-                              className="w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                              className="fx-label w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                             >
                               {rapportReopenPending ? 'Réouverture…' : (<><RefreshCw size={14} />Repasser en brouillon</>)}
                             </button>
@@ -2928,14 +2909,14 @@ export function InterventionsClient({
                               href={`/api/admin/rapports/${selected.id}/preview-pdf`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="w-full bg-white hover:bg-sand text-navy border border-navy-mid py-2 rounded-lg text-xs font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                              className="fx-label w-full bg-cream hover:bg-sand text-navy border border-navy-mid py-2 rounded-lg font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                             >
                               <FileText size={14} />Aperçu PDF
                             </a>
                           )}
 
                           {rapportSaveMsg && (
-                            <p className={'text-xs font-semibold ' + (rapportSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+                            <p className={'fx-label font-semibold ' + (rapportSaveMsg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                               {rapportSaveMsg.msg}
                             </p>
                           )}
@@ -2946,7 +2927,7 @@ export function InterventionsClient({
                           <>
                             <div className="mb-2.5">
                               <span
-                                className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                                className="fx-pill inline-block rounded-full font-semibold px-2.5 py-0.5"
                                 style={{ color: 'var(--color-ink-mid)', background: 'var(--color-sand-mid)' }}
                               >
                                 Brouillon
@@ -2955,12 +2936,12 @@ export function InterventionsClient({
                             <button
                               onClick={handleValidate}
                               disabled={validatePending}
-                              className="w-full bg-navy text-white py-2.5 rounded-lg text-xs font-bold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                              className="fx-label w-full bg-navy text-cream py-2.5 rounded-lg font-semibold disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                             >
                               {validatePending ? 'Validation…' : (<><Check size={14} />Valider le rapport</>)}
                             </button>
                             {validateMessage && (
-                              <p className="text-xs mt-2 font-semibold text-ink-mid">{validateMessage}</p>
+                              <p className="fx-label mt-2 font-semibold text-ink-mid">{validateMessage}</p>
                             )}
                           </>
                         )}
@@ -2970,26 +2951,25 @@ export function InterventionsClient({
                           <>
                             <div className="mb-1.5">
                               <span
-                                className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                                className="fx-pill inline-block rounded-full font-semibold px-2.5 py-0.5"
                                 style={{ color: 'var(--color-navy)', background: 'var(--color-navy-pale)' }}
                               >
                                 Validé
                               </span>
                             </div>
-                            <p className="text-[12px] text-ink-mid mb-2">
+                            <p className="fx-meta text-ink-mid mb-2">
                               Validé le {fmtDate(rapportInfo.valide_at)}
                             </p>
                             <button
                               onClick={resendRapport}
                               disabled={emailPending}
-                              className="w-full bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-2.5 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
+                              className="fx-label w-full bg-[var(--color-amber-foxo)] hover:bg-[var(--color-amber-foxo)]/90 text-[var(--color-cream)] py-2.5 rounded-lg font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
                             >
                               {emailPending ? 'Envoi…' : (<><Mail size={14} />Envoyer au syndic</>)}
                             </button>
                             {emailMessage && (
-                              <p className={
-                                'text-xs mt-2 font-semibold ' +
-                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                              <p className={'fx-label mt-2 font-semibold ' +
+                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                               }>
                                 {emailMessage.msg}
                               </p>
@@ -3002,13 +2982,13 @@ export function InterventionsClient({
                           <>
                             <div className="mb-1.5">
                               <span
-                                className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                                className="fx-pill inline-block rounded-full font-semibold px-2.5 py-0.5"
                                 style={{ color: 'var(--color-ok)', background: 'var(--color-ok-light)' }}
                               >
                                 Transmis
                               </span>
                             </div>
-                            <p className="text-[12px] text-ink-mid mb-2">
+                            <p className="fx-meta text-ink-mid mb-2">
                               Transmis le {fmtDate(rapportInfo.transmis_at)}
                               {rapportInfo.transmis_a && rapportInfo.transmis_a.length > 0
                                 ? ` à ${rapportInfo.transmis_a.join(', ')}`
@@ -3017,21 +2997,20 @@ export function InterventionsClient({
                             <button
                               onClick={resendRapport}
                               disabled={emailPending}
-                              className="w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
+                              className="fx-label w-full bg-sand hover:bg-sand-mid text-ink-mid border border-sand-border py-2 rounded-lg font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
                             >
                               {emailPending ? 'Envoi…' : (<><RefreshCw size={14} />Renvoyer au syndic</>)}
                             </button>
                             <button
                               onClick={reopenTransmitted}
                               disabled={rapportReopenPending}
-                              className="w-full mt-2 bg-white hover:bg-sand text-navy border border-navy-mid py-2 rounded-lg text-xs font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
+                              className="fx-label w-full mt-2 bg-cream hover:bg-sand text-navy border border-navy-mid py-2 rounded-lg font-medium disabled:opacity-50 inline-flex items-center justify-center gap-1.5 transition-colors"
                             >
                               {rapportReopenPending ? 'Réouverture…' : (<><Pencil size={14} />Rouvrir pour correction</>)}
                             </button>
                             {emailMessage && (
-                              <p className={
-                                'text-xs mt-2 font-semibold ' +
-                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra')
+                              <p className={'fx-label mt-2 font-semibold ' +
+                                (emailMessage.kind === 'ok' ? 'text-ok' : 'text-terra-ink')
                               }>
                                 {emailMessage.msg}
                               </p>
@@ -3054,11 +3033,11 @@ export function InterventionsClient({
                   </div>
 
                   <Block title="Notifications SMS / WhatsApp">
-                    <p className="text-[12px] text-ink-mid mb-2 dark:text-[#C8C2B8]">
+                    <p className="fx-meta text-ink-mid mb-2">
                       Envoie un SMS de confirmation aux occupants enregistrés.
                     </p>
                     {drawerOccupants.filter((o) => o.telephone).length === 0 ? (
-                      <p className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+                      <p className="fx-small text-ink-mid">
                         Aucun occupant n&apos;a de téléphone enregistré.
                       </p>
                     ) : (
@@ -3074,13 +3053,13 @@ export function InterventionsClient({
                               templateKey: 'sms_template_confirmation',
                               preferredChannel: o.contact_preference ?? null,
                             })}
-                            className="w-full text-left bg-white hover:bg-navy-pale border border-sand-border rounded-md px-2.5 py-2 text-[12px] flex items-center justify-between gap-2 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                            className="fx-meta w-full text-left bg-cream hover:bg-navy-pale border border-sand-border rounded-lg px-2.5 py-2 flex items-center justify-between gap-2"
                           >
                             <span className="inline-flex items-center gap-1.5">
                               <Smartphone size={14} />{[o.prenom, o.nom].filter(Boolean).join(' ') || o.appartement}
-                              <span className="text-ink-muted dark:text-[#C8C2B8] ml-1.5 font-mono text-[10px]">{o.telephone}</span>
+                              <span className="fx-small text-ink-mid ml-1.5 tabular-nums">{o.telephone}</span>
                             </span>
-                            <span className="text-[10px] font-bold text-navy dark:text-[#A8C4F2]">
+                            <span className="fx-small font-semibold text-navy">
                               {o.contact_preference === 'whatsapp' ? 'WhatsApp' : 'SMS'} ›
                             </span>
                           </button>
@@ -3105,19 +3084,18 @@ export function InterventionsClient({
               )}
 
               {tab === 'ia' && (
-                <div className="bg-cream border border-sand-border rounded-2xl p-3 flex flex-col" style={{ minHeight: 480, height: 'calc(100vh - 320px)' }}>
+                <div className="bg-cream border border-sand-border rounded-modal p-3 flex flex-col" style={{ minHeight: 480, height: 'calc(100vh - 320px)' }}>
                   {iaSaveMessage && (
-                    <div className={
-                      'text-[12px] rounded-md px-3 py-2 mb-2 border font-semibold ' +
+                    <div className={'fx-label rounded-lg px-3 py-2 mb-2 border font-semibold ' +
                       (iaSaveMessage.kind === 'ok'
                         ? 'bg-ok-light border-ok-mid text-ok'
-                        : 'bg-terra-light border-terra-mid text-terra')
+                        : 'bg-terra-light border-terra-mid text-terra-ink')
                     }>
                       {iaSaveMessage.msg}
                     </div>
                   )}
                   {iaSavePending && (
-                    <div className="text-[11px] text-ink-muted mb-2">Sauvegarde du brouillon…</div>
+                    <div className="fx-small text-ink-mid mb-2">Sauvegarde du brouillon…</div>
                   )}
                   <AssistantChat
                     mode="intervention"
@@ -3155,11 +3133,11 @@ function StatCard({
   let numColor = 'text-ink';
   if (accent) { bg = 'bg-navy-pale'; border = 'border-navy-light'; numColor = 'text-navy'; }
   if (muted) numColor = 'text-ink-mid';
-  if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra'; }
+  if (warning) { bg = 'bg-terra-light'; border = 'border-terra-mid'; numColor = 'text-terra-ink'; }
   return (
-    <div className={`${bg} ${border} border rounded-xl px-4 py-3.5`}>
-      <div className={`text-[28px] font-extrabold leading-none ${numColor}`}>{num}</div>
-      <div className="text-[11px] text-ink-muted mt-1 font-medium">{label}</div>
+    <div className={`${bg}${border} border rounded-xl px-4 py-3.5`}>
+      <div className={`fx-kpi font-semibold leading-none ${numColor}`}>{num}</div>
+      <div className="fx-small text-ink-mid mt-1 font-medium">{label}</div>
     </div>
   );
 }
@@ -3212,15 +3190,15 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
       : null;
 
   return (
-    <div className="bg-cream border border-sand-border rounded-xl p-3 mb-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+    <div className="bg-cream border border-sand-border rounded-xl p-3 mb-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+        <div className="fx-eyebrow font-semibold text-ink-mid">
           Destinataires emails
         </div>
         {editHref && (
           <a
             href={editHref}
-            className="text-[10px] text-navy hover:underline inline-flex items-center gap-1 dark:text-[#A8C4F2]"
+            className="fx-small text-navy hover:underline inline-flex items-center gap-1"
           >
             <Pencil size={12} />Modifier
           </a>
@@ -3230,27 +3208,27 @@ function DocumentRecipients({ interventionId }: { interventionId: string }) {
         {data.recipients.map((r) => {
           const RowIcon = ICONS[r.doc].icon;
           return (
-          <div key={r.doc} className="flex items-center gap-2 text-[12px]">
-            <span className="font-bold text-ink dark:text-[#F0ECE4] w-[140px] flex-shrink-0 inline-flex items-center gap-1.5">
+          <div key={r.doc} className="fx-meta flex items-center gap-2">
+            <span className="font-semibold text-ink w-[140px] flex-shrink-0 inline-flex items-center gap-1.5">
               <RowIcon size={14} />{ICONS[r.doc].label}
             </span>
-            <span className="text-ink-mid dark:text-[#C8C2B8]">→</span>
+            <span className="text-ink-mid">→</span>
             {r.email ? (
               <>
                 <a
                   href={`mailto:${r.email}`}
-                  className="font-mono text-[11px] text-navy hover:underline truncate flex-1 dark:text-[#A8C4F2]"
+                  className="fx-small fx-ref text-navy hover:underline truncate flex-1"
                 >
                   {r.email}
                 </a>
                 {sourceLabel(r.source) && (
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sand-mid text-ink-muted flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+                  <span className="fx-eyebrow font-semibold px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid flex-shrink-0">
                     {sourceLabel(r.source)}
                   </span>
                 )}
               </>
             ) : (
-              <span className="italic text-terra text-[11px]">Aucun email configuré</span>
+              <span className="fx-small italic text-terra-ink">Aucun email configuré</span>
             )}
           </div>
           );
@@ -3279,17 +3257,17 @@ function SoftDeleteRowModal({
       onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px] dark:bg-[#1C1A16] dark:border-[#3D3A32]">
-        <h2 className="fxs-block-title text-ink mb-2 inline-flex items-center gap-1.5 dark:text-[#F0ECE4]">
+      <div className="bg-cream border border-sand-border rounded-modal p-5 w-full max-w-[420px]">
+        <h2 className="fxs-block-title text-ink mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={16} />Supprimer cette intervention ?
         </h2>
-        <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
-          L&apos;intervention <strong className="font-mono text-ink dark:text-[#F0ECE4]">{ref ?? '?'}</strong> sera retirée de la liste.
+        <p className="fx-body text-ink-mid leading-relaxed">
+          L&apos;intervention <strong className="tabular-nums text-ink">{ref ?? '?'}</strong> sera retirée de la liste.
           Les données liées (timeline, photos, occupants) sont conservées et restaurables.
         </p>
 
         {error && (
-          <div className="mt-3 bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 text-[12px] font-semibold">
+          <div className="fx-label mt-3 bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
             {error}
           </div>
         )}
@@ -3299,7 +3277,7 @@ function SoftDeleteRowModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+            className="fx-label px-3 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid disabled:opacity-50"
           >
             Annuler
           </button>
@@ -3307,7 +3285,7 @@ function SoftDeleteRowModal({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
+            className="fx-label px-3 py-2 rounded-lg font-semibold text-cream disabled:opacity-50"
             style={{ background: 'var(--color-terra)' }}
           >
             {pending ? 'Suppression…' : 'Confirmer'}
@@ -3331,15 +3309,15 @@ function DeleteInterventionModal({
       onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[460px] dark:bg-[#1C1A16] dark:border-[#7A3F22]">
-        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5 dark:text-[#FFB897]">
+      <div className="bg-cream border border-terra rounded-modal p-5 w-full max-w-[460px]">
+        <h2 className="fxs-block-title text-terra-ink mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={16} />Supprimer l&apos;intervention
         </h2>
-        <p className="text-[13px] text-ink-mid leading-relaxed dark:text-[#C8C2B8]">
-          Êtes-vous sûr de vouloir supprimer l&apos;intervention <strong className="font-mono text-ink dark:text-[#F0ECE4]">{ref ?? '?'}</strong> ?
-          Cette action est <strong className="text-terra">irréversible</strong>.
+        <p className="fx-body text-ink-mid leading-relaxed">
+          Êtes-vous sûr de vouloir supprimer l&apos;intervention <strong className="tabular-nums text-ink">{ref ?? '?'}</strong> ?
+          Cette action est <strong className="text-terra-ink">irréversible</strong>.
         </p>
-        <p className="text-[11px] text-ink-muted leading-relaxed mt-2 dark:text-[#C8C2B8]">
+        <p className="fx-small text-ink-mid leading-relaxed mt-2">
           Tous les éléments liés (timeline, SMS logs, photos, occupants) seront aussi supprimés.
           Le créneau réservé sera libéré automatiquement.
         </p>
@@ -3349,7 +3327,7 @@ function DeleteInterventionModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid disabled:opacity-50 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+            className="fx-label px-3 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid disabled:opacity-50"
           >
             Annuler
           </button>
@@ -3357,7 +3335,7 @@ function DeleteInterventionModal({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50"
+            className="fx-label px-3 py-2 rounded-lg font-semibold text-cream disabled:opacity-50"
             style={{ background: 'var(--color-terra)' }}
           >
             {pending ? 'Suppression…' : 'Supprimer définitivement'}
@@ -3401,11 +3379,11 @@ function ReanalysisPanel({
     : HelpCircle;
   const typeLabel = data.type_demandeur === 'syndic' ? 'Syndic' : data.type_demandeur === 'courtier' ? 'Courtier' : data.type_demandeur === 'particulier' ? 'Particulier' : 'Inconnu';
   return (
-    <div className="bg-cream border-2 border-navy-mid rounded-xl p-3 mb-3 dark:bg-[#1C1A16] dark:border-[#A8C4F2]">
-      <div className="text-[12px] font-bold text-navy mb-2 inline-flex items-center gap-1.5 dark:text-[#A8C4F2]">
+    <div className="bg-cream border-2 border-navy-mid rounded-xl p-3 mb-3">
+      <div className="fx-label font-semibold text-navy mb-2 inline-flex items-center gap-1.5">
         <BarChart3 size={14} />Résultat de l&apos;analyse IA
       </div>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[12px] mb-3">
+      <dl className="fx-meta grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mb-3">
         <ReanalysisRow label="Type demandeur" value={<span className="inline-flex items-center gap-1.5"><TypeIcon size={12}/>{typeLabel}</span>} />
         {data.nom_societe && <ReanalysisRow label="Société" value={data.nom_societe} />}
         {data.nom_immeuble && <ReanalysisRow label="Immeuble" value={data.nom_immeuble} />}
@@ -3437,7 +3415,7 @@ function ReanalysisPanel({
           type="button"
           onClick={onApply}
           disabled={pending}
-          className="bg-ok text-white px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5"
+          className="fx-label bg-ok text-cream px-3 py-1.5 rounded-lg font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
           style={{ background: 'var(--color-ok)' }}
         >
           {pending ? '…' : (<><CheckCircle2 size={14} />Appliquer les modifications</>)}
@@ -3446,7 +3424,7 @@ function ReanalysisPanel({
           type="button"
           onClick={onIgnore}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-lg text-[12px] font-bold disabled:opacity-50 inline-flex items-center gap-1.5 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] dark:border-[#3D3A32]"
+          className="fx-label bg-sand-mid text-ink-mid border border-sand-border px-3 py-1.5 rounded-lg font-semibold disabled:opacity-50 inline-flex items-center gap-1.5"
         >
           <XCircle size={14} />Ignorer
         </button>
@@ -3458,11 +3436,11 @@ function ReanalysisPanel({
 function ReanalysisRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <>
-      <dt className="text-[10px] font-bold uppercase tracking-wider text-ink-muted dark:text-[#C8C2B8]">
+      <dt className="fx-eyebrow font-semibold text-ink-mid">
         {label}
       </dt>
-      <dd className={'text-[12px] dark:text-[#F0ECE4] ' + (mono ? 'font-mono' : '')}>
-        {value ?? <span className="text-ink-muted italic dark:text-[#8A8278]">—</span>}
+      <dd className={'fx-meta ' + (mono ? 'tabular-nums' : '')}>
+        {value ?? <span className="text-ink-mid italic">—</span>}
       </dd>
     </>
   );
@@ -3519,31 +3497,31 @@ function DemandeurBadge({
     return () => { mounted = false; };
   }, [organisationId, clientId]);
 
-  if (!info) return <span className="text-[10px] opacity-50">…</span>;
+  if (!info) return <span className="fx-small opacity-50">…</span>;
   const Icon = info.kind === 'syndic' ? Building2
     : info.kind === 'courtier' ? Shield
     : info.kind === 'particulier' ? User
     : AlertTriangle;
   const label = info.kind === 'syndic' ? 'Syndic' : info.kind === 'courtier' ? 'Courtier' : info.kind === 'particulier' ? 'Particulier' : 'Demandeur non identifié';
   return (
-    <div className="text-[11px] flex flex-wrap items-center gap-1.5 mt-0.5">
+    <div className="fx-small flex flex-wrap items-center gap-1.5 mt-0.5">
       <span className="inline-flex items-center gap-1"><Icon size={12} /> <strong>{label}</strong></span>
-      {info.nom && <span className="font-mono text-[10px] opacity-90">· {info.nom}</span>}
+      {info.nom && <span className="fx-small tabular-nums opacity-90">· {info.nom}</span>}
       {info.isNew && organisationId && (
-        <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]">
+        <span className="fx-eyebrow inline-block font-semibold px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid">
           Nouvelle org
         </span>
       )}
       {info.isNew && clientId && (
-        <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid dark:bg-[#14281E] dark:text-[#7AC9A0] dark:border-[#2A4F3A]">
+        <span className="fx-eyebrow inline-block font-semibold px-1 py-0.5 rounded bg-ok-light text-ok border border-ok-mid">
           Nouveau client
         </span>
       )}
       {info.kind === 'unknown' && !organisationId && !clientId && (
-        <span className="text-terra italic">— à associer manuellement</span>
+        <span className="text-terra-ink italic">— à associer manuellement</span>
       )}
       {referenceExterne && (
-        <span className="font-mono text-[10px] opacity-80">· réf : {referenceExterne}</span>
+        <span className="fx-small tabular-nums opacity-80">· réf : {referenceExterne}</span>
       )}
     </div>
   );
@@ -3565,13 +3543,13 @@ function RefEditor({
   if (!editing) {
     return (
       <div className="flex items-center gap-2">
-        <span className="font-mono text-[14px] font-bold text-navy dark:text-[#A8C4F2]">
+        <span className="fx-body fx-ref font-semibold text-navy">
           {currentRef ?? '—'}
         </span>
         <button
           type="button"
           onClick={() => { setDraft(currentRef ?? ''); setEditing(true); setErr(null); }}
-          className="text-[10px] text-ink-muted hover:text-navy underline inline-flex items-center gap-1 dark:text-[#C8C2B8]"
+          className="fx-small text-ink-mid hover:text-navy underline inline-flex items-center gap-1"
         >
           <Pencil size={12} />Modifier
         </button>
@@ -3586,7 +3564,7 @@ function RefEditor({
           onChange={(e) => setDraft(e.target.value)}
           placeholder="2026-100"
           pattern="\d{4}-\d{3,5}"
-          className="px-2 py-1 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid font-mono w-32"
+          className="fx-body px-2 py-1 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid tabular-nums w-32"
         />
         <button
           type="button"
@@ -3612,19 +3590,19 @@ function RefEditor({
               setSaving(false);
             }
           }}
-          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center"
+          className="fx-small bg-navy text-cream px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center"
         >
           {saving ? '…' : <Save size={12} />}
         </button>
         <button
           type="button"
           onClick={() => { setEditing(false); setErr(null); }}
-          className="text-[10px] text-ink-muted hover:text-terra dark:text-[#C8C2B8]"
+          className="fx-small text-ink-mid hover:text-terra-ink"
         >
           Annuler
         </button>
       </div>
-      {err && <p className="text-[11px] text-terra mt-1 font-semibold">{err}</p>}
+      {err && <p className="fx-small text-terra-ink mt-1 font-semibold">{err}</p>}
     </div>
   );
 }
@@ -3649,9 +3627,9 @@ function OccupantEditCard({
   onErase?: () => void;
   saving: boolean;
 }) {
-  const cls = 'w-full px-2 py-1 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid';
+  const cls = 'fx-body-dense w-full px-2 py-1 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid';
   return (
-    <div className="bg-navy-pale border border-navy-light rounded-md px-2.5 py-2 text-[12px] dark:bg-[#1A2540] dark:border-[#2C4878]">
+    <div className="fx-meta bg-navy-pale border border-navy-light rounded-lg px-2.5 py-2">
       <div className="grid grid-cols-2 gap-1.5 mb-1.5">
         <input
           value={form.prenom}
@@ -3669,13 +3647,13 @@ function OccupantEditCard({
           value={form.email}
           onChange={(e) => onChange({ ...form, email: e.target.value })}
           placeholder="email"
-          className={cls + ' font-mono col-span-2'}
+          className={cls + ' tabular-nums col-span-2'}
         />
         <input
           value={form.telephone}
           onChange={(e) => onChange({ ...form, telephone: e.target.value })}
           placeholder="téléphone"
-          className={cls + ' font-mono'}
+          className={cls + ' tabular-nums'}
         />
         <select
           value={form.contact_preference}
@@ -3716,7 +3694,7 @@ function OccupantEditCard({
             type="button"
             onClick={onDelete}
             disabled={saving}
-            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1 dark:bg-[#5A2E18] dark:text-[#FFB897] dark:border-[#7A3F22]"
+            className="fx-small bg-terra-light text-terra-ink border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
           >
             <Trash2 size={12} />Supprimer
           </button>
@@ -3726,7 +3704,7 @@ function OccupantEditCard({
             type="button"
             onClick={onErase}
             disabled={saving}
-            className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+            className="fx-label inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
             title="Effacer definitivement les donnees personnelles (RGPD)"
           >
             <UserX size={12} />
@@ -3737,7 +3715,7 @@ function OccupantEditCard({
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+          className="fx-small bg-sand-mid text-ink-mid px-2 py-1 rounded font-semibold disabled:opacity-50"
         >
           Annuler
         </button>
@@ -3745,7 +3723,7 @@ function OccupantEditCard({
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
+          className="fx-small bg-navy text-cream px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
         >
           {saving ? '…' : (<><Save size={12} />Sauvegarder</>)}
         </button>
@@ -3754,20 +3732,8 @@ function OccupantEditCard({
   );
 }
 
-// Palette de 10 couleurs alignée avec /api/admin/interventions/[id]/color.
-// Le serveur rejette toute valeur hors de cette liste.
-const INTERVENTION_COLORS = [
-  { name: 'Bleu marine', hex: '#1B3A6B' },
-  { name: 'Vert',        hex: '#1F6B45' },
-  { name: 'Rouge',       hex: '#C4622D' },
-  { name: 'Violet',      hex: '#7C3AED' },
-  { name: 'Rose',        hex: '#DB2777' },
-  { name: 'Jaune',       hex: '#D97706' },
-  { name: 'Cyan',        hex: '#0891B2' },
-  { name: 'Gris',        hex: '#6B7280' },
-  { name: 'Indigo',      hex: '#4338CA' },
-  { name: 'Emeraude',    hex: '#059669' },
-] as const;
+// Palette des couleurs d'intervention : src/lib/interventions/couleurs.ts
+// (hex de données, alignés avec /api/admin/interventions/[id]/color).
 
 function ColorPicker({
   value, onChange,
@@ -3791,8 +3757,8 @@ function ColorPicker({
               width: 22,
               height: 22,
               background: c.hex,
-              border: active ? '2px solid #FFFFFF' : '2px solid rgba(0,0,0,0.1)',
-              boxShadow: active ? '0 0 0 2px #1B3A6B, 0 2px 4px rgba(0,0,0,.2)' : 'none',
+              border: active ? '2px solid var(--color-cream)' : '2px solid rgba(0,0,0,0.1)',
+              boxShadow: active ? '0 0 0 2px var(--color-navy), 0 2px 4px rgba(0,0,0,.2)' : 'none',
               cursor: 'pointer',
               padding: 0,
             }}
@@ -3803,7 +3769,7 @@ function ColorPicker({
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="ml-1 text-[10px] text-ink-muted hover:text-terra underline dark:text-[#C8C2B8]"
+          className="fx-small ml-1 text-ink-mid hover:text-terra-ink underline"
           title="Retirer la couleur"
         >
           Réinitialiser
@@ -3851,14 +3817,14 @@ function AcpSuggestionBanner({
   const labelAcp = acpName ?? suggestion.nom_extrait;
 
   return (
-    <div className="mb-2 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-md px-3 py-2 dark:bg-[#3A2A14] dark:border-[#7A5F2A]">
+    <div className="mb-2 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[12px] text-[var(--color-amber-foxo)] dark:text-[#F0D896] flex-1 min-w-[200px]">
-          <span className="font-bold inline-flex items-center gap-1"><Lightbulb size={12} />ACP suggérée :</span>{' '}
+        <div className="fx-meta text-amber-ink flex-1 min-w-[200px]">
+          <span className="font-semibold inline-flex items-center gap-1"><Lightbulb size={12} />ACP suggérée :</span>{' '}
           <span className="font-semibold">{labelAcp}</span>
-          <span className="text-[11px] opacity-80"> (score {scorePct} %)</span>
+          <span className="fx-small opacity-80"> (score {scorePct} %)</span>
           {acpName && acpName.trim().toLowerCase() !== suggestion.nom_extrait.trim().toLowerCase() && (
-            <div className="text-[10px] opacity-70 mt-0.5">
+            <div className="fx-small opacity-70 mt-0.5">
               Nom extrait du mail : <em>{suggestion.nom_extrait}</em>
             </div>
           )}
@@ -3868,7 +3834,7 @@ function AcpSuggestionBanner({
             type="button"
             disabled={pending}
             onClick={() => startTransition(async () => { await onConfirm(); })}
-            className="text-[11px] font-bold bg-ok text-white px-2.5 py-1 rounded hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
+            className="fx-small font-semibold bg-ok text-cream px-2.5 py-1 rounded hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
             title="Associer cette ACP à l'intervention"
           >
             <CheckCircle2 size={12} />Confirmer
@@ -3877,7 +3843,7 @@ function AcpSuggestionBanner({
             type="button"
             disabled={pending}
             onClick={() => startTransition(async () => { await onIgnore(); })}
-            className="text-[11px] font-bold bg-white text-terra border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 inline-flex items-center gap-1 dark:bg-[#221E1A] dark:hover:bg-[#3A2A14]"
+            className="fx-small font-semibold bg-cream text-terra-ink border border-terra-mid px-2.5 py-1 rounded hover:bg-terra-light disabled:opacity-50 inline-flex items-center gap-1"
             title="Effacer la suggestion (l'ACP restera non associée)"
           >
             <XCircle size={12} />Ignorer
@@ -3971,9 +3937,9 @@ function AcpPicker({
   if (currentAcp && !editing) {
     return (
       <div>
-        <div className="bg-white border border-sand-border rounded-md px-2.5 py-2 text-[12px] dark:bg-[#221E1A] dark:border-[#3D3A32]">
-          <div className="font-bold text-ink dark:text-[#F0ECE4]">{currentAcp.nom ?? '—'}</div>
-          <div className="text-[11px] text-ink-muted dark:text-[#C8C2B8]">
+        <div className="fx-meta bg-cream border border-sand-border rounded-lg px-2.5 py-2">
+          <div className="font-semibold text-ink">{currentAcp.nom ?? '—'}</div>
+          <div className="fx-small text-ink-mid">
             {[currentAcp.adresse, currentAcp.ville].filter(Boolean).join(', ') || '—'}
           </div>
         </div>
@@ -3981,7 +3947,7 @@ function AcpPicker({
           <button
             type="button"
             onClick={() => { setEditing(true); setQuery(''); setResults([]); }}
-            className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold inline-flex items-center gap-1"
+            className="fx-small bg-sand-mid text-ink-mid px-2 py-1 rounded font-semibold inline-flex items-center gap-1"
           >
             <Pencil size={12} />Changer
           </button>
@@ -3989,13 +3955,13 @@ function AcpPicker({
             type="button"
             onClick={clearAcp}
             disabled={saving}
-            className="text-[10px] bg-terra-light text-terra border border-terra-mid px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
+            className="fx-small bg-terra-light text-terra-ink border border-terra-mid px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
           >
             <X size={12} />Retirer
           </button>
         </div>
         {msg && (
-          <div className={'mt-1.5 text-[11px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+          <div className={'fx-small mt-1.5 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
             {msg.msg}
           </div>
         )}
@@ -4007,27 +3973,27 @@ function AcpPicker({
     <div>
       {!currentAcp && !editing ? (
         <div>
-          <div className="text-[11px] text-ink-muted italic mb-1.5 dark:text-[#C8C2B8]">
+          <div className="fx-small text-ink-mid italic mb-1.5">
             Aucune ACP/immeuble associée à cette intervention.
           </div>
           <div className="flex flex-wrap gap-1.5">
             <button
               type="button"
               onClick={() => { setEditing(true); setQuery(''); setResults([]); }}
-              className="text-[10px] bg-navy text-white px-2.5 py-1.5 rounded font-bold inline-flex items-center gap-1"
+              className="fx-small bg-navy text-cream px-2.5 py-1.5 rounded font-semibold inline-flex items-center gap-1"
             >
               <Search size={12} />Associer une ACP
             </button>
             <Link
               href="/admin/syndics?new=acp"
               target="_blank"
-              className="text-[10px] bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1.5 rounded font-bold inline-flex items-center gap-1"
+              className="fx-small bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1.5 rounded font-semibold inline-flex items-center gap-1"
             >
               <Plus size={12} />Nouvelle ACP
             </Link>
           </div>
           {msg && (
-            <div className={'mt-1.5 text-[11px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+            <div className={'fx-small mt-1.5 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
               {msg.msg}
             </div>
           )}
@@ -4039,12 +4005,12 @@ function AcpPicker({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={organisationId ? 'Rechercher dans les ACPs du syndic…' : 'Rechercher (nom, adresse, ville)…'}
             autoFocus
-            className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+            className="fx-meta w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
           />
-          <div className="mt-2 max-h-[200px] overflow-y-auto bg-white border border-sand-border rounded-md divide-y divide-sand-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
-            {loading && <div className="px-2 py-2 text-[11px] text-ink-muted">Chargement…</div>}
+          <div className="mt-2 max-h-[200px] overflow-y-auto bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid">
+            {loading && <div className="fx-small px-2 py-2 text-ink-mid">Chargement…</div>}
             {!loading && results.length === 0 && (
-              <div className="px-2 py-2 text-[11px] text-ink-muted">Aucun résultat.</div>
+              <div className="fx-small px-2 py-2 text-ink-mid">Aucun résultat.</div>
             )}
             {!loading && results.map((a) => (
               <button
@@ -4052,10 +4018,10 @@ function AcpPicker({
                 type="button"
                 onClick={() => selectAcp(a)}
                 disabled={saving}
-                className="block w-full text-left px-2.5 py-2 text-[12px] hover:bg-sand disabled:opacity-50 dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                className="fx-meta block w-full text-left px-2.5 py-2 hover:bg-sand disabled:opacity-50"
               >
-                <div className="font-bold">{a.nom}</div>
-                <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8]">
+                <div className="font-semibold">{a.nom}</div>
+                <div className="fx-small text-ink-mid">
                   {[a.adresse, a.code_postal, a.ville].filter(Boolean).join(', ') || '—'}
                 </div>
               </button>
@@ -4066,12 +4032,12 @@ function AcpPicker({
               type="button"
               onClick={() => setEditing(false)}
               disabled={saving}
-              className="text-[10px] text-ink-muted underline"
+              className="fx-small text-ink-mid underline"
             >
               Annuler
             </button>
             {!organisationId && (
-              <span className="text-[10px] text-ink-muted italic inline-flex items-center gap-1">
+              <span className="fx-small text-ink-mid italic inline-flex items-center gap-1">
                 <AlertTriangle size={12} />Aucun syndic défini sur cette intervention — recherche élargie à toutes les ACPs.
               </span>
             )}
@@ -4138,7 +4104,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
   }
   if (error) {
     return (
-      <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-md px-3 py-2 font-semibold">
+      <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
         {error}
       </div>
     );
@@ -4154,11 +4120,11 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
   return (
     <div className="space-y-4">
       {data.recidives_detectees > 0 && (
-        <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-          <div className="font-bold text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]">
+        <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5">
+          <div className="font-semibold text-amber-ink inline-flex items-center gap-1.5">
             <RefreshCw size={14} />{data.recidives_detectees} récidive{data.recidives_detectees > 1 ? 's' : ''} détectée{data.recidives_detectees > 1 ? 's' : ''}
           </div>
-          <div className="text-[11px] text-[#5A3F15] dark:text-[#F0D896]">
+          <div className="fx-small text-amber-ink">
             Même type de problème dans les 12 derniers mois sur les mêmes apparts.
           </div>
         </div>
@@ -4167,27 +4133,27 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
       {/* Par appartement */}
       <Block title={<span className="inline-flex items-center gap-1.5"><Home size={12}/>Historique par appartement ({data.par_appartement.length})</span>}>
         {data.par_appartement.length === 0 ? (
-          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+          <div className="fx-small text-ink-mid italic">
             Aucun historique pour les apparts de ce dossier.
           </div>
         ) : (
           <div className="space-y-3">
             {data.par_appartement.map((group) => (
-              <div key={group.appartement} className="bg-white border border-sand-border rounded-md overflow-hidden dark:bg-[#221E1A] dark:border-[#3D3A32]">
-                <div className="bg-sand px-2.5 py-1.5 border-b border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]">
-                  <div className="font-bold text-[12px] text-ink dark:text-[#F0ECE4]">
+              <div key={group.appartement} className="bg-cream border border-sand-border rounded-lg overflow-hidden">
+                <div className="bg-sand px-2.5 py-1.5 border-b border-sand-border">
+                  <div className="fx-label font-semibold text-ink">
                     Apt {group.appartement}
                     {(group.occupant?.prenom || group.occupant?.nom) && (
-                      <span className="font-normal ml-1 text-ink-mid dark:text-[#C8C2B8]">
+                      <span className="font-normal ml-1 text-ink-mid">
                         — {[group.occupant?.prenom, group.occupant?.nom].filter(Boolean).join(' ')}
                       </span>
                     )}
                   </div>
-                  <div className="text-[10px] text-ink-muted inline-flex items-center gap-1 dark:text-[#C8C2B8]">
+                  <div className="fx-small text-ink-mid inline-flex items-center gap-1">
                     <ClipboardList size={10} />{group.interventions.length} intervention{group.interventions.length !== 1 ? 's' : ''} précédente{group.interventions.length !== 1 ? 's' : ''}
                   </div>
                 </div>
-                <div className="divide-y divide-sand-mid dark:divide-[#3D3A32]">
+                <div className="divide-y divide-sand-mid">
                   {group.interventions.map((iv) => <HistEntryRow key={iv.id} iv={iv} />)}
                 </div>
               </div>
@@ -4199,7 +4165,7 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
       {/* Par ACP */}
       <Block title={<span className="inline-flex items-center gap-1.5"><Building2 size={12}/>Historique ACP ({data.par_acp.length})</span>}>
         {data.par_acp.length === 0 ? (
-          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+          <div className="fx-small text-ink-mid italic">
             Aucun historique sur cette ACP.
           </div>
         ) : (
@@ -4208,13 +4174,13 @@ function HistoriquePanel({ interventionId }: { interventionId: string }) {
               <select
                 value={acpFilter}
                 onChange={(e) => setAcpFilter(e.target.value)}
-                className="w-full mb-2 px-2 py-1.5 border border-sand-border rounded text-[11px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="fx-small w-full mb-2 px-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
               >
                 <option value="">Tous les appartements</option>
                 {allApts.map((apt) => <option key={apt} value={apt}>Apt {apt}</option>)}
               </select>
             )}
-            <div className="bg-white border border-sand-border rounded-md overflow-hidden divide-y divide-sand-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:divide-[#3D3A32]">
+            <div className="bg-cream border border-sand-border rounded-lg overflow-hidden divide-y divide-sand-mid">
               {filteredAcp.map((iv) => <HistEntryRow key={iv.id} iv={iv} />)}
             </div>
           </>
@@ -4230,26 +4196,26 @@ function HistEntryRow({ iv }: { iv: { id: string; ref: string | null; statut: st
     <Link
       href={`/admin/interventions/${iv.id}`}
       target="_blank"
-      className="block px-2.5 py-2 hover:bg-sand-hover dark:hover:bg-[#2A2520]"
+      className="block px-2.5 py-2 hover:bg-sand-hover"
     >
       <div className="flex items-center justify-between gap-2 mb-0.5 flex-wrap">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-mono text-[11px] font-bold text-navy dark:text-[#A8C4F2]">{iv.ref ?? '?'}</span>
-          <span className="text-[10px] font-mono text-ink-muted dark:text-[#C8C2B8]">{date}</span>
+          <span className="fx-small fx-ref font-semibold text-navy">{iv.ref ?? '?'}</span>
+          <span className="fx-small tabular-nums text-ink-mid">{date}</span>
           {iv.is_recidive && (
-            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-light text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30">
+            <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30">
               <RefreshCw size={10} />Récidive
             </span>
           )}
         </div>
         <Badge statut={iv.statut as never} />
       </div>
-      <div className="text-[11px] text-ink dark:text-[#F0ECE4]">{iv.type ?? '—'}</div>
+      <div className="fx-small text-ink">{iv.type ?? '—'}</div>
       {iv.description && (
-        <div className="text-[10px] text-ink-mid mt-0.5 line-clamp-2 dark:text-[#C8C2B8]">{iv.description}</div>
+        <div className="fx-small text-ink-mid mt-0.5 line-clamp-2">{iv.description}</div>
       )}
       {iv.appartements.length > 0 && (
-        <div className="text-[10px] text-ink-muted mt-0.5 inline-flex items-center gap-1 dark:text-[#C8C2B8]">
+        <div className="fx-small text-ink-mid mt-0.5 inline-flex items-center gap-1">
           <MapPin size={10} />Apt {iv.appartements.join(', ')}
         </div>
       )}
@@ -4332,17 +4298,17 @@ function CourtierMandatePanel({
   return (
     <Block title={<span className="inline-flex items-center gap-1.5"><Users size={12}/>Courtier mandaté ({courtiers.length})</span>}>
       {courtiers.length === 0 ? (
-        <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+        <div className="fx-small text-ink-mid italic">
           Aucun courtier ni expert mandaté sur ce dossier.
         </div>
       ) : (
         <div className="space-y-1.5">
           {courtiers.map((c) => (
-            <div key={c.id} className="flex items-center justify-between gap-2 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+            <div key={c.id} className="flex items-center justify-between gap-2 bg-cream border border-sand-border rounded-lg px-2.5 py-1.5">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <Link
                   href={`/admin/${c.type === 'expert' ? 'experts' : 'courtiers'}?id=${c.id}`}
-                  className="font-bold text-[12px] text-navy hover:underline dark:text-[#A8C4F2] truncate"
+                  className="fx-label font-semibold text-navy hover:underline truncate"
                 >
                   {c.nom}
                 </Link>
@@ -4352,7 +4318,7 @@ function CourtierMandatePanel({
                 type="button"
                 onClick={() => retirer(c)}
                 disabled={busyId === c.id}
-                className="text-[10px] text-terra inline-flex items-center gap-1 font-bold disabled:opacity-50 hover:underline"
+                className="fx-small text-terra-ink inline-flex items-center gap-1 font-semibold disabled:opacity-50 hover:underline"
               >
                 <Trash2 size={12} />Retirer
               </button>
@@ -4364,41 +4330,41 @@ function CourtierMandatePanel({
       <button
         type="button"
         onClick={() => { setShowAdd(!showAdd); setMsg(null); }}
-        className="mt-2 text-[10px] bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-bold inline-flex items-center gap-1 dark:bg-[rgba(255,255,255,.06)] dark:text-[#A8C4F2] dark:border-[#3D3A32]"
+        className="fx-small mt-2 bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-semibold inline-flex items-center gap-1"
       >
         <Plus size={12} />Associer un courtier
       </button>
 
       {showAdd && (
-        <div className="mt-2 bg-sand border border-sand-border rounded-md p-2.5 space-y-2 dark:bg-[#141210] dark:border-[#2C2A24]">
+        <div className="mt-2 bg-sand border border-sand-border rounded-lg p-2.5 space-y-2">
           <div className="relative">
-            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted" />
+            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-mid" />
             <input
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="Nom ou email du courtier / expert…"
-              className="w-full pl-7 pr-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32]"
+              className="fx-meta w-full pl-7 pr-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
             />
           </div>
-          {searching && <div className="text-[10px] text-ink-muted italic">Recherche…</div>}
+          {searching && <div className="fx-small text-ink-mid italic">Recherche…</div>}
           {!searching && searchQ.trim().length >= 2 && results.length === 0 && (
-            <div className="text-[10px] text-ink-muted italic">Aucun courtier ni expert trouvé.</div>
+            <div className="fx-small text-ink-mid italic">Aucun courtier ni expert trouvé.</div>
           )}
           {results.length > 0 && (
             <div className="space-y-1">
               {results.map((o) => {
                 const already = linkedIds.has(o.id);
                 return (
-                  <div key={o.id} className="flex items-center justify-between gap-2 bg-white border border-sand-border rounded px-2 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+                  <div key={o.id} className="flex items-center justify-between gap-2 bg-cream border border-sand-border rounded px-2 py-1.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[12px] font-bold text-ink truncate dark:text-[#F0ECE4]">{o.nom}</span>
+                      <span className="fx-label font-semibold text-ink truncate">{o.nom}</span>
                       <TypeBadge type={o.type} />
                     </div>
                     <button
                       type="button"
                       onClick={() => associer(o.id)}
                       disabled={busyId === o.id || already}
-                      className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-40 inline-flex items-center gap-1"
+                      className="fx-small bg-navy text-cream px-2 py-1 rounded font-semibold disabled:opacity-40 inline-flex items-center gap-1"
                     >
                       {already ? <><Check size={12} />Associé</> : <><Plus size={12} />Associer</>}
                     </button>
@@ -4411,7 +4377,7 @@ function CourtierMandatePanel({
       )}
 
       {msg && (
-        <div className={'mt-2 text-[11px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok dark:text-[#7AC9A0]' : 'text-terra')}>
+        <div className={'fx-small mt-2 font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
           {msg.msg}
         </div>
       )}
@@ -4539,28 +4505,28 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
   return (
     <>
       {doublonLink && (
-        <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A2A14] dark:border-[#7A5F2A] dark:text-[#F0D896]">
-          <div className="font-bold mb-0.5 text-[var(--color-amber-foxo)] inline-flex items-center gap-1.5 dark:text-[#F0D896]"><AlertTriangle size={12} />Doublon possible</div>
-          <div className="text-[#5A3F15] dark:text-[#F0D896]">
-            Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="font-mono font-bold underline">{doublonLink.liee_ref ?? '?'}</Link>
+        <div className="fx-meta bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-xl px-3 py-2.5 mb-3">
+          <div className="font-semibold mb-0.5 text-amber-ink inline-flex items-center gap-1.5"><AlertTriangle size={12} />Doublon possible</div>
+          <div className="text-amber-ink">
+            Lié à <Link href={`/admin/interventions/${doublonLink.liee_id}`} target="_blank" className="tabular-nums font-semibold underline">{doublonLink.liee_ref ?? '?'}</Link>
             {doublonLink.note && <> · <span className="italic">{doublonLink.note}</span></>}
           </div>
         </div>
       )}
 
       {unresolvedLinks.length > 0 && (
-        <div className="bg-terra-light border border-terra-mid rounded-xl px-3 py-2.5 mb-3 text-[12px] dark:bg-[#3A1F14] dark:border-[#7A3F2A] dark:text-[#F0AE96]">
-          <div className="font-bold mb-1 text-terra inline-flex items-center gap-1.5 dark:text-[#F0AE96]">
+        <div className="fx-meta bg-terra-light border border-terra-mid rounded-xl px-3 py-2.5 mb-3">
+          <div className="font-semibold mb-1 text-terra-ink inline-flex items-center gap-1.5">
             <AlertTriangle size={14} />Dossier antérieur non résolu possible — voir historique
           </div>
-          <div className="text-[#7A2F15] dark:text-[#F0AE96] flex flex-wrap items-center gap-x-2 gap-y-1">
+          <div className="text-terra-ink flex flex-wrap items-center gap-x-2 gap-y-1">
             {unresolvedLinks.length === 1 ? (
               <>
                 Lié à{' '}
                 <Link
                   href={`/admin/interventions/${unresolvedLinks[0].liee_id}`}
                   target="_blank"
-                  className="font-mono font-bold underline"
+                  className="tabular-nums font-semibold underline"
                 >
                   {unresolvedLinks[0].liee_ref ?? '?'}
                 </Link>{' '}
@@ -4577,7 +4543,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
                     key={l.liee_id}
                     href={`/admin/interventions/${l.liee_id}`}
                     target="_blank"
-                    className="font-mono font-bold underline"
+                    className="tabular-nums font-semibold underline"
                     title={`${l.liee_statut}${l.note ? ' · ' + l.note : ''}`}
                   >
                     {l.liee_ref ?? '?'}
@@ -4592,21 +4558,21 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
       {/* Dossiers liés */}
       <Block title={<span className="inline-flex items-center gap-1.5"><Link2 size={12}/>Dossiers liés ({liens.length})</span>}>
         {liens.length === 0 ? (
-          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+          <div className="fx-small text-ink-mid italic">
             Aucun lien pour ce dossier.
           </div>
         ) : (
           <div className="space-y-1.5">
             {liens.map((l) => (
-              <div key={l.liee_id} className="flex items-center justify-between gap-2 bg-white border border-sand-border rounded-md px-2.5 py-1.5 dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <div key={l.liee_id} className="flex items-center justify-between gap-2 bg-cream border border-sand-border rounded-lg px-2.5 py-1.5">
                 <div className="flex items-center gap-2 flex-wrap min-w-0">
-                  <Link href={`/admin/interventions/${l.liee_id}`} target="_blank" className="font-mono text-[12px] font-bold text-navy hover:underline dark:text-[#A8C4F2]">
+                  <Link href={`/admin/interventions/${l.liee_id}`} target="_blank" className="fx-label fx-ref font-semibold text-navy hover:underline">
                     {l.liee_ref ?? '?'}
                   </Link>
                   <LienBadge type={l.type_lien} source={l.source} />
-                  {l.note && <span className="text-[10px] text-ink-muted italic truncate dark:text-[#C8C2B8]">{l.note}</span>}
+                  {l.note && <span className="fx-small text-ink-mid italic truncate">{l.note}</span>}
                 </div>
-                <span className="text-[10px] text-ink-muted whitespace-nowrap dark:text-[#C8C2B8]">{l.liee_statut}</span>
+                <span className="fx-small text-ink-mid whitespace-nowrap">{l.liee_statut}</span>
               </div>
             ))}
           </div>
@@ -4614,54 +4580,53 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
         <button
           type="button"
           onClick={() => setShowLier(!showLier)}
-          className="mt-2 text-[10px] bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-bold inline-flex items-center gap-1 dark:bg-[rgba(255,255,255,.06)] dark:text-[#A8C4F2] dark:border-[#3D3A32]"
+          className="fx-small mt-2 bg-sand-mid text-navy border border-sand-border rounded px-2 py-1 font-semibold inline-flex items-center gap-1"
         >
           <Link2 size={12} />Lier manuellement
         </button>
         {showLier && (
-          <div className="mt-2 bg-sand border border-sand-border rounded-md p-2.5 space-y-2 dark:bg-[#141210] dark:border-[#2C2A24]">
+          <div className="mt-2 bg-sand border border-sand-border rounded-lg p-2.5 space-y-2">
             <input
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
               placeholder="UUID de l'intervention liée (copie depuis l'autre drawer)"
-              className="w-full px-2 py-1.5 border border-sand-border rounded text-[11px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+              className="fx-small w-full px-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid tabular-nums"
             />
             {searchQ.trim().length >= 8 && (
               <button
                 type="button"
                 onClick={() => setLierTarget({ id: searchQ.trim(), ref: null })}
-                className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold"
+                className="fx-small bg-navy text-cream px-2 py-1 rounded font-semibold"
               >
                 Utiliser cet ID
               </button>
             )}
             {searchResults.length > 0 && (
-              <div className="bg-white border border-sand-border rounded-md max-h-[160px] overflow-y-auto dark:bg-[#221E1A] dark:border-[#3D3A32]">
+              <div className="bg-cream border border-sand-border rounded-lg max-h-[160px] overflow-y-auto">
                 {searchResults.map((res) => (
                   <button
                     key={res.id}
                     type="button"
                     onClick={() => { setLierTarget(res); setSearchQ(res.ref ?? res.id); }}
-                    className="block w-full text-left px-2 py-1.5 text-[11px] hover:bg-sand dark:hover:bg-[#2A2520] dark:text-[#F0ECE4]"
+                    className="fx-small block w-full text-left px-2 py-1.5 hover:bg-sand"
                   >
-                    <span className="font-mono font-bold">{res.ref ?? '?'}</span>
-                    <span className="ml-2 text-[10px] text-ink-muted">{res.id.slice(0, 8)}…</span>
+                    <span className="tabular-nums font-semibold">{res.ref ?? '?'}</span>
+                    <span className="fx-small ml-2 text-ink-mid">{res.id.slice(0, 8)}…</span>
                   </button>
                 ))}
               </div>
             )}
             {lierTarget && (
               <>
-                <div className="text-[11px] text-ok dark:text-[#7AC9A0]">
-                  Cible : <span className="font-mono font-bold">{lierTarget.ref ?? lierTarget.id.slice(0, 8) + '…'}</span>
+                <div className="fx-small text-ok">
+                  Cible : <span className="tabular-nums font-semibold">{lierTarget.ref ?? lierTarget.id.slice(0, 8) + '…'}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(['meme_dossier', 'suivi', 'doublon', 'related'] as const).map((t) => (
-                    <label key={t} className={
-                      'px-2 py-1 border rounded text-[10px] font-bold cursor-pointer text-center ' +
+                    <label key={t} className={'fx-small px-2 py-1 border rounded font-semibold cursor-pointer text-center ' +
                       (lierType === t
-                        ? 'bg-navy text-white border-navy'
-                        : 'bg-white text-ink-mid border-sand-border dark:bg-[#221E1A] dark:text-[#C8C2B8] dark:border-[#3D3A32]')
+                        ? 'bg-navy text-cream border-navy'
+                        : 'bg-cream text-ink-mid border-sand-border')
                     }>
                       <input type="radio" checked={lierType === t} onChange={() => setLierType(t)} className="sr-only" />
                       {t === 'meme_dossier' ? 'Même dossier' : t === 'suivi' ? 'Suivi' : t === 'doublon' ? 'Doublon' : 'Lié'}
@@ -4672,21 +4637,21 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
                   value={lierNote}
                   onChange={(e) => setLierNote(e.target.value)}
                   placeholder="Note (optionnel)"
-                  className="w-full px-2 py-1.5 border border-sand-border rounded text-[11px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                  className="fx-small w-full px-2 py-1.5 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
                 />
                 <div className="flex gap-1.5">
                   <button
                     type="button"
                     onClick={lierManually}
                     disabled={saving}
-                    className="text-[10px] bg-navy text-white px-2.5 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
+                    className="fx-small bg-navy text-cream px-2.5 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
                   >
                     {saving ? '…' : (<><Save size={12} />Créer le lien</>)}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setShowLier(false); setLierTarget(null); }}
-                    className="text-[10px] bg-sand-mid text-ink-mid px-2.5 py-1 rounded font-bold dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                    className="fx-small bg-sand-mid text-ink-mid px-2.5 py-1 rounded font-semibold"
                   >
                     Annuler
                   </button>
@@ -4694,7 +4659,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
               </>
             )}
             {msg && (
-              <div className={'text-[10px] font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra')}>
+              <div className={'fx-small font-semibold ' + (msg.kind === 'ok' ? 'text-ok' : 'text-terra-ink')}>
                 {msg.msg}
               </div>
             )}
@@ -4705,7 +4670,7 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
       {/* Mails liés */}
       <Block title={<span className="inline-flex items-center gap-1.5"><Mail size={12}/>Mails liés ({mails.length})</span>}>
         {mails.length === 0 ? (
-          <div className="text-[11px] text-ink-muted italic dark:text-[#C8C2B8]">
+          <div className="fx-small text-ink-mid italic">
             Aucun mail rattaché.
           </div>
         ) : (
@@ -4714,17 +4679,17 @@ function LiensPanel({ interventionId }: { interventionId: string }) {
               <Link
                 key={m.id}
                 href={`/admin/mails?id=${encodeURIComponent(m.gmail_message_id)}`}
-                className="block bg-white border border-sand-border rounded-md px-2.5 py-1.5 hover:bg-sand-hover dark:bg-[#221E1A] dark:border-[#3D3A32]"
+                className="block bg-cream border border-sand-border rounded-lg px-2.5 py-1.5 hover:bg-sand-hover"
               >
                 <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="font-bold text-[12px] text-ink dark:text-[#F0ECE4] flex-1 truncate">
+                  <div className="fx-label font-semibold text-ink flex-1 truncate">
                     {m.subject ?? '(sans sujet)'}
                   </div>
                   <MailTypeBadge type={m.type_mail} />
                 </div>
-                <div className="text-[10px] text-ink-muted dark:text-[#C8C2B8] truncate mt-0.5">
+                <div className="fx-small text-ink-mid truncate mt-0.5">
                   {m.from_name || m.from_email || '—'}
-                  {m.date && <span className="ml-2 font-mono">{new Date(m.date).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>}
+                  {m.date && <span className="ml-2 tabular-nums">{new Date(m.date).toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit', year: '2-digit' })}</span>}
                 </div>
               </Link>
             ))}
@@ -4740,12 +4705,12 @@ function LienBadge({ type, source }: { type: string; source: string }) {
     : type === 'suivi' ? 'Suivi'
     : type === 'doublon' ? 'Doublon'
     : 'Lié';
-  const color = type === 'doublon' ? 'bg-amber-light text-[var(--color-amber-foxo)] border-[var(--color-amber-foxo)]/30'
+  const color = type === 'doublon' ? 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30'
     : type === 'meme_dossier' ? 'bg-navy-pale text-navy border-navy-light'
     : type === 'suivi' ? 'bg-ok-light text-ok border-ok-mid'
     : 'bg-sand-mid text-ink-mid border-sand-border';
   return (
-    <span className={`inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${color}`}>
+    <span className={`fx-eyebrow inline-block font-semibold px-1.5 py-0.5 rounded border ${color}`}>
       {label}{source === 'auto' ? ' · auto' : ''}
     </span>
   );
@@ -4760,7 +4725,7 @@ function MailTypeBadge({ type }: { type: string }) {
     : type === 'rapport_demande' ? 'Rapport'
     : type;
   return (
-    <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]">
+    <span className="fx-eyebrow inline-block font-semibold px-1.5 py-0.5 rounded bg-sand-mid text-ink-mid border border-sand-border">
       {label}
     </span>
   );
@@ -4775,11 +4740,11 @@ function Block({ title, children, id }: { title: React.ReactNode; children: Reac
     >
       <div className="flex items-center gap-2.5 mb-2">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
-        <div className="font-sora text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] flex-1">
+        <div className="fx-eyebrow font-medium text-ink-mid flex-1">
           {title}
         </div>
       </div>
-      <div className="text-[13px] text-[var(--color-ink)] leading-relaxed">{children}</div>
+      <div className="fx-body text-[var(--color-ink)] leading-relaxed">{children}</div>
     </div>
   );
 }

@@ -51,7 +51,7 @@ export function MailAnalyseBadges({ analyse, className = '' }: Props) {
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`.trim()}>
       {classification && typePalette && typeLabel && (
         <span
-          className="font-sora inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tracking-[0.01em]"
+          className="fx-badge inline-flex items-center px-2 py-0.5 rounded-full font-semibold tracking-[0.01em]"
           style={{ background: typePalette.bg, color: typePalette.fg }}
         >
           {typeLabel}
@@ -60,7 +60,7 @@ export function MailAnalyseBadges({ analyse, className = '' }: Props) {
 
       {langue && (
         <span
-          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium tracking-wider"
+          className="fx-small inline-flex items-center px-1.5 py-0.5 rounded font-medium tracking-wider"
           style={{ background: 'var(--color-sand)', color: 'var(--color-ink-mid)', border: '1px solid var(--color-sand-border)' }}
         >
           {langue}
@@ -69,7 +69,7 @@ export function MailAnalyseBadges({ analyse, className = '' }: Props) {
 
       {analyse.urgence && (
         <span
-          className="mail-badge-urgent inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+          className="fx-eyebrow mail-badge-urgent inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-semibold"
           style={{ background: 'var(--color-terra)', color: 'var(--color-cream)' }}
         >
           <Zap size={10} aria-hidden />
@@ -80,7 +80,7 @@ export function MailAnalyseBadges({ analyse, className = '' }: Props) {
       {analyse.dossier && (
         <Link
           href={`/admin/interventions/${analyse.dossier.id}`}
-          className="font-sora inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold hover:underline"
+          className="fx-small font-sora inline-flex items-center gap-1 px-2 py-0.5 rounded font-semibold hover:underline"
           style={{
             background: 'var(--color-navy-pale)',
             color: 'var(--color-navy)',
@@ -99,8 +99,7 @@ export function MailAnalyseBadges({ analyse, className = '' }: Props) {
         @keyframes mailBadgePulse {
           0%, 100% { opacity: 1; }
           50%      { opacity: 0.55; }
-        }
-      `}</style>
+        } `}</style>
     </div>
   );
 }

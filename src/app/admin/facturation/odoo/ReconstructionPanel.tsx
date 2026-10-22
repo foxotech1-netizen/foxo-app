@@ -32,7 +32,7 @@ const VERDICTS: Record<StatutVerdict, { label: string; classes: string; aide: st
   },
   a_qualifier: {
     label: 'À qualifier',
-    classes: 'bg-terra-light text-terra border-terra-mid',
+    classes: 'bg-terra-light text-terra-ink border-terra-mid',
     aide: 'Client introuvable dans le référentiel : à compléter avant création.',
   },
   existant_ok: {
@@ -74,7 +74,7 @@ async function appeler<T>(body: unknown): Promise<T> {
 function Pastille({ statut }: { statut: StatutVerdict }) {
   const v = VERDICTS[statut];
   return (
-    <span className={'inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold whitespace-nowrap ' + v.classes} title={v.aide}>
+    <span className={'fx-badge inline-block px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ' + v.classes} title={v.aide}>
       {v.label}
     </span>
   );
@@ -159,14 +159,14 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
 
   return (
     <section
-      className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3"
+      className="bg-cream border border-sand-border rounded-modal p-4 space-y-3"
       aria-label="Reconstruire les dossiers depuis Odoo"
       data-testid="odoo-reconstruction-panneau"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h3 className="fxs-block-title text-ink">Reconstruire les dossiers depuis Odoo</h3>
-          <p className="text-[12px] text-ink-mid max-w-[720px]">
+          <p className="fx-meta text-ink-mid max-w-[720px]">
             Une facture de vente = un dossier, numéroté et daté par la facture, client = tiers facturé.
             La vérification n&apos;écrit rien. La création ne concerne que les numéros sans dossier ;
             les dossiers existants ne sont jamais modifiés, leurs écarts sont seulement signalés.
@@ -189,7 +189,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
           type="button"
           onClick={verifier}
           disabled={occupe}
-          className="bg-white border-2 border-navy text-navy px-4 rounded-lg text-[13px] font-bold hover:bg-navy-pale disabled:opacity-50 min-h-[44px] inline-flex items-center gap-2"
+          className="fx-body bg-cream border-2 border-navy text-navy px-4 rounded-lg font-semibold hover:bg-navy-pale disabled:opacity-50 min-h-[44px] inline-flex items-center gap-2"
           data-testid="odoo-reconstruction-verifier"
         >
           <RefreshCw size={15} aria-hidden className={verification ? 'animate-spin' : undefined} />
@@ -201,7 +201,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
             type="button"
             onClick={copierTableau}
             disabled={occupe}
-            className="min-h-[44px] px-3 rounded-lg border border-sand-border bg-white text-[13px] font-semibold text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="fx-body min-h-[44px] px-3 rounded-lg border border-sand-border bg-cream font-semibold text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center gap-1.5"
             data-testid="odoo-reconstruction-copier"
           >
             {copie ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
@@ -214,7 +214,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
             type="button"
             onClick={() => setArme(true)}
             disabled={occupe || !plan || aCreer.length === 0}
-            className="bg-navy text-white px-4 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-2"
+            className="fx-body bg-navy text-cream px-4 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-2"
             data-testid="odoo-reconstruction-creer"
           >
             <FolderPlus size={15} aria-hidden />
@@ -227,7 +227,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
             <button
               type="button"
               onClick={creer}
-              className="bg-navy text-white px-4 rounded-lg text-[13px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center gap-2"
+              className="fx-body bg-navy text-cream px-4 rounded-lg font-semibold hover:opacity-90 min-h-[44px] inline-flex items-center gap-2"
               data-testid="odoo-reconstruction-confirmer"
             >
               <FolderPlus size={15} aria-hidden /> Confirmer la création de {aCreer.length} dossier{aCreer.length > 1 ? 's' : ''}
@@ -235,7 +235,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
             <button
               type="button"
               onClick={() => setArme(false)}
-              className="min-h-[44px] px-3 rounded-lg border border-sand-border text-[13px] font-semibold text-navy hover:bg-sand-hover"
+              className="fx-body min-h-[44px] px-3 rounded-lg border border-sand-border font-semibold text-navy hover:bg-sand-hover"
             >
               Annuler
             </button>
@@ -243,15 +243,15 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
         )}
 
         {!plan && !verification && (
-          <span className="text-[12px] text-ink-mid">Commencez par une vérification : rien n&apos;est écrit.</span>
+          <span className="fx-meta text-ink-mid">Commencez par une vérification : rien n&apos;est écrit.</span>
         )}
         {plan && !occupe && aCreer.length === 0 && (
-          <span className="text-[12px] text-ink-mid">Aucun dossier manquant.</span>
+          <span className="fx-meta text-ink-mid">Aucun dossier manquant.</span>
         )}
       </div>
 
       {erreur && (
-        <div role="alert" className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+        <div role="alert" className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           {erreur}
         </div>
       )}
@@ -259,7 +259,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
       {/* Journal de création */}
       {(journal.length > 0 || creation) && (
         <div className="space-y-1.5" aria-live="polite">
-          <div className="text-[12px] font-semibold text-ink">
+          <div className="fx-label font-semibold text-ink">
             Journal : {nbCrees} créé{nbCrees > 1 ? 's' : ''}{nbRejets > 0 ? ` · ${nbRejets} rejet${nbRejets > 1 ? 's' : ''}` : ''}
             {creation ? ` · ${creation.envoyes}/${creation.total} traités…` : ''}
           </div>
@@ -267,29 +267,28 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
             <div className="max-h-[260px] overflow-y-auto">
               <table className="w-full text-left min-w-[520px]">
                 <thead className="sticky top-0">
-                  <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted bg-sand">
-                    <th className="px-2.5 py-1.5 font-bold">N° dossier</th>
-                    <th className="px-2.5 py-1.5 font-bold">Résultat</th>
-                    <th className="px-2.5 py-1.5 font-bold">Détail</th>
+                  <tr className="fx-eyebrow border-b border-sand-border text-ink-mid bg-sand">
+                    <th className="px-2.5 py-1.5 font-semibold">N° dossier</th>
+                    <th className="px-2.5 py-1.5 font-semibold">Résultat</th>
+                    <th className="px-2.5 py-1.5 font-semibold">Détail</th>
                   </tr>
                 </thead>
                 <tbody>
                   {journal.map((l) => (
-                    <tr key={l.ref} className="border-b border-sand-mid bg-white">
-                      <td className="px-2.5 py-1.5 text-[11px] font-mono font-bold text-navy whitespace-nowrap">{l.ref}</td>
-                      <td className="px-2.5 py-1.5 text-[11px]">
-                        <span className={
-                          'px-2 py-0.5 rounded-md border font-bold ' +
+                    <tr key={l.ref} className="border-b border-sand-mid bg-cream">
+                      <td className="fx-small px-2.5 py-1.5 fx-ref font-semibold text-navy whitespace-nowrap">{l.ref}</td>
+                      <td className="fx-small px-2.5 py-1.5">
+                        <span className={'px-2 py-0.5 rounded-lg border font-semibold ' +
                           (l.resultat === 'cree'
                             ? 'bg-ok-light text-ok border-ok-mid'
                             : l.resultat === 'rejet'
-                              ? 'bg-terra-light text-terra border-terra-mid'
+                              ? 'bg-terra-light text-terra-ink border-terra-mid'
                               : 'bg-sand-mid text-ink-mid border-sand-border')
                         }>
                           {l.resultat === 'cree' ? 'Créé' : l.resultat === 'rejet' ? 'Rejet' : 'Ignoré'}
                         </span>
                       </td>
-                      <td className="px-2.5 py-1.5 text-[11px] text-ink-mid">{l.message}</td>
+                      <td className="fx-small px-2.5 py-1.5 text-ink-mid">{l.message}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -311,9 +310,8 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
                   onClick={() => setFiltre(cle)}
                   aria-pressed={filtre === cle}
                   title={cle === 'tous' ? undefined : VERDICTS[cle].aide}
-                  className={
-                    'min-h-[36px] px-3.5 rounded-full border text-[12px] font-bold ' +
-                    (filtre === cle ? 'bg-navy text-white border-navy' : 'bg-white text-ink border-sand-border hover:border-navy-light')
+                  className={'fx-pill min-h-[36px] px-3.5 rounded-full border font-semibold ' +
+                    (filtre === cle ? 'bg-navy text-cream border-navy' : 'bg-cream text-ink border-sand-border hover:border-navy-light')
                   }
                 >
                   {label} · {n}
@@ -322,7 +320,7 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
           </div>
 
           {plan.verdicts.length === 0 ? (
-            <div className="px-4 py-7 border border-sand-border rounded-lg bg-white text-center text-[13px] text-ink-mid">
+            <div className="fx-body px-4 py-7 border border-sand-border rounded-lg bg-cream text-center text-ink-mid">
               Aucune facture de vente avec numéro de dossier dans le miroir. Lancez d&apos;abord une synchronisation.
             </div>
           ) : (
@@ -330,44 +328,44 @@ export function ReconstructionPanel({ onFerme, onTermine }: { onFerme: () => voi
               <div className="max-h-[520px] overflow-auto">
                 <table className="w-full text-left min-w-[1040px]">
                   <thead className="sticky top-0">
-                    <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted bg-sand">
-                      <th className="px-2.5 py-1.5 font-bold">N° dossier</th>
-                      <th className="px-2.5 py-1.5 font-bold">Date facture</th>
-                      <th className="px-2.5 py-1.5 font-bold">Client Odoo</th>
-                      <th className="px-2.5 py-1.5 font-bold">Adresse</th>
-                      <th className="px-2.5 py-1.5 font-bold">Client résolu</th>
-                      <th className="px-2.5 py-1.5 font-bold">Verdict</th>
-                      <th className="px-2.5 py-1.5 font-bold">Détails</th>
+                    <tr className="fx-eyebrow border-b border-sand-border text-ink-mid bg-sand">
+                      <th className="px-2.5 py-1.5 font-semibold">N° dossier</th>
+                      <th className="px-2.5 py-1.5 font-semibold">Date facture</th>
+                      <th className="px-2.5 py-1.5 font-semibold">Client Odoo</th>
+                      <th className="px-2.5 py-1.5 font-semibold">Adresse</th>
+                      <th className="px-2.5 py-1.5 font-semibold">Client résolu</th>
+                      <th className="px-2.5 py-1.5 font-semibold">Verdict</th>
+                      <th className="px-2.5 py-1.5 font-semibold">Détails</th>
                     </tr>
                   </thead>
                   <tbody>
                     {affiches.map((v) => (
-                      <tr key={v.ref} className="border-b border-sand-mid bg-white align-top">
-                        <td className="px-2.5 py-1.5 text-[11px] font-mono font-bold text-navy whitespace-nowrap">
+                      <tr key={v.ref} className="border-b border-sand-mid bg-cream align-top">
+                        <td className="fx-small px-2.5 py-1.5 fx-ref font-semibold text-navy whitespace-nowrap">
                           {v.ref}
                           {v.numeros.length > 0 && (
-                            <div className="font-normal text-ink-muted">{v.numeros.join(', ')}</div>
+                            <div className="font-normal text-ink-mid">{v.numeros.join(', ')}</div>
                           )}
                         </td>
-                        <td className="px-2.5 py-1.5 text-[11px] font-mono whitespace-nowrap">{fmtJour(v.date_facture)}</td>
-                        <td className="px-2.5 py-1.5 text-[11px]">{v.tiers_nom ?? '—'}</td>
-                        <td className="px-2.5 py-1.5 text-[11px]">{v.adresse ?? '—'}</td>
-                        <td className="px-2.5 py-1.5 text-[11px]">{v.client ?? '—'}</td>
+                        <td className="fx-small px-2.5 py-1.5 tabular-nums whitespace-nowrap">{fmtJour(v.date_facture)}</td>
+                        <td className="fx-small px-2.5 py-1.5">{v.tiers_nom ?? '—'}</td>
+                        <td className="fx-small px-2.5 py-1.5">{v.adresse ?? '—'}</td>
+                        <td className="fx-small px-2.5 py-1.5">{v.client ?? '—'}</td>
                         <td className="px-2.5 py-1.5"><Pastille statut={v.statut} /></td>
-                        <td className="px-2.5 py-1.5 text-[11px] text-ink-mid">{v.details.join(' · ') || '—'}</td>
+                        <td className="fx-small px-2.5 py-1.5 text-ink-mid">{v.details.join(' · ') || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 {affiches.length === 0 && (
-                  <div className="px-4 py-7 border-t border-sand-border text-center text-[13px] text-ink-mid">
+                  <div className="fx-body px-4 py-7 border-t border-sand-border text-center text-ink-mid">
                     Aucune ligne pour ce verdict.
                   </div>
                 )}
               </div>
             </div>
           )}
-          <div className="text-[12px] text-ink-mid">
+          <div className="fx-meta text-ink-mid">
             {affiches.length} ligne{affiches.length > 1 ? 's' : ''} affichée{affiches.length > 1 ? 's' : ''} sur {plan.verdicts.length}.
             Les dossiers créés reçoivent le statut « réalisée », la date de la facture et la prestation facturée en description.
           </div>

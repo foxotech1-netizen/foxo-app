@@ -85,29 +85,29 @@ export function DocPreviewModal({
       aria-label={`Aperçu ${title}`}
     >
       <div
-        className="bg-cream rounded-2xl border border-sand-border w-full max-w-[860px] h-[85vh] flex flex-col overflow-hidden"
+        className="bg-cream rounded-modal border border-sand-border w-full max-w-[860px] h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-sand-border flex-shrink-0">
-          <div className="text-[13px] font-bold text-ink truncate">{title}</div>
+          <div className="fx-body font-semibold text-ink truncate">{title}</div>
           <div className="flex items-center gap-2">
             <Link
               href={fichePath}
-              className="bg-navy text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-90 inline-flex items-center gap-1"
+              className="fx-small bg-navy text-cream px-3 py-1.5 rounded-lg font-semibold hover:opacity-90 inline-flex items-center gap-1"
             >
               <ExternalLink size={12} aria-hidden /> Ouvrir la fiche
             </Link>
             <a
               href={pdfUrl}
               download
-              className="bg-white text-navy border border-navy-light px-3 py-1.5 rounded-lg text-[11px] font-bold hover:bg-navy-pale inline-flex items-center gap-1"
+              className="fx-small bg-cream text-navy border border-navy-light px-3 py-1.5 rounded-lg font-semibold hover:bg-navy-pale inline-flex items-center gap-1"
             >
               <Download size={12} aria-hidden /> Télécharger
             </a>
             <button
               type="button"
               onClick={onClose}
-              className="text-ink-muted hover:text-ink p-1"
+              className="text-ink-mid hover:text-ink p-1"
               aria-label="Fermer"
             >
               <X size={16} aria-hidden />
@@ -115,18 +115,18 @@ export function DocPreviewModal({
           </div>
         </header>
         {loading && (
-          <div className="flex-1 flex items-center justify-center gap-2 text-[13px] text-ink-mid font-semibold">
+          <div className="fx-body flex-1 flex items-center justify-center gap-2 text-ink-mid font-semibold">
             <Loader2 size={16} className="animate-spin" aria-hidden /> Chargement du PDF…
           </div>
         )}
         {!loading && error && (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="text-center space-y-2 max-w-[420px]">
-              <p className="text-[13px] font-bold text-terra">
+              <p className="fx-body font-semibold text-terra-ink">
                 Impossible d&apos;afficher l&apos;aperçu.
               </p>
-              <p className="text-[12px] text-ink-mid">{error}</p>
-              <p className="text-[12px] text-ink-muted">
+              <p className="fx-meta text-ink-mid">{error}</p>
+              <p className="fx-meta text-ink-mid">
                 Utilise « Ouvrir la fiche » ou « Télécharger » ci-dessus.
               </p>
             </div>
@@ -136,7 +136,7 @@ export function DocPreviewModal({
           <iframe
             src={blobUrl}
             title={`PDF ${title}`}
-            className="flex-1 w-full bg-white"
+            className="flex-1 w-full bg-cream"
           />
         )}
       </div>

@@ -170,11 +170,10 @@ export function ClientForm({
               key={t}
               type="button"
               onClick={() => setType(t)}
-              className={
-                'px-3 py-2 rounded-lg text-[13px] font-bold border-2 ' +
+              className={'fx-body px-3 py-2 rounded-lg font-semibold border-2 ' +
                 (type === t
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink border-sand-border hover:border-navy-mid dark:bg-[#221E1A] dark:text-[#F0ECE4] dark:border-[#3D3A32]')
+                  ? 'bg-navy text-cream border-navy'
+                  : 'bg-cream text-ink border-sand-border hover:border-navy-mid')
               }
             >
               {TYPE_CLIENT_LABEL[t]}
@@ -254,21 +253,21 @@ export function ClientForm({
       {type === 'acp' && (
         <Section title="Syndic gestionnaire">
           {selectedSyndic ? (
-            <div className="bg-navy-pale border border-navy-light rounded-lg p-3 mb-2 dark:bg-[#1A2540] dark:border-[#2C4878]">
+            <div className="bg-navy-pale border border-navy-light rounded-lg p-3 mb-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="font-bold text-[13px] text-navy dark:text-[#A8C4F2] inline-flex items-center gap-1.5">
+                  <div className="fx-body font-semibold text-navy inline-flex items-center gap-1.5">
                     <Building2 size={14} />
                     {selectedSyndic.nom}
                   </div>
-                  <div className="text-[11px] font-mono text-ink-mid mt-0.5 dark:text-[#C8C2B8]">
+                  <div className="fx-small tabular-nums text-ink-mid mt-0.5">
                     {selectedSyndic.email}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSyndicIdRef(null)}
-                  className="text-[10px] text-terra hover:underline flex-shrink-0 inline-flex items-center gap-1"
+                  className="fx-small text-terra-ink hover:underline flex-shrink-0 inline-flex items-center gap-1"
                 >
                   <X size={12} />
                   Retirer
@@ -281,19 +280,19 @@ export function ClientForm({
                 value={syndicSearch}
                 onChange={(e) => setSyndicSearch(e.target.value)}
                 placeholder={syndicsLoading ? 'Chargement…' : `Rechercher parmi ${syndics.length} syndics`}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2 dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid mb-2"
               />
               {filteredSyndics.length > 0 && (
-                <ul className="max-h-[160px] overflow-y-auto bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid mb-2 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+                <ul className="max-h-[160px] overflow-y-auto bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid mb-2">
                   {filteredSyndics.slice(0, 20).map((s) => (
                     <li key={s.id}>
                       <button
                         type="button"
                         onClick={() => pickSyndic(s)}
-                        className="w-full text-left px-3 py-1.5 hover:bg-navy-pale dark:hover:bg-[#2A2520]"
+                        className="w-full text-left px-3 py-1.5 hover:bg-navy-pale"
                       >
-                        <div className="text-[12px] font-bold text-ink dark:text-[#F0ECE4]">{s.nom}</div>
-                        <div className="text-[10px] font-mono text-ink-muted dark:text-[#C8C2B8]">{s.email}</div>
+                        <div className="fx-label font-semibold text-ink">{s.nom}</div>
+                        <div className="fx-small tabular-nums text-ink-mid">{s.email}</div>
                       </button>
                     </li>
                   ))}
@@ -302,7 +301,7 @@ export function ClientForm({
               <button
                 type="button"
                 onClick={() => setShowCreateSyndic((v) => !v)}
-                className="text-[11px] text-navy hover:underline font-bold dark:text-[#A8C4F2] inline-flex items-center gap-1"
+                className="fx-small text-navy hover:underline font-semibold inline-flex items-center gap-1"
               >
                 {showCreateSyndic ? (
                   <>
@@ -328,7 +327,7 @@ export function ClientForm({
               )}
             </>
           )}
-          <p className="text-[10px] text-ink-muted mt-2 italic dark:text-[#C8C2B8]">
+          <p className="fx-small text-ink-mid mt-2 italic">
             Optionnel. Si renseigné, l&apos;adresse de facturation et les emails dédiés sont
             pré-remplis depuis le syndic (modifiables).
           </p>
@@ -371,13 +370,13 @@ export function ClientForm({
       )}
 
       <Section title="Remise automatique sur factures">
-        <p className="text-[11px] text-ink-muted mb-2">
+        <p className="fx-small text-ink-mid mb-2">
           Pré-remplit la remise globale lors de la création d&apos;une facture pour ce client.
           Modifiable au cas par cas dans l&apos;éditeur.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_2fr] gap-2 items-end">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+            <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
               {remiseAutoType === 'pct' ? 'Valeur (%)' : 'Valeur (€)'}
             </label>
             <input
@@ -385,30 +384,30 @@ export function ClientForm({
               step={remiseAutoType === 'pct' ? '1' : '0.01'}
               value={remiseAutoValeur}
               onChange={(e) => setRemiseAutoValeur(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
             />
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">Type</label>
+            <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">Type</label>
             <select
               value={remiseAutoType}
               onChange={(e) => setRemiseAutoType(e.target.value as RemiseType)}
-              className="w-full px-2 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+              className="fx-body w-full px-2 py-2 border border-sand-border rounded-lg bg-cream"
             >
               <option value="pct">% pourcentage</option>
               <option value="fixe">€ fixe</option>
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
-              Description {Number(remiseAutoValeur) > 0 && <span className="text-terra">*</span>}
+            <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
+              Description {Number(remiseAutoValeur) > 0 && <span className="text-terra-ink">*</span>}
             </label>
             <input
               type="text"
               value={remiseAutoDescription}
               onChange={(e) => setRemiseAutoDescription(e.target.value)}
               placeholder={Number(remiseAutoValeur) > 0 ? 'Obligatoire (apparaît sur le PDF)' : 'Ex. Tarif préférentiel partenaire'}
-              className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
             />
           </div>
         </div>
@@ -420,12 +419,12 @@ export function ClientForm({
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Notes internes (visibles uniquement par l'admin)"
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+          className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
         />
       </Section>
 
       {error && (
-        <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 font-semibold">
+        <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
           {error}
         </div>
       )}
@@ -435,7 +434,7 @@ export function ClientForm({
           type="button"
           onClick={() => router.back()}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid py-3 rounded-xl font-bold text-[13px] disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+          className="fx-body bg-sand-mid text-ink-mid py-3 rounded-xl font-semibold disabled:opacity-50"
         >
           Annuler
         </button>
@@ -443,7 +442,7 @@ export function ClientForm({
           type="button"
           onClick={submit}
           disabled={pending}
-          className="bg-navy text-white py-3 rounded-xl font-bold text-[13px] hover:opacity-90 disabled:opacity-50"
+          className="fx-body bg-navy text-cream py-3 rounded-xl font-semibold hover:opacity-90 disabled:opacity-50"
         >
           {pending ? '…' : initial ? 'Enregistrer' : 'Créer le client'}
         </button>
@@ -454,8 +453,8 @@ export function ClientForm({
 
 function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-3 dark:text-[#C8C2B8]">
+    <section className="bg-cream border border-sand-border rounded-modal p-4">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-3">
         {title}
       </div>
       {children}
@@ -477,13 +476,13 @@ function DedicatedEmailField({
     : fallback ?? '';
   return (
     <div>
-      <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">{label}</label>
+      <label className="fx-label font-semibold text-ink-mid block mb-1.5">{label}</label>
       <input
         type="email"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid font-mono dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+        className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid tabular-nums"
       />
     </div>
   );
@@ -532,26 +531,26 @@ function NewSyndicInline({
     }
   }
 
-  const cls = 'w-full px-2 py-1.5 border border-sand-border rounded text-[12px] bg-white outline-none focus:border-navy-mid';
+  const cls = 'w-full px-2 py-1.5 border border-sand-border rounded-lg fx-body-dense bg-cream outline-none focus:border-navy-mid';
 
   return (
-    <div className="bg-navy-pale border border-navy-light rounded-lg p-3 mt-2 dark:bg-[#1A2540] dark:border-[#2C4878]">
-      <div className="text-[11px] font-bold text-navy mb-2 dark:text-[#A8C4F2]">
+    <div className="bg-navy-pale border border-navy-light rounded-lg p-3 mt-2">
+      <div className="fx-small font-semibold text-navy mb-2">
         Nouveau syndic
       </div>
       <div className="grid grid-cols-2 gap-2">
         <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom *" className={cls + ' col-span-2'} />
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email *" className={cls + ' col-span-2 font-mono'} />
-        <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" className={cls + ' font-mono'} />
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email *" className={cls + ' col-span-2 tabular-nums'} />
+        <input value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="Téléphone" className={cls + ' tabular-nums'} />
         <input value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Adresse" className={cls} />
       </div>
-      {error && <p className="text-[11px] text-terra mt-1.5">{error}</p>}
+      {error && <p className="fx-small text-terra-ink mt-1.5">{error}</p>}
       <div className="flex justify-end gap-1.5 mt-2">
         <button
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="text-[10px] bg-sand-mid text-ink-mid px-2 py-1 rounded font-bold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+          className="fx-small bg-sand-mid text-ink-mid px-2 py-1 rounded font-semibold disabled:opacity-50"
         >
           Annuler
         </button>
@@ -559,7 +558,7 @@ function NewSyndicInline({
           type="button"
           onClick={create}
           disabled={saving || !nom.trim() || !email.trim()}
-          className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50"
+          className="fx-small bg-navy text-cream px-2 py-1 rounded font-semibold disabled:opacity-50"
         >
           {saving ? '…' : 'Créer'}
         </button>
@@ -576,15 +575,14 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-ink-mid block mb-1.5 dark:text-[#C8C2B8]">{label}</label>
+      <label className="fx-label font-semibold text-ink-mid block mb-1.5">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={
-          'w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid ' +
-          (mono ? 'font-mono' : '')
+        className={'fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid ' +
+          (mono ? 'tabular-nums' : '')
         }
       />
     </div>

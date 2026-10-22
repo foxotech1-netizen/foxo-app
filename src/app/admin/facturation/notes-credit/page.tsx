@@ -35,17 +35,17 @@ export default async function NotesCreditPage() {
           <h1 className="fxs-page-title mb-1">
             Notes de crédit
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {avoirs.length} avoir{avoirs.length > 1 ? 's' : ''} — créés depuis une facture existante
           </div>
         </div>
-        <p className="text-[11px] text-[var(--color-ink-muted)] italic">
+        <p className="fx-small text-ink-mid italic">
           Crée un avoir depuis la fiche d&apos;une facture (bouton &laquo;&nbsp;Créer un avoir&nbsp;&raquo;).
         </p>
       </div>
       {error && (
-        <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
+        <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
           Erreur de chargement : {error.message}
         </div>
       )}

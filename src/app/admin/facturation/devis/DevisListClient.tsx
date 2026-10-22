@@ -16,25 +16,25 @@ import {
 } from '../actions';
 
 const STATUT_LABEL: Record<StatutFacture, string> = {
-  brouillon:  'Brouillon',
-  envoyee:    'Envoyé',
-  payee:      'Payé',
-  en_retard:  'En retard',
-  annulee:    'Annulé',
-  accepte:    'Accepté',
-  refuse:     'Refusé',
-  expire:     'Expiré',
+  brouillon: 'Brouillon',
+  envoyee: 'Envoyé',
+  payee: 'Payé',
+  en_retard: 'En retard',
+  annulee: 'Annulé',
+  accepte: 'Accepté',
+  refuse: 'Refusé',
+  expire: 'Expiré',
 };
 
 const STATUT_COLOR: Record<StatutFacture, { fg: string; bg: string }> = {
-  brouillon:  { fg: '#6B6558', bg: '#EDEAE3' },
-  envoyee:    { fg: '#2A5298', bg: '#D6E4F7' },
-  accepte:    { fg: '#1F6B45', bg: '#D4EDE2' },
-  refuse:     { fg: '#C4622D', bg: '#F7EDE5' },
-  expire:     { fg: '#C4622D', bg: '#F7EDE5' },
-  annulee:    { fg: '#6B6558', bg: '#E4DFD4' },
-  payee:      { fg: '#1F6B45', bg: '#D4EDE2' },
-  en_retard:  { fg: '#C4622D', bg: '#F7EDE5' },
+  brouillon:  { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)' },
+  envoyee:    { fg: 'var(--color-navy)', bg: 'var(--color-sky-light-foxo)' },
+  accepte:    { fg: 'var(--color-ok)', bg: 'var(--color-ok-light)' },
+  refuse:     { fg: 'var(--color-terra-ink)', bg: 'var(--color-terra-light)' },
+  expire:     { fg: 'var(--color-terra-ink)', bg: 'var(--color-terra-light)' },
+  annulee:    { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)' },
+  payee:      { fg: 'var(--color-ok)', bg: 'var(--color-ok-light)' },
+  en_retard:  { fg: 'var(--color-terra-ink)', bg: 'var(--color-terra-light)' },
 };
 
 function fmtMoney(n: number | null): string {
@@ -203,14 +203,13 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — numéro, client, référence…"
-          className="flex-1 min-w-[240px] px-3.5 py-2 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+          className="fx-meta flex-1 min-w-[240px] px-3.5 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
         />
       </div>
 
       {feedback && (
-        <div className={
-          'mb-3 px-3 py-2 text-xs rounded-md font-semibold ' +
-          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra')
+        <div className={'fx-label mb-3 px-3 py-2 rounded-lg font-semibold ' +
+          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra-ink')
         }>
           {feedback.msg}
         </div>
@@ -221,7 +220,7 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
           <thead>
             <tr className="bg-sand">
               {['Numéro', 'Client', 'Émis le', 'Validité', 'Total TTC', 'Statut', 'Actions'].map((h) => (
-                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -230,7 +229,7 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
+                <td colSpan={7} className="fx-body-dense text-center py-12 text-ink-mid">
                   Aucun devis pour l&apos;instant.
                 </td>
               </tr>
@@ -239,18 +238,18 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
               const dejaConverti = Boolean(d.converted_to_facture_id);
               return (
                 <tr key={d.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                  <td className="px-3.5 py-3 font-mono text-xs font-bold text-navy">
+                  <td className="fx-body-dense px-3.5 py-3 fx-ref font-semibold text-navy">
                     <button
                       type="button"
                       onClick={() => setPreview(d)}
                       title="Aperçu rapide du PDF"
-                      className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                      className="text-ink-mid hover:text-navy p-1 mr-1 align-middle"
                     >
                       <Eye size={14} aria-hidden />
                     </button>
                     <Link href={`/admin/facturation/devis/${d.id}`} className="hover:underline">
                       {d.numero.startsWith('BR-') ? (
-                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+                        <span className="fx-eyebrow inline-block font-semibold text-ink-mid bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
                           Brouillon
                         </span>
                       ) : (
@@ -258,19 +257,19 @@ export function DevisListClient({ initial }: { initial: Facture[] }) {
                       )}
                     </Link>
                   </td>
-                  <td className="px-3.5 py-3 text-[12px]">{d.client_nom ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid">{fmtDate(d.date_emission)}</td>
-                  <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid">{fmtDate(d.date_echeance)}</td>
-                  <td className="px-3.5 py-3 text-[12px] font-mono font-bold">{fmtMoney(d.montant_ttc)}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{d.client_nom ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid">{fmtDate(d.date_emission)}</td>
+                  <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid">{fmtDate(d.date_echeance)}</td>
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold">{fmtMoney(d.montant_ttc)}</td>
                   <td className="px-3.5 py-3">
                     <div className="flex flex-col gap-1">
-                      <span className="inline-block self-start rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" style={{ color: sc.fg, background: sc.bg }}>
+                      <span className="fx-badge inline-block self-start rounded-full px-2 py-0.5 font-semibold whitespace-nowrap" style={{ color: sc.fg, background: sc.bg }}>
                         {STATUT_LABEL[d.statut]}
                       </span>
                       {dejaConverti && d.converted_to_facture_id && (
                         <Link
                           href={`/admin/facturation/${d.converted_to_facture_id}`}
-                          className="text-[10px] text-navy underline"
+                          className="fx-small text-navy underline"
                         >
                           → Facture liée
                         </Link>

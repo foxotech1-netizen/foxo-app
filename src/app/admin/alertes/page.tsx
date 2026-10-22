@@ -9,8 +9,7 @@ import type { Acp, Intervention, Organisation } from '@/lib/types/database';
 export const dynamic = 'force-dynamic';
 
 type AlertItem = Pick<
-  Intervention,
-  'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id' | 'syndic_id' | 'technicien_id'
+  Intervention, 'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id' | 'syndic_id' | 'technicien_id'
 > & {
   acp_nom: string | null;
   acp_adresse: string | null;
@@ -27,8 +26,7 @@ export default async function AlertesPage() {
     .or('statut.eq.en_suspens,statut.eq.nouvelle,statut.eq.rapport')
     .order('updated_at', { ascending: false });
 
-  const interventions = (ivData ?? []) as Pick<Intervention,
-    'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id' | 'syndic_id' | 'technicien_id'
+  const interventions = (ivData ?? []) as Pick<Intervention, 'id' | 'ref' | 'statut' | 'priorite' | 'type' | 'creneau_debut' | 'updated_at' | 'acp_id' | 'syndic_id' | 'technicien_id'
   >[];
 
   const acpIds = Array.from(new Set(interventions.map((i) => i.acp_id).filter(Boolean) as string[]));
@@ -99,7 +97,7 @@ export default async function AlertesPage() {
           <h1 className="fxs-page-title mb-1">
             Alertes
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
             {totalAlertes} alerte{totalAlertes > 1 ? 's' : ''} en attente
           </div>
@@ -144,26 +142,26 @@ function Section({
   // Dark : fond solide + texte blanc, ratio AA garanti même sur fond sombre.
   const accentBg =
     color === 'terra'
-      ? 'bg-terra-light border-terra-mid dark:bg-[#C4622D] dark:border-[#D87A45]'
+      ? 'bg-terra-light border-terra-mid'
       : color === 'amber'
-      ? 'bg-amber-light border-[#E8C896] dark:bg-[#A17244] dark:border-[#C4904F]'
-      : 'bg-navy-pale border-navy-light dark:bg-[#1B3A6B] dark:border-[#2A5298]';
+      ? 'bg-amber-light border-[var(--color-amber-foxo)]/30'
+      : 'bg-navy-pale border-navy-light';
   const accentFg =
     color === 'terra'
-      ? 'text-terra dark:text-white'
+      ? 'text-terra-ink'
       : color === 'amber'
-      ? 'text-[#8A5A1A] dark:text-white'
-      : 'text-navy dark:text-white';
+      ? 'text-amber-ink'
+      : 'text-navy';
 
   return (
     <section>
       <div className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${accentBg} mb-3`}>
         <Icon size={18} className={accentFg} aria-hidden />
         <div className="flex-1">
-          <h2 className={`text-sm font-bold ${accentFg} dark:text-[#F0ECE4]`}>{title}</h2>
-          <p className="text-[11px] text-ink-mid dark:text-[#C8C2B8]">{subtitle}</p>
+          <h2 className={`fx-h3 font-semibold ${accentFg}`}>{title}</h2>
+          <p className="fx-small text-ink-mid">{subtitle}</p>
         </div>
-        <span className={`text-sm font-extrabold ${accentFg} dark:text-white`}>{items.length}</span>
+        <span className={`fx-body font-semibold ${accentFg}`}>{items.length}</span>
       </div>
 
       <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
@@ -171,7 +169,7 @@ function Section({
             <thead>
               <tr className="bg-sand">
                 {['Réf.', 'ACP', 'Type', 'Syndic', 'Créneau', 'Statut', 'Màj'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                  <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -181,16 +179,16 @@ function Section({
               {items.map((iv) => (
                 <tr key={iv.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3">
-                    <Link href={`/admin?id=${iv.id}`} className="font-mono text-xs font-semibold text-navy hover:underline">
+                    <Link href={`/admin?id=${iv.id}`} className="fx-label fx-ref font-semibold text-navy hover:underline">
                       {iv.ref ?? '—'}
                     </Link>
                   </td>
-                  <td className="px-3.5 py-3 text-[13px] font-bold">{iv.acp_nom ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[11px] text-ink-mid whitespace-nowrap">{iv.type ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[12px]">{iv.syndic_nom ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDateTime(iv.creneau_debut)}</td>
+                  <td className="fx-body-dense px-3.5 py-3 font-semibold">{iv.acp_nom ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-3 text-ink-mid whitespace-nowrap">{iv.type ?? '—'}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{iv.syndic_nom ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{fmtDateTime(iv.creneau_debut)}</td>
                   <td className="px-3.5 py-3"><StatutBadge statut={iv.statut} /></td>
-                  <td className="px-3.5 py-3 text-[10px] text-ink-muted font-mono">{relTime(iv.updated_at)}</td>
+                  <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums">{relTime(iv.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

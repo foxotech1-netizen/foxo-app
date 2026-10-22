@@ -11,14 +11,14 @@ import { deleteFacture, revertToBrouillon } from '../actions';
 
 const STATUT_LABEL: Partial<Record<StatutFacture, string>> = {
   brouillon: 'Brouillon',
-  envoyee:   'Émis',
-  annulee:   'Annulé',
+  envoyee: 'Émis',
+  annulee: 'Annulé',
 };
 
 const STATUT_COLOR: Partial<Record<StatutFacture, { fg: string; bg: string }>> = {
-  brouillon: { fg: '#6B6558', bg: '#EDEAE3' },
-  envoyee:   { fg: '#2A5298', bg: '#D6E4F7' },
-  annulee:   { fg: '#6B6558', bg: '#E4DFD4' },
+  brouillon: { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)' },
+  envoyee:   { fg: 'var(--color-navy)', bg: 'var(--color-sky-light-foxo)' },
+  annulee:   { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)' },
 };
 
 function fmtMoney(n: number | null): string {
@@ -108,14 +108,13 @@ export function NotesCreditListClient({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — numéro, client, facture d'origine…"
-          className="flex-1 min-w-[240px] px-3.5 py-2 border border-sand-border rounded-lg text-xs bg-cream outline-none focus:border-navy-mid"
+          className="fx-meta flex-1 min-w-[240px] px-3.5 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
         />
       </div>
 
       {feedback && (
-        <div className={
-          'mb-3 px-3 py-2 text-xs rounded-md font-semibold ' +
-          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra')
+        <div className={'fx-label mb-3 px-3 py-2 rounded-lg font-semibold ' +
+          (feedback.kind === 'ok' ? 'bg-ok-light border border-ok-mid text-ok' : 'bg-terra-light border border-terra-mid text-terra-ink')
         }>
           {feedback.msg}
         </div>
@@ -126,7 +125,7 @@ export function NotesCreditListClient({
           <thead>
             <tr className="bg-sand">
               {['N° avoir', 'Facture d\'origine', 'Client', 'Date', 'Montant TTC', 'Statut', 'Actions'].map((h) => (
-                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -135,28 +134,28 @@ export function NotesCreditListClient({
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-ink-muted text-[13px]">
+                <td colSpan={7} className="fx-body-dense text-center py-12 text-ink-mid">
                   Aucune note de crédit pour l&apos;instant. Crée un avoir depuis la fiche d&apos;une facture.
                 </td>
               </tr>
             ) : filtered.map((a) => {
-              const sc = STATUT_COLOR[a.statut] ?? { fg: '#6B6558', bg: '#EDEAE3' };
+              const sc = STATUT_COLOR[a.statut] ?? { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)' };
               const label = STATUT_LABEL[a.statut] ?? a.statut;
               const origNum = a.facture_origine_id ? origineMap[a.facture_origine_id] : null;
               return (
                 <tr key={a.id} className="border-b border-sand-mid hover:bg-sand-hover">
-                  <td className="px-3.5 py-3 font-mono text-xs font-bold text-terra">
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-terra-ink">
                     <button
                       type="button"
                       onClick={() => setPreview(a)}
                       title="Aperçu rapide du PDF"
-                      className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                      className="text-ink-mid hover:text-navy p-1 mr-1 align-middle"
                     >
                       <Eye size={14} aria-hidden />
                     </button>
                     <Link href={`/admin/facturation/notes-credit/${a.id}`} className="hover:underline">
                       {a.numero.startsWith('BR-') ? (
-                        <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+                        <span className="fx-eyebrow inline-block font-semibold text-ink-mid bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
                           Brouillon
                         </span>
                       ) : (
@@ -164,18 +163,18 @@ export function NotesCreditListClient({
                       )}
                     </Link>
                   </td>
-                  <td className="px-3.5 py-3 text-[12px]">
+                  <td className="fx-body-dense px-3.5 py-3">
                     {a.facture_origine_id ? (
-                      <Link href={`/admin/facturation/${a.facture_origine_id}`} className="font-mono text-navy hover:underline">
+                      <Link href={`/admin/facturation/${a.facture_origine_id}`} className="fx-ref text-navy hover:underline">
                         {origNum ?? '?'}
                       </Link>
-                    ) : <span className="text-ink-muted">—</span>}
+                    ) : <span className="text-ink-mid">—</span>}
                   </td>
-                  <td className="px-3.5 py-3 text-[12px]">{a.client_nom ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[11px] font-mono text-ink-mid">{fmtDate(a.date_emission)}</td>
-                  <td className="px-3.5 py-3 text-[12px] font-mono font-bold text-terra">{fmtMoney(a.montant_ttc)}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{a.client_nom ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-3 tabular-nums text-ink-mid">{fmtDate(a.date_emission)}</td>
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums font-semibold text-terra-ink">{fmtMoney(a.montant_ttc)}</td>
                   <td className="px-3.5 py-3">
-                    <span className="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold whitespace-nowrap" style={{ color: sc.fg, background: sc.bg }}>
+                    <span className="fx-badge inline-block rounded-full px-2 py-0.5 font-semibold whitespace-nowrap" style={{ color: sc.fg, background: sc.bg }}>
                       {label}
                     </span>
                   </td>

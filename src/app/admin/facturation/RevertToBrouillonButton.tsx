@@ -36,7 +36,7 @@ export function RevertToBrouillonButton({ facture }: { facture: Facture }) {
         type="button"
         onClick={() => setConfirmOpen(true)}
         disabled={pending}
-        className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold hover:bg-sand-hover disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+        className="fx-label bg-cream text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-semibold hover:bg-sand-hover disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
       >
         <Undo2 size={14} aria-hidden /> Remettre en brouillon
       </button>

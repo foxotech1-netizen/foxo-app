@@ -264,11 +264,11 @@ export function AchatDetailClient({
   }: { label: string; field: string; children: React.ReactNode }) {
     const low = lowConf(field);
     return (
-      <div className={low != null ? 'bg-amber-light border border-[#E8C896] rounded-lg p-2 -m-0.5' : undefined}>
-        <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+      <div className={low != null ? 'bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg p-2 -m-0.5' : undefined}>
+        <label className="fx-label font-semibold text-ink-mid block mb-1.5">
           {label}
           {low != null && (
-            <span className="ml-1.5 text-[10px] font-mono font-bold text-[#8A5A1A]">
+            <span className="fx-small ml-1.5 tabular-nums font-semibold text-amber-ink">
               IA {(low * 100).toFixed(0)}% — à vérifier
             </span>
           )}
@@ -278,14 +278,13 @@ export function AchatDetailClient({
     );
   }
 
-  const inputCls =
-    'w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted';
+  const inputCls = 'w-full px-3 py-2 border border-sand-border rounded-lg fx-body bg-cream outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-mid';
 
   return (
     <div className="space-y-5 max-w-[960px]">
       {/* Bandeau statut + doublon + justificatif */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-md border ${statutInfo.cls}`}>
+        <span className={`fx-small inline-block font-semibold px-2.5 py-1 rounded-lg border ${statutInfo.cls}`}>
           {statutInfo.label}
         </span>
         <ConfianceDot value={achat.ia_confiance_min} />
@@ -294,7 +293,7 @@ export function AchatDetailClient({
             <DoublonBadge />
             <Link
               href={`/admin/facturation/achats/${doublonOriginal.id}`}
-              className="text-[11px] text-navy underline hover:no-underline"
+              className="fx-small text-navy underline hover:no-underline"
             >
               Voir l&apos;original ({doublonOriginal.fournisseur_nom ?? '?'} — {doublonOriginal.numero_piece ?? 'sans n°'})
             </Link>
@@ -305,7 +304,7 @@ export function AchatDetailClient({
             href={achat.justificatif_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-navy font-semibold underline hover:no-underline inline-flex items-center gap-1"
+            className="fx-small text-navy font-semibold underline hover:no-underline inline-flex items-center gap-1"
           >
             <ExternalLink size={12} aria-hidden /> Justificatif Drive
           </a>
@@ -313,11 +312,11 @@ export function AchatDetailClient({
       </div>
 
       {/* Fournisseur */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">Fournisseur</div>
+      <div className="bg-cream border border-sand-border rounded-modal p-4 space-y-3">
+        <div className="fx-th font-semibold text-ink-mid">Fournisseur</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-ink-mid block mb-1.5">Fiche fournisseur</label>
+            <label className="fx-label font-semibold text-ink-mid block mb-1.5">Fiche fournisseur</label>
             <select
               value={fournisseurId ?? ''}
               onChange={(e) => {
@@ -339,7 +338,7 @@ export function AchatDetailClient({
                 type="button"
                 onClick={handleCreerFournisseur}
                 disabled={pending || !fournisseurNom.trim()}
-                className="mt-2 text-[11px] font-bold text-navy bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5 hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1 dark:text-white"
+                className="fx-small mt-2 font-semibold text-navy bg-navy-pale border border-navy-light rounded-lg px-2.5 py-1.5 hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
                 title="Crée la fiche fournisseur pré-remplie (nom + TVA extraits) et la lie."
               >
                 <UserPlus size={12} aria-hidden /> Créer la fiche
@@ -353,11 +352,11 @@ export function AchatDetailClient({
       </div>
 
       {/* Pièce */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">Pièce</div>
+      <div className="bg-cream border border-sand-border rounded-modal p-4 space-y-3">
+        <div className="fx-th font-semibold text-ink-mid">Pièce</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <ConfField label="N° de pièce" field="numero_piece">
-            <input value={numeroPiece} onChange={(e) => setNumeroPiece(e.target.value)} disabled={!editable} className={`${inputCls} font-mono`} />
+            <input value={numeroPiece} onChange={(e) => setNumeroPiece(e.target.value)} disabled={!editable} className={`${inputCls} tabular-nums`} />
           </ConfField>
           <ConfField label="Date facture" field="date_facture">
             <input type="date" value={dateFacture} onChange={(e) => setDateFacture(e.target.value)} disabled={!editable} className={inputCls} />
@@ -368,21 +367,21 @@ export function AchatDetailClient({
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <ConfField label="Montant HT (€)" field="montant_ht">
-            <input value={montantHt} onChange={(e) => setMontantHt(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} font-mono`} />
+            <input value={montantHt} onChange={(e) => setMontantHt(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} tabular-nums`} />
           </ConfField>
           <ConfField label="TVA (€)" field="montant_tva">
-            <input value={montantTva} onChange={(e) => setMontantTva(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} font-mono`} />
+            <input value={montantTva} onChange={(e) => setMontantTva(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} tabular-nums`} />
           </ConfField>
           <ConfField label="Montant TTC (€)" field="montant_ttc">
-            <input value={montantTtc} onChange={(e) => setMontantTtc(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} font-mono`} />
+            <input value={montantTtc} onChange={(e) => setMontantTtc(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} tabular-nums`} />
           </ConfField>
           <ConfField label="Taux TVA (%)" field="taux_tva">
-            <input value={tauxTva} onChange={(e) => setTauxTva(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} font-mono`} />
+            <input value={tauxTva} onChange={(e) => setTauxTva(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} tabular-nums`} />
           </ConfField>
         </div>
         <div className="border-t border-sand-border pt-2 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+            <div className="fx-eyebrow font-semibold text-ink-mid">
               Lignes
             </div>
             {editable && (
@@ -390,14 +389,14 @@ export function AchatDetailClient({
                 type="button"
                 onClick={recalculerTotaux}
                 title="Remplace HT/TVA/TTC par la somme des lignes × taux — les totaux extraits de la facture réelle restent la référence, ce recalcul est volontaire."
-                className="text-[10px] font-semibold text-ink-mid hover:text-navy inline-flex items-center gap-1"
+                className="fx-small font-semibold text-ink-mid hover:text-navy inline-flex items-center gap-1"
               >
                 <Calculator size={11} aria-hidden /> Recalculer les totaux depuis les lignes
               </button>
             )}
           </div>
           {lignes.length === 0 && (
-            <p className="text-[11px] text-ink-muted italic">Aucune ligne.</p>
+            <p className="fx-small text-ink-mid italic">Aucune ligne.</p>
           )}
           {lignes.map((l, i) => (
             <div key={i} className="grid grid-cols-[1fr_64px_84px_92px_auto] gap-1.5 items-center">
@@ -406,7 +405,7 @@ export function AchatDetailClient({
                 onChange={(e) => updateLigne(i, { description: e.target.value })}
                 disabled={!editable}
                 placeholder="Description"
-                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-mid"
               />
               <input
                 value={l.quantite ?? ''}
@@ -415,7 +414,7 @@ export function AchatDetailClient({
                 inputMode="decimal"
                 placeholder="Qté"
                 title="Quantité"
-                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] font-mono bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded-lg tabular-nums bg-cream outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-mid"
               />
               <input
                 value={l.prix_unitaire ?? ''}
@@ -424,7 +423,7 @@ export function AchatDetailClient({
                 inputMode="decimal"
                 placeholder="P.U."
                 title="Prix unitaire"
-                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] font-mono bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded-lg tabular-nums bg-cream outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-mid"
               />
               <input
                 value={l.montant ?? ''}
@@ -433,14 +432,14 @@ export function AchatDetailClient({
                 inputMode="decimal"
                 placeholder="Montant"
                 title="Montant de la ligne (recalculé qté × prix, éditable)"
-                className="px-2 py-1.5 border border-sand-border rounded-md text-[12px] font-mono bg-white outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-muted"
+                className="fx-meta px-2 py-1.5 border border-sand-border rounded-lg tabular-nums bg-cream outline-none focus:border-navy-mid disabled:bg-sand-mid disabled:text-ink-mid"
               />
               {editable ? (
                 <button
                   type="button"
                   onClick={() => removeLigne(i)}
                   title="Retirer la ligne"
-                  className="text-terra hover:opacity-70 p-1"
+                  className="text-terra-ink hover:opacity-70 p-1"
                 >
                   <XCircle size={14} aria-hidden />
                 </button>
@@ -451,7 +450,7 @@ export function AchatDetailClient({
             <button
               type="button"
               onClick={addLigne}
-              className="bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded-md text-[11px] font-semibold hover:bg-sand-hover inline-flex items-center gap-1"
+              className="fx-small bg-sand-mid text-ink-mid border border-sand-border px-2.5 py-1 rounded-lg font-semibold hover:bg-sand-hover inline-flex items-center gap-1"
             >
               <Plus size={12} aria-hidden /> Ligne
             </button>
@@ -460,10 +459,10 @@ export function AchatDetailClient({
       </div>
 
       {/* Payer ce fournisseur : QR EPC + contrôle anti-fraude IBAN */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3">
+      <div className="bg-cream border border-sand-border rounded-modal p-4 space-y-3">
         <div className="flex items-center gap-2">
           <QrCode size={15} className="text-navy" aria-hidden />
-          <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">Payer ce fournisseur</div>
+          <div className="fx-th font-semibold text-ink-mid">Payer ce fournisseur</div>
         </div>
 
         {/* Saisie IBAN + communication (surlignage confiance IA si &lt; 0.8 :
@@ -475,7 +474,7 @@ export function AchatDetailClient({
               onChange={(e) => setIbanPaiement(e.target.value)}
               disabled={!editable}
               placeholder="BE.. (compte du fournisseur)"
-              className={`${inputCls} font-mono`}
+              className={`${inputCls} tabular-nums`}
             />
           </ConfField>
           <ConfField label="Communication" field="communication">
@@ -484,39 +483,39 @@ export function AchatDetailClient({
               onChange={(e) => setCommunication(e.target.value)}
               disabled={!editable}
               placeholder="+++.../...+++ ou libre"
-              className={`${inputCls} font-mono`}
+              className={`${inputCls} tabular-nums`}
             />
           </ConfField>
         </div>
 
         {/* État du paiement (basé sur les données ENREGISTRÉES). */}
         {!ibanPersistNorm ? (
-          <p className="text-[12px] text-ink-mid">
+          <p className="fx-meta text-ink-mid">
             Renseignez l&apos;IBAN pour générer le QR de paiement.
           </p>
         ) : !ibanValide ? (
-          <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+          <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
             IBAN invalide (contrôle mod-97) — corrigez-le pour générer le QR de paiement.
           </div>
         ) : ttcPaiement <= 0 ? (
-          <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+          <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
             Montant TTC nul ou négatif — renseignez un montant pour générer le QR.
           </div>
         ) : (
           <div className="space-y-3">
             {/* Contrôle anti-fraude — AU-DESSUS du QR. */}
             {achat.iban_verifie_at ? (
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1">
+              <div className="fx-small inline-flex items-center gap-1.5 font-semibold text-ok bg-ok-light border border-ok-mid rounded-lg px-2.5 py-1">
                 <ShieldCheck size={13} aria-hidden />
                 IBAN vérifié le {fmtDateFr(achat.iban_verifie_at)} — conforme à la fiche fournisseur.
               </div>
             ) : ibanDiffere ? (
               <div className="bg-terra-light border border-terra-mid rounded-lg px-3 py-2.5 space-y-2">
-                <div className="flex items-start gap-2 text-[12px] text-terra font-semibold">
+                <div className="fx-label flex items-start gap-2 text-terra-ink font-semibold">
                   <ShieldAlert size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
                   <span>
-                    ⚠️ L&apos;IBAN de cette facture diffère de celui enregistré pour ce fournisseur
-                    (<span className="font-mono">{formatIban(ficheIbanNorm)}</span>). Fraude au virement
+                    L&apos;IBAN de cette facture diffère de celui enregistré pour ce fournisseur
+                    (<span className="tabular-nums">{formatIban(ficheIbanNorm)}</span>). Fraude au virement
                     possible : vérifiez par téléphone auprès d&apos;un contact connu avant de payer.
                   </span>
                 </div>
@@ -524,14 +523,14 @@ export function AchatDetailClient({
                   type="button"
                   onClick={handleVerifierIban}
                   disabled={pending}
-                  className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center gap-1.5"
+                  className="fx-label bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center gap-1.5"
                 >
                   <ShieldCheck size={14} aria-hidden /> J&apos;ai vérifié, mettre à jour l&apos;IBAN du fournisseur
                 </button>
               </div>
             ) : !ficheIbanNorm ? (
-              <div className="bg-amber-light border border-[#E8C896] rounded-lg px-3 py-2.5 space-y-2">
-                <div className="flex items-start gap-2 text-[12px] text-[#8A5A1A] font-semibold">
+              <div className="bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg px-3 py-2.5 space-y-2">
+                <div className="fx-label flex items-start gap-2 text-amber-ink font-semibold">
                   <ShieldAlert size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
                   <span>
                     Premier paiement vers ce fournisseur : vérifiez l&apos;IBAN auprès d&apos;un contact connu.
@@ -542,45 +541,45 @@ export function AchatDetailClient({
                     type="button"
                     onClick={handleVerifierIban}
                     disabled={pending}
-                    className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center gap-1.5"
+                    className="fx-label bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center gap-1.5"
                   >
                     <ShieldCheck size={14} aria-hidden /> J&apos;ai vérifié, mettre à jour l&apos;IBAN du fournisseur
                   </button>
                 ) : (
-                  <p className="text-[11px] text-[#8A5A1A]">
+                  <p className="fx-small text-amber-ink">
                     Liez une fiche fournisseur (ci-dessus) pour enregistrer l&apos;IBAN vérifié.
                   </p>
                 )}
               </div>
             ) : ibanConforme ? (
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ok bg-ok-light border border-ok-mid rounded-md px-2.5 py-1">
+              <div className="fx-small inline-flex items-center gap-1.5 font-semibold text-ok bg-ok-light border border-ok-mid rounded-lg px-2.5 py-1">
                 <ShieldCheck size={13} aria-hidden />
                 IBAN conforme à la fiche fournisseur
               </div>
             ) : null}
 
             {/* Bénéficiaire + IBAN + montant + communication EN CLAIR + QR. */}
-            <div className="bg-white border border-sand-border rounded-xl p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
+            <div className="bg-cream border border-sand-border rounded-xl p-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-center">
               <div className="space-y-2.5">
                 <div>
-                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Bénéficiaire</div>
-                  <div className="text-[15px] font-bold text-ink">{achat.fournisseur_nom ?? 'Fournisseur'}</div>
+                  <div className="fx-eyebrow font-semibold text-ink-mid">Bénéficiaire</div>
+                  <div className="fx-h2 font-semibold text-ink">{achat.fournisseur_nom ?? 'Fournisseur'}</div>
                 </div>
                 <div>
-                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">IBAN</div>
-                  <div className="text-[17px] font-mono font-bold text-navy tracking-wide dark:text-white break-all select-all">
+                  <div className="fx-eyebrow font-semibold text-ink-mid">IBAN</div>
+                  <div className="fx-panel-title fx-ref font-semibold text-navy tracking-wide break-all select-all">
                     {formatIban(ibanPersistNorm)}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-x-8 gap-y-2.5">
                   <div>
-                    <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Montant</div>
-                    <div className="text-[17px] font-mono font-bold text-ink tabular-nums">{fmtMoney(ttcPaiement)}</div>
+                    <div className="fx-eyebrow font-semibold text-ink-mid">Montant</div>
+                    <div className="fx-panel-title tabular-nums font-semibold text-ink">{fmtMoney(ttcPaiement)}</div>
                   </div>
                   {achat.communication && (
                     <div>
-                      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">Communication</div>
-                      <div className="text-[13px] font-mono font-semibold text-ink break-all select-all">{achat.communication}</div>
+                      <div className="fx-eyebrow font-semibold text-ink-mid">Communication</div>
+                      <div className="fx-body tabular-nums font-semibold text-ink break-all select-all">{achat.communication}</div>
                     </div>
                   )}
                 </div>
@@ -593,18 +592,18 @@ export function AchatDetailClient({
                     alt="QR de paiement EPC (virement SEPA)"
                     width={168}
                     height={168}
-                    className="rounded-lg border border-sand-border bg-white"
+                    className="rounded-lg border border-sand-border bg-cream"
                   />
-                  <span className="text-[10px] text-ink-muted">Scannez avec votre app bancaire</span>
+                  <span className="fx-small text-ink-mid">Scannez avec votre app bancaire</span>
                 </div>
               ) : (
-                <p className="text-[11px] text-ink-muted italic max-w-[160px] text-center justify-self-center">
+                <p className="fx-small text-ink-mid italic max-w-[160px] text-center justify-self-center">
                   QR indisponible — utilisez l&apos;IBAN ci-dessus.
                 </p>
               )}
             </div>
             {paiementDirty && (
-              <p className="text-[11px] text-ink-mid italic">
+              <p className="fx-small text-ink-mid italic">
                 Modifications non enregistrées — cliquez « Enregistrer » pour régénérer le QR.
               </p>
             )}
@@ -613,8 +612,8 @@ export function AchatDetailClient({
       </div>
 
       {/* Comptabilité + dossier */}
-      <div className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3">
-        <div className="text-[11px] font-bold text-ink-muted uppercase tracking-widest">Comptabilité & dossier</div>
+      <div className="bg-cream border border-sand-border rounded-modal p-4 space-y-3">
+        <div className="fx-th font-semibold text-ink-mid">Comptabilité & dossier</div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <ConfField label="Catégorie comptable" field="categorie_suggeree">
             <input
@@ -630,25 +629,25 @@ export function AchatDetailClient({
             </datalist>
           </ConfField>
           <div>
-            <label className="text-xs font-semibold text-ink-mid block mb-1.5">Déductibilité (%)</label>
-            <input value={deductibilite} onChange={(e) => setDeductibilite(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} font-mono`} />
+            <label className="fx-label font-semibold text-ink-mid block mb-1.5">Déductibilité (%)</label>
+            <input value={deductibilite} onChange={(e) => setDeductibilite(e.target.value)} disabled={!editable} inputMode="decimal" className={`${inputCls} tabular-nums`} />
           </div>
           <ConfField label="Moyen de paiement" field="moyen_paiement">
             <input value={moyenPaiement} onChange={(e) => setMoyenPaiement(e.target.value)} disabled={!editable} placeholder="virement, Bancontact…" className={inputCls} />
           </ConfField>
         </div>
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">Lier à un dossier</label>
+          <label className="fx-label font-semibold text-ink-mid block mb-1.5">Lier à un dossier</label>
           {interventionId ? (
-            <div className="flex items-center gap-2 text-[12px]">
-              <span className="font-mono font-bold text-navy bg-navy-pale border border-navy-light rounded-md px-2.5 py-1.5 dark:text-white">
+            <div className="fx-meta flex items-center gap-2">
+              <span className="fx-ref font-semibold text-navy bg-navy-pale border border-navy-light rounded-lg px-2.5 py-1.5">
                 {dossierLabel ?? interventionId.slice(0, 8)}
               </span>
               {editable && (
                 <button
                   type="button"
                   onClick={() => { setInterventionId(null); setDossierLabel(null); setDossierQuery(''); }}
-                  className="text-[11px] text-ink-mid underline hover:text-navy"
+                  className="fx-small text-ink-mid underline hover:text-navy"
                 >
                   Délier
                 </button>
@@ -664,7 +663,7 @@ export function AchatDetailClient({
                 className={inputCls}
               />
               {showDossierResults && (
-                <div className="mt-1.5 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
+                <div className="mt-1.5 bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
                   {dossierResults.map((r) => (
                     <button
                       key={r.id}
@@ -674,10 +673,10 @@ export function AchatDetailClient({
                         setDossierLabel(r.ref ?? r.adresse ?? r.id.slice(0, 8));
                         setDossierResults([]);
                       }}
-                      className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand"
+                      className="fx-meta block w-full text-left px-3 py-2 hover:bg-sand"
                     >
-                      <span className="font-mono font-bold text-navy">{r.ref ?? '—'}</span>
-                      <span className="text-ink-muted"> — {r.adresse ?? ''}</span>
+                      <span className="fx-ref font-semibold text-navy">{r.ref ?? '—'}</span>
+                      <span className="text-ink-mid"> — {r.adresse ?? ''}</span>
                     </button>
                   ))}
                 </div>
@@ -686,18 +685,17 @@ export function AchatDetailClient({
           )}
         </div>
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">Note interne</label>
+          <label className="fx-label font-semibold text-ink-mid block mb-1.5">Note interne</label>
           <textarea value={noteAdmin} onChange={(e) => setNoteAdmin(e.target.value)} disabled={!editable} rows={2} className={`${inputCls} resize-y`} />
         </div>
       </div>
 
       {feedback && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -711,7 +709,7 @@ export function AchatDetailClient({
             type="button"
             onClick={() => handleSave()}
             disabled={pending}
-            className="bg-[#A17244] text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-[#8A613B] disabled:opacity-50 min-h-[44px]"
+            className="fx-body bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:bg-navy-mid disabled:opacity-50 min-h-[44px]"
           >
             {pending ? '…' : 'Enregistrer'}
           </button>
@@ -722,7 +720,7 @@ export function AchatDetailClient({
               type="button"
               onClick={() => handleSave(() => validerFactureAchat(achat.id))}
               disabled={pending}
-              className="bg-navy text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+              className="fx-body bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
             >
               <Check size={14} aria-hidden /> Valider → à payer
             </button>
@@ -733,7 +731,7 @@ export function AchatDetailClient({
                 handleSave(() => rejeterFactureAchat(achat.id));
               }}
               disabled={pending}
-              className="bg-white text-terra border border-terra-mid px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+              className="fx-body bg-cream text-terra-ink border border-terra-mid px-4 py-2.5 rounded-lg font-semibold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
             >
               <XCircle size={14} aria-hidden /> Rejeter
             </button>
@@ -742,26 +740,26 @@ export function AchatDetailClient({
         {achat.statut === 'a_payer' && (
           <div className="flex flex-wrap items-end gap-2 bg-cream border border-sand-border rounded-xl p-3">
             <div>
-              <label className="text-xs font-semibold text-ink-mid block mb-1.5">Date de paiement</label>
+              <label className="fx-label font-semibold text-ink-mid block mb-1.5">Date de paiement</label>
               <input type="date" value={datePaiement} onChange={(e) => setDatePaiement(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-semibold text-ink-mid block mb-1.5">Moyen</label>
+              <label className="fx-label font-semibold text-ink-mid block mb-1.5">Moyen</label>
               <input value={moyenPaiementSaisi} onChange={(e) => setMoyenPaiementSaisi(e.target.value)} placeholder="virement…" className={inputCls} />
             </div>
             <button
               type="button"
               onClick={() => handleSave(() => marquerAchatPayee(achat.id, datePaiement, moyenPaiementSaisi || null))}
               disabled={pending}
-              className="bg-navy text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+              className="fx-body bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
             >
               <CreditCard size={14} aria-hidden /> Marquer payée
             </button>
           </div>
         )}
         {achat.statut === 'payee' && (
-          <div className="text-[12px] text-ink-mid">
-            Payée le <strong className="font-mono">{achat.date_paiement ?? '—'}</strong>
+          <div className="fx-meta text-ink-mid">
+            Payée le <strong className="tabular-nums">{achat.date_paiement ?? '—'}</strong>
             {achat.moyen_paiement ? ` (${achat.moyen_paiement})` : ''}.
           </div>
         )}
@@ -769,7 +767,7 @@ export function AchatDetailClient({
           type="button"
           onClick={() => setShowDeleteConfirm(true)}
           disabled={pending}
-          className="ml-auto bg-white text-terra border border-terra-mid px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+          className="fx-body ml-auto bg-cream text-terra-ink border border-terra-mid px-4 py-2.5 rounded-lg font-semibold hover:bg-terra-light disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
         >
           <Trash2 size={14} aria-hidden /> Supprimer
         </button>
@@ -778,16 +776,16 @@ export function AchatDetailClient({
       {/* Modale de confirmation de suppression */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-cream rounded-2xl border border-sand-border p-5 w-full max-w-[420px] space-y-3">
-            <h2 className="text-[14px] font-bold text-ink">
+          <div className="bg-cream rounded-modal border border-sand-border p-5 w-full max-w-[420px] space-y-3">
+            <h2 className="fx-h3 font-semibold text-ink">
               Supprimer cette facture d&apos;achat ?
             </h2>
-            <p className="text-[12px] text-ink-mid">
+            <p className="fx-meta text-ink-mid">
               Le justificatif reste archivé sur Drive.
             </p>
             {achat.statut === 'payee' && (
-              <p className="text-[12px] font-semibold text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2">
-                ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.
+              <p className="fx-label font-semibold text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2">
+                Attention : cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.
               </p>
             )}
             <div className="flex gap-2 pt-1">
@@ -795,7 +793,7 @@ export function AchatDetailClient({
                 type="button"
                 onClick={handleDelete}
                 disabled={pending}
-                className="bg-terra text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] flex-1"
+                className="fx-body bg-terra text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] flex-1"
               >
                 {pending ? '…' : 'Supprimer'}
               </button>
@@ -803,7 +801,7 @@ export function AchatDetailClient({
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={pending}
-                className="bg-white text-ink-mid border border-sand-border px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-sand-hover disabled:opacity-50 min-h-[44px]"
+                className="fx-body bg-cream text-ink-mid border border-sand-border px-4 py-2.5 rounded-lg font-semibold hover:bg-sand-hover disabled:opacity-50 min-h-[44px]"
               >
                 Annuler
               </button>

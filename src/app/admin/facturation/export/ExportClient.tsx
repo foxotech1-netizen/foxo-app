@@ -108,8 +108,8 @@ export function ExportClient({
       <section className="bg-cream rounded-xl border border-sand-border p-4 space-y-3">
         <div>
           <h2 className="fxs-block-title text-ink inline-flex items-center gap-1.5"><Calendar size={14} aria-hidden /> Période</h2>
-          <p className="text-[11px] text-ink-muted mt-0.5">
-            Range actuel : <strong className="font-mono">{range.from}</strong> → <strong className="font-mono">{range.to}</strong>
+          <p className="fx-small text-ink-mid mt-0.5">
+            Range actuel : <strong className="tabular-nums">{range.from}</strong> → <strong className="tabular-nums">{range.to}</strong>
           </p>
         </div>
 
@@ -124,11 +124,10 @@ export function ExportClient({
               key={opt.v}
               type="button"
               onClick={() => setPeriode(opt.v)}
-              className={
-                'px-3 py-1.5 rounded-md text-[12px] font-bold border transition-colors ' +
+              className={'fx-label px-3 py-1.5 rounded-lg font-semibold border transition-colors ' +
                 (periode === opt.v
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                  ? 'bg-navy text-cream border-navy'
+                  : 'bg-cream text-ink-mid border-sand-border hover:border-navy-mid')
               }
             >
               {opt.label}
@@ -139,21 +138,21 @@ export function ExportClient({
         {periode === 'custom' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">Du</label>
+              <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">Du</label>
               <input
                 type="date"
                 value={customFrom}
                 onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">Au</label>
+              <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">Au</label>
               <input
                 type="date"
                 value={customTo}
                 onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
               />
             </div>
           </div>
@@ -164,7 +163,7 @@ export function ExportClient({
             type="button"
             onClick={handleDownload}
             disabled={pending}
-            className="bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg text-xs font-bold hover:bg-sand-hover disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] inline-flex items-center gap-1.5"
+            className="fx-label bg-sand-mid text-ink-mid border border-sand-border px-3.5 py-2 rounded-lg font-semibold hover:bg-sand-hover disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             <Download size={14} aria-hidden /> Télécharger CSV
           </button>
@@ -172,22 +171,21 @@ export function ExportClient({
             type="button"
             onClick={handleSendComptable}
             disabled={pending || !emailComptable}
-            className="bg-ok text-white px-3.5 py-2 rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="fx-label bg-ok text-cream px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
             title={!emailComptable ? 'Email comptable non configuré' : undefined}
           >
             <Send size={14} aria-hidden /> Envoyer au comptable
           </button>
           {!emailComptable && (
-            <span className="text-[11px] text-terra italic self-center inline-flex items-center gap-1.5">
+            <span className="fx-small text-terra-ink italic self-center inline-flex items-center gap-1.5">
               <AlertTriangle size={12} aria-hidden /> Configure d&apos;abord l&apos;email comptable dans <Link href="/admin/parametres" className="underline">Paramètres</Link>.
             </span>
           )}
         </div>
 
         {feedback && (
-          <div className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
-            (feedback.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra')
+          <div className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
+            (feedback.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra-ink')
           }>
             {feedback.msg}
           </div>
@@ -199,7 +197,7 @@ export function ExportClient({
           <Archive size={14} aria-hidden /> Historique des exports
         </h2>
         {history.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
+          <div className="fx-meta bg-cream rounded-xl border border-sand-border p-6 text-center text-ink-mid">
             Aucun export envoyé pour l&apos;instant.
           </div>
         ) : (
@@ -208,7 +206,7 @@ export function ExportClient({
               <thead>
                 <tr className="bg-sand">
                   {['Date', 'Statut', 'Description', 'Par'].map((h) => (
-                    <th key={h} className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border">
+                    <th key={h} className="fx-eyebrow px-3 py-2 text-left font-semibold text-ink-mid border-b border-sand-border">
                       {h}
                     </th>
                   ))}
@@ -217,21 +215,20 @@ export function ExportClient({
               <tbody>
                 {history.map((h) => (
                   <tr key={h.id} className="border-b border-sand-mid">
-                    <td className="px-3 py-2 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDateTime(h.sent_at)}</td>
+                    <td className="fx-small px-3 py-2 tabular-nums text-ink-mid whitespace-nowrap">{fmtDateTime(h.sent_at)}</td>
                     <td className="px-3 py-2">
-                      <span className={
-                        'inline-flex items-center gap-1 text-[10px] font-bold rounded-full px-2 py-0.5 ' +
+                      <span className={'fx-badge inline-flex items-center gap-1 font-semibold rounded-full px-2 py-0.5 ' +
                         (h.status === 'sent'
                           ? 'bg-ok-light text-ok border border-ok-mid'
-                          : 'bg-terra-light text-terra border border-terra-mid')
+                          : 'bg-terra-light text-terra-ink border border-terra-mid')
                       }>
                         {h.status === 'sent'
                           ? (<><Check size={12} aria-hidden /> Envoyé</>)
                           : (<><X size={12} aria-hidden /> {h.status ?? 'inconnu'}</>)}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-[11px] text-ink">{h.message ?? '—'}</td>
-                    <td className="px-3 py-2 text-[10px] text-ink-muted">{h.sent_by ?? '—'}</td>
+                    <td className="fx-small px-3 py-2 text-ink">{h.message ?? '—'}</td>
+                    <td className="fx-small px-3 py-2 text-ink-mid">{h.sent_by ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -69,6 +69,29 @@
   --color-ok-light: #E4F2EB;
   --color-ok-mid:   #B8D9C8;
 
+  /* ── Refonte admin 10/2026 — tons « soft » (icônes sur fond sombre),
+     tons « ink » (texte/icône sur fond clair, contraste AA), divers. */
+  --color-sky-soft:     #A8D4E8;  /* = sky-foxo */
+  --color-amber-soft:   #E7B64A;
+  --color-terra-soft:   #F0A27A;
+  --color-ok-soft:      #86D3A6;
+  --color-amber-ink:    #8A6207;
+  --color-terra-ink:    #9A4A1F;
+  --color-card-border:  #E6E0D4;
+  --color-amber-bright: #E2AB2E;  /* haut du dégradé du bouton primaire, badge ambre clair */
+  --color-amber-base:   #7A5606;  /* socle 3D du bouton primaire */
+  --color-ink-on-amber: #14110A;  /* texte sur ambre */
+  --color-cream-dim:    #CFC9BD;  /* icône neutre sur fond sombre */
+
+  /* Cream translucide sur la sidebar navy (texte, surfaces, filets). */
+  --sb-text:         rgba(253, 251, 247, 0.80);
+  --sb-text-dim:     rgba(253, 251, 247, 0.62);
+  --sb-text-faint:   rgba(253, 251, 247, 0.50);
+  --sb-surface:      rgba(253, 251, 247, 0.10);
+  --sb-surface-soft: rgba(253, 251, 247, 0.06);
+  --sb-line:         rgba(253, 251, 247, 0.08);
+  --sb-line-strong:  rgba(253, 251, 247, 0.28);
+
   /* Accent secondaire propre au portail tech.foxo.be (vert PWA terrain).
      Distinct de la palette sémantique FoxO — utilisé sur :
      refs missions, swatches panels intervention, focus inputs tech,
@@ -165,6 +188,21 @@
   --color-ok:       var(--color-ok);
   --color-ok-light: var(--color-ok-light);
   --color-ok-mid:   var(--color-ok-mid);
+
+  --color-sky-soft:     var(--color-sky-soft);
+  --color-amber-soft:   var(--color-amber-soft);
+  --color-terra-soft:   var(--color-terra-soft);
+  --color-ok-soft:      var(--color-ok-soft);
+  --color-amber-ink:    var(--color-amber-ink);
+  --color-terra-ink:    var(--color-terra-ink);
+  --color-card-border:  var(--color-card-border);
+  --color-amber-bright: var(--color-amber-bright);
+  --color-amber-base:   var(--color-amber-base);
+  --color-ink-on-amber: var(--color-ink-on-amber);
+  --color-cream-dim:    var(--color-cream-dim);
+
+  /* Ombre des cards de la refonte admin (chaude, plus douce que shadow-card). */
+  --shadow-fx-card: 0 1px 2px rgba(28, 26, 22, 0.04), 0 4px 14px rgba(28, 26, 22, 0.06);
 
   --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-dm-mono), ui-monospace, monospace;
@@ -735,19 +773,19 @@ h1.fxs-page-title > span,
 
 /* Sidebar admin (fond navy sombre) : la nav déborde souvent de 100vh —
    gouttière invisible au repos, pouce discret au survol uniquement. */
-.foxo-sidebar-desktop {
+.foxo-sidebar-desktop, .foxo-sidebar-desktop > nav {
   scrollbar-color: transparent transparent;
 }
-.foxo-sidebar-desktop:hover {
+.foxo-sidebar-desktop:hover, .foxo-sidebar-desktop > nav:hover {
   scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
 }
-.foxo-sidebar-desktop::-webkit-scrollbar-track {
+.foxo-sidebar-desktop::-webkit-scrollbar-track, .foxo-sidebar-desktop > nav::-webkit-scrollbar-track {
   background: transparent;
 }
-.foxo-sidebar-desktop::-webkit-scrollbar-thumb {
+.foxo-sidebar-desktop::-webkit-scrollbar-thumb, .foxo-sidebar-desktop > nav::-webkit-scrollbar-thumb {
   background: transparent;
 }
-.foxo-sidebar-desktop:hover::-webkit-scrollbar-thumb {
+.foxo-sidebar-desktop:hover::-webkit-scrollbar-thumb, .foxo-sidebar-desktop > nav:hover::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.22);
 }
 
@@ -796,4 +834,976 @@ textarea::placeholder {
 }
 .row-hover:active {
   background: var(--color-sand-mid);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   REFONTE ADMIN (maquette validée 22/10/2026) — préfixe .fx-
+   Portée : le portail admin uniquement (racine .fx-admin posée par
+   src/app/admin/layout.tsx). Échelle typographique fermée :
+   10.5 · 11 · 11.5 · 12 · 12.5 · 13 · 13.5 · 14 · 15 · 18 · 24 · 30 · 34 px.
+   Familles : Syne = le mot « FoxO » du logo uniquement ; Sora = titres,
+   navigation, chiffres, références, boutons, pills, en-têtes de tableau ;
+   Inter = texte courant. Aucun hex ici hors tokens : tout passe par var().
+   Les utilitaires typographiques vivent dans @layer components : un
+   utilitaire Tailwind posé au même endroit (text-terra, tabular-nums…)
+   garde le dernier mot.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Racine du portail admin : Inter par défaut, mobile = marges sous les
+   barres fixes (en-tête 64 px, barre du bas 72 px + zone sûre). */
+.fx-admin {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-ink);
+}
+@media (max-width: 768px) {
+  .fx-admin main {
+    padding-top: calc(76px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Fonds signature ------------------------------------------------------- */
+.fx-sidebar-bg {
+  background: linear-gradient(180deg, var(--color-navy-dark) 0%, var(--color-navy-deep) 100%);
+}
+.fx-content-bg {
+  background-color: var(--color-sand);
+  background-image:
+    radial-gradient(circle at 12% -5%, rgba(168, 212, 232, 0.24) 0%, transparent 45%),
+    radial-gradient(circle at 95% 100%, rgba(196, 98, 45, 0.06) 0%, transparent 45%);
+}
+
+@layer components {
+  /* ── Typographie ──────────────────────────────────────────────────── */
+  .fx-h1 {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-ink);
+  }
+  .fx-h1 > span, .fx-h1 > strong {
+    font-weight: 600;
+    color: var(--color-navy);
+  }
+  @media (max-width: 768px) {
+    .fx-h1 { font-size: 24px; }
+  }
+  .fx-h2 {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: var(--color-ink);
+  }
+  .fx-h3 {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-ink);
+  }
+  .fx-kpi {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+  @media (max-width: 768px) {
+    .fx-kpi { font-size: 24px; }
+  }
+  .fx-eyebrow {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 10.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    line-height: 1.3;
+    color: var(--color-ink-mid);
+  }
+  .fx-th {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.3;
+    color: var(--color-ink-mid);
+  }
+  .fx-nav {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.2;
+  }
+  .fx-nav-mobile {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .fx-ref {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-navy);
+  }
+  .fx-body {
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.45;
+    color: var(--color-ink);
+  }
+  .fx-body-dense {
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 13.5px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--color-ink);
+  }
+  .fx-meta {
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 12.5px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--color-ink-mid);
+  }
+  .fx-label {
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--color-ink-mid);
+  }
+  /* Compléments dans la grille : lien d'action de card, texte Sora 13 des
+     tuiles de menu / noms d'utilisateur, 12 px Inter lu (rôle), titre de
+     panneau 18, taille 24 (sous-titres de page / KPI secondaires). */
+  .fx-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--color-navy);
+  }
+  .fx-tile-label {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--color-ink);
+  }
+  .fx-name {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.25;
+  }
+  .fx-small {
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--color-ink-mid);
+  }
+  .fx-panel-title {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    color: var(--color-ink);
+  }
+  .fx-num-md {
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink);
+  }
+  .fx-wordmark {
+    font-family: var(--font-syne), ui-sans-serif, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  /* ── Boutons ──────────────────────────────────────────────────────── */
+  .fx-btn-primary,
+  .fx-btn-secondary,
+  .fx-btn-small,
+  .fx-btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .fx-btn-primary {
+    height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-ink-on-amber);
+    background: linear-gradient(180deg, var(--color-amber-bright) 0%, var(--color-amber-foxo) 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      0 3px 0 var(--color-amber-base),
+      0 8px 18px rgba(184, 131, 10, 0.3);
+  }
+  .fx-btn-primary:hover { filter: brightness(1.04); }
+  .fx-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+  .fx-btn-secondary {
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--color-navy);
+    background: var(--color-cream);
+    border-color: var(--color-sand-border);
+  }
+  .fx-btn-secondary:hover { background: var(--color-sand-hover); border-color: var(--color-navy-light); }
+  .fx-btn-secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+  .fx-btn-small {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--color-navy);
+    background: var(--color-cream);
+    border-color: var(--color-sand-border);
+  }
+  .fx-btn-small:hover { background: var(--color-sand-hover); border-color: var(--color-navy-light); }
+  .fx-btn-small:disabled { opacity: 0.55; cursor: not-allowed; }
+  .fx-btn-small-navy { background: var(--color-navy); color: var(--color-cream); border-color: var(--color-navy); }
+  .fx-btn-small-navy:hover { background: var(--color-navy-mid); border-color: var(--color-navy-mid); }
+  .fx-btn-danger {
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-terra-ink);
+    background: var(--color-terra-light);
+    border-color: var(--color-terra-mid);
+  }
+  .fx-btn-danger:hover { background: var(--color-terra-light); border-color: var(--color-terra-ink); filter: brightness(0.97); }
+  /* Bouton icône carré (cloche, fermeture…). */
+  .fx-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--color-sand-border);
+    background: var(--color-cream);
+    color: var(--color-navy);
+    cursor: pointer;
+    position: relative;
+  }
+  .fx-icon-btn:hover { background: var(--color-sand-hover); border-color: var(--color-navy-light); }
+
+  /* ── Pills, badges, chips ─────────────────────────────────────────── */
+  .fx-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    background: var(--color-sand-mid);
+    color: var(--color-ink-mid);
+  }
+  .fx-pill-sky   { background: var(--color-sky-light-foxo); color: var(--color-navy); }
+  .fx-pill-amber { background: var(--color-amber-light);    color: var(--color-amber-ink); }
+  .fx-pill-terra { background: var(--color-terra-light);    color: var(--color-terra-ink); }
+  .fx-pill-ok    { background: var(--color-ok-light);       color: var(--color-ok); }
+  .fx-pill-navy  { background: var(--color-navy-pale);      color: var(--color-navy); }
+  .fx-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    background: var(--color-amber-soft);
+    color: var(--color-navy-deep);
+  }
+  .fx-badge-terra  { background: var(--color-terra-soft);  color: var(--color-navy-deep); }
+  .fx-badge-terra-solid { background: var(--color-terra-deep); color: var(--color-cream); }
+  .fx-badge-amber-solid { background: var(--color-amber-bright); color: var(--color-ink-on-amber); }
+  .fx-badge-navy   { background: var(--color-navy);        color: var(--color-cream); }
+  /* Filtres (pills cliquables). */
+  .fx-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--color-sand-border);
+    background: var(--color-sand);
+    color: var(--color-ink-mid);
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .fx-chip:hover { border-color: var(--color-navy-light); color: var(--color-ink); }
+  .fx-chip[aria-pressed="true"], .fx-chip-active {
+    background: var(--color-navy);
+    border-color: var(--color-navy);
+    color: var(--color-cream);
+  }
+  /* Segmented control. */
+  .fx-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--color-sand-mid);
+  }
+  .fx-seg > button {
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 0;
+    background: transparent;
+    color: var(--color-ink-mid);
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .fx-seg > button[aria-pressed="true"] {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    box-shadow: 0 1px 2px rgba(28, 26, 22, 0.08);
+  }
+
+  /* ── Cards, bandeaux, champs ──────────────────────────────────────── */
+  .fx-card {
+    background: var(--color-cream);
+    border: 1px solid var(--color-card-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-fx-card);
+  }
+  .fx-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--color-sand-mid);
+  }
+  .fx-card-row {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--color-sand-mid);
+  }
+  .fx-card-row:last-child { border-bottom: 0; }
+  .fx-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--color-terra-light);
+    border: 1px solid var(--color-terra-mid);
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--color-ink);
+  }
+  .fx-banner-amber { background: var(--color-amber-light); border-color: rgba(184, 131, 10, 0.3); }
+  .fx-banner-ok    { background: var(--color-ok-light);    border-color: var(--color-ok-mid); }
+  .fx-banner-navy  { background: var(--color-navy-pale);   border-color: var(--color-navy-light); }
+  .fx-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid var(--color-sand-border);
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 14px;
+    line-height: 1.3;
+    outline: none;
+  }
+  .fx-input:focus { border-color: var(--color-navy-mid); box-shadow: 0 0 0 3px var(--color-navy-pale); }
+  .fx-input:disabled { background: var(--color-sand); color: var(--color-ink-mid); }
+  textarea.fx-input { height: auto; min-height: 88px; padding: 10px 14px; }
+  .fx-kbd {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--color-sand-border);
+    background: var(--color-sand);
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-ink-mid);
+  }
+
+  /* ── Pastilles d'icône ────────────────────────────────────────────── */
+  .fx-ico {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+  }
+  .fx-ico-sm { width: 30px; height: 30px; border-radius: 8px; }
+  .fx-ico-md { width: 32px; height: 32px; border-radius: 9px; }
+  .fx-ico-lg { width: 34px; height: 34px; border-radius: 9px; }
+  /* Fond sombre (sidebar, barre du bas) : fond « soft » 18 %, icône « soft ». */
+  .fx-ico-sky     { background: color-mix(in srgb, var(--color-sky-soft) 18%, transparent);   color: var(--color-sky-soft); }
+  .fx-ico-amber   { background: color-mix(in srgb, var(--color-amber-soft) 18%, transparent); color: var(--color-amber-soft); }
+  .fx-ico-terra   { background: color-mix(in srgb, var(--color-terra-soft) 18%, transparent); color: var(--color-terra-soft); }
+  .fx-ico-ok      { background: color-mix(in srgb, var(--color-ok-soft) 18%, transparent);    color: var(--color-ok-soft); }
+  .fx-ico-neutral { background: var(--sb-surface);                                            color: var(--color-cream-dim); }
+  .fx-ico-sky.is-full     { background: var(--color-sky-soft);   color: var(--color-navy-deep); }
+  .fx-ico-amber.is-full   { background: var(--color-amber-soft); color: var(--color-navy-deep); }
+  .fx-ico-terra.is-full   { background: var(--color-terra-soft); color: var(--color-navy-deep); }
+  .fx-ico-ok.is-full      { background: var(--color-ok-soft);    color: var(--color-navy-deep); }
+  .fx-ico-neutral.is-full { background: var(--color-cream);      color: var(--color-navy-deep); }
+  /* Fond clair (menu mobile, KPI, bandeaux) : fond « -light », icône « -ink ». */
+  .fx-ico-light-sky     { background: var(--color-sky-light-foxo); color: var(--color-navy); }
+  .fx-ico-light-amber   { background: var(--color-amber-light);    color: var(--color-amber-ink); }
+  .fx-ico-light-terra   { background: var(--color-terra-light);    color: var(--color-terra-ink); }
+  .fx-ico-light-ok      { background: var(--color-ok-light);       color: var(--color-ok); }
+  .fx-ico-light-neutral { background: var(--color-sand-mid);       color: var(--color-ink-mid); }
+  .fx-ico-light-navy    { background: var(--color-navy);           color: var(--color-cream); }
+  .fx-ico-light-terra-solid { background: var(--color-terra);      color: var(--color-cream); }
+
+  /* ── Tableaux ─────────────────────────────────────────────────────── */
+  .fx-table-wrap { overflow-x: auto; }
+  .fx-table { width: 100%; border-collapse: collapse; text-align: left; }
+  .fx-table th {
+    padding: 10px 12px;
+    font-family: var(--font-sora), ui-sans-serif, sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-ink-mid);
+    background: var(--color-sand);
+    border-bottom: 1px solid var(--color-sand-border);
+    white-space: nowrap;
+  }
+  .fx-table td {
+    padding: 11px 12px;
+    font-family: var(--font-inter), ui-sans-serif, sans-serif;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: var(--color-ink);
+    border-bottom: 1px solid var(--color-sand-mid);
+    vertical-align: middle;
+  }
+  .fx-table th:first-child, .fx-table td:first-child { padding-left: 20px; }
+  .fx-table th:last-child,  .fx-table td:last-child  { padding-right: 20px; }
+  .fx-table tbody tr:last-child td { border-bottom: 0; }
+  .fx-table tbody tr:hover td { background: var(--color-sand-hover); }
+  .fx-table .fx-num, .fx-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Grilles / divers ─────────────────────────────────────────────── */
+  .fx-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .fx-divider { height: 1px; background: var(--color-sand-mid); }
+  .fx-page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-sand-border);
+  }
+}
+
+/* Alignement des utilitaires historiques .fxs-* dans le périmètre admin
+   (les autres portails gardent leurs valeurs). */
+.fx-admin .fxs-card {
+  border: 1px solid var(--color-card-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-fx-card);
+}
+.fx-admin .premium-card {
+  border-color: var(--color-card-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-fx-card);
+}
+.fx-admin .fxs-page-title {
+  font-size: 30px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.fx-admin .fxs-page-title > span,
+.fx-admin h1.fxs-page-title > span {
+  font-weight: 600;
+  color: var(--color-navy);
+}
+@media (max-width: 768px) {
+  .fx-admin .fxs-page-title { font-size: 24px; }
+}
+.fx-admin .fxs-title-sm { font-size: 18px; }
+.fx-admin .fxs-block-title { font-size: 14px; }
+.fx-admin .section-label {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 10.5px;
+}
+.fx-admin .kpi-value { font-size: 34px; }
+.fx-admin .section-title { font-size: 12.5px; }
+/* Dans l'admin, les tailles Tailwind nommées hors grille sont ramenées
+   dans la grille (16 → 15, 20 → 18) : plus aucune taille hors échelle,
+   même sur un composant partagé rendu dans ce portail. */
+.fx-admin .text-base { font-size: 15px; }
+.fx-admin .text-xl   { font-size: 18px; }
+.fx-admin .text-4xl  { font-size: 34px; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Sidebar admin et coquille mobile (components/Sidebar.tsx,
+   components/AdminMobileMenu.tsx). Breakpoint conservé : 768 px.
+   ═══════════════════════════════════════════════════════════════════════ */
+.foxo-sidebar-desktop {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 264px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 14px 18px;
+  overflow: hidden;
+  border-right: 1px solid var(--sb-line);
+}
+/* Logo et carte utilisateur restent visibles : seule la navigation défile
+   quand l'écran est moins haut que la liste des sections. */
+.foxo-sidebar-desktop > nav {
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -6px;
+  padding: 0 6px;
+}
+.foxo-mobile-header { display: none; }
+.foxo-sidebar-mobile { display: none; }
+@media (max-width: 768px) {
+  .foxo-sidebar-desktop { display: none; }
+  .foxo-mobile-header > a { min-height: 44px; }
+  .foxo-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 80;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 10px;
+    border-bottom: 1px solid var(--sb-line);
+  }
+  .foxo-sidebar-mobile {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 100;
+    padding: 8px 6px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--sb-line);
+  }
+}
+@media (min-width: 769px) {
+  .fx-sheet-root { display: none; }
+}
+
+/* Logo + wordmark (Syne : ici et nulle part ailleurs). 21 / 19 px = tailles
+   de la maquette pour le mot « FoxO », hors grille typographique par nature
+   (élément de marque, pas de texte). */
+.fx-sb-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 6px;
+  border-radius: 12px;
+  text-decoration: none;
+}
+.fx-sb-logo-mark {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fx-sb-logo-mark-sm { width: 32px; height: 32px; }
+.fx-wordmark { font-size: 21px; }
+.fx-wordmark-sm { font-size: 19px; }
+.fx-eyebrow-dim { color: var(--sb-text-dim); }
+.fx-eyebrow-faint { color: var(--sb-text-faint); }
+
+/* Item de navigation desktop. */
+.fx-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 10px;
+  color: var(--sb-text);
+  text-decoration: none;
+}
+.fx-nav-item:hover { background: var(--sb-surface-soft); color: var(--color-cream); }
+.fx-nav-item.is-active {
+  background: var(--sb-surface);
+  color: var(--color-cream);
+  box-shadow: inset 3px 0 0 var(--color-sky-foxo);
+}
+.fx-nav-item.is-active .fx-nav { font-weight: 500; }
+
+/* Pied : carte utilisateur. */
+.fx-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: var(--sb-surface-soft);
+  border: 1px solid var(--sb-line);
+}
+.fx-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.fx-avatar-sky  { background: var(--color-sky-foxo); color: var(--color-navy-deep); }
+.fx-avatar-navy { background: var(--color-navy);     color: var(--color-cream); }
+.fx-avatar-lg   { width: 38px; height: 38px; }
+.fx-role {
+  font-family: var(--font-inter), ui-sans-serif, sans-serif;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--sb-text-dim);
+}
+.fx-sb-iconbtn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--sb-line);
+  background: var(--sb-surface);
+  color: var(--color-cream);
+  cursor: pointer;
+}
+.fx-sb-iconbtn:hover { background: var(--sb-line-strong); }
+.fx-sb-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 13px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--sb-line-strong);
+  background: var(--sb-surface);
+  color: var(--color-cream);
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.fx-sb-logout:hover { background: var(--sb-line-strong); }
+
+/* Barre du bas. */
+.fx-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 2px 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sb-text);
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+}
+.fx-tab.is-active { color: var(--color-cream); }
+.fx-tab.is-active .fx-nav-mobile { font-weight: 600; }
+.fx-ico-tab { width: 34px; height: 30px; border-radius: 9px; }
+.fx-tab-badge {
+  position: absolute;
+  top: -4px;
+  left: calc(50% + 8px);
+  border: 2px solid var(--color-navy-dark);
+}
+
+/* Menu mobile (bottom sheet). */
+.fx-sheet-root { position: fixed; inset: 0; z-index: 200; }
+.fx-sheet-veil {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--color-navy-deep) 55%, transparent);
+  cursor: pointer;
+}
+.fx-sheet {
+  position: absolute;
+  left: 0; right: 0; top: 64px; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-sand);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+  animation: fx-sheet-in 0.2s ease-out;
+}
+@keyframes fx-sheet-in {
+  from { transform: translateY(32px); opacity: 0.5; }
+  to   { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fx-sheet { animation: none; }
+}
+.fx-sheet-head {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--color-card-border);
+}
+.fx-sheet-handle {
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: var(--color-sand-border);
+}
+.fx-sheet-close {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid var(--color-sand-border);
+  background: var(--color-cream);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.fx-sheet-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 16px 16px;
+}
+.fx-sheet-foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--color-card-border);
+  background: var(--color-cream);
+}
+.fx-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: var(--color-cream);
+  border: 1px solid var(--color-card-border);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+.fx-tile.is-active {
+  border-color: var(--color-navy-light);
+  box-shadow: inset 3px 0 0 var(--color-navy);
+}
+.fx-tile.is-active .fx-tile-label { font-weight: 600; }
+.fx-ico-light-sky.is-full, .fx-ico-light-amber.is-full, .fx-ico-light-terra.is-full,
+.fx-ico-light-ok.is-full, .fx-ico-light-neutral.is-full {
+  background: var(--color-navy);
+  color: var(--color-cream);
+}
+
+/* Tableau de bord : point d'alerte sur la cloche, heure des missions. */
+.fx-alert-dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--color-terra);
+  border: 2px solid var(--color-cream);
+}
+.fx-time {
+  display: inline-block;
+  width: 46px;
+  flex-shrink: 0;
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-navy);
+}
+
+/* Pills de statut dans l'admin : StatutBadge (composant partagé, couleurs en
+   style inline) rebasé sur les 4 familles de la maquette. !important : seule
+   façon de passer devant un style inline sans toucher aux autres portails. */
+.fx-admin .statut-badge {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  padding: 4px 10px !important;
+  line-height: 1.2;
+}
+.fx-admin .statut-badge[data-statut="attente"],
+.fx-admin .statut-badge[data-statut="nouvelle"] {
+  background: var(--color-amber-light) !important;
+  color: var(--color-amber-ink) !important;
+}
+.fx-admin .statut-badge[data-statut="confirmee"],
+.fx-admin .statut-badge[data-statut="realisee"] {
+  background: var(--color-sky-light-foxo) !important;
+  color: var(--color-navy) !important;
+}
+.fx-admin .statut-badge[data-statut="rapport"],
+.fx-admin .statut-badge[data-statut="cloturee"] {
+  background: var(--color-ok-light) !important;
+  color: var(--color-ok) !important;
+}
+.fx-admin .statut-badge[data-statut="en_suspens"] {
+  background: var(--color-terra-light) !important;
+  color: var(--color-terra-ink) !important;
+}
+
+/* Composants partagés avec les autres portails (TypeBadge, MessagesPanel,
+   AddressAutocomplete, RowMenu, ConfirmDialog…) rendus dans l'admin : leurs
+   utilitaires hors échelle ou hors contraste sont rebasés ici, sans toucher
+   à leur code ni à leur rendu ailleurs. */
+.fx-admin [class~="text-[9px]"].uppercase, .fx-admin [class~="text-[10px]"].uppercase { font-size: 10.5px; }
+.fx-admin [class~="text-[9px]"]:not(.uppercase), .fx-admin [class~="text-[10px]"]:not(.uppercase) { font-size: 12px; }
+.fx-admin [class~="text-[16px]"] { font-size: 15px; }
+.fx-admin [class~="text-[17px]"], .fx-admin [class~="text-[20px]"], .fx-admin [class~="text-[22px]"] { font-size: 18px; }
+.fx-admin [class~="text-[26px]"], .fx-admin [class~="text-[28px]"] { font-size: 24px; }
+.fx-admin [class~="text-[32px]"] { font-size: 34px; }
+.fx-admin .text-ink-muted, .fx-admin [class~="text-[var(--color-ink-muted)]"] { color: var(--color-ink-mid); }
+.fx-admin .text-terra, .fx-admin [class~="text-[var(--color-terra)]"] { color: var(--color-terra-ink); }
+.fx-admin .text-amber-foxo, .fx-admin [class~="text-[var(--color-amber-foxo)]"] { color: var(--color-amber-ink); }
+.fx-admin .bg-white { background-color: var(--color-cream); }
+.fx-admin .font-mono {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Noms de variables et références techniques : jamais de débordement. */
+.fx-admin code {
+  font-family: var(--font-sora), ui-sans-serif, sans-serif;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+
+/* Tableaux : le conteneur direct défile horizontalement sur petit écran au
+   lieu de couper les colonnes (les tableaux de liste n'ont pas tous de
+   wrapper .fx-table-wrap). */
+.fx-admin *:has(> table) { overflow-x: auto; }
+
+/* Un texte .fx-* posé directement dans un contrôle ou une case colorés
+   (pill active navy, bouton primaire, créneau du planning avec fond inline…)
+   hérite de la couleur de ce contrôle au lieu de reprendre sa couleur par
+   défaut. Combinateur enfant volontaire : un wrapper de page avec fond
+   inline ne doit pas neutraliser les couleurs de tout son contenu. */
+.fx-admin :is(.fx-btn-primary, .fx-btn-secondary, .fx-btn-small, .fx-btn-small-navy, .fx-btn-danger,
+  .fx-chip, .fx-pill, .fx-badge, .fx-tile, .fx-nav-item, .fx-tab,
+  .bg-navy, .bg-navy-dark, .bg-navy-deep, .bg-navy-mid, .bg-terra, .bg-terra-deep, .bg-ok, .bg-ok-deep,
+  .bg-amber-foxo, .bg-amber-ink, .bg-ink, .bg-ink-mid, [class*="bg-[var(--color-navy"],
+  [style*="background:"], [style*="background-color:"])
+  > :is(.fx-small, .fx-meta, .fx-label, .fx-body, .fx-body-dense, .fx-ref, .fx-h3, .fx-h2, .fx-eyebrow, .fx-th, .fx-name) {
+  color: inherit;
+}
+
+
+/* Mobile : les boutons texte compacts (filtres, segments, actions de
+   table) passent à 44px de haut pour rester actionnables au doigt. Les
+   interrupteurs (role="switch") et la barre du bas gardent leurs dimensions. */
+@media (max-width: 768px) {
+  .fx-admin button:is(.fx-label, .fx-small, .fx-pill, .fx-btn-small, .fx-chip, .fx-meta, .fx-body-dense, .fx-body, .underline),
+  .fx-admin th button,
+  .fx-admin a:is(.fx-btn-small, .fx-chip, .fx-pill) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .fx-admin button:is(.w-8.h-8, .w-7.h-7) {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

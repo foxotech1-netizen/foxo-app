@@ -11,9 +11,9 @@ export function PaymentRefBadge({ reference }: { reference: string | null }) {
 
   if (!reference || !reference.trim()) {
     return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-sand-mid border border-sand-border rounded-md text-[11px] text-ink-muted">
-        <span className="font-bold uppercase tracking-wider text-[9px]">Réf. paiement</span>
-        <span className="font-mono">—</span>
+      <div className="fx-small inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-sand-mid border border-sand-border rounded-lg text-ink-mid">
+        <span className="fx-eyebrow font-semibold">Réf. paiement</span>
+        <span className="tabular-nums">—</span>
       </div>
     );
   }
@@ -29,9 +29,9 @@ export function PaymentRefBadge({ reference }: { reference: string | null }) {
   }
 
   return (
-    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-navy-pale border border-navy-light rounded-md text-[11px]">
-      <span className="text-ink-muted font-bold uppercase tracking-wider text-[9px]">Réf. paiement</span>
-      <span className="font-mono font-bold text-navy">{reference}</span>
+    <div className="fx-small inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-navy-pale border border-navy-light rounded-lg">
+      <span className="fx-eyebrow text-ink-mid font-semibold">Réf. paiement</span>
+      <span className="fx-ref font-semibold text-navy">{reference}</span>
       <button
         type="button"
         onClick={copy}

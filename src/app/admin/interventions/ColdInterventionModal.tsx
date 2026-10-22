@@ -40,17 +40,16 @@ const STATUTS: { value: StatutIntervention; label: string }[] = [
   { value: 'cloturee', label: 'Clôturée' },
 ];
 
-const INPUT_CLASS =
-  'w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid';
+const INPUT_CLASS = 'w-full px-3 py-2.5 border border-sand-border rounded-lg fx-body bg-cream outline-none focus:border-navy-mid';
 
 function Lbl({ children }: { children: React.ReactNode }) {
-  return <label className="text-xs font-semibold text-ink-mid block mb-1.5">{children}</label>;
+  return <label className="fx-label font-semibold text-ink-mid block mb-1.5">{children}</label>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">{title}</div>
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-2">{title}</div>
       {children}
     </section>
   );
@@ -293,11 +292,10 @@ export function ColdInterventionModal({
           <button
             type="button"
             onClick={() => setDemandeurType('syndic')}
-            className={
-              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
+            className={'fx-body px-3 py-2 rounded-lg font-semibold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
               (demandeurType === 'syndic'
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink border-sand-border hover:border-navy-mid')
+                ? 'bg-navy text-cream border-navy'
+                : 'bg-cream text-ink border-sand-border hover:border-navy-mid')
             }
           >
             <Building2 size={14} /> Syndic
@@ -305,11 +303,10 @@ export function ColdInterventionModal({
           <button
             type="button"
             onClick={() => setDemandeurType('particulier')}
-            className={
-              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
+            className={'fx-body px-3 py-2 rounded-lg font-semibold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
               (demandeurType === 'particulier'
-                ? 'bg-[#1F6B45] text-white border-[#1F6B45]'
-                : 'bg-white text-ink border-sand-border hover:border-[#1F6B45]')
+                ? 'bg-[var(--color-ok)] text-cream border-[var(--color-ok)]'
+                : 'bg-cream text-ink border-sand-border hover:border-[var(--color-ok)]')
             }
           >
             <User size={14} /> Particulier
@@ -321,11 +318,11 @@ export function ColdInterventionModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Lbl>Référence</Lbl>
-              <input className={`${INPUT_CLASS} font-mono`} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="auto si vide" />
+              <input className={`${INPUT_CLASS} tabular-nums`} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="auto si vide" />
             </div>
             <div>
               <Lbl>Réf. syndic / courtier</Lbl>
-              <input className={`${INPUT_CLASS} font-mono`} value={refExterne} onChange={(e) => setRefExterne(e.target.value)} placeholder="optionnel" />
+              <input className={`${INPUT_CLASS} tabular-nums`} value={refExterne} onChange={(e) => setRefExterne(e.target.value)} placeholder="optionnel" />
             </div>
             <div>
               <Lbl>Statut</Lbl>
@@ -380,9 +377,9 @@ export function ColdInterventionModal({
               <div>
                 <Lbl>ACP / copropriété *</Lbl>
                 {selectedAcp ? (
-                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 border border-navy-mid rounded-lg bg-white text-[13px]">
+                  <div className="fx-body flex items-center justify-between gap-2 px-3 py-2.5 border border-navy-mid rounded-lg bg-cream">
                     <span className="font-semibold text-ink truncate">{selectedAcp.nom}</span>
-                    <button type="button" onClick={() => { setSelectedAcp(null); setAcpQuery(''); }} className="text-ink-muted hover:text-terra flex-shrink-0" aria-label="Changer d'ACP"><X size={14} /></button>
+                    <button type="button" onClick={() => { setSelectedAcp(null); setAcpQuery(''); }} className="text-ink-mid hover:text-terra-ink flex-shrink-0" aria-label="Changer d'ACP"><X size={14} /></button>
                   </div>
                 ) : (
                   <>
@@ -391,7 +388,7 @@ export function ColdInterventionModal({
                       <ul className="mt-1 rounded-lg border border-sand-border bg-cream max-h-[160px] overflow-y-auto shadow-raised">
                         {acpResults.map((a) => (
                           <li key={a.id}>
-                            <button type="button" onClick={() => { setSelectedAcp(a); setAcpResults([]); }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[var(--color-sand-hover)]">
+                            <button type="button" onClick={() => { setSelectedAcp(a); setAcpResults([]); }} className="fx-meta w-full text-left px-3 py-2 hover:bg-[var(--color-sand-hover)]">
                               <span className="font-semibold text-navy">{a.nom}</span>
                               {a.ville ? <span className="text-ink-mid"> — {[a.adresse, a.code_postal, a.ville].filter(Boolean).join(', ')}</span> : null}
                             </button>
@@ -404,7 +401,7 @@ export function ColdInterventionModal({
                       <button
                         type="button"
                         onClick={() => { setNewAcpOpen(true); setNewAcpError(null); }}
-                        className="mt-1.5 text-[11px] font-semibold text-navy hover:underline"
+                        className="fx-small mt-1.5 font-semibold text-navy hover:underline"
                       >
                         + L&apos;immeuble n&apos;existe pas ? Créer une nouvelle ACP
                       </button>
@@ -422,20 +419,20 @@ export function ColdInterventionModal({
                           <div><Lbl>Code postal</Lbl><input className={INPUT_CLASS} value={newAcpCp} onChange={(e) => setNewAcpCp(e.target.value)} /></div>
                           <div><Lbl>Ville</Lbl><input className={INPUT_CLASS} value={newAcpVille} onChange={(e) => setNewAcpVille(e.target.value)} /></div>
                         </div>
-                        <p className="text-[10px] text-ink-muted italic">Sera rattachée au syndic sélectionné.</p>
+                        <p className="fx-small text-ink-mid italic">Sera rattachée au syndic sélectionné.</p>
                         {newAcpError && (
-                          <div className="text-[11px] font-semibold" style={{ color: 'var(--color-terra)' }}>{newAcpError}</div>
+                          <div className="fx-small font-semibold" style={{ color: 'var(--color-terra)' }}>{newAcpError}</div>
                         )}
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
                             onClick={submitNewAcp}
                             disabled={!newAcpNom.trim() || creatingAcp}
-                            className="px-3 py-1.5 rounded-md text-[12px] font-bold bg-navy text-white disabled:opacity-50"
+                            className="fx-label px-3 py-1.5 rounded-lg font-semibold bg-navy text-cream disabled:opacity-50"
                           >
                             {creatingAcp ? 'Création…' : 'Créer l\'ACP'}
                           </button>
-                          <button type="button" onClick={closeNewAcp} className="text-[11px] text-ink-muted hover:underline">
+                          <button type="button" onClick={closeNewAcp} className="fx-small text-ink-mid hover:underline">
                             Annuler
                           </button>
                         </div>
@@ -448,9 +445,9 @@ export function ColdInterventionModal({
               <div>
                 <Lbl>Syndic *</Lbl>
                 {selectedOrg ? (
-                  <div className="flex items-center justify-between gap-2 px-3 py-2.5 border border-navy-mid rounded-lg bg-white text-[13px]">
+                  <div className="fx-body flex items-center justify-between gap-2 px-3 py-2.5 border border-navy-mid rounded-lg bg-cream">
                     <span className="font-semibold text-ink truncate">{selectedOrg.nom}</span>
-                    <button type="button" onClick={() => { setSelectedOrg(null); setOrgQuery(''); }} className="text-ink-muted hover:text-terra flex-shrink-0" aria-label="Changer de syndic"><X size={14} /></button>
+                    <button type="button" onClick={() => { setSelectedOrg(null); setOrgQuery(''); }} className="text-ink-mid hover:text-terra-ink flex-shrink-0" aria-label="Changer de syndic"><X size={14} /></button>
                   </div>
                 ) : (
                   <>
@@ -459,7 +456,7 @@ export function ColdInterventionModal({
                       <ul className="mt-1 rounded-lg border border-sand-border bg-cream max-h-[160px] overflow-y-auto shadow-raised">
                         {orgResults.map((o) => (
                           <li key={o.id}>
-                            <button type="button" onClick={() => { setSelectedOrg(o); setOrgResults([]); }} className="w-full text-left px-3 py-2 text-[12px] hover:bg-[var(--color-sand-hover)]">
+                            <button type="button" onClick={() => { setSelectedOrg(o); setOrgResults([]); }} className="fx-meta w-full text-left px-3 py-2 hover:bg-[var(--color-sand-hover)]">
                               <span className="font-semibold text-navy">{o.nom}</span>
                               <span className="text-ink-mid"> — {o.type}</span>
                             </button>
@@ -471,7 +468,7 @@ export function ColdInterventionModal({
                 )}
               </div>
               {/* Adresse d'intervention structurée — optionnel, mode syndic */}
-              <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted pt-1">Adresse d&apos;intervention</div>
+              <div className="fx-eyebrow font-semibold text-ink-mid pt-1">Adresse d&apos;intervention</div>
               <div>
                 <Lbl>Rue et n° (optionnel)</Lbl>
                 <input className={INPUT_CLASS} value={adrRue} onChange={(e) => setAdrRue(e.target.value)} />
@@ -502,12 +499,12 @@ export function ColdInterventionModal({
                 <div className="col-span-2"><Lbl>Rue + numéro *</Lbl><input className={INPUT_CLASS} value={pRue} onChange={(e) => setPRue(e.target.value)} /></div>
                 <div><Lbl>Code postal *</Lbl><input className={INPUT_CLASS} value={pCp} onChange={(e) => setPCp(e.target.value)} /></div>
                 <div><Lbl>Ville *</Lbl><input className={INPUT_CLASS} value={pVille} onChange={(e) => setPVille(e.target.value)} /></div>
-                <div className="col-span-2"><Lbl>BCE (optionnel)</Lbl><input className={`${INPUT_CLASS} font-mono`} value={pBce} onChange={(e) => setPBce(e.target.value)} /></div>
+                <div className="col-span-2"><Lbl>BCE (optionnel)</Lbl><input className={`${INPUT_CLASS} tabular-nums`} value={pBce} onChange={(e) => setPBce(e.target.value)} /></div>
               </div>
             </Section>
 
             <Section title="Lieu d'intervention">
-              <label className="flex items-center gap-2 text-[13px] text-ink mb-2">
+              <label className="fx-label flex items-center gap-2 text-ink mb-2">
                 <input type="checkbox" checked={pLieuMeme} onChange={(e) => setPLieuMeme(e.target.checked)} />
                 Même adresse que le mandant
               </label>
@@ -521,7 +518,7 @@ export function ColdInterventionModal({
             </Section>
 
             <Section title="Contact sur place">
-              <label className="flex items-center gap-2 text-[13px] text-ink mb-2">
+              <label className="fx-label flex items-center gap-2 text-ink mb-2">
                 <input type="checkbox" checked={pContactActif} onChange={(e) => setPContactActif(e.target.checked)} />
                 Un contact différent sera présent sur place
               </label>
@@ -546,7 +543,7 @@ export function ColdInterventionModal({
         />
 
         {error && (
-          <div className="px-3 py-2.5 rounded-lg text-[12px] font-semibold bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] text-[var(--color-terra)]">
+          <div className="fx-label px-3 py-2.5 rounded-lg font-semibold bg-[var(--color-terra-light)] border border-[var(--color-terra-mid)] text-terra-ink">
             {error}
           </div>
         )}
@@ -556,7 +553,7 @@ export function ColdInterventionModal({
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 rounded-lg text-[13px] font-medium bg-white border border-sand-border text-ink-mid hover:border-navy-mid"
+          className="fx-body px-4 py-2 rounded-lg font-medium bg-cream border border-sand-border text-ink-mid hover:border-navy-mid"
         >
           Annuler
         </button>
@@ -564,7 +561,7 @@ export function ColdInterventionModal({
           type="button"
           onClick={submit}
           disabled={!canSubmit || pending}
-          className="px-4 py-2 rounded-lg text-[13px] font-bold bg-navy text-white disabled:opacity-50"
+          className="fx-body px-4 py-2 rounded-lg font-semibold bg-navy text-cream disabled:opacity-50"
         >
           {pending ? 'Création…' : 'Créer l\'intervention'}
         </button>

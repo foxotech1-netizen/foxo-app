@@ -29,12 +29,12 @@ const STATUT_CHIPS: { key: StatutChip; label: string }[] = [
 
 type Periode = 'tous' | 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'last_year';
 const PERIODE_LABEL: Record<Periode, string> = {
-  tous:         'Toute la période',
-  this_month:   'Ce mois',
-  last_month:   'Mois dernier',
+  tous: 'Toute la période',
+  this_month: 'Ce mois',
+  last_month: 'Mois dernier',
   this_quarter: 'Ce trimestre',
-  this_year:    'Cette année',
-  last_year:    'Année dernière',
+  this_year: 'Cette année',
+  last_year: 'Année dernière',
 };
 
 // Retourne l'intervalle [from, to] (YYYY-MM-DD inclusif) correspondant
@@ -79,7 +79,7 @@ function fmtMoney(n: number | null | undefined): string {
 function NumeroLabel({ numero }: { numero: string }) {
   if (numero.startsWith('BR-')) {
     return (
-      <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-ink-muted bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
+      <span className="fx-eyebrow inline-block font-semibold text-ink-mid bg-sand-mid border border-sand-border rounded px-1.5 py-0.5">
         Brouillon
       </span>
     );
@@ -89,7 +89,7 @@ function NumeroLabel({ numero }: { numero: string }) {
 
 function AcompteBadge() {
   return (
-    <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-navy bg-navy-pale border border-navy-light rounded px-1.5 py-0.5 dark:text-white">
+    <span className="fx-eyebrow inline-block font-semibold text-navy bg-navy-pale border border-navy-light rounded px-1.5 py-0.5">
       Acompte
     </span>
   );
@@ -298,18 +298,16 @@ export function FacturationListClient({
                 key={c.key}
                 type="button"
                 onClick={() => setChip(c.key)}
-                className={
-                  'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ' +
+                className={'fx-pill inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold border transition-colors ' +
                   (active
-                    ? 'bg-navy text-white border-navy'
+                    ? 'bg-navy text-cream border-navy'
                     : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
                 }
               >
                 {c.label}
                 <span
-                  className={
-                    'text-[10px] font-bold px-1.5 py-0 rounded-full ' +
-                    (active ? 'bg-white/20 text-white' : 'bg-sand-mid text-ink-mid')
+                  className={'fx-badge font-semibold px-1.5 py-0 rounded-full ' +
+                    (active ? 'bg-cream/20 text-cream' : 'bg-sand-mid text-ink-mid')
                   }
                 >
                   {count}
@@ -322,8 +320,7 @@ export function FacturationListClient({
         <button
           type="button"
           onClick={() => setShowAdvanced((v) => !v)}
-          className={
-            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold border transition-colors ' +
+          className={'fx-small inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold border transition-colors ' +
             (showAdvanced || hasActiveAdvanced
               ? 'bg-navy-pale text-navy border-navy-light'
               : 'bg-[var(--color-cream)] text-[var(--color-ink-mid)] border-[var(--color-sand-border)] hover:border-[var(--color-navy-mid)]')
@@ -345,12 +342,12 @@ export function FacturationListClient({
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Rechercher — n° facture, client, syndic, référence…"
-            className="flex-1 min-w-[200px] px-3.5 py-2 border border-sand-border rounded-md text-xs bg-cream outline-none focus:border-navy-mid"
+            className="fx-meta flex-1 min-w-[200px] px-3.5 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
           />
           <select
             value={syndicFilter}
             onChange={(e) => setSyndicFilter(e.target.value)}
-            className="px-3 py-2 border border-sand-border rounded-md text-xs bg-cream cursor-pointer max-w-[200px]"
+            className="fx-meta px-3 py-2 border border-sand-border rounded-lg bg-cream cursor-pointer max-w-[200px]"
             title="Filtre par syndic / organisation"
           >
             <option value="all">Tous syndics</option>
@@ -361,7 +358,7 @@ export function FacturationListClient({
           <select
             value={periode}
             onChange={(e) => setPeriode(e.target.value as Periode)}
-            className="px-3 py-2 border border-sand-border rounded-md text-xs bg-cream cursor-pointer"
+            className="fx-meta px-3 py-2 border border-sand-border rounded-lg bg-cream cursor-pointer"
             title="Filtre sur la date d'émission"
           >
             {(Object.entries(PERIODE_LABEL) as [Periode, string][]).map(([v, l]) => (
@@ -372,7 +369,7 @@ export function FacturationListClient({
             <button
               type="button"
               onClick={resetFilters}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-md text-[11px] font-semibold text-terra hover:bg-terra-light border border-terra-mid"
+              className="fx-small inline-flex items-center gap-1 px-3 py-2 rounded-lg font-semibold text-terra-ink hover:bg-terra-light border border-terra-mid"
             >
               <X size={12} aria-hidden /> Réinitialiser
             </button>
@@ -382,11 +379,10 @@ export function FacturationListClient({
 
       {feedback && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (feedback.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {feedback.msg}
@@ -400,7 +396,7 @@ export function FacturationListClient({
             <thead>
               <tr className="bg-sand">
                 {['N°', 'Client', 'Référence', 'Réf. paiement', 'Émission', 'Échéance', 'HT', 'TVA', 'TTC', 'Statut', 'Actions'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                  <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -409,7 +405,7 @@ export function FacturationListClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={11} className="fx-body-dense text-center py-12 text-ink-mid">
                     Aucune facture ne correspond au filtre.
                   </td>
                 </tr>
@@ -421,13 +417,13 @@ export function FacturationListClient({
                         type="button"
                         onClick={() => setPreview(f)}
                         title="Aperçu rapide du PDF"
-                        className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                        className="text-ink-mid hover:text-navy p-1 mr-1 align-middle"
                       >
                         <Eye size={14} aria-hidden />
                       </button>
                       <Link
                         href={`/admin/facturation/${f.id}`}
-                        className="font-mono text-xs font-bold text-navy hover:underline"
+                        className="fx-label fx-ref font-semibold text-navy hover:underline"
                       >
                         <NumeroLabel numero={f.numero} />
                       </Link>
@@ -436,30 +432,30 @@ export function FacturationListClient({
                       )}
                     </td>
                     <td className="px-3.5 py-2.5">
-                      <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
+                      <div className="fx-label font-semibold">{f.client_nom ?? '—'}</div>
                       {f.client_syndic && (
-                        <div className="text-[10px] text-ink-muted">{f.client_syndic}</div>
+                        <div className="fx-small text-ink-mid">{f.client_syndic}</div>
                       )}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">
+                    <td className="fx-small px-3.5 py-2.5 text-ink-mid">
                       {f.reference ?? '—'}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap max-w-[160px] truncate" title={f.reference_structuree ?? undefined}>
+                    <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap max-w-[160px] truncate" title={f.reference_structuree ?? undefined}>
                       {f.reference_structuree ?? '—'}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                    <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                       {fmtDate(f.date_emission)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">
+                    <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">
                       {fmtDate(f.date_echeance)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono whitespace-nowrap">
+                    <td className="fx-small px-3.5 py-2.5 tabular-nums whitespace-nowrap">
                       {fmtMoney(f.montant_ht)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono whitespace-nowrap text-ink-mid">
+                    <td className="fx-small px-3.5 py-2.5 tabular-nums whitespace-nowrap text-ink-mid">
                       {fmtMoney(f.montant_tva)}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap dark:text-white">
+                    <td className="fx-body-dense px-3.5 py-2.5 tabular-nums font-semibold whitespace-nowrap">
                       {fmtMoney(f.montant_ttc)}
                     </td>
                     <td className="px-3.5 py-2.5">
@@ -472,13 +468,13 @@ export function FacturationListClient({
                           const fullyCovered = ttc > 0 && a.totalEmis + 0.005 >= ttc;
                           if (f.statut === 'annulee' && fullyCovered) {
                             return (
-                              <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white" title={`Annulée par avoir (${a.totalEmis.toFixed(2)} €)`}>
+                              <span className="fx-eyebrow inline-flex items-center gap-1 self-start font-semibold px-1.5 py-0.5 rounded-full bg-terra text-cream" title={`Annulée par avoir (${a.totalEmis.toFixed(2)} €)`}>
                                 <XCircle size={12} aria-hidden /> Annulée par avoir
                               </span>
                             );
                           }
                           return (
-                            <span className="inline-flex items-center gap-1 self-start text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
+                            <span className="fx-eyebrow inline-flex items-center gap-1 self-start font-semibold px-1.5 py-0.5 rounded-full bg-terra-light text-terra-ink border border-terra-mid" title={`Avoir partiel : ${a.totalEmis.toFixed(2)} € sur ${ttc.toFixed(2)} €`}>
                               <FileEdit size={12} aria-hidden /> Avoir partiel
                             </span>
                           );
@@ -525,7 +521,7 @@ export function FacturationListClient({
           fiche détail (où on retrouve les actions avoir/revert/delete). */}
       <div className="md:hidden space-y-2">
         {filtered.length === 0 ? (
-          <div className="text-center py-12 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border">
+          <div className="fx-body text-center py-12 text-ink-mid bg-cream rounded-xl border border-sand-border">
             Aucune facture ne correspond au filtre.
           </div>
         ) : (
@@ -540,40 +536,40 @@ export function FacturationListClient({
                 className="block bg-cream rounded-xl border border-sand-border p-3 hover:bg-sand-hover transition-colors"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-mono text-[12px] font-bold text-navy inline-flex items-center gap-1.5">
+                  <span className="fx-label fx-ref font-semibold text-navy inline-flex items-center gap-1.5">
                     <NumeroLabel numero={f.numero} />
                     {f.is_acompte && <AcompteBadge />}
                   </span>
                   <StatutBadge statut={f.statut} />
                 </div>
 
-                <div className="text-[13px] font-semibold text-ink truncate">
+                <div className="fx-body font-semibold text-ink truncate">
                   {f.client_nom ?? '—'}
                 </div>
                 {f.client_syndic && (
-                  <div className="text-[10px] text-ink-muted truncate">
+                  <div className="fx-small text-ink-mid truncate">
                     {f.client_syndic}
                   </div>
                 )}
                 {f.reference && (
-                  <div className="text-[10px] text-ink-mid mt-0.5">
-                    Réf : <span className="font-mono">{f.reference}</span>
+                  <div className="fx-small text-ink-mid mt-0.5">
+                    Réf : <span className="tabular-nums">{f.reference}</span>
                   </div>
                 )}
                 {f.reference_structuree && (
-                  <div className="text-[10px] text-ink-mid mt-0.5 truncate">
-                    Réf. paiement : <span className="font-mono">{f.reference_structuree}</span>
+                  <div className="fx-small text-ink-mid mt-0.5 truncate">
+                    Réf. paiement : <span className="tabular-nums">{f.reference_structuree}</span>
                   </div>
                 )}
 
                 {a && a.totalEmis > 0 && (
                   <div className="mt-1.5">
                     {f.statut === 'annulee' && fullyCovered ? (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra text-white">
+                      <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded-full bg-terra text-cream">
                         <XCircle size={12} aria-hidden /> Annulée par avoir
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-terra-light text-terra border border-terra-mid">
+                      <span className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded-full bg-terra-light text-terra-ink border border-terra-mid">
                         <FileEdit size={12} aria-hidden /> Avoir partiel ({a.totalEmis.toFixed(2)} €)
                       </span>
                     )}
@@ -582,16 +578,16 @@ export function FacturationListClient({
 
                 <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-sand-mid">
                   <div>
-                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Émission</div>
-                    <div className="text-[11px] font-mono">{fmtDate(f.date_emission)}</div>
+                    <div className="fx-eyebrow font-semibold text-ink-mid">Émission</div>
+                    <div className="fx-small tabular-nums">{fmtDate(f.date_emission)}</div>
                   </div>
                   <div>
-                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">Échéance</div>
-                    <div className="text-[11px] font-mono">{fmtDate(f.date_echeance)}</div>
+                    <div className="fx-eyebrow font-semibold text-ink-mid">Échéance</div>
+                    <div className="fx-small tabular-nums">{fmtDate(f.date_echeance)}</div>
                   </div>
                   <div className="col-span-2">
-                    <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider">TTC</div>
-                    <div className="text-[16px] font-mono font-bold text-ink dark:text-white">
+                    <div className="fx-eyebrow font-semibold text-ink-mid">TTC</div>
+                    <div className="fx-h2 tabular-nums font-semibold text-ink">
                       {fmtMoney(f.montant_ttc)}
                     </div>
                   </div>
@@ -648,7 +644,7 @@ function StatutBadge({ statut }: { statut: StatutFacture }) {
   const info = STATUT_FACTURE_INFO[statut];
   return (
     <span
-      className="inline-block rounded-full font-semibold text-[10px] px-2 py-0.5 whitespace-nowrap"
+      className="fx-badge inline-block rounded-full font-semibold px-2 py-0.5 whitespace-nowrap"
       style={{ color: info.fg, background: info.bg }}
     >
       {info.label}
@@ -663,28 +659,28 @@ function StatCard({
   accent?: boolean; muted?: boolean; warning?: boolean;
 }) {
   // Dark : fond solide assorti (pattern des bandeaux Alertes) — sans quoi
-  // dark:text-white tombait sur le fond pâle inchangé (illisible).
+  // tombait sur le fond pâle inchangé (illisible).
   let bg = 'bg-cream';
   let border = 'border-sand-border';
   let numColor = '';
-  let labelColor = 'text-ink-muted';
+  let labelColor = 'text-ink-mid';
   if (accent) {
-    bg = 'bg-navy-pale dark:bg-[#1B3A6B]';
-    border = 'border-navy-light dark:border-[#2A5298]';
-    numColor = 'text-navy dark:text-white';
-    labelColor = 'text-ink-mid dark:text-[#C8C2B8]';
+    bg = 'bg-navy-pale';
+    border = 'border-navy-light';
+    numColor = 'text-navy';
+    labelColor = 'text-ink-mid';
   }
   if (muted) numColor = 'text-ink-mid';
   if (warning) {
-    bg = 'bg-terra-light dark:bg-[#C4622D]';
-    border = 'border-terra-mid dark:border-[#D87A45]';
-    numColor = 'text-terra dark:text-white';
-    labelColor = 'text-ink-mid dark:text-[#F0ECE4]';
+    bg = 'bg-terra-light';
+    border = 'border-terra-mid';
+    numColor = 'text-terra-ink';
+    labelColor = 'text-ink-mid';
   }
   return (
-    <div className={`${bg} ${border} border rounded-xl px-4 py-3`}>
-      <div className={`text-[18px] font-extrabold leading-tight tabular-nums ${numColor || 'stat-num'}`}>{num}</div>
-      <div className={`text-[10px] ${labelColor} mt-1 font-semibold`}>{label}</div>
+    <div className={`${bg}${border} border rounded-xl px-4 py-3`}>
+      <div className={`fx-panel-title font-semibold leading-tight tabular-nums ${numColor || 'stat-num'}`}>{num}</div>
+      <div className={`fx-small ${labelColor} mt-1 font-semibold`}>{label}</div>
     </div>
   );
 }

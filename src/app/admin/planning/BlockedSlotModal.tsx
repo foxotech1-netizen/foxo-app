@@ -79,7 +79,7 @@ export function BlockedSlotModal({
     >
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+          <label className="fx-label font-semibold text-ink-mid block mb-1.5">
             Motif de blocage
           </label>
           <textarea
@@ -87,12 +87,12 @@ export function BlockedSlotModal({
             onChange={(e) => setMotif(e.target.value)}
             rows={3}
             placeholder="Ex : congé annuel, déplacement chantier, formation…"
-            className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+            className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
           />
         </div>
 
         {error && (
-          <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 font-semibold">
+          <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
             {error}
           </div>
         )}
@@ -102,7 +102,7 @@ export function BlockedSlotModal({
             type="button"
             onClick={applyUnblock}
             disabled={pending}
-            className="bg-[#1F6B45] text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+            className="fx-label bg-[var(--color-ok)] text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             <Check size={14} /> Débloquer le créneau
           </button>
@@ -114,7 +114,7 @@ export function BlockedSlotModal({
           type="button"
           onClick={onClose}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
+          className="fx-body bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg font-semibold disabled:opacity-50"
         >
           Annuler
         </button>
@@ -122,7 +122,7 @@ export function BlockedSlotModal({
           type="button"
           onClick={applyUpdateMotif}
           disabled={pending}
-          className="bg-navy text-white px-5 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50"
+          className="fx-body bg-navy text-cream px-5 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
         >
           {pending ? '…' : 'Enregistrer le motif'}
         </button>

@@ -89,7 +89,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
 
         <div className="px-5 py-4 space-y-3 flex-1 min-h-0 overflow-y-auto">
           <label className="block">
-            <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-ink-muted)' }}>
+            <span className="fx-th font-medium" style={{ color: 'var(--color-ink-muted)' }}>
               Téléphone
             </span>
             <input
@@ -97,7 +97,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={sending}
-              className="w-full mt-1 px-3 py-2 rounded text-[13px] outline-none disabled:opacity-50"
+              className="fx-body w-full mt-1 px-3 py-2 rounded outline-none disabled:opacity-50"
               style={{
                 background: 'var(--color-sand)',
                 border: '1px solid var(--color-sand-border)',
@@ -107,7 +107,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
           </label>
 
           <label className="block">
-            <span className="text-[11px] font-medium uppercase tracking-wider flex items-center justify-between" style={{ color: 'var(--color-ink-muted)' }}>
+            <span className="fx-th font-medium flex items-center justify-between" style={{ color: 'var(--color-ink-muted)' }}>
               <span>Message SMS</span>
               <span style={{ color: overLimit ? 'var(--color-terra)' : 'var(--color-ink-muted)' }}>
                 {charCount} / 160 ({segments} SMS)
@@ -118,7 +118,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
               onChange={(e) => setBody(e.target.value)}
               disabled={sending}
               rows={5}
-              className="w-full mt-1 px-3 py-2 rounded text-[13px] outline-none resize-y disabled:opacity-50"
+              className="fx-body w-full mt-1 px-3 py-2 rounded outline-none resize-y disabled:opacity-50"
               style={{
                 background: 'var(--color-sand)',
                 border: `1px solid ${overLimit ? 'var(--color-terra)' : 'var(--color-sand-border)'}`,
@@ -129,7 +129,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
 
           {error && (
             <div
-              className="px-3 py-2 rounded text-[12px] font-medium"
+              className="fx-label px-3 py-2 rounded font-medium"
               style={{
                 background: 'var(--color-terra-light)',
                 border: '1px solid var(--color-terra-mid)',
@@ -149,7 +149,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
             type="button"
             onClick={onClose}
             disabled={sending}
-            className="px-3.5 py-2 rounded-md text-[12px] font-medium transition-colors disabled:opacity-50"
+            className="fx-label px-3.5 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
             style={{
               background: 'var(--color-cream)',
               border: '1px solid var(--color-sand-border)',
@@ -162,7 +162,7 @@ export function SmsModal({ threadId, initialPhone, initialBody, onClose, onSent 
             type="button"
             onClick={handleSend}
             disabled={sending || overLimit}
-            className="px-3.5 py-2 rounded-md text-[12px] font-medium transition-colors disabled:opacity-50"
+            className="fx-label px-3.5 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
             style={{
               background: 'var(--color-navy)',
               color: 'var(--color-cream)',

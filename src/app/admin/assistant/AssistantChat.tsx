@@ -164,7 +164,7 @@ export function AssistantChat({
               type="button"
               onClick={() => handleQuickAction(qa)}
               disabled={pending}
-              className="bg-white border border-sand-border hover:border-navy-mid hover:bg-navy-pale text-ink-mid hover:text-navy text-[11px] font-semibold px-2.5 py-1.5 rounded-md disabled:opacity-50 transition-colors inline-flex items-center gap-1.5 dark:bg-[rgba(255,255,255,.08)] dark:border-[rgba(255,255,255,.15)] dark:hover:bg-[rgba(255,255,255,.15)] dark:hover:border-[rgba(255,255,255,.25)] dark:hover:text-white"
+              className="fx-small bg-cream border border-sand-border hover:border-navy-mid hover:bg-navy-pale text-ink-mid hover:text-navy font-semibold px-2.5 py-1.5 rounded-lg disabled:opacity-50 transition-colors inline-flex items-center gap-1.5"
             >
               {Icon ? <Icon size={14} /> : null}
               {qa.label}
@@ -175,7 +175,7 @@ export function AssistantChat({
           <button
             type="button"
             onClick={clearChat}
-            className="ml-auto bg-sand-mid text-ink-muted hover:text-terra text-[11px] font-semibold px-2.5 py-1.5 rounded-md inline-flex items-center gap-1.5 dark:bg-[rgba(255,255,255,.06)]"
+            className="fx-small ml-auto bg-sand-mid text-ink-mid hover:text-terra-ink font-semibold px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5"
           >
             <X size={14} />
             Effacer
@@ -184,12 +184,12 @@ export function AssistantChat({
       </div>
 
       {/* Zone messages */}
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto bg-white border border-sand-border rounded-xl p-3 mb-3 min-h-[260px]">
+      <div ref={scrollerRef} className="flex-1 overflow-y-auto bg-cream border border-sand-border rounded-xl p-3 mb-3 min-h-[260px]">
         {messages.length === 0 && !pending && (
           <div className="h-full flex flex-col items-center justify-center text-center py-8">
-            <Sparkles size={28} className="mb-2 text-ink-muted" aria-hidden />
-            <div className="text-[14px] font-bold text-ink mb-1">{resolvedEmptyTitle}</div>
-            <p className="text-[12px] text-ink-muted max-w-[400px]">{resolvedEmptyHint}</p>
+            <Sparkles size={28} className="mb-2 text-ink-mid" aria-hidden />
+            <div className="fx-body font-semibold text-ink mb-1">{resolvedEmptyTitle}</div>
+            <p className="fx-meta text-ink-mid max-w-[400px]">{resolvedEmptyHint}</p>
           </div>
         )}
 
@@ -197,22 +197,21 @@ export function AssistantChat({
           {messages.map((m, i) => (
             <div
               key={i}
-              className={
-                m.role === 'user'
+              className={m.role === 'user'
                   ? 'ml-8 bg-navy-pale border border-navy-light rounded-lg px-3 py-2'
                   : 'mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2'
               }
             >
-              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted inline-flex items-center gap-1">
+              <div className="fx-eyebrow font-semibold mb-1 text-ink-mid inline-flex items-center gap-1">
                 {m.role === 'user' ? 'Vous' : (<><Sparkles size={12} aria-hidden /> Assistant FoxO</>)}
               </div>
-              <div className="text-[13px] text-ink whitespace-pre-wrap leading-relaxed">{m.content}</div>
+              <div className="fx-body text-ink whitespace-pre-wrap leading-relaxed">{m.content}</div>
               {m.role === 'assistant' && (
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
                     onClick={() => copyToClipboard(m.content)}
-                    className="text-[10px] text-ink-muted hover:text-navy underline"
+                    className="fx-small text-ink-mid hover:text-navy underline"
                   >
                     Copier
                   </button>
@@ -220,7 +219,7 @@ export function AssistantChat({
                     <button
                       type="button"
                       onClick={pushSectionsToParent}
-                      className="text-[10px] text-ok hover:underline font-bold"
+                      className="fx-small text-ok hover:underline font-semibold"
                     >
                       → Sauvegarder comme brouillon de rapport
                     </button>
@@ -238,17 +237,17 @@ export function AssistantChat({
           ))}
           {pending && (
             <div className="mr-8 bg-cream border border-sand-border rounded-lg px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-ink-muted inline-flex items-center gap-1">
+              <div className="fx-eyebrow font-semibold mb-1 text-ink-mid inline-flex items-center gap-1">
                 <Sparkles size={12} aria-hidden /> Assistant FoxO
               </div>
-              <div className="text-[13px] text-ink-muted italic">Réflexion en cours…</div>
+              <div className="fx-body text-ink-mid italic">Réflexion en cours…</div>
             </div>
           )}
         </div>
       </div>
 
       {error && (
-        <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 mb-2 font-semibold flex-shrink-0">
+        <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 mb-2 font-semibold flex-shrink-0">
           {error}
         </div>
       )}
@@ -261,12 +260,12 @@ export function AssistantChat({
           onChange={(e) => setInput(e.target.value)}
           placeholder={placeholder ?? (mode === 'global' ? 'Pose une question sur l\'activité FoxO…' : 'Pose une question sur ce dossier…')}
           disabled={pending}
-          className={inputClassName ?? 'flex-1 px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid disabled:opacity-50'}
+          className={inputClassName ?? 'fx-body flex-1 px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid disabled:opacity-50'}
         />
         <button
           type="submit"
           disabled={pending || !input.trim()}
-          className="bg-navy text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50"
+          className="fx-body bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
         >
           {pending ? '…' : 'Envoyer'}
         </button>

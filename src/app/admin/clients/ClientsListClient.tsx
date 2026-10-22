@@ -15,9 +15,9 @@ function isFilterValue(v: string | null): v is typeof TYPE_FILTERS[number] {
 }
 // Couleurs des badges type — design tokens FoxO sémantiques.
 const TYPE_COLORS: Record<TypeClient, string> = {
-  acp:         'var(--color-navy)',
+  acp: 'var(--color-navy)',
   particulier: 'var(--color-ok)',
-  entreprise:  'var(--color-amber-foxo)',
+  entreprise: 'var(--color-amber-foxo)',
 };
 
 export function ClientsListClient({ initial }: { initial: Client[] }) {
@@ -60,7 +60,7 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <Link
           href="/admin/clients/new"
-          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm transition-colors"
+          className="fx-label bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-lg font-medium shadow-sm transition-colors"
         >
           + Nouveau client
         </Link>
@@ -68,12 +68,12 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — nom, BCE, email, ville…"
-          className="flex-1 min-w-[200px] px-3.5 py-2 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] outline-none focus:border-[var(--color-navy-mid)] transition-colors"
+          className="fx-meta flex-1 min-w-[200px] px-3.5 py-2 border border-[var(--color-sand-border)] rounded-lg bg-[var(--color-cream)] outline-none focus:border-[var(--color-navy-mid)] transition-colors"
         />
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value as typeof filter)}
-          className="px-3 py-2 border border-[var(--color-sand-border)] rounded-md text-xs bg-[var(--color-cream)] cursor-pointer outline-none focus:border-[var(--color-navy-mid)]"
+          className="fx-meta px-3 py-2 border border-[var(--color-sand-border)] rounded-lg bg-[var(--color-cream)] cursor-pointer outline-none focus:border-[var(--color-navy-mid)]"
         >
           <option value="tous">Tous types</option>
           {(['acp', 'particulier', 'entreprise'] as TypeClient[]).map((t) => (
@@ -88,7 +88,7 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
             <thead>
               <tr className="bg-[var(--color-sand)]">
                 {['Nom', 'Type', 'Ville', 'Email', 'Téléphone', 'BCE', ''].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] border-b border-[var(--color-sand-border)] whitespace-nowrap">
+                  <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-medium text-ink-mid border-b border-[var(--color-sand-border)] whitespace-nowrap">
                     {h}
                   </th>
                 ))}
@@ -97,7 +97,7 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-[var(--color-ink-muted)] text-[13px]">
+                  <td colSpan={7} className="fx-body-dense text-center py-12 text-ink-mid">
                     Aucun client.
                   </td>
                 </tr>
@@ -106,29 +106,29 @@ export function ClientsListClient({ initial }: { initial: Client[] }) {
                   <td className="px-3.5 py-2.5">
                     <Link
                       href={`/admin/clients/${c.id}`}
-                      className="text-[13px] font-medium text-[var(--color-navy)] hover:underline"
+                      className="fx-body font-medium text-[var(--color-navy)] hover:underline"
                     >
                       {[c.prenom, c.nom].filter(Boolean).join(' ')}
                     </Link>
                   </td>
                   <td className="px-3.5 py-2.5">
                     <span
-                      className="inline-block text-[10px] uppercase tracking-[0.1em] px-2 py-0.5 rounded font-semibold text-[var(--color-cream)]"
+                      className="fx-eyebrow inline-block px-2 py-0.5 rounded font-semibold text-[var(--color-cream)]"
                       style={{ background: TYPE_COLORS[c.type] }}
                     >
                       {TYPE_CLIENT_LABEL[c.type]}
                     </span>
                   </td>
-                  <td className="px-3.5 py-2.5 text-[12px] text-[var(--color-ink)]">
+                  <td className="fx-body-dense px-3.5 py-2.5 text-[var(--color-ink)]">
                     {[c.code_postal, c.ville].filter(Boolean).join(' ') || '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-[var(--color-ink-mid)]">
+                  <td className="fx-small px-3.5 py-2.5 tabular-nums text-[var(--color-ink-mid)]">
                     {c.email ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-[var(--color-ink-mid)]">
+                  <td className="fx-small px-3.5 py-2.5 tabular-nums text-[var(--color-ink-mid)]">
                     {c.telephone ?? '—'}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] font-mono text-[var(--color-ink-mid)]">
+                  <td className="fx-small px-3.5 py-2.5 tabular-nums text-[var(--color-ink-mid)]">
                     {c.bce ?? '—'}
                   </td>
                   <td className="px-3.5 py-2.5 whitespace-nowrap">

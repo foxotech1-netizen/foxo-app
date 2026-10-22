@@ -37,7 +37,7 @@ export function OdooActions({
   if (odooMoveId) {
     return (
       <span
-        className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-md bg-ok-light border border-ok-mid text-ok"
+        className="fx-small inline-flex items-center gap-1 font-semibold px-2 py-1 rounded-lg bg-ok-light border border-ok-mid text-ok"
         title={`Move Odoo ${odooMoveId}${odooPushedAt ? ` — poussé le ${new Date(odooPushedAt).toLocaleString('fr-BE')}` : ''}`}
       >
         <CheckCircle2 size={12} aria-hidden /> Odoo ✓
@@ -76,11 +76,10 @@ export function OdooActions({
             ? (disabledReason ?? 'Pièce non poussable dans cet état.')
             : 'Crée l\'écriture account.move dans Odoo (analytique par dossier).'
       }
-      className={
-        'px-3 py-2 rounded-lg text-[12px] font-bold min-h-[44px] inline-flex items-center gap-1.5 ' +
+      className={'fx-label px-3 py-2 rounded-lg font-semibold min-h-[44px] inline-flex items-center gap-1.5 ' +
         (enabled
-          ? 'bg-white text-navy border border-navy-light hover:bg-navy-pale disabled:opacity-50'
-          : 'bg-sand-mid text-ink-muted border border-sand-border cursor-not-allowed')
+          ? 'bg-cream text-navy border border-navy-light hover:bg-navy-pale disabled:opacity-50'
+          : 'bg-sand-mid text-ink-mid border border-sand-border cursor-not-allowed')
       }
     >
       <UploadCloud size={14} aria-hidden /> {pending ? 'Envoi…' : 'Pousser vers Odoo'}

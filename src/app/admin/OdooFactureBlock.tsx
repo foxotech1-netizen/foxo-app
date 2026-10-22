@@ -53,7 +53,7 @@ function detailDe(f: FactureOdooDossier): string {
 
 function Pastille({ ton, children }: { ton: TonEtat; children: React.ReactNode }) {
   return (
-    <span className={'inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold whitespace-nowrap ' + CLASSES_TON[ton]}>
+    <span className={'fx-badge inline-block px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ' + CLASSES_TON[ton]}>
       {children}
     </span>
   );
@@ -115,15 +115,15 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
     >
       <div className="flex items-center gap-2.5 mb-2">
         <span className="w-[3px] h-3.5 rounded-sm bg-[var(--color-navy)]"></span>
-        <div className="font-sora text-[10px] font-medium text-[var(--color-ink-muted)] uppercase tracking-[0.12em] flex-1">
+        <div className="fx-eyebrow font-medium text-ink-mid flex-1">
           Facture Odoo
         </div>
       </div>
-      <div className="text-[13px] text-[var(--color-ink)] leading-relaxed">
+      <div className="fx-body text-[var(--color-ink)] leading-relaxed">
         {!res && <span className="text-ink-mid">Chargement…</span>}
 
         {res && !res.ok && (
-          <span className="text-terra font-semibold">Lecture impossible : {res.erreur}</span>
+          <span className="text-terra-ink font-semibold">Lecture impossible : {res.erreur}</span>
         )}
 
         {res && res.ok && res.factures.length === 0 && enAttente.length === 0 && (
@@ -142,7 +142,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
                   {typeof f.montant_ttc === 'number' ? `${fmtMontant(f.montant_ttc)} TTC` : '—'}
                 </span>
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[12px] text-ink-mid">
+              <div className="fx-meta flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-ink-mid">
                 <span>{detailDe(f)}</span>
                 {res.odooUrl && (
                   <a
@@ -160,7 +160,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
         })}
 
         {resB && !resB.ok && (
-          <div className="text-terra font-semibold">Brouillons illisibles : {resB.erreur}</div>
+          <div className="text-terra-ink font-semibold">Brouillons illisibles : {resB.erreur}</div>
         )}
 
         {enAttente.map((b, i) => (
@@ -172,7 +172,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
                 {typeof b.montant_ttc === 'number' ? `${fmtMontant(b.montant_ttc)} TTC` : '—'}
               </span>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-[12px] text-ink-mid">
+            <div className="fx-meta flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-ink-mid">
               <span>Créé depuis FoxO le {fmtMoment(b.cree_le)} · référence « {b.reference} »</span>
               {b.odoo_url && (
                 <a href={b.odoo_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-navy font-semibold hover:underline whitespace-nowrap">
@@ -180,7 +180,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
                 </a>
               )}
             </div>
-            <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-navy-pale text-[12px] text-ink-mid">
+            <div className="fx-meta mt-1.5 px-2.5 py-1.5 rounded-lg bg-navy-pale text-ink-mid">
               À faire dans Odoo : vérifier, valider, envoyer. Une fois validée, la facture apparaît ici avec son numéro à la synchronisation suivante.
             </div>
             {b.communication && (
@@ -189,19 +189,19 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
                   <button
                     type="button"
                     onClick={() => afficherQr(b.id)}
-                    className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy-pale border border-navy-light text-navy text-[13px] font-semibold hover:bg-navy-light"
+                    className="fx-body inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-navy-pale border border-navy-light text-navy font-semibold hover:bg-navy-light"
                   >
                     <QrCode size={15} aria-hidden /> QR de paiement sur place
                   </button>
                 ) : qr.erreur ? (
-                  <div className="text-terra font-semibold text-[12px]">{qr.erreur}</div>
+                  <div className="fx-label text-terra-ink font-semibold">{qr.erreur}</div>
                 ) : qr.paiement ? (
                   <div>
                     <QrPaiement paiement={qr.paiement} />
-                    <button type="button" onClick={() => setQr(null)} className="mt-1 min-h-[44px] text-navy font-semibold underline text-[12px]">Masquer le QR</button>
+                    <button type="button" onClick={() => setQr(null)} className="fx-label mt-1 min-h-[44px] text-navy font-semibold underline">Masquer le QR</button>
                   </div>
                 ) : (
-                  <div className="text-[12px] text-ink-mid">Préparation du QR…</div>
+                  <div className="fx-meta text-ink-mid">Préparation du QR…</div>
                 )}
               </div>
             )}
@@ -213,12 +213,12 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
             <button
               type="button"
               onClick={() => setDossierDuFormulaire(interventionId)}
-              className="bg-navy text-white px-3.5 rounded-lg text-[13px] font-bold hover:opacity-90 inline-flex items-center gap-2 min-h-[44px]"
+              className="fx-body bg-navy text-cream px-3.5 rounded-lg font-semibold hover:opacity-90 inline-flex items-center gap-2 min-h-[44px]"
               data-testid="odoo-brouillon-ouvrir"
             >
               <Plus size={15} aria-hidden /> Créer un brouillon dans Odoo
             </button>
-            <span className="text-[12px] text-ink-mid">Pré-rempli depuis ce dossier. Le brouillon reste sans numéro : tu le vérifies, le valides et l&apos;envoies depuis Odoo.</span>
+            <span className="fx-meta text-ink-mid">Pré-rempli depuis ce dossier. Le brouillon reste sans numéro : tu le vérifies, le valides et l&apos;envoies depuis Odoo.</span>
           </div>
         )}
 
@@ -231,7 +231,7 @@ export function OdooFactureBlock({ interventionId }: { interventionId: string })
         )}
 
         {res && res.ok && (
-          <div className="mt-2 text-[11px] text-ink-mid">
+          <div className="fx-small mt-2 text-ink-mid">
             Dernière synchronisation : {fmtMoment(res.derniereSynchronisation)}
           </div>
         )}

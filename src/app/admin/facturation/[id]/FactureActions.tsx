@@ -29,7 +29,7 @@ export function FactureActions({ facture }: { facture: Facture }) {
         href={`/api/admin/facture/${facture.id}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 min-h-[44px] inline-flex items-center gap-1.5"
+        className="fx-label bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 min-h-[44px] inline-flex items-center gap-1.5"
       >
         <FileText size={14} aria-hidden /> PDF
       </a>

@@ -238,7 +238,7 @@ export default async function AdminPipelinePage() {
   const dashboard: DashboardData = { freeSlotsByTech, occupantsPendingByIv, recentResponses };
 
   // Référence temporelle figée côté serveur — sert d'état initial
-  // partagé pour le rendu SSR + 1ʳᵉ hydratation client (évite React #418).
+  // partagé pour le rendu SSR + 1ʳᵉ hydratation client (évite l'erreur React 418).
   const serverNowIso = new Date().toISOString();
 
   return (

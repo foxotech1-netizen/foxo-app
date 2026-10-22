@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { DEFAULT_TECH_COLOR } from '@/lib/techniciens/couleurs';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminUser } from "@/lib/auth/server";
@@ -26,7 +27,7 @@ export async function createTech(form: FormData): Promise<ActionState> {
   const nom = String(form.get('nom') ?? '').trim();
   const email = String(form.get('email') ?? '').trim().toLowerCase();
   const telephone = String(form.get('telephone') ?? '').trim() || null;
-  const couleur = String(form.get('couleur') ?? '').trim() || '#1B3A6B';
+  const couleur = String(form.get('couleur') ?? '').trim() || DEFAULT_TECH_COLOR;
 
   if (!prenom) return { error: 'Le prénom est obligatoire.' };
   if (!nom) return { error: 'Le nom est obligatoire.' };
@@ -93,7 +94,7 @@ export async function updateTech(id: string, form: FormData): Promise<ActionStat
   const prenom = String(form.get('prenom') ?? '').trim();
   const nom = String(form.get('nom') ?? '').trim();
   const telephone = String(form.get('telephone') ?? '').trim() || null;
-  const couleur = String(form.get('couleur') ?? '').trim() || '#1B3A6B';
+  const couleur = String(form.get('couleur') ?? '').trim() || DEFAULT_TECH_COLOR;
   const actifRaw = form.get('actif');
   const actif = actifRaw === null ? undefined : actifRaw === 'true' || actifRaw === 'on';
 

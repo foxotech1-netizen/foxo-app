@@ -14,13 +14,12 @@ import { CreateInterventionModal, type SlotInfo } from './planning/CreateInterve
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ChatIA } from '@/components/admin/ChatIA';
 import { NextMissions } from '@/components/admin/NextMissions';
-import { Accordion } from '@/components/ui/Accordion';
 import { SyndicMapWrapper, type SyndicMapPin } from '@/components/portal/SyndicMapWrapper';
 
 // Avatars techniciens — palette FoxO sémantique. Cycle 4 couleurs pour
 // différencier visuellement chaque tech dans la grille DashboardTechs.
 const TECH_AVATAR_COLORS = [
-  { bg: 'var(--color-amber-foxo)', soft: 'var(--color-amber-light)' },
+  { bg: 'var(--color-amber-ink)', soft: 'var(--color-amber-light)' },
   { bg: 'var(--color-navy)',       soft: 'var(--color-navy-pale)' },
   { bg: 'var(--color-ok)',         soft: 'var(--color-ok-light)' },
   { bg: 'var(--color-terra)',      soft: 'var(--color-terra-light)' },
@@ -65,8 +64,6 @@ export function Dashboard({
   // Sur SSR/initial render tous renvoient false → on rend la variante
   // mobile comme fallback safe (DOM léger, accordéon fermé).
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const isTabletUp = useMediaQuery('(min-width: 768px)');
-  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // Compteur Gmail "à traiter" (mails non lus). Best-effort : init 0, tout
   // échec (réseau / 403) laisse 0 sans crash. Réponse : { ok, count }.
@@ -127,21 +124,56 @@ export function Dashboard({
     return { confirmedToday, occupantsPending };
   }, [rows, today, dashboard.occupantsPendingByIv]);
 
-  // ── Sections "détaillées" ─────────────────────────────────────────────
-  // Bloc commun rendu : (a) inline en tablette, (b) dans la colonne
-  // gauche en desktop, (c) dans l'accordéon en mobile. Un seul source
-  // of truth pour ces sections legacy.
-  const detailedSections = (
-    <div className="space-y-5">
-      {/* 1. Stats temps réel — tunnel 4 compteurs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2.5">
-        <StatCard num={unreadMails} label="Mails à traiter" accent href="/admin/mails" active={false} />
-        <StatCard num={stats.nouvelles} label="Nouvelles demandes" href="/admin?statut=nouvelle" active={statutFilter === 'nouvelle'} />
-        <StatCard num={stats.aRelancer} label="À relancer" warning={stats.aRelancer > 0} href="/admin?statut=a_relancer" active={statutFilter === 'a_relancer'} />
-        <StatCard num={stats.rapports} label="Rapports à valider" amber={stats.rapports > 0} href="/admin/validation" active={false} />
+  // ── Rapports à valider (statut 'rapport') — carte « À valider » ──────────
+  const rapportsAValider = useMemo(
+    () => rows
+      .filter((r) => r.statut === 'rapport')
+      .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')),
+    [rows],
+  );
+
+  // Un seul agencement, responsive : KPI pleine largeur, puis « Aujourd'hui »
+  // (3/5) + « À valider » (2/5), puis les sections existantes (réponses
+  // occupants, demandes mail, confirmées du jour), le chat express et, sur
+  // mobile, la carte des ACP (rendue côté serveur en desktop).
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="fx-kpi-grid">
+        <StatCard
+          num={unreadMails} label="Mails à traiter" Icon={Mail} teinte="amber"
+          detail="Boîte Gmail partagée" href="/admin/mails" active={false}
+        />
+        <StatCard
+          num={stats.nouvelles} label="Nouvelles demandes" Icon={Inbox} teinte="sky"
+          detail={stats.urgent > 0 ? `${stats.urgent} urgente${stats.urgent > 1 ? 's' : ''}` : 'Aucune urgence'}
+          detailTeinte={stats.urgent > 0 ? 'terra' : 'ok'}
+          href="/admin?statut=nouvelle" active={statutFilter === 'nouvelle'}
+        />
+        <StatCard
+          num={stats.aRelancer} label="À relancer" Icon={AlertTriangle} teinte="terra"
+          detail={`${stats.enSuspens} en suspens`} detailTeinte={stats.enSuspens > 0 ? 'amber' : undefined}
+          href="/admin?statut=a_relancer" active={statutFilter === 'a_relancer'}
+        />
+        <StatCard
+          num={stats.rapports} label="Rapports à valider" Icon={Check} teinte="ok"
+          detail={`${stats.closedThisMonth} clôturée${stats.closedThisMonth > 1 ? 's' : ''} ce mois`}
+          href="/admin/validation" active={false}
+        />
       </div>
 
-      {/* 2bis. Réponses occupants récentes (< 48 h) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
+        <NextMissions
+          missions={todayMissions}
+          limit={isMobile ? 4 : 6}
+          onOpenIntervention={onOpenIntervention}
+        />
+        <AValiderCard
+          rapports={rapportsAValider}
+          occupantsPending={todoToday.occupantsPending}
+          onOpenIntervention={onOpenIntervention}
+        />
+      </div>
+
       {dashboard.recentResponses.length > 0 && (
         <RecentResponsesCard
           responses={dashboard.recentResponses}
@@ -150,7 +182,6 @@ export function Dashboard({
         />
       )}
 
-      {/* 3. Nouvelles demandes mail (cron analyse auto) */}
       {newMailIvs.length > 0 && (
         <NewMailSection
           mails={newMailIvs}
@@ -158,123 +189,86 @@ export function Dashboard({
         />
       )}
 
-      {/* 4. À faire aujourd'hui — compact : seuls les compteurs non nuls
-          affichent une carte ; tout à zéro = une seule ligne discrète. */}
-      <section>
-        <h3 className="section-label mb-2">À faire aujourd&apos;hui</h3>
-        {todoToday.confirmedToday.length === 0 && todoToday.occupantsPending.length === 0 ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-[var(--color-sand)] border border-[var(--color-sand-mid)] rounded-md text-[12px] text-ink-muted">
-            <Check size={14} className="text-ok" aria-hidden />
-            Rien à traiter aujourd&apos;hui
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {todoToday.confirmedToday.length > 0 && (
-              <TodoCard
-                title="Confirmées aujourd'hui"
-                count={todoToday.confirmedToday.length}
-                color="navy"
-                empty="Aucune intervention confirmée pour aujourd'hui."
-              >
-                {todoToday.confirmedToday.map((iv) => (
-                  <button
-                    key={iv.id}
-                    type="button"
-                    onClick={() => onOpenIntervention(iv.id)}
-                    className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
-                  >
-                    <span className="font-mono text-[11px] text-navy font-bold">{fmtTime(iv.creneau_debut)}</span>
-                    <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
-                    <span className="text-[10px] text-ink-muted">{iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}</span>
-                  </button>
-                ))}
-              </TodoCard>
-            )}
+      {todoToday.confirmedToday.length > 0 && (
+        <TodoCard
+          title="Confirmées aujourd'hui"
+          count={todoToday.confirmedToday.length}
+          color="navy"
+          empty="Aucune intervention confirmée pour aujourd'hui."
+        >
+          {todoToday.confirmedToday.map((iv) => (
+            <button
+              key={iv.id}
+              type="button"
+              onClick={() => onOpenIntervention(iv.id)}
+              className="w-full text-left bg-sand hover:bg-navy-pale border border-sand-mid rounded-lg px-3 py-2 min-h-[44px] flex items-center gap-3"
+            >
+              <span className="fx-time">{fmtTime(iv.creneau_debut)}</span>
+              <span className="fx-body font-medium text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
+              <span className="fx-meta">{iv.technicien ? initiales(iv.technicien.prenom, iv.technicien.nom) : '—'}</span>
+            </button>
+          ))}
+        </TodoCard>
+      )}
 
-            {todoToday.occupantsPending.length > 0 && (
-              <TodoCard
-                title="Occupants à relancer"
-                count={todoToday.occupantsPending.length}
-                color="amber"
-                empty="Tous les occupants ont confirmé."
-              >
-                {todoToday.occupantsPending.map(({ iv, pending }) => (
-                  <button
-                    key={iv.id}
-                    type="button"
-                    onClick={() => onOpenIntervention(iv.id)}
-                    className="w-full text-left bg-[var(--color-sand)] hover:bg-amber-light border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 text-[12px] transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="font-sora text-[11px] text-[var(--color-amber-foxo)] font-semibold tracking-[0.01em]">{iv.ref ?? '?'}</span>
-                      <span className="font-bold text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
-                    </div>
-                    <div className="text-[10px] text-ink-muted mt-0.5">
-                      {pending.length} occupant(s) sans réponse
-                    </div>
-                  </button>
-                ))}
-              </TodoCard>
-            )}
-          </div>
-        )}
-      </section>
+      <ChatIA compact={isMobile} />
+
+      {isMobile && adminPins.length > 0 && (
+        <SyndicMapWrapper pins={adminPins} basePath="/admin/interventions" />
+      )}
     </div>
   );
+}
 
+// ─── Carte « À valider » : rapports à valider + occupants sans réponse ──────
+// Données déjà présentes (lignes du tableau, occupantsPendingByIv) ; la file
+// complète reste /admin/validation.
+function AValiderCard({
+  rapports, occupantsPending, onOpenIntervention,
+}: {
+  rapports: InterventionRow[];
+  occupantsPending: { iv: InterventionRow; pending: { id: string; appartement: string | null; nom: string | null }[] }[];
+  onOpenIntervention: (id: string) => void;
+}) {
+  const items: { key: string; teinte: 'ok' | 'amber'; Icon: LucideIcon; titre: string; meta: string; id: string }[] = [
+    ...rapports.slice(0, 4).map((iv) => ({
+      key: `r-${iv.id}`, teinte: 'ok' as const, Icon: Check,
+      titre: iv.acp?.nom ?? iv.particulier_contact?.nom ?? iv.ref ?? '—',
+      meta: `Rapport à valider · ${iv.ref ?? ''}`, id: iv.id,
+    })),
+    ...occupantsPending.slice(0, 4).map(({ iv, pending }) => ({
+      key: `o-${iv.id}`, teinte: 'amber' as const, Icon: Inbox,
+      titre: iv.acp?.nom ?? '—',
+      meta: `${pending.length} occupant${pending.length > 1 ? 's' : ''} sans réponse · ${iv.ref ?? ''}`, id: iv.id,
+    })),
+  ];
+  const total = rapports.length + occupantsPending.length;
   return (
-    <div className="flex flex-col gap-3 sm:gap-4">
-      {/* Mobile + Tablet : Missions du jour + Chat express en tête.
-          En desktop ces composants migrent dans la colonne droite. */}
-      {!isDesktop && (
-        <>
-          <NextMissions
-            missions={todayMissions}
-            limit={isMobile ? 3 : 5}
-            onOpenIntervention={onOpenIntervention}
-          />
-          <ChatIA compact={isMobile} />
-        </>
-      )}
-
-      {/* Desktop (≥1024px) : layout 2 colonnes. Gauche = sections legacy
-          (KPIs / mails / todo). Droite = NextMissions + ChatIA. */}
-      {isDesktop && (
-        <div className="grid grid-cols-[1.4fr_1fr] gap-4 items-start">
-          <div>{detailedSections}</div>
-          <div className="flex flex-col gap-3">
-            <NextMissions
-              missions={todayMissions}
-              limit={5}
-              onOpenIntervention={onOpenIntervention}
-            />
-            <ChatIA compact={false} />
+    <section className="fx-card overflow-hidden" aria-label="À valider">
+      <div className="fx-card-head">
+        <h2 className="fx-h2">À valider</h2>
+        <Link href="/admin/validation" className="fx-link">Tout voir →</Link>
+      </div>
+      {items.length === 0 ? (
+        <div className="fx-card-row fx-meta text-center py-6">Rien à valider pour l&apos;instant.</div>
+      ) : (
+        items.map((it) => (
+          <div key={it.key} className="fx-card-row flex items-center gap-3">
+            <span className={`fx-ico fx-ico-md fx-ico-light-${it.teinte}`}><it.Icon size={15} aria-hidden /></span>
+            <div className="flex-1 min-w-0">
+              <div className="fx-body font-medium truncate">{it.titre}</div>
+              <div className="fx-meta truncate">{it.meta}</div>
+            </div>
+            <button type="button" onClick={() => onOpenIntervention(it.id)} className="fx-btn-small">Ouvrir</button>
           </div>
+        ))
+      )}
+      {total > items.length && (
+        <div className="fx-card-row fx-meta">
+          +{total - items.length} autre{total - items.length > 1 ? 's' : ''} dans la <Link href="/admin/validation" className="fx-link">file de validation</Link>.
         </div>
       )}
-
-      {/* Tablet (768-1023px) : sections détaillées rendues directement
-          (pas d'accordéon — assez d'espace pour tout afficher). */}
-      {isTabletUp && !isDesktop && detailedSections}
-
-      {/* Mobile (<768px) : sections détaillées + carte planquées
-          dans un accordéon pour garder le focus sur le briefing/chat.
-          Badge urgences en cas d'alerte pour pousser à l'ouvrir. */}
-      {isMobile && (
-        <Accordion
-          title="Tableau de bord détaillé"
-          defaultOpen={false}
-          badge={stats.urgent > 0 ? stats.urgent : undefined}
-        >
-          <div className="space-y-3 pt-1">
-            {adminPins.length > 0 && (
-              <SyndicMapWrapper pins={adminPins} basePath="/admin/interventions" />
-            )}
-            {detailedSections}
-          </div>
-        </Accordion>
-      )}
-    </div>
+    </section>
   );
 }
 
@@ -328,36 +322,36 @@ export function DashboardTechs({
         />
       )}
 
-      <h3 className="section-label mb-2">
+      <h3 className="fx-eyebrow mb-2">
         Vue par technicien
       </h3>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {techData.length === 0 && (
-          <div className="bg-cream border border-sand-border rounded-2xl p-4 text-[13px] text-ink-muted">
+          <div className="fx-body bg-cream border border-sand-border rounded-modal p-4 text-ink-mid">
             Aucun technicien encodé.
           </div>
         )}
         {techData.map(({ tech, todayIvs, monthRealisees, monthRapports, slots, color }) => (
-          <div key={tech.id} className="bg-cream border border-sand-border rounded-2xl p-4">
+          <div key={tech.id} className="bg-cream border border-sand-border rounded-modal p-4">
             <div className="flex items-center gap-3 mb-3">
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-bold flex-shrink-0"
+                className="fx-body w-10 h-10 rounded-full flex items-center justify-center font-semibold flex-shrink-0"
                 style={{ background: color.bg, color: 'var(--color-cream)' }}
               >
                 {initiales(tech.prenom, tech.nom)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-extrabold text-[14px] text-ink truncate">
+                <div className="fx-body font-semibold text-ink truncate">
                   {[tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email}
                 </div>
-                <div className="flex items-center gap-1.5 text-[10px] text-ok">
+                <div className="fx-small flex items-center gap-1.5 text-ok">
                   <span className="w-1.5 h-1.5 rounded-full bg-ok" />
                   En ligne
                 </div>
               </div>
               <Link
                 href={`/admin?tech=${tech.id}`}
-                className="text-[10px] text-navy underline hover:no-underline whitespace-nowrap"
+                className="fx-link whitespace-nowrap"
               >
                 Filtrer →
               </Link>
@@ -369,11 +363,11 @@ export function DashboardTechs({
             </div>
 
             <div className="mb-3">
-              <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5">
+              <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
                 Aujourd&apos;hui ({todayIvs.length})
               </div>
               {todayIvs.length === 0 ? (
-                <div className="text-[12px] text-ink-muted bg-sand rounded-md px-2.5 py-2">
+                <div className="fx-meta text-ink-mid bg-sand rounded-lg px-2.5 py-2">
                   Aucune intervention prévue.
                 </div>
               ) : (
@@ -383,15 +377,15 @@ export function DashboardTechs({
                       key={iv.id}
                       type="button"
                       onClick={() => onOpenIntervention(iv.id)}
-                      className="w-full text-left bg-[var(--color-sand)] hover:bg-navy-pale border border-[var(--color-sand-mid)] rounded-md px-2.5 py-1.5 flex items-center gap-2 text-[12px] transition-colors"
+                      className="fx-meta w-full min-h-[44px] text-left bg-sand hover:bg-navy-pale border border-sand-mid rounded-lg px-3 py-2 flex items-center gap-2 transition-colors"
                     >
-                      <span className="font-mono font-bold text-navy text-[11px]">
+                      <span className="fx-small fx-ref font-semibold text-navy">
                         {fmtTime(iv.creneau_debut)}
                       </span>
-                      <span className="font-bold text-ink truncate flex-1">
+                      <span className="font-semibold text-ink truncate flex-1">
                         {iv.acp?.nom ?? iv.particulier_contact?.nom ?? '—'}
                       </span>
-                      <span className="text-[10px] text-ink-muted truncate">{iv.type ?? ''}</span>
+                      <span className="fx-small text-ink-mid truncate">{iv.type ?? ''}</span>
                     </button>
                   ))}
                 </div>
@@ -399,11 +393,11 @@ export function DashboardTechs({
             </div>
 
             <div>
-              <div className="text-[10px] font-bold text-ink-muted uppercase tracking-wider mb-1.5">
+              <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
                 Prochains créneaux libres
               </div>
               {slots.length === 0 ? (
-                <div className="text-[12px] text-ink-muted bg-sand rounded-md px-2.5 py-2">
+                <div className="fx-meta text-ink-mid bg-sand rounded-lg px-2.5 py-2">
                   Aucun créneau libre.{' '}
                   <Link href="/admin/planning?tab=manage" className="text-navy underline">
                     Générer
@@ -423,7 +417,7 @@ export function DashboardTechs({
                         technicien_id: s.technicien_id,
                       })}
                       title="Cliquer pour planifier une intervention sur ce créneau"
-                      className="bg-[var(--color-ok-light)] text-[var(--color-ok)] border border-[var(--color-ok-mid)] rounded-md px-2 py-1 text-[11px] font-medium cursor-pointer transition-colors hover:bg-[var(--color-ok-mid)] hover:border-[var(--color-amber-foxo)]/30"
+                      className="fx-small bg-[var(--color-ok-light)] text-[var(--color-ok)] border border-[var(--color-ok-mid)] rounded-lg px-2 py-1 font-medium cursor-pointer transition-colors hover:bg-[var(--color-ok-mid)] hover:border-[var(--color-amber-foxo)]/30"
                     >
                       {new Date(s.date + 'T12:00:00').toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' })}
                       {' · '}
@@ -441,58 +435,35 @@ export function DashboardTechs({
 }
 
 function StatCard({
-  num, label, accent, muted, warning, amber, href, active,
+  num, label, Icon, teinte, detail, detailTeinte, href, active,
 }: {
-  num: number; label: string;
-  accent?: boolean; muted?: boolean; warning?: boolean; amber?: boolean;
-  href?: string; active?: boolean;
+  num: number;
+  label: string;
+  Icon: LucideIcon;
+  teinte: 'sky' | 'amber' | 'terra' | 'ok';
+  detail?: string;
+  detailTeinte?: 'ok' | 'amber' | 'terra';
+  href?: string;
+  active?: boolean;
 }) {
-  // Couleur de la pastille accent en haut-droite, par type de KPI.
-  // default → navy ; accent (en cours) → sky ; warning (suspens) → terra ;
-  // amber (rapports) → amber-foxo ; muted (clôturées) → ink-muted.
-  let dotColor = 'var(--color-navy)';
-  let dotBg = 'var(--color-navy-pale)';
-  let valueColor = 'var(--color-ink)';
-  if (accent) { dotColor = 'var(--color-sky-foxo)'; dotBg = 'var(--color-sky-light-foxo)'; }
-  else if (warning) { dotColor = 'var(--color-terra)'; dotBg = 'var(--color-terra-light)'; valueColor = 'var(--color-terra)'; }
-  else if (amber) { dotColor = 'var(--color-amber-foxo)'; dotBg = 'var(--color-amber-light)'; }
-  else if (muted) { dotColor = 'var(--color-ink-muted)'; dotBg = 'var(--color-sand-mid)'; valueColor = 'var(--color-ink-mid)'; }
-
-  // Filtre actif : ring navy autour de la card.
-  const activeRing = active ? 'ring-2 ring-[var(--color-amber-foxo)]/40' : '';
-
+  const couleurDetail =
+    detailTeinte === 'ok' ? 'text-ok'
+    : detailTeinte === 'amber' ? 'text-amber-ink'
+    : detailTeinte === 'terra' ? 'text-terra-ink'
+    : '';
   const content = (
-    <div
-      className={`relative bg-[var(--color-cream)] rounded-card p-4 transition-all hover:-translate-y-0.5 ${activeRing}`}
-      style={{ boxShadow: 'var(--shadow-card)' }}
-    >
-      <div className="text-[10px] font-medium tracking-[0.12em] uppercase text-[var(--color-ink-muted)] mb-2.5">
-        {label}
+    <div className={`fx-card h-full p-4 flex flex-col gap-3 ${active ? 'ring-2 ring-[var(--color-amber-foxo)]/40' : ''}`}>
+      <div className="flex items-start justify-between gap-3">
+        <span className="fx-label">{label}</span>
+        <span className={`fx-ico fx-ico-lg fx-ico-light-${teinte}`}><Icon size={17} aria-hidden /></span>
       </div>
-      <div
-        aria-hidden
-        className="absolute top-4 right-4 w-[22px] h-[22px] rounded-md flex items-center justify-center"
-        style={{ background: dotBg }}
-      >
-        <span className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }}></span>
-      </div>
-      <div
-        className="font-sora text-3xl font-semibold leading-none mb-1.5"
-        style={{ color: valueColor, letterSpacing: '-0.04em' }}
-      >
-        {num}
-      </div>
-      {href && (
-        <div className="text-[10px] font-medium mt-2 text-[var(--color-navy-mid)]">
-          Voir tout →
-        </div>
-      )}
+      <div className="fx-kpi">{num}</div>
+      {detail && <div className={`fx-meta ${couleurDetail}`}>{detail}</div>}
     </div>
   );
-
   if (!href) return content;
   return (
-    <Link href={href} className="block">
+    <Link href={href} className="block h-full rounded-[14px]">
       {content}
     </Link>
   );
@@ -501,10 +472,10 @@ function StatCard({
 function MiniStat({ num, label, accent }: { num: number; label: string; accent?: boolean }) {
   return (
     <div className={(accent ? 'bg-navy-pale border-navy-light' : 'bg-sand border-sand-border') + ' border rounded-lg px-2.5 py-2'}>
-      <div className={'text-[18px] font-extrabold leading-none tabular-nums ' + (accent ? 'text-navy' : 'stat-num')}>
+      <div className={'fx-num-md ' + (accent ? 'text-navy' : '')}>
         {num}
       </div>
-      <div className="text-[9px] text-ink-muted mt-0.5 font-semibold uppercase tracking-wider">
+      <div className="fx-label mt-1">
         {label}
       </div>
     </div>
@@ -538,11 +509,11 @@ function TodoCard({
     >
       <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[var(--color-sand-mid)]">
         <span className="w-[3px] h-3.5 rounded-sm" style={{ background: swatchColor }}></span>
-        <span className="font-sora text-[13px] font-medium text-[var(--color-ink)] flex-1">
+        <span className="fx-body font-sora font-medium text-[var(--color-ink)] flex-1">
           {title}
         </span>
         <span
-          className="font-sora text-[11px] font-semibold px-2 py-0.5 rounded-full"
+          className="fx-badge font-semibold px-2 py-0.5 rounded-full"
           style={{ background: badgeBg, color: badgeFg }}
         >
           {count}
@@ -550,7 +521,7 @@ function TodoCard({
       </div>
       <div className="p-3 space-y-1.5 max-h-[240px] overflow-y-auto">
         {count === 0 ? (
-          <div className="text-[12px] text-[var(--color-ink-muted)] text-center py-4">{empty}</div>
+          <div className="fx-meta text-ink-mid text-center py-4">{empty}</div>
         ) : children}
       </div>
     </div>
@@ -612,7 +583,7 @@ function RecentResponsesCard({
       return { Icon: Check, label: 'Présent', cls: 'bg-ok-light text-ok border-ok-mid' };
     }
     if (r.conf === 'decline') {
-      return { Icon: X, label: 'Décline', cls: 'bg-terra-light text-terra border-terra-mid' };
+      return { Icon: X, label: 'Décline', cls: 'bg-terra-light text-terra-ink border-terra-mid' };
     }
     return { Icon: null, label: 'En attente', cls: 'bg-sand-mid text-ink-mid border-sand-border' };
   }
@@ -624,14 +595,14 @@ function RecentResponsesCard({
 
   return (
     <section>
-      <h3 className="section-label mb-2 flex items-center gap-1.5">
+      <h3 className="fx-eyebrow mb-2 flex items-center gap-1.5">
         <Inbox size={14} aria-hidden /> Réponses occupants reçues (&lt; 48 h)
-        <span className="ml-2 inline-block px-2 py-0.5 bg-terra text-white rounded-full text-[10px] font-extrabold">
+        <span className="fx-badge fx-badge-terra-solid ml-2">
           {visible.length}
         </span>
       </h3>
       <div
-        className="border rounded-2xl divide-y divide-sand-mid overflow-hidden"
+        className="border rounded-modal divide-y divide-sand-mid overflow-hidden"
         style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
       >
         {visible.slice(0, 8).map((r) => {
@@ -645,25 +616,25 @@ function RecentResponsesCard({
               <button
                 type="button"
                 onClick={() => onOpenIntervention(r.intervention_id)}
-                className="flex-1 min-w-0 text-left flex items-center gap-3"
+                className="flex-1 min-w-0 min-h-[44px] text-left flex items-center gap-3"
               >
-                <span className={'text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap inline-flex items-center gap-1 ' + tag.cls}>
+                <span className={'fx-badge font-semibold border rounded-full px-2 py-0.5 whitespace-nowrap inline-flex items-center gap-1 ' + tag.cls}>
                   {tag.Icon && <tag.Icon size={11} aria-hidden />}
                   {tag.label}
                 </span>
                 <span className="flex-1 min-w-0 block">
-                  <span className="block text-[13px] font-semibold text-ink truncate">
+                  <span className="fx-body block font-semibold text-ink truncate">
                     {fullName}
                     {r.appartement && (
                       <span className="text-ink-mid font-normal ml-1.5">apt. {r.appartement}</span>
                     )}
                   </span>
-                  <span className="block text-[11px] text-ink-muted truncate">
-                    <span className="font-mono text-navy">{r.iv_ref ?? '?'}</span>
+                  <span className="fx-small block text-ink-mid truncate">
+                    <span className="fx-ref text-navy">{r.iv_ref ?? '?'}</span>
                     {r.iv_acp_nom && <span> · {r.iv_acp_nom}</span>}
                   </span>
                 </span>
-                <span className="text-[10px] text-ink-muted whitespace-nowrap">
+                <span className="fx-small text-ink-mid whitespace-nowrap">
                   {relativeTime(r.confirmed_at)}
                 </span>
               </button>
@@ -672,7 +643,7 @@ function RecentResponsesCard({
                 onClick={() => ackResponse(r.occupant_id)}
                 title="Marquer comme vu"
                 aria-label="Marquer comme vu"
-                className="shrink-0 p-1.5 rounded-full text-ink-muted hover:text-ink hover:bg-sand-mid transition-colors"
+                className="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-full text-ink-mid hover:text-ink hover:bg-sand-mid transition-colors"
               >
                 <X size={14} aria-hidden />
               </button>
@@ -680,7 +651,7 @@ function RecentResponsesCard({
           );
         })}
         {visible.length > 8 && (
-          <div className="px-4 py-2 text-[11px] text-ink-muted italic text-center">
+          <div className="fx-small px-4 py-2 text-ink-mid italic text-center">
             +{visible.length - 8} autres réponses récentes — utilise le filtre Tableau de bord pour les voir.
           </div>
         )}
@@ -878,7 +849,7 @@ function NewMailSection({
   return (
     <section>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-        <h3 className="section-label flex items-center gap-1.5">
+        <h3 className="fx-eyebrow flex items-center gap-1.5">
           <Mail size={14} aria-hidden /> Nouvelles demandes mail ({mails.length})
         </h3>
         {mails.length > 1 && (
@@ -886,7 +857,7 @@ function NewMailSection({
             type="button"
             onClick={batchReanalyze}
             disabled={Boolean(batchState?.running)}
-            className="text-[10px] bg-navy text-white px-2 py-1 rounded font-bold disabled:opacity-50 inline-flex items-center gap-1"
+            className="fx-small bg-navy text-cream px-2 py-1 rounded font-semibold disabled:opacity-50 inline-flex items-center gap-1"
           >
             {batchState?.running ? (
               `Analyse ${batchState.current}/${batchState.total}…`
@@ -900,10 +871,10 @@ function NewMailSection({
       </div>
 
       {batchState?.running && (
-        <div className="mb-2 bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)] rounded-md px-2.5 py-1.5">
-          <div className="text-[11px] text-[var(--color-navy)] font-medium mb-1">
+        <div className="mb-2 bg-[var(--color-navy-pale)] border border-[var(--color-navy-light)] rounded-lg px-2.5 py-1.5">
+          <div className="fx-small text-[var(--color-navy)] font-medium mb-1">
             Analyse en cours… {batchState.current}/{batchState.total}
-            {batchState.updated > 0 && <span className="text-[var(--color-amber-foxo)] ml-2">· {batchState.updated} avec diff</span>}
+            {batchState.updated > 0 && <span className="text-amber-ink ml-2">· {batchState.updated} avec diff</span>}
           </div>
           <div className="h-1.5 bg-[var(--color-sand-mid)] rounded-full overflow-hidden">
             <div
@@ -915,20 +886,19 @@ function NewMailSection({
       )}
 
       {toast && (
-        <div className={
-          'mb-2 px-3 py-2 text-[11px] font-medium rounded-md border ' +
+        <div className={'fx-small mb-2 px-3 py-2 font-medium rounded-lg border ' +
           (toast.kind === 'ok'
             ? 'bg-[var(--color-ok-light)] border-[var(--color-ok-mid)] text-[var(--color-ok)]'
             : toast.kind === 'warn'
-              ? 'bg-[var(--color-amber-light)] border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)]'
-              : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-[var(--color-terra)]')
+              ? 'bg-[var(--color-amber-light)] border-[var(--color-amber-foxo)]/30 text-amber-ink'
+              : 'bg-[var(--color-terra-light)] border-[var(--color-terra-mid)] text-terra-ink')
         }>
           {toast.msg}
         </div>
       )}
 
       <div
-        className="border rounded-2xl p-3"
+        className="border rounded-modal p-3"
         style={{ background: 'var(--color-cream)', borderColor: 'var(--color-sand-border)' }}
       >
         <div className="space-y-1.5">
@@ -942,38 +912,38 @@ function NewMailSection({
             return (
               <div
                 key={iv.id}
-                className="row-hover relative bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-md flex items-center gap-2 px-2.5 py-2 text-[12px]"
+                className="fx-meta row-hover relative bg-[var(--color-cream)] border border-[var(--color-sand-border)] rounded-lg flex items-center gap-2 px-2.5 py-2"
               >
                 <button
                   type="button"
                   onClick={() => onOpenIntervention(iv.id)}
-                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                  className="flex-1 flex items-center gap-2 text-left min-w-0 min-h-[44px]"
                 >
-                  <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] font-semibold flex-shrink-0">
+                  <span className="fx-eyebrow inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink font-semibold flex-shrink-0">
                     <Mail size={11} aria-hidden /> Mail
                   </span>
-                  <span className="font-sora text-[12px] font-semibold flex-shrink-0 text-[var(--color-navy)] tracking-[0.01em]">
+                  <span className="fx-label font-sora font-semibold flex-shrink-0 text-[var(--color-navy)] tracking-[0.01em]">
                     {iv.ref ?? '?'}
                   </span>
-                  <span className="font-bold text-ink truncate flex-1">
+                  <span className="font-semibold text-ink truncate flex-1">
                     {fullName}
                   </span>
-                  <span className="text-[10px] text-ink-muted truncate">
+                  <span className="fx-small text-ink-mid truncate">
                     {iv.type ?? ''}
                   </span>
                   {iv.priorite === 'urgente' && (
-                    <Zap size={12} className="text-terra flex-shrink-0" aria-hidden />
+                    <Zap size={12} className="text-terra-ink flex-shrink-0" aria-hidden />
                   )}
                   {hasDiff && (
                     <span
-                      className="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.1em] px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-[var(--color-amber-foxo)] border border-[var(--color-amber-foxo)]/30"
+                      className="fx-eyebrow inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-[var(--color-amber-light)] text-amber-ink border border-[var(--color-amber-foxo)]/30"
                       title="Différences détectées par la dernière réanalyse"
                     >
                       <AlertTriangle size={11} aria-hidden /> À vérifier
                     </span>
                   )}
                   {reanalyzing && (
-                    <span className="text-[10px] text-ink-muted">…</span>
+                    <span className="fx-small text-ink-mid">…</span>
                   )}
                 </button>
 
@@ -983,7 +953,7 @@ function NewMailSection({
                     e.stopPropagation();
                     setOpenMenuId((cur) => cur === iv.id ? null : iv.id);
                   }}
-                  className="flex-shrink-0 px-1.5 py-0.5 text-ink-mid hover:text-navy text-[14px] leading-none"
+                  className="fx-body flex-shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-lg text-ink-mid hover:text-navy hover:bg-sand-hover leading-none"
                   aria-label="Actions"
                   aria-expanded={showMenu}
                 >
@@ -1029,14 +999,14 @@ function NewMailSection({
           <button
             type="button"
             onClick={() => setShowAll((v) => !v)}
-            className="w-full mt-2 text-[11px] font-bold text-navy hover:underline"
+            className="fx-small w-full mt-2 font-semibold text-navy hover:underline"
           >
             {showAll
               ? `— Réduire`
               : `+ Voir ${mails.length - 4} de plus`}
           </button>
         )}
-        <p className="text-[10px] text-ink-muted mt-2 italic">
+        <p className="fx-small text-ink-mid mt-2 italic">
           Créées automatiquement par le cron à partir de mails entrants. Aucune action n&apos;a été envoyée au client — c&apos;est à toi de planifier.
         </p>
       </div>
@@ -1047,25 +1017,25 @@ function NewMailSection({
           className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
         >
           <div
-            className="border border-terra rounded-2xl p-5 w-full max-w-[420px]"
+            className="border border-terra rounded-modal p-5 w-full max-w-[420px]"
             style={{ background: 'var(--color-cream)'}}
           >
-            <h2 className="fxs-block-title text-terra mb-2 flex items-center gap-1.5">
+            <h2 className="fxs-block-title text-terra-ink mb-2 flex items-center gap-1.5">
               <Trash2 size={16} aria-hidden /> Supprimer cette intervention
             </h2>
-            <p className="text-[13px] text-ink-mid leading-relaxed">
+            <p className="fx-body text-ink-mid leading-relaxed">
               Êtes-vous sûr de vouloir supprimer l&apos;intervention{' '}
-              <strong className="font-mono text-ink">
+              <strong className="tabular-nums text-ink">
                 {mails.find((m) => m.id === confirmDeleteId)?.ref ?? '?'}
               </strong> ?{' '}
-              <strong className="text-terra">Action irréversible.</strong>
+              <strong className="text-terra-ink">Action irréversible.</strong>
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmDeleteId(null)}
                 disabled={deleting}
-                className="px-3 py-2 rounded-lg text-[12px] font-bold border border-[var(--color-sand-mid)] bg-[var(--color-sand)] text-ink-mid disabled:opacity-50"
+                className="fx-label px-3 py-2 rounded-lg font-semibold border border-[var(--color-sand-mid)] bg-[var(--color-sand)] text-ink-mid disabled:opacity-50"
               >
                 Annuler
               </button>
@@ -1073,7 +1043,7 @@ function NewMailSection({
                 type="button"
                 onClick={() => handleDelete(confirmDeleteId)}
                 disabled={deleting}
-                className="px-3 py-2 rounded-md text-[12px] font-medium text-[var(--color-cream)] disabled:opacity-50 transition-colors"
+                className="fx-label px-3 py-2 rounded-lg font-medium text-[var(--color-cream)] disabled:opacity-50 transition-colors"
                 style={{ background: 'var(--color-terra)' }}
               >
                 {deleting ? 'Suppression…' : 'Supprimer définitivement'}
@@ -1100,10 +1070,9 @@ function MenuItem({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={
-        'w-full text-left px-3 py-2 text-[12px] font-semibold flex items-center gap-2 disabled:opacity-50 ' +
+      className={'fx-label w-full text-left px-3 py-2 font-semibold flex items-center gap-2 disabled:opacity-50 ' +
         (danger
-          ? 'text-terra hover:bg-terra-light'
+          ? 'text-terra-ink hover:bg-terra-light'
           : 'text-ink hover:bg-sand-hover')
       }
     >

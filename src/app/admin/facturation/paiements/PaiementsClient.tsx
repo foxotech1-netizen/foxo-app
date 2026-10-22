@@ -81,7 +81,7 @@ export function PaiementsClient({
         <h2 className="fxs-block-title text-ink mb-1 inline-flex items-center gap-1.5">
           <Download size={14} aria-hidden /> Import Beobank CSV
         </h2>
-        <p className="text-[11px] text-ink-muted mb-3">
+        <p className="fx-small text-ink-mid mb-3">
           Charge l&apos;export CSV de ton compte Beobank — les transactions
           dont la communication structurée matche une facture seront marquées
           payées automatiquement.
@@ -96,8 +96,7 @@ export function PaiementsClient({
         />
         <label
           htmlFor="csv-import"
-          className={
-            'inline-flex items-center gap-1.5 bg-[#A17244] text-white px-3.5 py-2.5 rounded-lg text-xs font-bold cursor-pointer ' +
+          className={'fx-label inline-flex items-center gap-1.5 bg-navy text-cream px-3.5 py-2.5 rounded-lg font-semibold cursor-pointer ' +
             (pending ? 'opacity-50 pointer-events-none' : 'hover:opacity-90')
           }
         >
@@ -105,11 +104,10 @@ export function PaiementsClient({
         </label>
         {feedback && (
           <div
-            className={
-              'mt-3 text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+            className={'fx-label mt-3 rounded-lg px-3 py-2 border font-semibold ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }
           >
             {feedback.msg}
@@ -121,12 +119,12 @@ export function PaiementsClient({
       <section>
         <h2 className="fxs-block-title text-ink mb-2 flex items-center gap-2">
           <Hourglass size={14} aria-hidden /> En attente de paiement
-          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
+          <span className="fx-badge font-semibold text-ink-mid bg-sand-mid px-2 py-0.5 rounded-full">
             {enAttente.length}
           </span>
         </h2>
         {enAttente.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted inline-flex items-center justify-center gap-1.5 w-full">
+          <div className="fx-meta bg-cream rounded-xl border border-sand-border p-6 text-center text-ink-mid inline-flex items-center justify-center gap-1.5 w-full">
             Aucune facture en attente — tout est payé. <ThumbsUp size={14} aria-hidden />
           </div>
         ) : (
@@ -138,12 +136,12 @@ export function PaiementsClient({
       <section>
         <h2 className="fxs-block-title text-ink mb-2 flex items-center gap-2">
           <CheckCircle2 size={14} aria-hidden /> Paiements récents
-          <span className="text-[10px] font-bold text-ink-muted bg-sand-mid px-2 py-0.5 rounded-full dark:bg-[rgba(255,255,255,.06)]">
+          <span className="fx-badge font-semibold text-ink-mid bg-sand-mid px-2 py-0.5 rounded-full">
             {recentes.length}
           </span>
         </h2>
         {recentes.length === 0 ? (
-          <div className="bg-cream rounded-xl border border-sand-border p-6 text-center text-[12px] text-ink-muted">
+          <div className="fx-meta bg-cream rounded-xl border border-sand-border p-6 text-center text-ink-mid">
             Aucun paiement enregistré pour l&apos;instant.
           </div>
         ) : (
@@ -170,14 +168,12 @@ function FactureTable({
         <table className="w-full border-collapse min-w-[720px]">
           <thead>
             <tr className="bg-sand">
-              {[
-                'N°', 'Client', 'Référence', 'Émission',
+              {[ 'N°', 'Client', 'Référence', 'Émission',
                 ...(showRetard ? ['Échéance', 'Retard'] : []),
-                ...(showPaiement ? ['Payée le'] : []),
-                'TTC',
+                ...(showPaiement ? ['Payée le'] : []), 'TTC',
                 ...(onRetirer ? [''] : []),
               ].map((h) => (
-                <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+                <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -193,37 +189,37 @@ function FactureTable({
                   <td className="px-3.5 py-2.5 whitespace-nowrap">
                     <Link
                       href={`/admin/facturation/${f.id}`}
-                      className="font-mono text-xs font-bold text-navy hover:underline"
+                      className="fx-label fx-ref font-semibold text-navy hover:underline"
                     >
                       {f.numero}
                     </Link>
                   </td>
                   <td className="px-3.5 py-2.5">
-                    <div className="text-xs font-semibold">{f.client_nom ?? '—'}</div>
+                    <div className="fx-label font-semibold">{f.client_nom ?? '—'}</div>
                     {f.client_syndic && (
-                      <div className="text-[10px] text-ink-muted">{f.client_syndic}</div>
+                      <div className="fx-small text-ink-mid">{f.client_syndic}</div>
                     )}
                   </td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid">{f.reference ?? '—'}</td>
-                  <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDate(f.date_emission)}</td>
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid">{f.reference ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">{fmtDate(f.date_emission)}</td>
                   {showRetard && (
                     <>
-                      <td className="px-3.5 py-2.5 text-[11px] text-ink-mid font-mono whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
+                      <td className="fx-small px-3.5 py-2.5 text-ink-mid tabular-nums whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
                         {retardJours > 0 ? (
-                          <span className="inline-block text-[10px] font-bold rounded-full px-2 py-0.5 bg-terra-light text-terra border border-terra-mid">
+                          <span className="fx-badge inline-block font-semibold rounded-full px-2 py-0.5 bg-terra-light text-terra-ink border border-terra-mid">
                             {retardJours}j
                           </span>
                         ) : (
-                          <span className="text-[10px] text-ink-muted">—</span>
+                          <span className="fx-small text-ink-mid">—</span>
                         )}
                       </td>
                     </>
                   )}
                   {showPaiement && (
-                    <td className="px-3.5 py-2.5 text-[11px] text-ok font-mono whitespace-nowrap">{fmtDate(f.date_paiement)}</td>
+                    <td className="fx-small px-3.5 py-2.5 text-ok tabular-nums whitespace-nowrap">{fmtDate(f.date_paiement)}</td>
                   )}
-                  <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold whitespace-nowrap dark:text-white">
+                  <td className="fx-body-dense px-3.5 py-2.5 tabular-nums font-semibold whitespace-nowrap">
                     {fmtMoney(f.montant_ttc)}
                   </td>
                   {onRetirer && (
@@ -233,7 +229,7 @@ function FactureTable({
                         onClick={() => onRetirer(f)}
                         disabled={retirerPending}
                         title="Retirer le paiement — la facture repasse « envoyée », la date de paiement est effacée."
-                        className="text-[11px] font-semibold text-ink-mid hover:text-terra inline-flex items-center gap-1 disabled:opacity-50"
+                        className="fx-small font-semibold text-ink-mid hover:text-terra-ink inline-flex items-center gap-1 disabled:opacity-50"
                       >
                         <Undo2 size={12} aria-hidden /> Retirer
                       </button>

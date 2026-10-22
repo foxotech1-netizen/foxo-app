@@ -18,14 +18,14 @@ export default async function ClientsPage() {
         <h1 className="fxs-page-title mb-1">
           Clients
         </h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
           {clients.length} client{clients.length > 1 ? 's' : ''} — ACP, particuliers, entreprises
         </div>
       </div>
 
       {error && (
-        <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
+        <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
           Erreur : {error.message}
         </div>
       )}

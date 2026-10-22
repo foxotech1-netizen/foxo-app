@@ -28,10 +28,10 @@ const CHIPS: { key: StatutChip; label: string }[] = [
 ];
 
 export const STATUT_ACHAT_INFO: Record<StatutFactureAchat, { label: string; cls: string }> = {
-  a_valider: { label: 'À valider', cls: 'bg-amber-light text-[#8A5A1A] border-[#E8C896]' },
-  a_payer:   { label: 'À payer',   cls: 'bg-navy-pale text-navy border-navy-light dark:text-white' },
+  a_valider: { label: 'À valider', cls: 'bg-amber-light text-amber-ink border-[var(--color-amber-foxo)]/30' },
+  a_payer:   { label: 'À payer',   cls: 'bg-navy-pale text-navy border-navy-light' },
   payee:     { label: 'Payée',     cls: 'bg-ok-light text-ok border-ok-mid' },
-  rejetee:   { label: 'Rejetée',   cls: 'bg-terra-light text-terra border-terra-mid' },
+  rejetee:   { label: 'Rejetée',   cls: 'bg-terra-light text-terra-ink border-terra-mid' },
 };
 
 function fmtDate(iso: string | null): string {
@@ -46,19 +46,19 @@ function fmtMoney(n: number | null | undefined): string {
 
 // Pastille de confiance IA : vert ≥ 0.8, orange ≥ 0.55, rouge sinon.
 export function ConfianceDot({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-[10px] text-ink-muted">—</span>;
-  const color = value >= 0.8 ? '#3E7C4F' : value >= 0.55 ? '#B8830A' : '#C4622D';
+  if (value == null) return <span className="fx-small text-ink-mid">—</span>;
+  const color = value >= 0.8 ? 'var(--color-ok)' : value >= 0.55 ? 'var(--color-amber-ink)' : 'var(--color-terra-ink)';
   return (
     <span className="inline-flex items-center gap-1" title={`Confiance IA : ${(value * 100).toFixed(0)} %`}>
       <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: color }} />
-      <span className="text-[10px] font-mono text-ink-mid">{(value * 100).toFixed(0)}%</span>
+      <span className="fx-small tabular-nums text-ink-mid">{(value * 100).toFixed(0)}%</span>
     </span>
   );
 }
 
 export function DoublonBadge() {
   return (
-    <span className="inline-block text-[9px] font-bold uppercase tracking-wider text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-1.5 py-0.5">
+    <span className="fx-eyebrow inline-block font-semibold text-amber-ink bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded px-1.5 py-0.5">
       Doublon ?
     </span>
   );
@@ -70,7 +70,7 @@ export function QrBadge() {
   return (
     <span
       title="QR de paiement disponible (IBAN valide)"
-      className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-navy-pale border border-navy-light text-navy dark:text-white"
+      className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-navy-pale border border-navy-light text-navy"
     >
       <QrCode size={13} aria-hidden />
     </span>
@@ -235,15 +235,14 @@ export function AchatsListClient({
               key={c.key}
               type="button"
               onClick={() => setChip(c.key)}
-              className={
-                'px-3 py-1.5 rounded-full text-[11px] font-bold border ' +
+              className={'fx-pill px-3 py-1.5 rounded-full font-semibold border ' +
                 (chip === c.key
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                  ? 'bg-navy text-cream border-navy'
+                  : 'bg-cream text-ink-mid border-sand-border hover:border-navy-mid')
               }
             >
               {c.label}
-              <span className="ml-1 font-mono">
+              <span className="ml-1 tabular-nums">
                 {c.key === 'tous' ? initial.length : initial.filter((f) => f.statut === c.key).length}
               </span>
             </button>
@@ -252,7 +251,7 @@ export function AchatsListClient({
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/admin/facturation/achats/regles"
-            className="bg-white text-navy border border-navy-light px-3.5 py-2 rounded-lg text-[12px] font-bold hover:bg-navy-pale inline-flex items-center gap-1.5 min-h-[40px]"
+            className="fx-label bg-cream text-navy border border-navy-light px-3.5 py-2 rounded-lg font-semibold hover:bg-navy-pale inline-flex items-center gap-1.5 min-h-[40px]"
           >
             <SlidersHorizontal size={14} aria-hidden /> Règles de mapping
           </Link>
@@ -263,7 +262,7 @@ export function AchatsListClient({
             title={captureAlias
               ? `Recherche les factures transférées à ${captureAlias} (60 derniers jours) et les importe.`
               : 'Alias de capture non configuré — renseigne-le dans Paramètres → Capture de dépenses.'}
-            className="bg-white text-navy border border-navy-light px-3.5 py-2 rounded-lg text-[12px] font-bold hover:bg-navy-pale inline-flex items-center gap-1.5 min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="fx-label bg-cream text-navy border border-navy-light px-3.5 py-2 rounded-lg font-semibold hover:bg-navy-pale inline-flex items-center gap-1.5 min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Inbox size={14} aria-hidden className={releve ? 'animate-pulse' : undefined} />
             {releve ? 'Relève en cours…' : 'Relever la boîte de capture'}
@@ -271,7 +270,7 @@ export function AchatsListClient({
           <button
             type="button"
             onClick={() => { setShowUpload(true); setUploadError(null); }}
-            className="bg-navy text-white px-3.5 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
+            className="fx-label bg-navy text-cream px-3.5 py-2 rounded-lg font-semibold hover:opacity-90 inline-flex items-center gap-1.5 min-h-[40px]"
           >
             <Plus size={14} aria-hidden /> Ajouter une facture
           </button>
@@ -280,11 +279,10 @@ export function AchatsListClient({
 
       {toast && (
         <div
-          className={
-            'text-[12px] rounded-md px-3 py-2 border font-semibold ' +
+          className={'fx-label rounded-lg px-3 py-2 border font-semibold ' +
             (toast.kind === 'ok'
               ? 'bg-ok-light border-ok-mid text-ok'
-              : 'bg-terra-light border-terra-mid text-terra')
+              : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {toast.msg}
@@ -292,19 +290,19 @@ export function AchatsListClient({
       )}
 
       {uploadError && !showUpload && (
-        <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+        <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           {uploadError}
         </div>
       )}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-14 text-ink-muted text-[13px] bg-cream rounded-xl border border-sand-border">
+        <div className="fx-body text-center py-14 text-ink-mid bg-cream rounded-xl border border-sand-border">
           Aucune facture d&apos;achat {chip !== 'tous' ? 'pour ce filtre' : 'pour l’instant'}.
           <div className="mt-3">
             <button
               type="button"
               onClick={() => setShowUpload(true)}
-              className="text-navy font-bold underline hover:no-underline text-[12px]"
+              className="fx-label text-navy font-semibold underline hover:no-underline"
             >
               Capturer une première facture
             </button>
@@ -314,17 +312,17 @@ export function AchatsListClient({
         <div className="bg-cream rounded-xl border border-sand-border overflow-x-auto">
           <table className="w-full text-left min-w-[860px]">
             <thead>
-              <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted">
-                <th className="px-3.5 py-2.5 font-bold">Fournisseur</th>
-                <th className="px-3.5 py-2.5 font-bold">N° pièce</th>
-                <th className="px-3.5 py-2.5 font-bold">Date</th>
-                <th className="px-3.5 py-2.5 font-bold">Échéance</th>
-                <th className="px-3.5 py-2.5 font-bold text-right">TTC</th>
-                <th className="px-3.5 py-2.5 font-bold text-center">QR</th>
-                <th className="px-3.5 py-2.5 font-bold">Dossier</th>
-                <th className="px-3.5 py-2.5 font-bold">Statut</th>
-                <th className="px-3.5 py-2.5 font-bold">Confiance</th>
-                <th className="px-3.5 py-2.5 font-bold text-right"><span className="sr-only">Actions</span></th>
+              <tr className="fx-eyebrow border-b border-sand-border text-ink-mid">
+                <th className="px-3.5 py-2.5 font-semibold">Fournisseur</th>
+                <th className="px-3.5 py-2.5 font-semibold">N° pièce</th>
+                <th className="px-3.5 py-2.5 font-semibold">Date</th>
+                <th className="px-3.5 py-2.5 font-semibold">Échéance</th>
+                <th className="px-3.5 py-2.5 font-semibold text-right">TTC</th>
+                <th className="px-3.5 py-2.5 font-semibold text-center">QR</th>
+                <th className="px-3.5 py-2.5 font-semibold">Dossier</th>
+                <th className="px-3.5 py-2.5 font-semibold">Statut</th>
+                <th className="px-3.5 py-2.5 font-semibold">Confiance</th>
+                <th className="px-3.5 py-2.5 font-semibold text-right"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>
@@ -337,25 +335,25 @@ export function AchatsListClient({
                         type="button"
                         onClick={() => openPreview(f)}
                         title="Aperçu rapide"
-                        className="text-ink-muted hover:text-navy p-1 mr-1 align-middle"
+                        className="text-ink-mid hover:text-navy p-1 mr-1 align-middle"
                       >
                         <Eye size={14} aria-hidden />
                       </button>
-                      <Link href={`/admin/facturation/achats/${f.id}`} className="text-xs font-bold text-navy hover:underline">
-                        {f.fournisseur_fiche_nom ?? f.fournisseur_nom ?? <span className="italic text-ink-muted">Sans fournisseur</span>}
+                      <Link href={`/admin/facturation/achats/${f.id}`} className="fx-label font-semibold text-navy hover:underline">
+                        {f.fournisseur_fiche_nom ?? f.fournisseur_nom ?? <span className="italic text-ink-mid">Sans fournisseur</span>}
                       </Link>
                       {f.doublon_de_id && (
                         <span className="ml-1.5"><DoublonBadge /></span>
                       )}
                     </td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid">{f.numero_piece ?? '—'}</td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDate(f.date_facture)}</td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
-                    <td className="px-3.5 py-2.5 text-[12px] font-mono font-bold text-right whitespace-nowrap dark:text-white">{fmtMoney(f.montant_ttc)}</td>
-                    <td className="px-3.5 py-2.5 text-center">{qrDisponible(f) ? <QrBadge /> : <span className="text-[10px] text-ink-muted">—</span>}</td>
-                    <td className="px-3.5 py-2.5 text-[11px] font-mono text-ink-mid">{f.intervention_ref ?? '—'}</td>
+                    <td className="fx-small px-3.5 py-2.5 tabular-nums text-ink-mid">{f.numero_piece ?? '—'}</td>
+                    <td className="fx-small px-3.5 py-2.5 tabular-nums text-ink-mid whitespace-nowrap">{fmtDate(f.date_facture)}</td>
+                    <td className="fx-small px-3.5 py-2.5 tabular-nums text-ink-mid whitespace-nowrap">{fmtDate(f.date_echeance)}</td>
+                    <td className="fx-body-dense px-3.5 py-2.5 tabular-nums font-semibold text-right whitespace-nowrap">{fmtMoney(f.montant_ttc)}</td>
+                    <td className="px-3.5 py-2.5 text-center">{qrDisponible(f) ? <QrBadge /> : <span className="fx-small text-ink-mid">—</span>}</td>
+                    <td className="fx-small px-3.5 py-2.5 tabular-nums text-ink-mid">{f.intervention_ref ?? '—'}</td>
                     <td className="px-3.5 py-2.5">
-                      <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${info.cls}`}>
+                      <span className={`fx-small inline-block font-semibold px-2 py-0.5 rounded-lg border ${info.cls}`}>
                         {info.label}
                       </span>
                     </td>
@@ -366,7 +364,7 @@ export function AchatsListClient({
                         onClick={() => setToDelete(f)}
                         disabled={pending}
                         title="Supprimer cette facture d'achat (le justificatif reste sur Drive)."
-                        className="text-ink-muted hover:text-terra p-1 disabled:opacity-50"
+                        className="text-ink-mid hover:text-terra-ink p-1 disabled:opacity-50"
                       >
                         <Trash2 size={14} aria-hidden />
                       </button>
@@ -389,25 +387,25 @@ export function AchatsListClient({
           aria-label="Aperçu facture d'achat"
         >
           <div
-            className="bg-cream rounded-2xl border border-sand-border w-full max-w-[860px] h-[85vh] flex flex-col overflow-hidden"
+            className="bg-cream rounded-modal border border-sand-border w-full max-w-[860px] h-[85vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-sand-border flex-shrink-0">
-              <div className="text-[13px] font-bold text-ink truncate">
+              <div className="fx-body font-semibold text-ink truncate">
                 Achat — {preview.fournisseur_fiche_nom ?? preview.fournisseur_nom ?? 'Sans fournisseur'}
                 {preview.numero_piece ? ` · ${preview.numero_piece}` : ''}
               </div>
               <div className="flex items-center gap-2">
                 <Link
                   href={`/admin/facturation/achats/${preview.id}`}
-                  className="bg-navy text-white px-3 py-1.5 rounded-lg text-[11px] font-bold hover:opacity-90 inline-flex items-center gap-1"
+                  className="fx-small bg-navy text-cream px-3 py-1.5 rounded-lg font-semibold hover:opacity-90 inline-flex items-center gap-1"
                 >
                   <ExternalLink size={12} aria-hidden /> Ouvrir la fiche
                 </Link>
                 <button
                   type="button"
                   onClick={() => setPreview(null)}
-                  className="text-ink-muted hover:text-ink p-1"
+                  className="text-ink-mid hover:text-ink p-1"
                   aria-label="Fermer"
                 >
                   <X size={16} aria-hidden />
@@ -416,26 +414,26 @@ export function AchatsListClient({
             </header>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${STATUT_ACHAT_INFO[preview.statut].cls}`}>
+                <span className={`fx-small inline-block font-semibold px-2 py-0.5 rounded-lg border ${STATUT_ACHAT_INFO[preview.statut].cls}`}>
                   {STATUT_ACHAT_INFO[preview.statut].label}
                 </span>
                 {preview.doublon_de_id && <DoublonBadge />}
                 <ConfianceDot value={preview.ia_confiance_min} />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[12px]">
-                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">Date</span><span className="font-mono">{fmtDate(preview.date_facture)}</span></div>
-                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">Échéance</span><span className="font-mono">{fmtDate(preview.date_echeance)}</span></div>
-                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">HT</span><span className="font-mono">{fmtMoney(preview.montant_ht)}</span></div>
-                <div><span className="text-[10px] font-bold text-ink-muted uppercase block">TTC</span><span className="font-mono font-bold">{fmtMoney(preview.montant_ttc)}</span></div>
+              <div className="fx-meta grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div><span className="fx-eyebrow font-semibold text-ink-mid block">Date</span><span className="tabular-nums">{fmtDate(preview.date_facture)}</span></div>
+                <div><span className="fx-eyebrow font-semibold text-ink-mid block">Échéance</span><span className="tabular-nums">{fmtDate(preview.date_echeance)}</span></div>
+                <div><span className="fx-eyebrow font-semibold text-ink-mid block">HT</span><span className="tabular-nums">{fmtMoney(preview.montant_ht)}</span></div>
+                <div><span className="fx-eyebrow font-semibold text-ink-mid block">TTC</span><span className="tabular-nums font-semibold">{fmtMoney(preview.montant_ttc)}</span></div>
               </div>
               {preview.lignes.length > 0 && (
-                <div className="bg-white border border-sand-border rounded-lg p-2.5">
-                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">Lignes</div>
-                  <ul className="text-[11px] text-ink-mid space-y-0.5">
+                <div className="bg-cream border border-sand-border rounded-lg p-2.5">
+                  <div className="fx-eyebrow font-semibold text-ink-mid mb-1">Lignes</div>
+                  <ul className="fx-small text-ink-mid space-y-0.5">
                     {preview.lignes.map((l, i) => (
                       <li key={i} className="flex justify-between gap-2">
                         <span className="truncate">{l.description}</span>
-                        <span className="font-mono whitespace-nowrap">{l.montant != null ? fmtMoney(l.montant) : '—'}</span>
+                        <span className="tabular-nums whitespace-nowrap">{l.montant != null ? fmtMoney(l.montant) : '—'}</span>
                       </li>
                     ))}
                   </ul>
@@ -445,19 +443,19 @@ export function AchatsListClient({
               {/* Paiement fournisseur (compact) : bandeau anti-fraude + IBAN +
                   montant + communication + QR EPC (généré à la demande). */}
               {qrDisponible(preview) && (
-                <div className="bg-white border border-sand-border rounded-lg p-3 space-y-2">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+                <div className="bg-cream border border-sand-border rounded-lg p-3 space-y-2">
+                  <div className="fx-eyebrow flex items-center gap-1.5 font-semibold text-ink-mid">
                     <QrCode size={12} aria-hidden /> Paiement
                   </div>
                   {(() => {
                     const st = antiFraudeState(preview);
                     if (st === 'differe') {
                       return (
-                        <div className="flex items-start gap-1.5 text-[11px] text-terra bg-terra-light border border-terra-mid rounded px-2 py-1.5 font-semibold">
+                        <div className="fx-small flex items-start gap-1.5 text-terra-ink bg-terra-light border border-terra-mid rounded px-2 py-1.5 font-semibold">
                           <ShieldAlert size={13} aria-hidden className="flex-shrink-0 mt-0.5" />
                           <span>
-                            ⚠️ IBAN différent de la fiche fournisseur
-                            (<span className="font-mono">{formatIban(preview.fournisseur_fiche_iban)}</span>) —
+                            IBAN différent de la fiche fournisseur
+                            (<span className="tabular-nums">{formatIban(preview.fournisseur_fiche_iban)}</span>) —
                             fraude au virement possible, vérifiez avant de payer.
                           </span>
                         </div>
@@ -465,14 +463,14 @@ export function AchatsListClient({
                     }
                     if (st === 'premier') {
                       return (
-                        <div className="flex items-start gap-1.5 text-[11px] text-[#8A5A1A] bg-amber-light border border-[#E8C896] rounded px-2 py-1.5 font-semibold">
+                        <div className="fx-small flex items-start gap-1.5 text-amber-ink bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded px-2 py-1.5 font-semibold">
                           <ShieldAlert size={13} aria-hidden className="flex-shrink-0 mt-0.5" />
                           <span>Premier paiement vers ce fournisseur — vérifiez l&apos;IBAN auprès d&apos;un contact connu.</span>
                         </div>
                       );
                     }
                     return (
-                      <div className="inline-flex items-center gap-1 text-[10px] font-semibold text-ok bg-ok-light border border-ok-mid rounded px-1.5 py-0.5">
+                      <div className="fx-small inline-flex items-center gap-1 font-semibold text-ok bg-ok-light border border-ok-mid rounded px-1.5 py-0.5">
                         <ShieldCheck size={11} aria-hidden />
                         {st === 'verifie'
                           ? `IBAN vérifié le ${fmtDate(preview.iban_verifie_at)}`
@@ -483,18 +481,18 @@ export function AchatsListClient({
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="space-y-1 min-w-0">
                       <div>
-                        <span className="text-[10px] font-bold text-ink-muted uppercase block">IBAN</span>
-                        <span className="text-[13px] font-mono font-bold text-navy dark:text-white break-all select-all">{formatIban(preview.iban_paiement)}</span>
+                        <span className="fx-eyebrow font-semibold text-ink-mid block">IBAN</span>
+                        <span className="fx-body fx-ref font-semibold text-navy break-all select-all">{formatIban(preview.iban_paiement)}</span>
                       </div>
                       <div className="flex flex-wrap gap-4">
                         <div>
-                          <span className="text-[10px] font-bold text-ink-muted uppercase block">Montant</span>
-                          <span className="font-mono font-bold text-[13px] tabular-nums">{fmtMoney(preview.montant_ttc)}</span>
+                          <span className="fx-eyebrow font-semibold text-ink-mid block">Montant</span>
+                          <span className="fx-body tabular-nums font-semibold">{fmtMoney(preview.montant_ttc)}</span>
                         </div>
                         {preview.communication && (
                           <div className="min-w-0">
-                            <span className="text-[10px] font-bold text-ink-muted uppercase block">Communication</span>
-                            <span className="font-mono text-[12px] break-all select-all">{preview.communication}</span>
+                            <span className="fx-eyebrow font-semibold text-ink-mid block">Communication</span>
+                            <span className="fx-meta tabular-nums break-all select-all">{preview.communication}</span>
                           </div>
                         )}
                       </div>
@@ -502,8 +500,8 @@ export function AchatsListClient({
                     {previewQr && (
                       <div className="flex flex-col items-center gap-0.5 ml-auto">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={previewQr} alt="QR de paiement EPC (virement SEPA)" width={112} height={112} className="rounded border border-sand-border bg-white" />
-                        <span className="text-[9px] text-ink-muted">App bancaire</span>
+                        <img src={previewQr} alt="QR de paiement EPC (virement SEPA)" width={112} height={112} className="rounded border border-sand-border bg-cream" />
+                        <span className="fx-small text-ink-mid">App bancaire</span>
                       </div>
                     )}
                   </div>
@@ -516,7 +514,7 @@ export function AchatsListClient({
                   <iframe
                     src={`https://drive.google.com/file/d/${preview.justificatif_drive_id}/preview`}
                     title="Justificatif Drive"
-                    className="w-full h-[45vh] bg-white border border-sand-border rounded-lg"
+                    className="w-full h-[45vh] bg-cream border border-sand-border rounded-lg"
                     allow="autoplay"
                   />
                   {preview.justificatif_url && (
@@ -524,14 +522,14 @@ export function AchatsListClient({
                       href={preview.justificatif_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] text-navy font-semibold underline hover:no-underline inline-flex items-center gap-1"
+                      className="fx-small text-navy font-semibold underline hover:no-underline inline-flex items-center gap-1"
                     >
                       <ExternalLink size={12} aria-hidden /> Ouvrir le justificatif dans Drive
                     </a>
                   )}
                 </div>
               ) : (
-                <p className="text-[11px] text-ink-muted italic">Aucun justificatif (saisie manuelle).</p>
+                <p className="fx-small text-ink-mid italic">Aucun justificatif (saisie manuelle).</p>
               )}
             </div>
           </div>
@@ -541,10 +539,9 @@ export function AchatsListClient({
       <ConfirmDialog
         open={toDelete !== null}
         title={`Supprimer la facture d'achat ${toDelete?.fournisseur_nom ?? toDelete?.numero_piece ?? ''} ?`}
-        message={
-          'Le justificatif reste archivé sur Drive.'
+        message={ 'Le justificatif reste archivé sur Drive.'
           + (toDelete?.statut === 'payee'
-            ? ' ⚠️ Cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.'
+            ? ' Attention : cette facture est marquée PAYÉE — sa suppression la retire des coûts et du tableau de bord.'
             : '')
         }
         confirmLabel="Supprimer"
@@ -557,20 +554,20 @@ export function AchatsListClient({
       {/* Modale d'upload */}
       {showUpload && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-cream rounded-2xl border border-sand-border p-5 w-full max-w-[440px] space-y-4">
+          <div className="bg-cream rounded-modal border border-sand-border p-5 w-full max-w-[440px] space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-[14px] font-bold text-ink">Capturer une facture d&apos;achat</h2>
+              <h2 className="fx-h3 font-semibold text-ink">Capturer une facture d&apos;achat</h2>
               <button
                 type="button"
                 onClick={() => setShowUpload(false)}
                 disabled={uploading}
-                className="text-ink-muted hover:text-ink disabled:opacity-40"
+                className="text-ink-mid hover:text-ink disabled:opacity-40"
                 aria-label="Fermer"
               >
                 <X size={16} aria-hidden />
               </button>
             </div>
-            <p className="text-[12px] text-ink-mid">
+            <p className="fx-meta text-ink-mid">
               PDF ou photo (jpg, png, webp). Le justificatif part sur Drive, puis
               l&apos;IA pré-remplit la facture — tu vérifies et valides ensuite.
             </p>
@@ -583,20 +580,20 @@ export function AchatsListClient({
                 const f = e.target.files?.[0];
                 if (f) void handleUpload(f);
               }}
-              className="w-full text-[12px] file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-white file:text-[12px] file:font-bold file:cursor-pointer"
+              className="fx-meta w-full file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-cream file:font-semibold file:cursor-pointer"
             />
             {uploading && (
-              <div className="flex items-center gap-2 text-[12px] text-ink-mid font-semibold">
+              <div className="fx-label flex items-center gap-2 text-ink-mid font-semibold">
                 <Upload size={14} className="animate-pulse" aria-hidden />
                 Upload + extraction en cours… (jusqu&apos;à ~1 min)
               </div>
             )}
             {uploadError && (
-              <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+              <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
                 {uploadError}
               </div>
             )}
-            <div className="border-t border-sand-border pt-3 text-[12px]">
+            <div className="fx-meta border-t border-sand-border pt-3">
               <button
                 type="button"
                 onClick={handleSaisieManuelle}

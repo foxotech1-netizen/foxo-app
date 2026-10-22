@@ -189,7 +189,7 @@ export default async function DashboardFacturationPage({
       <div className="flex flex-wrap justify-between items-end gap-3 mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">Tableau de bord</h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             Année {annee} — indicateurs financiers du module facturation
           </div>
@@ -199,11 +199,10 @@ export default async function DashboardFacturationPage({
             <Link
               key={y}
               href={`/admin/facturation/dashboard?annee=${y}`}
-              className={
-                'px-3 py-1.5 rounded-full text-[11px] font-bold border ' +
+              className={'fx-pill px-3 py-1.5 rounded-full font-semibold border ' +
                 (y === annee
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-white text-ink-mid border-sand-border hover:border-navy-mid')
+                  ? 'bg-navy text-cream border-navy'
+                  : 'bg-cream text-ink-mid border-sand-border hover:border-navy-mid')
               }
             >
               {y}
@@ -224,23 +223,23 @@ export default async function DashboardFacturationPage({
 
       {/* Facturé / encaissé par mois */}
       <section className="bg-cream rounded-xl border border-sand-border p-4 mb-6">
-        <h2 className="text-[13px] font-bold text-ink mb-3">Facturé / encaissé par mois ({annee})</h2>
+        <h2 className="fx-h3 font-semibold text-ink mb-3">Facturé / encaissé par mois ({annee})</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left min-w-[720px]">
             <thead>
-              <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted">
-                <th className="px-2.5 py-2 font-bold">Mois</th>
-                <th className="px-2.5 py-2 font-bold text-right">Facturé TTC</th>
-                <th className="px-2.5 py-2 font-bold text-right">Encaissé</th>
-                <th className="px-2.5 py-2 font-bold w-[40%]">Répartition</th>
+              <tr className="fx-eyebrow border-b border-sand-border text-ink-mid">
+                <th className="px-2.5 py-2 font-semibold">Mois</th>
+                <th className="px-2.5 py-2 font-semibold text-right">Facturé TTC</th>
+                <th className="px-2.5 py-2 font-semibold text-right">Encaissé</th>
+                <th className="px-2.5 py-2 font-semibold w-[40%]">Répartition</th>
               </tr>
             </thead>
             <tbody>
               {parMois.map((m) => (
                 <tr key={m.mois} className="border-b border-sand-mid">
-                  <td className="px-2.5 py-1.5 text-[12px] font-semibold">{m.mois}</td>
-                  <td className="px-2.5 py-1.5 text-[12px] font-mono text-right whitespace-nowrap">{m.facture > 0 ? fmtMoney(m.facture) : '—'}</td>
-                  <td className="px-2.5 py-1.5 text-[12px] font-mono text-right whitespace-nowrap text-ok">{m.encaisse > 0 ? fmtMoney(m.encaisse) : '—'}</td>
+                  <td className="fx-body-dense px-2.5 py-1.5 font-semibold">{m.mois}</td>
+                  <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right whitespace-nowrap">{m.facture > 0 ? fmtMoney(m.facture) : '—'}</td>
+                  <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right whitespace-nowrap text-ok">{m.encaisse > 0 ? fmtMoney(m.encaisse) : '—'}</td>
                   <td className="px-2.5 py-1.5">
                     <div className="space-y-0.5">
                       <div className="h-1.5 rounded bg-navy" style={{ width: `${Math.round((m.facture / maxMois) * 100)}%`, minWidth: m.facture > 0 ? 2 : 0 }} />
@@ -252,23 +251,23 @@ export default async function DashboardFacturationPage({
             </tbody>
           </table>
         </div>
-        <p className="text-[10px] text-ink-muted mt-2">Barre marine = facturé (date d&apos;émission) · barre verte = encaissé (date de paiement).</p>
+        <p className="fx-small text-ink-mid mt-2">Barre marine = facturé (date d&apos;émission) · barre verte = encaissé (date de paiement).</p>
       </section>
 
       {/* Rentabilité par dossier */}
       <section className="bg-cream rounded-xl border border-sand-border p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-          <h2 className="text-[13px] font-bold text-ink">Rentabilité par dossier</h2>
-          <span className="text-[10px] text-ink-muted font-semibold uppercase tracking-wider">
+          <h2 className="fx-h3 font-semibold text-ink">Rentabilité par dossier</h2>
+          <span className="fx-eyebrow text-ink-mid font-semibold">
             Hors coût main-d&apos;œuvre
           </span>
         </div>
-        <p className="text-[11px] text-ink-mid mb-3">
+        <p className="fx-small text-ink-mid mb-3">
           Dossiers avec ≥ 1 facture émise/payée en {annee}. CA HTVA (factures − avoirs)
           − achats HT liés − frais HTVA approuvées/remboursées liées = marge (vision dossier complet).
         </p>
         {renta.length === 0 ? (
-          <p className="text-[12px] text-ink-muted italic py-4 text-center">
+          <p className="fx-meta text-ink-mid italic py-4 text-center">
             Aucun dossier facturé en {annee}.
           </p>
         ) : (
@@ -293,14 +292,13 @@ function StatCard({
 }) {
   return (
     <div className="bg-cream rounded-xl border border-sand-border p-3.5">
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">{label}</div>
-      <div className={
-        'font-mono text-[18px] font-extrabold tracking-tight ' +
-        (tone === 'ok' ? 'text-ok' : tone === 'warn' ? 'text-terra' : 'text-navy dark:text-white')
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-1">{label}</div>
+      <div className={'fx-panel-title tabular-nums font-semibold tracking-tight ' +
+        (tone === 'ok' ? 'text-ok' : tone === 'warn' ? 'text-terra-ink' : 'text-navy')
       }>
         {value}
       </div>
-      <div className="text-[10px] text-ink-mid mt-0.5">{sub}</div>
+      <div className="fx-small text-ink-mid mt-0.5">{sub}</div>
     </div>
   );
 }
@@ -313,34 +311,33 @@ function RentaTable({
 }) {
   return (
     <>
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1.5">{titre}</div>
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">{titre}</div>
       <table className="w-full text-left min-w-[680px]">
         <thead>
-          <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted">
-            <th className="px-2.5 py-2 font-bold">Dossier</th>
-            <th className="px-2.5 py-2 font-bold text-right">CA HTVA</th>
-            <th className="px-2.5 py-2 font-bold text-right">Coûts</th>
-            <th className="px-2.5 py-2 font-bold text-right">Marge</th>
-            <th className="px-2.5 py-2 font-bold text-right">Marge %</th>
+          <tr className="fx-eyebrow border-b border-sand-border text-ink-mid">
+            <th className="px-2.5 py-2 font-semibold">Dossier</th>
+            <th className="px-2.5 py-2 font-semibold text-right">CA HTVA</th>
+            <th className="px-2.5 py-2 font-semibold text-right">Coûts</th>
+            <th className="px-2.5 py-2 font-semibold text-right">Marge</th>
+            <th className="px-2.5 py-2 font-semibold text-right">Marge %</th>
           </tr>
         </thead>
         <tbody>
           {lignes.map((l) => (
             <tr key={l.interventionId} className="border-b border-sand-mid hover:bg-sand-hover">
               <td className="px-2.5 py-1.5">
-                <Link href={`/admin/interventions/${l.interventionId}`} className="font-mono text-xs font-bold text-navy hover:underline">
+                <Link href={`/admin/interventions/${l.interventionId}`} className="fx-label fx-ref font-semibold text-navy hover:underline">
                   {l.ref}
                 </Link>
               </td>
-              <td className="px-2.5 py-1.5 text-[12px] font-mono text-right whitespace-nowrap">{fmtMoney(l.ca)}</td>
-              <td className="px-2.5 py-1.5 text-[12px] font-mono text-right whitespace-nowrap text-ink-mid">{fmtMoney(l.couts)}</td>
-              <td className={
-                'px-2.5 py-1.5 text-[12px] font-mono font-bold text-right whitespace-nowrap ' +
-                (l.marge < 0 ? 'text-terra' : 'text-ok')
+              <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right whitespace-nowrap">{fmtMoney(l.ca)}</td>
+              <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right whitespace-nowrap text-ink-mid">{fmtMoney(l.couts)}</td>
+              <td className={'fx-body-dense px-2.5 py-1.5 tabular-nums font-semibold text-right whitespace-nowrap ' +
+                (l.marge < 0 ? 'text-terra-ink' : 'text-ok')
               }>
                 {fmtMoney(l.marge)}
               </td>
-              <td className="px-2.5 py-1.5 text-[12px] font-mono text-right">{l.margePct != null ? `${l.margePct} %` : '—'}</td>
+              <td className="fx-body-dense px-2.5 py-1.5 tabular-nums text-right">{l.margePct != null ? `${l.margePct} %` : '—'}</td>
             </tr>
           ))}
         </tbody>

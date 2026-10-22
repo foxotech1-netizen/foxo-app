@@ -71,14 +71,14 @@ export function SyndicsClient({
           <h1 className="fxs-page-title mb-1">
             {title ?? 'Partenaires'}
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {orgs.length} partenaire{orgs.length > 1 ? 's' : ''}
           </div>
         </div>
         <button
           onClick={() => { setOpen(true); setError(null); setSuccess(null); }}
-          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm"
+          className="fx-label bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-lg font-medium shadow-sm"
         >
           + Nouveau partenaire
         </button>
@@ -86,7 +86,7 @@ export function SyndicsClient({
 
       <div>
         {loadError && (
-          <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
+          <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
             Connexion à la base limitée : {loadError}
           </div>
         )}
@@ -96,7 +96,7 @@ export function SyndicsClient({
             <thead>
               <tr className="bg-sand">
                 {['Nom', 'Type', 'Email', 'Contact', 'Téléphone', 'BCE'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border">
+                  <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border">
                     {h}
                   </th>
                 ))}
@@ -105,7 +105,7 @@ export function SyndicsClient({
             <tbody>
               {orgs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={6} className="fx-body-dense text-center py-12 text-ink-mid">
                     Aucun partenaire enregistré
                   </td>
                 </tr>
@@ -115,14 +115,14 @@ export function SyndicsClient({
                   onClick={() => setDrawerOrg(o)}
                   className="border-b border-sand-mid hover:bg-sand-hover cursor-pointer"
                 >
-                  <td className="px-3.5 py-3 font-bold text-[13px]">{o.nom}</td>
-                  <td className="px-3.5 py-3 text-xs">
+                  <td className="fx-body-dense px-3.5 py-3 font-semibold">{o.nom}</td>
+                  <td className="fx-body-dense px-3.5 py-3">
                     <TypeBadge type={o.type} />
                   </td>
-                  <td className="px-3.5 py-3 text-xs font-mono text-ink-mid">{o.email}</td>
-                  <td className="px-3.5 py-3 text-xs">{o.contact ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-xs">{o.telephone ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-xs font-mono">{o.bce ?? '—'}</td>
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums text-ink-mid">{o.email}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{o.contact ?? '—'}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{o.telephone ?? '—'}</td>
+                  <td className="fx-body-dense px-3.5 py-3 tabular-nums">{o.bce ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -141,13 +141,13 @@ export function SyndicsClient({
           <div className="bg-cream rounded-modal w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-overlay">
             <div className="px-6 py-5 border-b border-sand-border flex justify-between items-center flex-shrink-0 bg-cream">
               <div>
-                <div className="text-base font-extrabold text-ink">Nouveau partenaire</div>
-                <div className="text-[11px] text-ink-muted mt-0.5">Syndic ou courtier d&apos;assurance</div>
+                <div className="fx-h2 font-semibold text-ink">Nouveau partenaire</div>
+                <div className="fx-small text-ink-mid mt-0.5">Syndic ou courtier d&apos;assurance</div>
               </div>
               <button
                 onClick={() => { if (!pending) { setOpen(false); setAddr(emptyAddress()); } }}
                 disabled={pending}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50 inline-flex items-center justify-center"
+                className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid hover:bg-sand-border disabled:opacity-50 inline-flex items-center justify-center"
               >
                 <X size={16} />
               </button>
@@ -155,7 +155,7 @@ export function SyndicsClient({
 
             <form action={onSubmit} className="px-6 py-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
               <div>
-                <label className="text-xs font-semibold text-ink-mid block mb-1.5">Type *</label>
+                <label className="fx-label font-semibold text-ink-mid block mb-1.5">Type *</label>
                 {/* Grille fluide : les breakpoints viewport (lg:grid-cols-5)
                     donnaient ~88px par carte dans la modale 520px → libellés
                     tronqués et radio chevauchant le texte. auto-fill/minmax
@@ -166,7 +166,7 @@ export function SyndicsClient({
                     return (
                       <label
                         key={t.v}
-                        className={`px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-1.5 text-xs ${
+                        className={`fx-label px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-1.5 ${
                           type === t.v ? 'border-navy bg-navy-pale' : 'border-sand-border'
                         }`}
                       >
@@ -174,7 +174,7 @@ export function SyndicsClient({
                           type="radio" name="type" value={t.v}
                           checked={type === t.v}
                           onChange={() => setType(t.v)}
-                          className="accent-[#1B3A6B] shrink-0"
+                          className="accent-[var(--color-navy)] shrink-0"
                         />
                         <Icon size={14} className="shrink-0" />
                         <span>{t.l}</span>
@@ -185,7 +185,7 @@ export function SyndicsClient({
               </div>
 
               <div className="bg-sand rounded-xl p-3.5 border border-sand-border space-y-3">
-                <div className="text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                <div className="fx-th font-semibold text-ink-mid">
                   Société
                 </div>
                 <Field name="nom" label="Nom *" placeholder="ex: IG Syndic SPRL" required />
@@ -208,7 +208,7 @@ export function SyndicsClient({
               </div>
 
               <div className="bg-sand rounded-xl p-3.5 border border-sand-border space-y-3">
-                <div className="text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                <div className="fx-th font-semibold text-ink-mid">
                   Contact principal
                 </div>
                 <Field name="contact" label="Nom du contact" placeholder="Caroline Mignon" />
@@ -216,12 +216,12 @@ export function SyndicsClient({
               </div>
 
               {error && (
-                <div className="bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5 text-xs">
+                <div className="fx-meta bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3.5 py-2.5">
                   {error}
                 </div>
               )}
               {success && (
-                <div className="bg-ok-light border border-ok-mid text-ok rounded-lg px-3.5 py-2.5 text-xs font-semibold text-center inline-flex items-center justify-center gap-1.5 w-full">
+                <div className="fx-label bg-ok-light border border-ok-mid text-ok rounded-lg px-3.5 py-2.5 font-semibold text-center inline-flex items-center justify-center gap-1.5 w-full">
                   <CheckCircle2 size={14} />
                   <span>{success}</span>
                 </div>
@@ -232,14 +232,14 @@ export function SyndicsClient({
                   type="button"
                   onClick={() => { setOpen(false); setAddr(emptyAddress()); }}
                   disabled={pending}
-                  className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  className="fx-label bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg font-semibold disabled:opacity-50"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  className="fx-label bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold disabled:opacity-50"
                 >
                   {pending ? 'Création…' : 'Créer le partenaire'}
                 </button>
@@ -273,13 +273,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-ink-mid block mb-1">{label}</label>
+      <label className="fx-label font-semibold text-ink-mid block mb-1">{label}</label>
       <input
         name={name}
         type={type}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
       />
     </div>
   );

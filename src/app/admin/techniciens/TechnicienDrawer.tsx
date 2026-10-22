@@ -10,7 +10,7 @@ import type { TechInterventionsResponse } from '@/app/api/admin/techniciens/[id]
 
 type Tab = 'profil' | 'historique';
 
-const DEFAULT_COLOR = '#1B3A6B';
+import { DEFAULT_TECH_COLOR as DEFAULT_COLOR } from '@/lib/techniciens/couleurs';
 
 export function TechnicienDrawer({
   tech, onClose, onUpdated,
@@ -54,8 +54,7 @@ export function TechnicienDrawer({
   function toggleActive() {
     const next = !actif;
     if (!next) {
-      const ok = window.confirm(
-        `Désactiver ${tech.prenom ?? tech.email ?? 'ce technicien'} ?\n\nIl ne pourra plus se connecter à l'app tech (les données restent intactes).`,
+      const ok = window.confirm( `Désactiver ${tech.prenom ?? tech.email ?? 'ce technicien'} ?\n\nIl ne pourra plus se connecter à l'app tech (les données restent intactes).`,
       );
       if (!ok) return;
     }
@@ -78,21 +77,21 @@ export function TechnicienDrawer({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 bg-navy-deep/45 z-50 flex justify-end"
     >
-      <div className="w-[480px] max-w-full bg-cream h-screen shadow-overlay border-l border-sand-border flex flex-col dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-        <header className="px-5 pt-5 pb-3 bg-sand border-b border-sand-border dark:bg-[#141210] dark:border-[#2C2A24]">
+      <div className="w-[480px] max-w-full bg-cream h-screen shadow-overlay border-l border-sand-border flex flex-col">
+        <header className="px-5 pt-5 pb-3 bg-sand border-b border-sand-border">
           <div className="flex justify-between items-start">
             <div className="min-w-0 flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-md flex items-center justify-center text-[13px] font-extrabold flex-shrink-0"
-                style={{ background: tech.couleur ?? DEFAULT_COLOR, color: '#FFFFFF' }}
+                className="fx-body w-10 h-10 rounded-lg flex items-center justify-center font-semibold flex-shrink-0"
+                style={{ background: tech.couleur ?? DEFAULT_COLOR, color: 'var(--color-cream)' }}
               >
                 {((tech.prenom ?? '').charAt(0) + (tech.nom ?? '').charAt(0)).toUpperCase() || '?'}
               </div>
               <div className="min-w-0">
-                <h2 className="fxs-section-title text-ink truncate dark:text-[#F0ECE4]">
+                <h2 className="fxs-section-title text-ink truncate">
                   {[tech.prenom, tech.nom].filter(Boolean).join(' ') || tech.email || '—'}
                 </h2>
-                <div className="text-[11px] text-ink-mid mt-0.5 dark:text-[#C8C2B8] font-mono truncate">
+                <div className="fx-small text-ink-mid mt-0.5 tabular-nums truncate">
                   {tech.email ?? '—'}
                 </div>
               </div>
@@ -100,22 +99,22 @@ export function TechnicienDrawer({
             <button
               type="button"
               onClick={onClose}
-              className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8] inline-flex items-center justify-center"
+              className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid hover:bg-sand-border flex-shrink-0 inline-flex items-center justify-center"
               aria-label="Fermer"
             ><X size={16} /></button>
           </div>
         </header>
 
-        <nav className="flex bg-cream px-5 border-b border-sand-border dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <nav className="flex bg-cream px-5 border-b border-sand-border">
           {(['profil', 'historique'] as Tab[]).map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className={`py-2.5 px-4 text-xs font-medium border-b-2 transition-colors ${
+              className={`fx-label py-2.5 px-4 font-medium border-b-2 transition-colors ${
                 tab === t
-                  ? 'text-navy border-navy font-bold dark:text-[#A8C4F2] dark:border-[#A8C4F2]'
-                  : 'text-ink-muted border-transparent hover:text-ink-mid dark:text-[#C8C2B8]'
+                  ? 'text-navy border-navy font-bold'
+                  : 'text-ink-mid border-transparent hover:text-ink-mid'
               }`}
             >
               {t === 'profil' ? 'Profil' : (
@@ -125,13 +124,12 @@ export function TechnicienDrawer({
           ))}
         </nav>
 
-        <div className="px-5 py-4 flex-1 min-h-0 overflow-y-auto bg-sand dark:bg-[#141210]">
+        <div className="px-5 py-4 flex-1 min-h-0 overflow-y-auto bg-sand">
           {feedback && (
-            <div className={
-              'mb-3 px-3 py-2 text-[12px] font-semibold border rounded-md ' +
+            <div className={'fx-label mb-3 px-3 py-2 font-semibold border rounded-lg ' +
               (feedback.kind === 'ok'
-                ? 'bg-ok-light border-ok-mid text-ok dark:bg-[#14281E] dark:border-[#2A4F3A] dark:text-[#7AC9A0]'
-                : 'bg-terra-light border-terra-mid text-terra')
+                ? 'bg-ok-light border-ok-mid text-ok'
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }>
               {feedback.msg}
             </div>
@@ -139,8 +137,8 @@ export function TechnicienDrawer({
 
           {tab === 'profil' && (
             <div className="space-y-3">
-              <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+              <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3">
+                <div className="fx-th font-semibold text-ink-mid">
                   Identité
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -148,24 +146,24 @@ export function TechnicienDrawer({
                   <LabeledInput label="Nom *" value={nom} onChange={setNom} />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">
+                  <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
                     Email
                   </label>
                   <input
                     type="email"
                     value={tech.email ?? ''}
                     readOnly
-                    className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-sand-mid text-ink-muted font-mono cursor-not-allowed dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#C8C2B8]"
+                    className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-sand-mid text-ink-mid tabular-nums cursor-not-allowed"
                   />
-                  <p className="text-[10px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+                  <p className="fx-small text-ink-mid mt-1 italic">
                     L&apos;email est la clé d&apos;authentification — non modifiable après création.
                   </p>
                 </div>
                 <LabeledInput label="Téléphone" value={telephone} onChange={setTelephone} placeholder="+32 470 12 34 56" />
               </div>
 
-              <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-                <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+              <div className="bg-cream border border-sand-border rounded-xl p-4 space-y-3">
+                <div className="fx-th font-semibold text-ink-mid">
                   Couleur planning
                 </div>
                 <div className="flex items-center gap-3">
@@ -173,19 +171,19 @@ export function TechnicienDrawer({
                     type="color"
                     value={couleur}
                     onChange={(e) => setCouleur(e.target.value)}
-                    className="w-14 h-10 border border-sand-border rounded cursor-pointer bg-white"
+                    className="w-14 h-10 border border-sand-border rounded cursor-pointer bg-cream"
                   />
-                  <span className="font-mono text-xs text-ink-mid">{couleur.toUpperCase()}</span>
+                  <span className="fx-meta tabular-nums text-ink-mid">{couleur.toUpperCase()}</span>
                 </div>
               </div>
 
-              <div className="bg-cream border border-sand-border rounded-xl p-4 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+              <div className="bg-cream border border-sand-border rounded-xl p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-[11px] font-bold uppercase tracking-widest text-ink-muted dark:text-[#C8C2B8]">
+                    <div className="fx-th font-semibold text-ink-mid">
                       Compte actif
                     </div>
-                    <p className="text-[11px] text-ink-muted mt-1 italic dark:text-[#C8C2B8]">
+                    <p className="fx-small text-ink-mid mt-1 italic">
                       Les comptes désactivés ne peuvent plus se connecter sur tech.foxo.be.
                     </p>
                   </div>
@@ -198,10 +196,9 @@ export function TechnicienDrawer({
                   type="button"
                   onClick={toggleActive}
                   disabled={pending}
-                  className={
-                    'text-xs font-bold px-3 py-2 rounded-lg disabled:opacity-50 ' +
+                  className={'fx-label font-semibold px-3 py-2 rounded-lg disabled:opacity-50 ' +
                     (actif
-                      ? 'bg-terra-light text-terra border border-terra-mid'
+                      ? 'bg-terra-light text-terra-ink border border-terra-mid'
                       : 'bg-ok-light text-ok border border-ok-mid')
                   }
                 >
@@ -216,7 +213,7 @@ export function TechnicienDrawer({
                     type="button"
                     onClick={onClose}
                     disabled={pending}
-                    className="bg-sand-mid text-ink-mid px-4 py-2 rounded-lg text-xs font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)] dark:text-[#C8C2B8]"
+                    className="fx-label bg-sand-mid text-ink-mid px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
                   >
                     Fermer
                   </button>
@@ -224,7 +221,7 @@ export function TechnicienDrawer({
                     type="button"
                     onClick={saveProfile}
                     disabled={pending}
-                    className="bg-navy text-white px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-50"
+                    className="fx-label bg-navy text-cream px-4 py-2 rounded-lg font-semibold disabled:opacity-50"
                   >
                     {pending ? '…' : (
                       <span className="inline-flex items-center gap-1.5"><Save size={12} />Enregistrer</span>
@@ -281,15 +278,15 @@ function HistoriqueTab({ techId }: { techId: string }) {
 
   if (loading && !data) {
     return (
-      <div className="bg-cream border border-sand-border rounded-xl p-6 text-center dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-        <div className="text-[12px] text-ink-muted dark:text-[#C8C2B8]">Chargement…</div>
+      <div className="bg-cream border border-sand-border rounded-xl p-6 text-center">
+        <div className="fx-meta text-ink-mid">Chargement…</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-terra-light border border-terra-mid text-terra rounded-xl p-4 text-[12px]">
+      <div className="fx-meta bg-terra-light border border-terra-mid text-terra-ink rounded-xl p-4">
         Erreur de chargement : {error}
       </div>
     );
@@ -320,11 +317,10 @@ function HistoriqueTab({ techId }: { techId: string }) {
               key={f.key}
               type="button"
               onClick={() => setFiltre(f.key)}
-              className={
-                'px-2.5 py-1 rounded-full text-[11px] font-bold border transition-colors ' +
+              className={'fx-pill px-2.5 py-1 rounded-full font-semibold border transition-colors ' +
                 (active
-                  ? 'bg-navy text-white border-navy'
-                  : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-mid dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]')
+                  ? 'bg-navy text-cream border-navy'
+                  : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-mid')
               }
             >
               {f.label}
@@ -335,20 +331,20 @@ function HistoriqueTab({ techId }: { techId: string }) {
 
       {/* Liste */}
       {filtered.length === 0 ? (
-        <div className="bg-cream border border-sand-border rounded-xl p-6 text-center text-[12px] text-ink-muted italic dark:bg-[#1C1A16] dark:border-[#2C2A24] dark:text-[#C8C2B8]">
+        <div className="fx-meta bg-cream border border-sand-border rounded-xl p-6 text-center text-ink-mid italic">
           {data.interventions.length === 0
             ? 'Aucune intervention assignée à ce technicien.'
             : 'Aucune intervention ne correspond à ce filtre.'}
         </div>
       ) : (
-        <div className="bg-cream border border-sand-border rounded-xl overflow-hidden dark:bg-[#1C1A16] dark:border-[#2C2A24]">
+        <div className="bg-cream border border-sand-border rounded-xl overflow-hidden">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-sand dark:bg-[#221E1A]">
+              <tr className="bg-sand">
                 {['Date', 'Réf', 'ACP', 'Statut'].map((h) => (
                   <th
                     key={h}
-                    className="px-3 py-2 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border dark:text-[#C8C2B8] dark:border-[#2C2A24]"
+                    className="fx-eyebrow px-3 py-2 text-left font-semibold text-ink-mid border-b border-sand-border"
                   >
                     {h}
                   </th>
@@ -359,9 +355,9 @@ function HistoriqueTab({ techId }: { techId: string }) {
               {filtered.map((iv) => (
                 <tr
                   key={iv.id}
-                  className="border-b border-sand-mid hover:bg-sand-hover dark:border-[#2C2A24] dark:hover:bg-[#221E1A]"
+                  className="border-b border-sand-mid hover:bg-sand-hover"
                 >
-                  <td className="px-3 py-2 text-[11px] text-ink whitespace-nowrap dark:text-[#F0ECE4]">
+                  <td className="fx-small px-3 py-2 text-ink whitespace-nowrap">
                     <a
                       href={`/admin/interventions/${iv.id}`}
                       target="_blank"
@@ -372,7 +368,7 @@ function HistoriqueTab({ techId }: { techId: string }) {
                       {iv.creneau_debut ? fmtDateTime(iv.creneau_debut) : '—'}
                     </a>
                   </td>
-                  <td className="px-3 py-2 text-[11px] font-mono text-navy dark:text-[#A8C4F2]">
+                  <td className="fx-small px-3 py-2 fx-ref text-navy">
                     <a
                       href={`/admin/interventions/${iv.id}`}
                       target="_blank"
@@ -382,12 +378,12 @@ function HistoriqueTab({ techId }: { techId: string }) {
                       {iv.ref ?? iv.id.slice(0, 8)}
                     </a>
                   </td>
-                  <td className="px-3 py-2 text-[11px] text-ink-mid dark:text-[#C8C2B8]">
-                    <div className="font-semibold text-ink dark:text-[#F0ECE4] truncate max-w-[140px]" title={iv.acp_nom ?? ''}>
+                  <td className="fx-small px-3 py-2 text-ink-mid">
+                    <div className="font-semibold text-ink truncate max-w-[140px]" title={iv.acp_nom ?? ''}>
                       {iv.acp_nom ?? '—'}
                     </div>
                     {iv.adresse && (
-                      <div className="text-[10px] text-ink-muted truncate max-w-[140px]" title={iv.adresse}>
+                      <div className="fx-small text-ink-mid truncate max-w-[140px]" title={iv.adresse}>
                         {iv.adresse}
                       </div>
                     )}
@@ -400,7 +396,7 @@ function HistoriqueTab({ techId }: { techId: string }) {
             </tbody>
           </table>
           {data.interventions.length >= 200 && (
-            <div className="px-3 py-2 text-[10px] text-ink-muted italic border-t border-sand-border bg-sand dark:border-[#2C2A24] dark:bg-[#221E1A] dark:text-[#C8C2B8]">
+            <div className="fx-small px-3 py-2 text-ink-mid italic border-t border-sand-border bg-sand">
               200 dernières interventions affichées.
             </div>
           )}
@@ -412,9 +408,9 @@ function HistoriqueTab({ techId }: { techId: string }) {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-cream border border-sand-border rounded-lg px-3 py-2.5 dark:bg-[#1C1A16] dark:border-[#2C2A24]">
-      <div className="text-lg font-extrabold text-ink leading-tight dark:text-[#F0ECE4]">{value}</div>
-      <div className="text-[9px] font-bold text-ink-muted uppercase tracking-wider mt-0.5 dark:text-[#C8C2B8]">
+    <div className="bg-cream border border-sand-border rounded-lg px-3 py-2.5">
+      <div className="fx-panel-title font-semibold text-ink leading-tight">{value}</div>
+      <div className="fx-eyebrow font-semibold text-ink-mid mt-0.5">
         {label}
       </div>
     </div>
@@ -431,7 +427,7 @@ function LabeledInput({
 }) {
   return (
     <div>
-      <label className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1 dark:text-[#C8C2B8]">
+      <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
         {label}
       </label>
       <input
@@ -439,7 +435,7 @@ function LabeledInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-3 py-2 border border-sand-border rounded text-[13px] bg-white outline-none focus:border-navy-mid dark:bg-[#221E1A] dark:border-[#3D3A32] dark:text-[#F0ECE4]"
+        className="fx-body w-full px-3 py-2 border border-sand-border rounded bg-cream outline-none focus:border-navy-mid"
       />
     </div>
   );
@@ -458,14 +454,12 @@ function Switch({
       onClick={() => onChange(!checked)}
       disabled={disabled}
       aria-pressed={checked}
-      className={
-        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 flex-shrink-0 ' +
+      className={'relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 flex-shrink-0 ' +
         (checked ? 'bg-navy' : 'bg-sand-mid')
       }
     >
       <span
-        className={
-          'inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ' +
+        className={'inline-block h-5 w-5 rounded-full bg-cream shadow transition-transform ' +
           (checked ? 'translate-x-5' : 'translate-x-0.5')
         }
       />

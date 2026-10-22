@@ -34,12 +34,7 @@ import {
   type MailPrefillPayload,
 } from '@/lib/mails/mail-prefill';
 
-const TYPES: TypeIntervention[] = [
-  'Fuite canalisation',
-  'Fuite chauffage',
-  'Fuite infiltration',
-  'Surconsommation eau',
-  'Autre',
+const TYPES: TypeIntervention[] = [ 'Fuite canalisation', 'Fuite chauffage', 'Fuite infiltration', 'Surconsommation eau', 'Autre',
 ];
 
 // ─── Pré-remplissage depuis un mail : helpers ────────────────────────────
@@ -412,11 +407,10 @@ export function CreateInterventionModal({
           <button
             type="button"
             onClick={() => setDemandeurType('syndic')}
-            className={
-              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
+            className={'fx-body px-3 py-2 rounded-lg font-semibold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
               (demandeurType === 'syndic'
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink border-sand-border hover:border-navy-mid')
+                ? 'bg-navy text-cream border-navy'
+                : 'bg-cream text-ink border-sand-border hover:border-navy-mid')
             }
           >
             <Building2 size={14} /> Syndic
@@ -424,11 +418,10 @@ export function CreateInterventionModal({
           <button
             type="button"
             onClick={() => setDemandeurType('particulier')}
-            className={
-              'px-3 py-2 rounded-lg text-[13px] font-bold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
+            className={'fx-body px-3 py-2 rounded-lg font-semibold border-2 transition-colors inline-flex items-center justify-center gap-1.5 ' +
               (demandeurType === 'particulier'
-                ? 'bg-[#1F6B45] text-white border-[#1F6B45]'
-                : 'bg-white text-ink border-sand-border hover:border-[#1F6B45]')
+                ? 'bg-[var(--color-ok)] text-cream border-[var(--color-ok)]'
+                : 'bg-cream text-ink border-sand-border hover:border-[var(--color-ok)]')
             }
           >
             <User size={14} /> Particulier
@@ -451,7 +444,7 @@ export function CreateInterventionModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Décris le problème, l'étage, les dégâts visibles…"
               rows={3}
-              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+              className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -461,14 +454,13 @@ export function CreateInterventionModal({
                 {(['normale', 'urgente'] as const).map((p) => (
                   <label
                     key={p}
-                    className={
-                      'px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-2 text-xs ' +
+                    className={'fx-label px-3 py-2 border-2 rounded-lg cursor-pointer flex items-center gap-2 ' +
                       (priorite === p
-                        ? 'border-navy bg-navy-pale dark:text-white'
-                        : 'border-sand-border bg-white')
+                        ? 'border-navy bg-navy-pale'
+                        : 'border-sand-border bg-cream')
                     }
                   >
-                    <input type="radio" checked={priorite === p} onChange={() => setPriorite(p)} className="accent-[#1B3A6B]" />
+                    <input type="radio" checked={priorite === p} onChange={() => setPriorite(p)} className="accent-[var(--color-navy)]" />
                     {p === 'urgente' ? (<span className="inline-flex items-center gap-1"><Zap size={12} /> Urgente</span>) : 'Normale'}
                   </label>
                 ))}
@@ -484,15 +476,15 @@ export function CreateInterventionModal({
               {selectedAcp ? (
                 <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3">
                   <div>
-                    <div className="font-bold text-[13px] text-navy dark:text-white">{selectedAcp.nom}</div>
-                    <div className="text-[11px] text-navy/80 dark:text-white/80">
+                    <div className="fx-body font-semibold text-navy">{selectedAcp.nom}</div>
+                    <div className="fx-small text-navy/80">
                       {[selectedAcp.adresse, selectedAcp.code_postal, selectedAcp.ville].filter(Boolean).join(', ') || '—'}
                     </div>
                     {selectedAcp.bce && (
-                      <div className="text-[10px] font-mono text-navy/60 dark:text-white/60 mt-0.5">BCE {selectedAcp.bce}</div>
+                      <div className="fx-small tabular-nums text-navy/60 mt-0.5">BCE {selectedAcp.bce}</div>
                     )}
                   </div>
-                  <button onClick={() => setSelectedAcp(null)} className="text-[11px] text-navy underline dark:text-white">Changer</button>
+                  <button onClick={() => setSelectedAcp(null)} className="fx-small text-navy underline">Changer</button>
                 </div>
               ) : (
                 <>
@@ -500,19 +492,19 @@ export function CreateInterventionModal({
                     value={acpQuery}
                     onChange={(e) => setAcpQuery(e.target.value)}
                     placeholder="Rechercher par nom ou BCE…"
-                    className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                   />
                   {acpResults.length > 0 && (
-                    <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
+                    <div className="mt-2 bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
                       {acpResults.map((a) => (
                         <button
                           key={a.id}
                           type="button"
                           onClick={() => { setSelectedAcp(a); setAcpResults([]); setAcpQuery(a.nom); }}
-                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand"
+                          className="fx-meta block w-full text-left px-3 py-2 hover:bg-sand"
                         >
-                          <div className="font-bold">{a.nom}</div>
-                          <div className="text-[10px] text-ink-muted">
+                          <div className="font-semibold">{a.nom}</div>
+                          <div className="fx-small text-ink-mid">
                             {[a.adresse, a.code_postal, a.ville].filter(Boolean).join(', ')}
                             {a.bce ? ` · BCE ${a.bce}` : ''}
                           </div>
@@ -528,13 +520,13 @@ export function CreateInterventionModal({
               {selectedOrg ? (
                 <div className="bg-navy-pale border border-navy-light rounded-lg p-3 flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <div className="font-bold text-[13px] text-navy dark:text-white flex items-center gap-2">
+                    <div className="fx-body font-semibold text-navy flex items-center gap-2">
                       {selectedOrg.nom}
                       <TypeBadge type={selectedOrg.type} />
                     </div>
-                    <div className="text-[11px] text-navy/80 dark:text-white/80">{selectedOrg.email}</div>
+                    <div className="fx-small text-navy/80">{selectedOrg.email}</div>
                   </div>
-                  <button onClick={() => setSelectedOrg(null)} className="text-[11px] text-navy underline dark:text-white">Changer</button>
+                  <button onClick={() => setSelectedOrg(null)} className="fx-small text-navy underline">Changer</button>
                 </div>
               ) : (
                 <>
@@ -542,22 +534,22 @@ export function CreateInterventionModal({
                     value={orgQuery}
                     onChange={(e) => setOrgQuery(e.target.value)}
                     placeholder="Rechercher par nom ou email…"
-                    className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                   />
                   {orgResults.length > 0 && (
-                    <div className="mt-2 bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
+                    <div className="mt-2 bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[180px] overflow-y-auto">
                       {orgResults.map((o) => (
                         <button
                           key={o.id}
                           type="button"
                           onClick={() => { setSelectedOrg(o); setOrgResults([]); setOrgQuery(o.nom); }}
-                          className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand"
+                          className="fx-meta block w-full text-left px-3 py-2 hover:bg-sand"
                         >
-                          <div className="font-bold flex items-center gap-2">
+                          <div className="font-semibold flex items-center gap-2">
                             {o.nom}
                             <TypeBadge type={o.type} />
                           </div>
-                          <div className="text-[10px] text-ink-muted">{o.email}</div>
+                          <div className="fx-small text-ink-mid">{o.email}</div>
                         </button>
                       ))}
                     </div>
@@ -569,18 +561,18 @@ export function CreateInterventionModal({
             {/* Adresses syndic — info + override facturation */}
             {selectedAcp && selectedOrg && (
               <Section title="Adresses">
-                <div className="bg-sand border border-sand-border rounded-lg p-3 mb-3 text-[12px]">
+                <div className="fx-meta bg-sand border border-sand-border rounded-lg p-3 mb-3">
                   <div className="flex items-start gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted w-[110px] flex-shrink-0 mt-0.5">
+                    <span className="fx-eyebrow font-semibold text-ink-mid w-[110px] flex-shrink-0 mt-0.5">
                       Intervention
                     </span>
                     <span className="text-ink">
                       {[selectedAcp.adresse, selectedAcp.code_postal, selectedAcp.ville].filter(Boolean).join(', ') || '—'}
-                      <span className="text-[10px] text-ink-muted ml-1">(ACP)</span>
+                      <span className="fx-small text-ink-mid ml-1">(ACP)</span>
                     </span>
                   </div>
                   <div className="flex items-start gap-2 mt-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted w-[110px] flex-shrink-0 mt-0.5">
+                    <span className="fx-eyebrow font-semibold text-ink-mid w-[110px] flex-shrink-0 mt-0.5">
                       Facturation
                     </span>
                     <span className="text-ink">
@@ -588,8 +580,8 @@ export function CreateInterventionModal({
                         ? <span className="italic">Adresse custom (ci-dessous)</span>
                         : (
                           <>
-                            {selectedOrg.adresse || <em className="text-ink-muted">—</em>}
-                            <span className="text-[10px] text-ink-muted ml-1">
+                            {selectedOrg.adresse || <em className="text-ink-mid">—</em>}
+                            <span className="fx-small text-ink-mid ml-1">
                               ({selectedOrg.nom})
                             </span>
                           </>
@@ -598,12 +590,12 @@ export function CreateInterventionModal({
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-[12px] cursor-pointer mb-2">
+                <label className="fx-label flex items-center gap-2 cursor-pointer mb-2">
                   <input
                     type="checkbox"
                     checked={billingOverride}
                     onChange={(e) => setBillingOverride(e.target.checked)}
-                    className="accent-[#1B3A6B]"
+                    className="accent-[var(--color-navy)]"
                   />
                   Utiliser une adresse de facturation différente
                 </label>
@@ -613,27 +605,27 @@ export function CreateInterventionModal({
                       value={billingRue}
                       onChange={(e) => setBillingRue(e.target.value)}
                       placeholder="Rue et numéro"
-                      className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                      className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                     />
                     <div className="grid grid-cols-3 gap-2">
                       <input
                         value={billingCp}
                         onChange={(e) => setBillingCp(e.target.value)}
                         placeholder="CP"
-                        className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                        className="fx-body px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                       />
                       <input
                         value={billingVille}
                         onChange={(e) => setBillingVille(e.target.value)}
                         placeholder="Ville"
-                        className="col-span-2 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                        className="fx-body col-span-2 px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                       />
                     </div>
                     <input
                       value={billingBce}
                       onChange={(e) => setBillingBce(e.target.value)}
                       placeholder="BCE / TVA (optionnel)"
-                      className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white font-mono outline-none focus:border-navy-mid"
+                      className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream tabular-nums outline-none focus:border-navy-mid"
                     />
                   </div>
                 )}
@@ -652,27 +644,27 @@ export function CreateInterventionModal({
                 <Field label="Téléphone *" type="tel" value={pTel} onChange={setPTel} />
               </div>
               <div className="mt-3">
-                <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+                <label className="fx-label font-semibold text-ink-mid block mb-1.5">
                   Adresse de facturation *
                 </label>
                 <input
                   value={pRue}
                   onChange={(e) => setPRue(e.target.value)}
                   placeholder="Rue et numéro"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid mb-2"
                 />
                 <div className="grid grid-cols-3 gap-2">
                   <input
                     value={pCp}
                     onChange={(e) => setPCp(e.target.value)}
                     placeholder="CP"
-                    className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    className="fx-body px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                   />
                   <input
                     value={pVille}
                     onChange={(e) => setPVille(e.target.value)}
                     placeholder="Ville"
-                    className="col-span-2 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                    className="fx-body col-span-2 px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                   />
                 </div>
               </div>
@@ -683,12 +675,12 @@ export function CreateInterventionModal({
 
             {/* Lieu intervention */}
             <Section title="Lieu d'intervention">
-              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2">
+              <label className="fx-label flex items-center gap-2 cursor-pointer mb-2">
                 <input
                   type="checkbox"
                   checked={pLieuMeme}
                   onChange={(e) => setPLieuMeme(e.target.checked)}
-                  className="accent-[#1B3A6B]"
+                  className="accent-[var(--color-navy)]"
                 />
                 Même adresse que le mandant
               </label>
@@ -698,20 +690,20 @@ export function CreateInterventionModal({
                     value={pLieuRue}
                     onChange={(e) => setPLieuRue(e.target.value)}
                     placeholder="Rue et numéro de l'intervention"
-                    className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid mb-2"
+                    className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid mb-2"
                   />
                   <div className="grid grid-cols-3 gap-2">
                     <input
                       value={pLieuCp}
                       onChange={(e) => setPLieuCp(e.target.value)}
                       placeholder="CP"
-                      className="px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                      className="fx-body px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                     />
                     <input
                       value={pLieuVille}
                       onChange={(e) => setPLieuVille(e.target.value)}
                       placeholder="Ville"
-                      className="col-span-2 px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                      className="fx-body col-span-2 px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                     />
                   </div>
                 </div>
@@ -720,12 +712,12 @@ export function CreateInterventionModal({
 
             {/* Contact sur place */}
             <Section title="Contact sur place (optionnel)">
-              <label className="flex items-center gap-2 text-[13px] cursor-pointer mb-2">
+              <label className="fx-label flex items-center gap-2 cursor-pointer mb-2">
                 <input
                   type="checkbox"
                   checked={pContactActif}
                   onChange={(e) => setPContactActif(e.target.checked)}
-                  className="accent-[#1B3A6B]"
+                  className="accent-[var(--color-navy)]"
                 />
                 Contact différent du mandant
               </label>
@@ -738,7 +730,7 @@ export function CreateInterventionModal({
                   <Field label="Téléphone *" type="tel" value={pContactTel} onChange={setPContactTel} placeholder="+32 ..." />
                   <Field label="Email (optionnel)" type="email" value={pContactEmail} onChange={setPContactEmail} />
                   <div>
-                    <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+                    <label className="fx-label font-semibold text-ink-mid block mb-1.5">
                       Instructions d&apos;accès
                     </label>
                     <textarea
@@ -746,7 +738,7 @@ export function CreateInterventionModal({
                       onChange={(e) => setPContactInstr(e.target.value)}
                       placeholder="Digicode, gardien, créneau d'accès…"
                       rows={2}
-                      className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y"
+                      className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
                     />
                   </div>
                 </div>
@@ -764,7 +756,7 @@ export function CreateInterventionModal({
         />
 
         {error && (
-          <div className="bg-terra-light border border-terra-mid text-terra text-[12px] rounded-lg px-3 py-2 font-semibold">
+          <div className="fx-label bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
             {error}
           </div>
         )}
@@ -775,7 +767,7 @@ export function CreateInterventionModal({
           type="button"
           onClick={onClose}
           disabled={pending}
-          className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-[13px] font-semibold disabled:opacity-50 dark:bg-[rgba(255,255,255,.06)]"
+          className="fx-body bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg font-semibold disabled:opacity-50"
         >
           Annuler
         </button>
@@ -783,7 +775,7 @@ export function CreateInterventionModal({
           type="button"
           onClick={submit}
           disabled={pending}
-          className="bg-navy text-white px-5 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+          className="fx-body bg-navy text-cream px-5 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
         >
           {pending ? 'Création…' : (<><Check size={14} /> Créer l&apos;intervention</>)}
         </button>
@@ -812,13 +804,13 @@ export function ModalShell({
           <div>
             <h2 className="fxs-section-title text-ink">{title}</h2>
             {subtitle && (
-              <p className="text-[11px] text-ink-muted mt-0.5">{subtitle}</p>
+              <p className="fx-small text-ink-mid mt-0.5">{subtitle}</p>
             )}
           </div>
           <button
             onClick={onClose}
             aria-label="Fermer"
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border flex-shrink-0 dark:bg-[rgba(255,255,255,.06)] inline-flex items-center justify-center"
+            className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid hover:bg-sand-border flex-shrink-0 inline-flex items-center justify-center"
           >
             <X size={16} />
           </button>
@@ -842,7 +834,7 @@ export function ModalFooter({ children }: { children: React.ReactNode }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-2">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
         {title}
       </div>
       {children}
@@ -852,7 +844,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-xs font-semibold text-ink-mid block mb-1.5">
+    <label className="fx-label font-semibold text-ink-mid block mb-1.5">
       {children}
     </label>
   );
@@ -871,7 +863,7 @@ function Field({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white"
+          className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream"
         >
           {children}
         </select>
@@ -886,9 +878,8 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={
-          'w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid ' +
-          (mono ? 'font-mono' : '')
+        className={'fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid ' +
+          (mono ? 'tabular-nums' : '')
         }
       />
     </div>

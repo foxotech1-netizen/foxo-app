@@ -19,8 +19,7 @@ export default async function UtilisateursPage() {
     .select(`
       id, email, role, actif, organisation_id, telephone,
       created_at, last_seen_at,
-      organisation:organisations(id, nom)
-    `)
+      organisation:organisations(id, nom) `)
     .in('role', ['syndic', 'courtier', 'technicien'])
     .order('created_at', { ascending: false });
 

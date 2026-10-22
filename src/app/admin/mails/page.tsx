@@ -17,17 +17,18 @@ export default async function MailsPage() {
         <h1 className="fxs-page-title mb-1">
           Mails
         </h1>
-        <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+        <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
           <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
-          {connected ? <>Boîte connectée : <span className="font-mono">{accountEmail ?? 'compte Google'}</span></> : 'Boîte non connectée'}
+          {connected ? <>Boîte connectée : <span className="tabular-nums">{accountEmail ?? 'compte Google'}</span></> : 'Boîte non connectée'}
         </div>
       </div>
 
       {!connected && (
-        <div className="mx-6 mt-3 px-4 py-3 bg-amber-light border border-[#E8C896] rounded-lg text-[13px] text-[#8A5A1A] flex items-center justify-between gap-3 flex-shrink-0">
-          <span className="inline-flex items-center gap-1.5">
-            <AlertTriangle size={14} aria-hidden /> Connectez votre compte Google dans{' '}
-            <Link href="/admin/parametres" className="underline font-bold">Paramètres → Intégrations Google</Link>
+        <div className="fx-body mx-6 mt-3 px-4 py-3 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg text-amber-ink flex items-center justify-between gap-3 flex-shrink-0">
+          <span className="min-w-0">
+            <AlertTriangle size={14} aria-hidden className="inline-block align-[-2px] mr-1.5" />
+            Connectez votre compte Google dans{' '}
+            <Link href="/admin/parametres" className="underline font-semibold">Paramètres → Intégrations Google</Link>
             {' '}pour afficher la boîte mail.
           </span>
         </div>

@@ -27,9 +27,9 @@ export function CollapsedSection({
           style={{ background: TONE_VAR[tone] }}
           aria-hidden
         />
-        <Icon size={14} className="text-ink-muted" aria-hidden />
-        <h2 className="flex-1 text-[12px] font-bold text-ink-mid">{title}</h2>
-        <span className="text-[11px] font-extrabold text-ink-muted bg-cream border border-sand-border rounded-full px-2 py-0.5">
+        <Icon size={14} className="text-ink-mid" aria-hidden />
+        <h2 className="fx-label flex-1 font-semibold text-ink-mid">{title}</h2>
+        <span className="fx-badge font-semibold text-ink-mid bg-cream border border-sand-border rounded-full px-2 py-0.5">
           {count}
         </span>
       </div>

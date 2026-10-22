@@ -94,7 +94,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
         {/* Header — badge + intitulé */}
         <div className="flex items-center gap-2 flex-wrap mb-2.5">
           <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-[0.04em]"
+            className="fx-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-semibold tracking-[0.04em]"
             style={{
               background: 'var(--color-navy-pale)',
               color: 'var(--color-navy-dark)',
@@ -103,7 +103,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
             <Sparkles size={11} aria-hidden />
             Assistant FoxO
           </span>
-          <h3 className="font-sora text-[13px] font-medium text-[var(--color-ink)] m-0 flex-1">
+          <h3 className="fx-h3 font-medium text-[var(--color-ink)] m-0 flex-1">
             Pose-moi une question sur tes dossiers, mails ou planning
           </h3>
         </div>
@@ -118,11 +118,10 @@ export function ChatIA({ compact = false }: ChatIAProps) {
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={m.role === 'user' ? 'self-end max-w-[85%]' : 'self-start max-w-[92%]'}
+                className={m.role === 'user' ? 'fx-body self-end max-w-[85%]' : 'fx-body self-start max-w-[92%]'}
                 style={{
                   padding: '8px 12px',
                   borderRadius: 14,
-                  fontSize: 12,
                   lineHeight: 1.5,
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
@@ -135,7 +134,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
               </div>
             ))}
             {loading && (
-              <div className="self-start text-[11px] italic" style={{ color: 'var(--color-ink-muted)' }}>
+              <div className="fx-small self-start italic" style={{ color: 'var(--color-ink-muted)' }}>
                 L&apos;assistant réfléchit…
               </div>
             )}
@@ -163,14 +162,14 @@ export function ChatIA({ compact = false }: ChatIAProps) {
               onChange={(e) => setValue(e.target.value)}
               disabled={loading}
               placeholder="Ex: Quels syndics n'ont pas répondu cette semaine ?"
-              className="flex-1 bg-transparent border-0 outline-none text-[13px] italic placeholder:text-[var(--color-ink-muted)] py-2"
+              className="fx-body flex-1 bg-transparent border-0 outline-none italic placeholder:text-[var(--color-ink-muted)] py-2"
               style={{ color: 'var(--color-ink)', minWidth: 0, minHeight: 36 }}
               aria-label="Question express à Assistant FoxO"
             />
             <button
               type="submit"
               disabled={!value.trim() || loading}
-              className="flex-shrink-0 inline-flex items-center justify-center transition-opacity disabled:opacity-40"
+              className="flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] transition-opacity disabled:opacity-40"
               style={{
                 width: 30,
                 height: 30,
@@ -190,7 +189,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
           <button
             type="button"
             onClick={() => setManualOpen(true)}
-            className="mt-2 text-[11px] font-medium text-[var(--color-navy)] inline-flex items-center gap-1 hover:underline"
+            className="fx-small mt-2 min-h-[44px] inline-flex items-center font-medium text-[var(--color-navy)] inline-flex items-center gap-1 hover:underline"
           >
             <ChevronDown size={12} aria-hidden />
             Voir les suggestions
@@ -205,7 +204,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
                 type="button"
                 onClick={() => handleSuggestion(s)}
                 disabled={loading}
-                className="chat-suggestion-pill inline-flex items-center px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-colors disabled:opacity-50"
+                className="fx-pill chat-suggestion-pill inline-flex items-center px-2.5 py-1.5 rounded-full font-medium transition-colors disabled:opacity-50"
                 style={{
                   background: 'var(--color-navy-pale)',
                   color: 'var(--color-navy)',
@@ -223,7 +222,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
         {hasConversation && (
           <Link
             href="/admin/assistant"
-            className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-medium hover:underline"
+            className="fx-small mt-2.5 inline-flex items-center gap-1 font-medium hover:underline"
             style={{ color: 'var(--color-navy)' }}
           >
             Continuer dans l&apos;Assistant
@@ -233,7 +232,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
 
         {toast && (
           <div
-            className="mt-2.5 px-3 py-2 text-[11px] font-medium rounded-md border"
+            className="fx-small mt-2.5 px-3 py-2 font-medium rounded-lg border"
             style={{
               background: 'var(--color-amber-light)',
               borderColor: 'rgba(184, 131, 10, 0.3)',

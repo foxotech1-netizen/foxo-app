@@ -8,29 +8,29 @@ import type { CategorieNoteFrais, NoteFrais, StatutNoteFrais } from '@/lib/types
 import { deleteNoteFrais, updateStatutNoteFrais, updateNoteFraisAdmin } from './actions';
 
 const CATEGORIE_LABEL: Record<CategorieNoteFrais, string> = {
-  carburant:      'Carburant',
-  materiel:       'Matériel',
-  outillage:      'Outillage',
-  transport:      'Transport',
-  restauration:   'Restauration (legacy)',
-  fournitures:    'Fournitures',
+  carburant: 'Carburant',
+  materiel: 'Matériel',
+  outillage: 'Outillage',
+  transport: 'Transport',
+  restauration: 'Restauration (legacy)',
+  fournitures: 'Fournitures',
   sous_traitance: 'Sous-traitance',
-  autre:          'Autre',
-  restaurant:     'Restaurant',
-  cafe_client:    'Café client',
-  repas_travail:  'Repas de travail',
-  reception:      'Réception',
-  telephonie:     'Téléphonie',
-  formation:      'Formation',
-  autre_achat:    'Autre achat',
+  autre: 'Autre',
+  restaurant: 'Restaurant',
+  cafe_client: 'Café client',
+  repas_travail: 'Repas de travail',
+  reception: 'Réception',
+  telephonie: 'Téléphonie',
+  formation: 'Formation',
+  autre_achat: 'Autre achat',
 };
 
 const STATUT_BADGE: Record<StatutNoteFrais, { fg: string; bg: string; label: string }> = {
-  brouillon:  { fg: '#6B6558', bg: '#EDEAE3', label: 'Brouillon'  },
-  soumise:    { fg: '#1B3A6B', bg: '#D6E4F7', label: 'Soumise'    },
-  approuvee:  { fg: '#1F6B45', bg: '#D4EDE2', label: 'Approuvée'  },
-  rejetee:    { fg: '#C4622D', bg: '#F7EDE5', label: 'Rejetée'    },
-  remboursee: { fg: '#7C3AED', bg: '#F5F3FF', label: 'Remboursée' },
+  brouillon:  { fg: 'var(--color-ink-mid)', bg: 'var(--color-sand-mid)', label: 'Brouillon'  },
+  soumise:    { fg: 'var(--color-navy)', bg: 'var(--color-sky-light-foxo)', label: 'Soumise'    },
+  approuvee:  { fg: 'var(--color-ok)', bg: 'var(--color-ok-light)', label: 'Approuvée'  },
+  rejetee:    { fg: 'var(--color-terra-ink)', bg: 'var(--color-terra-light)', label: 'Rejetée'    },
+  remboursee: { fg: 'var(--color-navy)', bg: 'var(--color-navy-pale)', label: 'Remboursée' },
 };
 
 type Tab = 'infos' | 'photo' | 'workflow';
@@ -223,7 +223,7 @@ export function NoteFraisDrawer({
         {/* Header */}
         <header className="border-b border-sand-border px-5 py-3 flex items-start justify-between">
           <div className="min-w-0">
-            <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+            <div className="fx-eyebrow font-semibold text-ink-mid">
               Note de frais
             </div>
             <h2 className="fxs-block-title text-ink mt-0.5 truncate">
@@ -233,7 +233,7 @@ export function NoteFraisDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="text-ink-muted hover:text-ink leading-none px-2"
+            className="text-ink-mid hover:text-ink leading-none px-2"
             aria-label="Fermer"
           >
             <X size={16} />
@@ -250,11 +250,10 @@ export function NoteFraisDrawer({
                 key={t}
                 type="button"
                 onClick={() => setTab(t)}
-                className={
-                  'flex-1 px-3 py-2.5 text-[12px] font-bold border-b-2 transition-colors ' +
+                className={'fx-label flex-1 px-3 py-2.5 font-semibold border-b-2 transition-colors ' +
                   (active
                     ? 'bg-cream border-navy text-navy'
-                    : 'border-transparent text-ink-muted hover:text-ink')
+                    : 'border-transparent text-ink-mid hover:text-ink')
                 }
               >
                 {label}
@@ -267,15 +266,15 @@ export function NoteFraisDrawer({
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {tab === 'infos' && editing && (
             <div className="space-y-3">
-              <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+              <div className="fx-eyebrow font-semibold text-ink-mid">
                 Édition admin
               </div>
               <div>
-                <label className="text-xs font-semibold text-ink-mid block mb-1">Catégorie</label>
+                <label className="fx-label font-semibold text-ink-mid block mb-1">Catégorie</label>
                 <select
                   value={eCategorie}
                   onChange={(e) => setECategorie(e.target.value as CategorieNoteFrais)}
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream"
                 >
                   {(Object.keys(CATEGORIE_LABEL) as CategorieNoteFrais[]).map((c) => (
                     <option key={c} value={c}>{CATEGORIE_LABEL[c]}</option>
@@ -284,38 +283,38 @@ export function NoteFraisDrawer({
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-ink-mid block mb-1">Fournisseur</label>
-                  <input value={eFournisseur} onChange={(e) => setEFournisseur(e.target.value)} className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white" />
+                  <label className="fx-label font-semibold text-ink-mid block mb-1">Fournisseur</label>
+                  <input value={eFournisseur} onChange={(e) => setEFournisseur(e.target.value)} className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink-mid block mb-1">Date</label>
-                  <input type="date" value={eDate} onChange={(e) => setEDate(e.target.value)} className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white" />
+                  <label className="fx-label font-semibold text-ink-mid block mb-1">Date</label>
+                  <input type="date" value={eDate} onChange={(e) => setEDate(e.target.value)} className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream" />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-ink-mid block mb-1">HTVA (€)</label>
-                  <input value={eHtva} onChange={(e) => setEHtva(e.target.value)} inputMode="decimal" className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] font-mono bg-white" />
+                  <label className="fx-label font-semibold text-ink-mid block mb-1">HTVA (€)</label>
+                  <input value={eHtva} onChange={(e) => setEHtva(e.target.value)} inputMode="decimal" className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg tabular-nums bg-cream" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink-mid block mb-1">TVA (%)</label>
-                  <input value={eTaux} onChange={(e) => setETaux(e.target.value)} inputMode="decimal" className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] font-mono bg-white" />
+                  <label className="fx-label font-semibold text-ink-mid block mb-1">TVA (%)</label>
+                  <input value={eTaux} onChange={(e) => setETaux(e.target.value)} inputMode="decimal" className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg tabular-nums bg-cream" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-ink-mid block mb-1">TTC (€)</label>
-                  <input value={eTtc} onChange={(e) => setETtc(e.target.value)} inputMode="decimal" className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] font-mono bg-white" />
+                  <label className="fx-label font-semibold text-ink-mid block mb-1">TTC (€)</label>
+                  <input value={eTtc} onChange={(e) => setETtc(e.target.value)} inputMode="decimal" className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg tabular-nums bg-cream" />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-ink-mid block mb-1">Description</label>
-                <textarea value={eDescription} onChange={(e) => setEDescription(e.target.value)} rows={2} className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white resize-y" />
+                <label className="fx-label font-semibold text-ink-mid block mb-1">Description</label>
+                <textarea value={eDescription} onChange={(e) => setEDescription(e.target.value)} rows={2} className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream resize-y" />
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={saveEdition}
                   disabled={saving}
-                  className="bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50 flex-1"
+                  className="fx-label bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 flex-1"
                 >
                   {saving ? '…' : 'Enregistrer'}
                 </button>
@@ -323,7 +322,7 @@ export function NoteFraisDrawer({
                   type="button"
                   onClick={() => setEditing(false)}
                   disabled={saving}
-                  className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-md text-[12px] font-bold hover:bg-sand-hover disabled:opacity-50"
+                  className="fx-label bg-cream text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-semibold hover:bg-sand-hover disabled:opacity-50"
                 >
                   Annuler
                 </button>
@@ -334,17 +333,17 @@ export function NoteFraisDrawer({
             <>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
+                  <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                     Catégorie
                   </div>
-                  <span className="inline-block text-[11px] font-bold px-2 py-0.5 rounded-full bg-sand-mid text-ink-mid">
+                  <span className="fx-badge inline-block font-semibold px-2 py-0.5 rounded-full bg-sand-mid text-ink-mid">
                     {CATEGORIE_LABEL[note.categorie]}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
-                  className="text-[11px] font-semibold text-navy hover:underline inline-flex items-center gap-1"
+                  className="fx-small font-semibold text-navy hover:underline inline-flex items-center gap-1"
                 >
                   <Pencil size={12} aria-hidden /> Modifier
                 </button>
@@ -358,8 +357,8 @@ export function NoteFraisDrawer({
 
               <div className="bg-sand rounded-lg p-3 space-y-1">
                 {note.km_distance != null && note.km_taux_applique != null && (
-                  <div className="text-[11px] font-semibold text-ink-mid pb-1 border-b border-sand-border mb-1">
-                    Indemnité kilométrique : <span className="font-mono">{Number(note.km_distance).toLocaleString('fr-BE')} km × {Number(note.km_taux_applique).toFixed(4)} €/km</span>
+                  <div className="fx-small font-semibold text-ink-mid pb-1 border-b border-sand-border mb-1">
+                    Indemnité kilométrique : <span className="tabular-nums">{Number(note.km_distance).toLocaleString('fr-BE')} km × {Number(note.km_taux_applique).toFixed(4)} €/km</span>
                   </div>
                 )}
                 <Money label="HTVA" value={note.montant_htva} />
@@ -371,12 +370,12 @@ export function NoteFraisDrawer({
 
               {note.intervention_id && (
                 <div>
-                  <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
+                  <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                     Intervention liée
                   </div>
                   <Link
                     href={`/admin/?intervention=${note.intervention_id}`}
-                    className="text-[12px] text-navy hover:underline font-mono"
+                    className="fx-meta text-navy hover:underline fx-ref"
                   >
                     {note.intervention_id.slice(0, 8)}…
                   </Link>
@@ -387,10 +386,10 @@ export function NoteFraisDrawer({
                 <Field label="Description" value={note.description} />
               )}
 
-              <div className="text-[10px] text-ink-muted pt-2 border-t border-sand-border">
+              <div className="fx-small text-ink-mid pt-2 border-t border-sand-border">
                 Créée par {note.technicien_nom ?? note.technicien_email}
                 {' · '}
-                <span className="font-mono">{fmtDate(note.created_at)}</span>
+                <span className="tabular-nums">{fmtDate(note.created_at)}</span>
               </div>
             </>
           )}
@@ -402,28 +401,28 @@ export function NoteFraisDrawer({
                 <img
                   src={note.photo_url}
                   alt="ticket"
-                  className="max-h-64 rounded-lg border border-sand-border w-full object-contain bg-white"
+                  className="max-h-64 rounded-lg border border-sand-border w-full object-contain bg-cream"
                 />
               ) : (
-                <div className="bg-sand rounded-lg p-4 text-[12px] text-ink-muted text-center">
+                <div className="fx-meta bg-sand rounded-lg p-4 text-ink-mid text-center">
                   Aucune photo — à uploader depuis l&apos;app tech.
                 </div>
               )}
 
               <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-2">
+                <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
                   Extraction IA
                 </div>
 
                 {note.ia_raw ? (
                   <div className="bg-sand rounded-lg p-3 space-y-2">
                     <ConfidenceBadge value={note.ia_confiance ?? 0} />
-                    <pre className="text-[10px] font-mono whitespace-pre-wrap text-ink-mid overflow-x-auto">
+                    <pre className="fx-small tabular-nums whitespace-pre-wrap text-ink-mid overflow-x-auto">
                       {JSON.stringify(note.ia_raw, null, 2)}
                     </pre>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-ink-muted italic">
+                  <p className="fx-small text-ink-mid italic">
                     Aucune extraction encore lancée.
                   </p>
                 )}
@@ -432,10 +431,9 @@ export function NoteFraisDrawer({
                   type="button"
                   onClick={handleExtract}
                   disabled={extracting || !note.photo_url}
-                  className="w-full mt-3 bg-navy text-white px-3 py-2 rounded-md text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                  className="fx-label w-full mt-3 bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                 >
-                  {extracting ? (
-                    'Extraction en cours…'
+                  {extracting ? ( 'Extraction en cours…'
                   ) : (
                     <>
                       <Search size={14} />
@@ -450,25 +448,25 @@ export function NoteFraisDrawer({
           {tab === 'workflow' && (
             <>
               <div>
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-1">
+                <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
                   Statut actuel
                 </div>
                 <span
-                  className="inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+                  className="fx-th inline-block font-semibold px-2.5 py-1 rounded-full"
                   style={{ color: badge.fg, background: badge.bg }}
                 >
                   {badge.label}
                 </span>
                 {note.approved_at && (
-                  <div className="text-[10px] text-ink-muted mt-1">
+                  <div className="fx-small text-ink-mid mt-1">
                     Approuvée le {fmtDate(note.approved_at)}
-                    {note.approved_by && <> par <span className="font-mono">{note.approved_by}</span></>}
+                    {note.approved_by && <> par <span className="tabular-nums">{note.approved_by}</span></>}
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-ink-muted uppercase tracking-widest block mb-1">
+                <label className="fx-eyebrow font-semibold text-ink-mid block mb-1">
                   Note admin
                 </label>
                 <textarea
@@ -476,16 +474,16 @@ export function NoteFraisDrawer({
                   onChange={(e) => setNoteAdmin(e.target.value)}
                   rows={3}
                   placeholder="Optionnel — motif rejet, contexte remboursement…"
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white outline-none focus:border-navy-mid resize-y"
+                  className="fx-meta w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y"
                 />
               </div>
 
               <div className="space-y-2">
-                <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest">
+                <div className="fx-eyebrow font-semibold text-ink-mid">
                   Transitions
                 </div>
                 {nextTransitions(note.statut).length === 0 ? (
-                  <p className="text-[11px] text-ink-muted italic">
+                  <p className="fx-small text-ink-mid italic">
                     Aucune transition disponible — note remboursée.
                   </p>
                 ) : (
@@ -497,8 +495,7 @@ export function NoteFraisDrawer({
                         type="button"
                         onClick={() => transitionStatut(t.to)}
                         disabled={saving}
-                        className={
-                          'w-full px-3 py-2 rounded-md text-[12px] font-bold text-white hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5 ' +
+                        className={'fx-label w-full px-3 py-2 rounded-lg font-semibold text-cream hover:opacity-90 disabled:opacity-50 inline-flex items-center justify-center gap-1.5 ' +
                           (t.color === 'ok'
                             ? 'bg-ok'
                             : t.color === 'terra'
@@ -523,7 +520,7 @@ export function NoteFraisDrawer({
                   type="button"
                   onClick={handleDelete}
                   disabled={saving}
-                  className="w-full px-3 py-2 rounded-md text-[12px] font-bold text-terra border border-terra-mid bg-terra-light hover:opacity-80 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                  className="fx-label w-full px-3 py-2 rounded-lg font-semibold text-terra-ink border border-terra-mid bg-terra-light hover:opacity-80 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
                 >
                   <Trash2 size={14} />
                   Supprimer (soft-delete)
@@ -536,11 +533,10 @@ export function NoteFraisDrawer({
         {/* Feedback toast (footer) */}
         {feedback && (
           <div
-            className={
-              'border-t px-5 py-3 text-[11px] font-semibold ' +
+            className={'fx-small border-t px-5 py-3 font-semibold ' +
               (feedback.kind === 'ok'
                 ? 'bg-ok-light border-ok-mid text-ok'
-                : 'bg-terra-light border-terra-mid text-terra')
+                : 'bg-terra-light border-terra-mid text-terra-ink')
             }
           >
             {feedback.msg}
@@ -556,10 +552,10 @@ export function NoteFraisDrawer({
 function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <div className="text-[10px] font-bold text-ink-muted uppercase tracking-widest mb-0.5">
+      <div className="fx-eyebrow font-semibold text-ink-mid mb-0.5">
         {label}
       </div>
-      <div className={'text-[12px] text-ink ' + (mono ? 'font-mono' : '')}>
+      <div className={'fx-meta text-ink ' + (mono ? 'tabular-nums' : '')}>
         {value}
       </div>
     </div>
@@ -569,10 +565,10 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 function Money({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
   return (
     <div className="flex justify-between items-baseline">
-      <span className={'text-[11px] ' + (bold ? 'font-bold text-ink' : 'text-ink-mid')}>
+      <span className={'fx-small ' + (bold ? 'font-semibold text-ink' : 'text-ink-mid')}>
         {label}
       </span>
-      <span className={'font-mono ' + (bold ? 'text-[14px] font-bold text-ink' : 'text-[12px] text-ink-mid')}>
+      <span className={'tabular-nums ' + (bold ? 'fx-body font-semibold text-ink' : 'fx-meta text-ink-mid')}>
         {value.toLocaleString('fr-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
       </span>
     </div>
@@ -585,10 +581,10 @@ function ConfidenceBadge({ value }: { value: number }) {
   const cls = color === 'ok'
     ? 'bg-ok-light border-ok-mid text-ok'
     : color === 'amber'
-      ? 'bg-amber-light border-[#E8C896] text-[#8A5A1A]'
-      : 'bg-terra-light border-terra-mid text-terra';
+      ? 'bg-amber-light border-[var(--color-amber-foxo)]/30 text-amber-ink'
+      : 'bg-terra-light border-terra-mid text-terra-ink';
   return (
-    <span className={'inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ' + cls}>
+    <span className={'fx-eyebrow inline-block font-semibold px-2 py-0.5 rounded border ' + cls}>
       Confiance {pct}%
     </span>
   );

@@ -153,7 +153,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
           type="button"
           onClick={runAnalyseDeep}
           disabled={analyseLoading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-md text-[12px] font-bold disabled:opacity-50 min-h-[44px]"
+          className="fx-label inline-flex items-center gap-2 px-3.5 py-2 rounded-lg font-semibold disabled:opacity-50 min-h-[44px]"
           style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
         >
           <Sparkles size={14} aria-hidden />
@@ -197,7 +197,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
             type="button"
             onClick={() => draftReply('syndic')}
             disabled={draftSyndicLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-bold disabled:opacity-50 min-h-[44px]"
+            className="fx-label inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold disabled:opacity-50 min-h-[44px]"
             style={{ background: 'var(--color-cream)', color: 'var(--color-navy)', border: '1px solid var(--color-navy)' }}
           >
             <FileEdit size={14} aria-hidden />
@@ -211,7 +211,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
               type="button"
               onClick={() => setOccupantDropdownOpen((v) => !v)}
               disabled={draftOccupantLoading || smsLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-bold disabled:opacity-50 min-h-[44px]"
+              className="fx-label inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold disabled:opacity-50 min-h-[44px]"
               style={{ background: 'var(--color-cream)', color: 'var(--color-navy)', border: '1px solid var(--color-navy)' }}
               aria-expanded={occupantDropdownOpen}
             >
@@ -221,7 +221,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
             </button>
             {occupantDropdownOpen && (
               <div
-                className="absolute top-full left-0 mt-1 z-20 min-w-[180px] rounded-md overflow-hidden"
+                className="absolute top-full left-0 mt-1 z-20 min-w-[180px] rounded-lg overflow-hidden"
                 style={{
                   background: 'var(--color-cream)',
                   border: '1px solid var(--color-sand-border)',
@@ -233,7 +233,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
                   <button
                     type="button"
                     onClick={() => { setOccupantDropdownOpen(false); draftReply('occupant'); }}
-                    className="w-full text-left px-3 py-2 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-[var(--color-sand-hover)]"
+                    className="fx-label w-full text-left px-3 py-2 font-semibold inline-flex items-center gap-2 hover:bg-[var(--color-sand-hover)]"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <MailIcon size={14} aria-hidden />
@@ -244,7 +244,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
                   <button
                     type="button"
                     onClick={openSmsModal}
-                    className="w-full text-left px-3 py-2 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-[var(--color-sand-hover)]"
+                    className="fx-label w-full text-left px-3 py-2 font-semibold inline-flex items-center gap-2 hover:bg-[var(--color-sand-hover)]"
                     style={{ color: 'var(--color-ink)' }}
                   >
                     <Phone size={14} aria-hidden />
@@ -261,7 +261,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
             type="button"
             onClick={() => setConfirmEventOpen(true)}
             disabled={eventLoading || !!analyse.event_calendar_id}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-[12px] font-bold disabled:opacity-50 min-h-[44px]"
+            className="fx-label inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold disabled:opacity-50 min-h-[44px]"
             style={{
               background: analyse.event_calendar_id ? 'var(--color-ok-light)' : 'var(--color-cream)',
               color: analyse.event_calendar_id ? 'var(--color-ok)' : 'var(--color-navy)',
@@ -297,7 +297,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
             <h2 className="fxs-block-title m-0 mb-2" style={{ color: 'var(--color-ink)' }}>
               Créer l&apos;event Calendar ?
             </h2>
-            <p className="text-[13px] m-0 mb-3" style={{ color: 'var(--color-ink-mid)' }}>
+            <p className="fx-body m-0 mb-3" style={{ color: 'var(--color-ink-mid)' }}>
               {dateFmt && analyse.creneau
                 ? <>Le créneau du <strong>{dateFmt}</strong> de <strong>{analyse.creneau.heure_debut}</strong> à <strong>{analyse.creneau.heure_fin}</strong> sera réservé pour <strong>{analyse.creneau.technicien_nom}</strong>. L&apos;intervention passera en statut <strong>confirmée</strong>.</>
                 : <>Le créneau proposé sera réservé et l&apos;intervention passera en statut confirmée.</>}
@@ -306,7 +306,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
               <button
                 type="button"
                 onClick={() => setConfirmEventOpen(false)}
-                className="px-3.5 py-2 rounded-md text-[12px] font-medium"
+                className="fx-label px-3.5 py-2 rounded-lg font-medium"
                 style={{
                   background: 'var(--color-cream)',
                   border: '1px solid var(--color-sand-border)',
@@ -318,7 +318,7 @@ export function MailAnalyseActions({ threadId, analyse, onAnalyseRefresh }: Prop
               <button
                 type="button"
                 onClick={createEvent}
-                className="px-3.5 py-2 rounded-md text-[12px] font-medium"
+                className="fx-label px-3.5 py-2 rounded-lg font-medium"
                 style={{ background: 'var(--color-navy)', color: 'var(--color-cream)' }}
               >
                 Confirmer
@@ -349,7 +349,7 @@ function ToastInline({ toast }: { toast: NonNullable<Toast> }) {
   const isOk = toast.kind === 'ok';
   return (
     <div
-      className="px-3 py-2 rounded-md text-[12px] font-medium inline-flex items-center gap-2"
+      className="fx-label px-3 py-2 rounded-lg font-medium inline-flex items-center gap-2"
       style={{
         background: isOk ? 'var(--color-ok-light)' : 'var(--color-terra-light)',
         border: `1px solid ${isOk ? 'var(--color-ok-mid)' : 'var(--color-terra-mid)'}`,

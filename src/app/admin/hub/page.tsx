@@ -101,7 +101,7 @@ export default async function HubPage() {
       icon: LayoutDashboard,
       label: 'Administration',
       subtitle: 'Interventions, facturation, clients',
-      accent: '#C8924A',
+      accent: 'var(--color-amber-foxo)',
       badge: totalNotifs,
     },
     {
@@ -110,7 +110,7 @@ export default async function HubPage() {
       icon: Wrench,
       label: 'App Terrain',
       subtitle: 'Rapports, photos, paiements',
-      accent: '#2D9E6B',
+      accent: 'var(--color-ok)',
     },
     {
       href: 'https://portal.foxo.be',
@@ -118,7 +118,7 @@ export default async function HubPage() {
       icon: Building2,
       label: 'Portail Syndic',
       subtitle: 'Dossiers, documents, RDV',
-      accent: '#3B82C4',
+      accent: 'var(--color-navy-mid)',
     },
     {
       href: 'https://portal.foxo.be/rdv',
@@ -126,7 +126,7 @@ export default async function HubPage() {
       icon: CalendarDays,
       label: 'RDV Public',
       subtitle: 'Formulaire clients particuliers',
-      accent: '#9B59B6',
+      accent: 'var(--color-terra)',
     },
   ];
 
@@ -134,17 +134,14 @@ export default async function HubPage() {
     <div className="flex-1 overflow-auto">
       {/* Header dégradé sombre — hardcodé volontairement (identité
           launcher), indépendant du thème actif. */}
-      <header
-        className="px-6 py-10 text-center"
-        style={{ background: 'linear-gradient(180deg, #1A1916 0%, #2C2A24 100%)' }}
-      >
+      <header className="fx-sidebar-bg px-6 py-10 text-center">
         <div className="flex justify-center mb-4">
           <Logo size={56} variant="blanc" priority />
         </div>
-        <h1 className="text-2xl font-extrabold text-white font-display">
+        <h1 className="fx-h1 font-semibold text-cream">
           Bonjour, {prenom ?? 'Admin'}
         </h1>
-        <p className="text-sm text-[#9A9690] mt-1 capitalize">
+        <p className="fx-body text-[var(--sb-text-dim)] mt-1 capitalize">
           {today}
         </p>
       </header>
@@ -154,8 +151,7 @@ export default async function HubPage() {
         <div className="grid grid-cols-2 gap-4 sm:gap-6">
           {tiles.map((t) => {
             const Icon = t.icon;
-            const tileClass =
-              'relative w-[140px] sm:w-[160px] aspect-square bg-white border border-[#E6E2DC] rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.03] hover:shadow-raised';
+            const tileClass = 'relative w-[140px] sm:w-[160px] aspect-square bg-cream border border-card-border rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.03] hover:shadow-raised';
             const inner = (
               <>
                 {/* Barre couleur accent en haut (4px) */}
@@ -164,14 +160,14 @@ export default async function HubPage() {
                   style={{ background: t.accent }}
                 />
                 <Icon size={40} style={{ color: t.accent }} />
-                <div className="text-[15px] font-bold font-display text-ink text-center px-2">
+                <div className="fx-h2 font-semibold text-ink text-center px-2">
                   {t.label}
                 </div>
-                <div className="text-[12px] text-ink-mid text-center px-3 leading-tight">
+                <div className="fx-meta text-ink-mid text-center px-3 leading-tight">
                   {t.subtitle}
                 </div>
                 {t.badge && t.badge > 0 ? (
-                  <div className="absolute top-2 right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-terra text-white text-[10px] font-bold flex items-center justify-center">
+                  <div className="fx-badge absolute top-2 right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-terra text-cream font-semibold flex items-center justify-center">
                     {t.badge > 99 ? '99+' : t.badge}
                   </div>
                 ) : null}
@@ -201,17 +197,17 @@ export default async function HubPage() {
       {(totalNotifs > 0 || aValiderCount > 0) && (
         <div className="px-6 pb-10">
           <div className="max-w-[400px] mx-auto bg-cream border border-sand-border rounded-xl p-4">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-ink-muted mb-2">
+            <div className="fx-eyebrow font-semibold text-ink-mid mb-2">
               À traiter
             </div>
-            <div className="space-y-1.5 text-[13px]">
+            <div className="fx-body space-y-1.5">
               {urgentCount > 0 && (
                 <Link
                   href="/admin?priorite=urgente"
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">Interventions urgentes</span>
-                  <span className="text-terra font-bold">{urgentCount}</span>
+                  <span className="text-terra-ink font-semibold">{urgentCount}</span>
                 </Link>
               )}
               {overdueCount > 0 && (
@@ -220,7 +216,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">Factures en retard</span>
-                  <span className="text-terra font-bold">{overdueCount}</span>
+                  <span className="text-terra-ink font-semibold">{overdueCount}</span>
                 </Link>
               )}
               {unreadCount > 0 && (
@@ -229,7 +225,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">Messages non lus</span>
-                  <span className="text-terra font-bold">{unreadCount}</span>
+                  <span className="text-terra-ink font-semibold">{unreadCount}</span>
                 </Link>
               )}
               {aValiderCount > 0 && (
@@ -238,7 +234,7 @@ export default async function HubPage() {
                   className="flex items-center justify-between hover:underline"
                 >
                   <span className="text-ink">À valider</span>
-                  <span className="text-terra font-bold">{aValiderCount}</span>
+                  <span className="text-terra-ink font-semibold">{aValiderCount}</span>
                 </Link>
               )}
             </div>

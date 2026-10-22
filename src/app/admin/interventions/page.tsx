@@ -186,7 +186,7 @@ export default async function AdminInterventionsListPage() {
     <>
       <div className="px-6 pt-6 pb-1 flex items-center justify-between gap-3 flex-wrap flex-shrink-0">
         <h1 className="fxs-page-title">Interventions</h1>
-        <CreateInterventionButton techs={techs} />
+        <CreateInterventionButton techs={techs} label="Nouvelle intervention" variante="primaire" />
       </div>
       <InterventionsClient
         initialRows={rows}

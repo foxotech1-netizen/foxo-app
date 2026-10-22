@@ -41,8 +41,7 @@ function fmtMoney(n: number | null | undefined): string {
 type MailAnalyseRow = Pick<
   // mails_analyses : clé primaire = thread_id ; colonnes sujet/expediteur/recu_le
   // ajoutées par la migration 2026-05-19_mails_analyses_add_email_metadata_columns.
-  { thread_id: string; sujet: string | null; expediteur: string | null; recu_le: string | null; urgence: boolean | null; created_at: string | null },
-  'thread_id' | 'sujet' | 'expediteur' | 'recu_le' | 'urgence' | 'created_at'
+  { thread_id: string; sujet: string | null; expediteur: string | null; recu_le: string | null; urgence: boolean | null; created_at: string | null }, 'thread_id' | 'sujet' | 'expediteur' | 'recu_le' | 'urgence' | 'created_at'
 >;
 
 type FactureRow = Pick<Facture, 'id' | 'numero' | 'montant_ttc' | 'client_nom' | 'statut' | 'type' | 'organisation_id' | 'client_id'>;
@@ -173,15 +172,15 @@ export default async function ValidationPage() {
                 <td className="px-3.5 py-3">
                   <Link
                     href={`/admin/mails?id=${encodeURIComponent(a.thread_id)}`}
-                    className="text-[13px] font-semibold text-navy hover:underline"
+                    className="fx-body font-semibold text-navy hover:underline"
                   >
                     {a.sujet ?? '(mail sans sujet)'}
                   </Link>
                 </td>
-                <td className="px-3.5 py-3 text-[12px] text-ink-mid">{a.expediteur ?? '—'}</td>
-                <td className="px-3.5 py-3 text-[11px] text-ink-muted font-mono whitespace-nowrap">{a.recu_le ? fmtDate(a.recu_le) : a.created_at ? fmtDate(a.created_at) : '—'}</td>
+                <td className="fx-body-dense px-3.5 py-3 text-ink-mid">{a.expediteur ?? '—'}</td>
+                <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{a.recu_le ? fmtDate(a.recu_le) : a.created_at ? fmtDate(a.created_at) : '—'}</td>
                 <td className="px-3.5 py-3">
-                  {a.urgence ? <AlertTriangle size={14} className="text-terra" aria-hidden /> : <span className="text-ink-muted">—</span>}
+                  {a.urgence ? <AlertTriangle size={14} className="text-terra-ink" aria-hidden /> : <span className="text-ink-mid">—</span>}
                 </td>
               </tr>
             ))}
@@ -200,23 +199,23 @@ export default async function ValidationPage() {
               return (
                 <tr key={r.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3">
-                    <Link href={`/admin?id=${r.id}`} className="font-mono text-xs font-semibold text-navy hover:underline">
+                    <Link href={`/admin?id=${r.id}`} className="fx-label fx-ref font-semibold text-navy hover:underline">
                       {r.ref ?? '—'}
                     </Link>
                   </td>
-                  <td className="px-3.5 py-3 text-[13px]">{acp?.nom ?? acp?.adresse ?? r.adresse ?? '—'}</td>
-                  <td className="px-3.5 py-3 text-[10px] text-ink-muted font-mono">{relTime(r.updatedAt)}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{acp?.nom ?? acp?.adresse ?? r.adresse ?? '—'}</td>
+                  <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums">{relTime(r.updatedAt)}</td>
                   <td className="px-3.5 py-3">
                     {r.rapportStatut === 'valide' ? (
                       <span
-                        className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                        className="fx-pill inline-block rounded-full font-semibold px-2.5 py-0.5"
                         style={{ color: 'var(--color-navy)', background: 'var(--color-navy-pale)' }}
                       >
                         Validé
                       </span>
                     ) : (
                       <span
-                        className="inline-block rounded-full text-[11px] font-semibold px-2.5 py-0.5"
+                        className="fx-pill inline-block rounded-full font-semibold px-2.5 py-0.5"
                         style={{ color: 'var(--color-ink-mid)', background: 'var(--color-sand-mid)' }}
                       >
                         Brouillon
@@ -241,19 +240,14 @@ export default async function ValidationPage() {
               return (
                 <tr key={f.id} className="border-b border-sand-mid hover:bg-sand-hover">
                   <td className="px-3.5 py-3">
-                    <Link href={`/admin/facturation/${f.id}`} className="font-mono text-xs font-semibold text-navy hover:underline">
+                    <Link href={`/admin/facturation/${f.id}`} className="fx-label fx-ref font-semibold text-navy hover:underline">
                       {f.numero ?? '—'}
                     </Link>
                   </td>
-                  <td className="px-3.5 py-3 text-[12px] font-semibold whitespace-nowrap">{fmtMoney(f.montant_ttc)}</td>
-                  <td className="px-3.5 py-3 text-[12px]">{f.client_nom ?? '—'}</td>
+                  <td className="fx-body-dense px-3.5 py-3 font-semibold whitespace-nowrap">{fmtMoney(f.montant_ttc)}</td>
+                  <td className="fx-body-dense px-3.5 py-3">{f.client_nom ?? '—'}</td>
                   <td className="px-3.5 py-3">
-                    <span
-                      className="inline-block rounded-full font-semibold whitespace-nowrap"
-                      style={{ color: info.fg, background: info.bg, fontSize: 11, padding: '3px 9px' }}
-                    >
-                      {info.label}
-                    </span>
+                    <span className="fx-pill fx-pill-amber">{info.label}</span>
                   </td>
                 </tr>
               );
@@ -271,18 +265,16 @@ export default async function ValidationPage() {
             {notes.map((n) => (
               <tr key={n.id} className="border-b border-sand-mid hover:bg-sand-hover">
                 <td className="px-3.5 py-3">
-                  <Link href="/admin/notes-frais" className="text-[13px] font-semibold text-navy hover:underline">
+                  <Link href="/admin/notes-frais" className="fx-body font-semibold text-navy hover:underline">
                     {n.technicien_nom ?? n.technicien_email}
                   </Link>
                 </td>
-                <td className="px-3.5 py-3 text-[12px] font-semibold whitespace-nowrap">{fmtMoney(n.montant_ttc)}</td>
-                <td className="px-3.5 py-3 text-[11px] text-ink-muted font-mono whitespace-nowrap">{fmtDate(n.date_depense)}</td>
+                <td className="fx-body-dense px-3.5 py-3 font-semibold whitespace-nowrap">{fmtMoney(n.montant_ttc)}</td>
+                <td className="fx-small px-3.5 py-3 text-ink-mid tabular-nums whitespace-nowrap">{fmtDate(n.date_depense)}</td>
                 <td className="px-3.5 py-3">
                   {/* Pas de label-map exporté pour StatutNoteFrais — on rend la
                       valeur de statut telle quelle (data-driven, sans recréer de labels). */}
-                  <span className="inline-block rounded-full font-semibold bg-sand text-ink-mid" style={{ fontSize: 11, padding: '3px 9px' }}>
-                    {n.statut}
-                  </span>
+                  <span className="fx-pill">{n.statut}</span>
                 </td>
               </tr>
             ))}
@@ -297,12 +289,12 @@ export default async function ValidationPage() {
       count: suspensCount,
       body: (
         <div className="bg-cream rounded-xl border border-sand-border p-4 flex items-center justify-between gap-3">
-          <p className="text-[13px] text-ink-mid">
+          <p className="fx-body text-ink-mid">
             {suspensCount} dossier{suspensCount > 1 ? 's' : ''} à traiter dans Alertes.
           </p>
           <Link
             href="/admin/alertes"
-            className="inline-flex items-center gap-1.5 text-[12px] font-bold text-navy hover:underline whitespace-nowrap"
+            className="fx-label inline-flex items-center gap-1.5 font-semibold text-navy hover:underline whitespace-nowrap"
           >
             Voir dans Alertes
             <ArrowRight size={14} aria-hidden />
@@ -319,7 +311,7 @@ export default async function ValidationPage() {
       <div className="flex justify-between items-end mb-6 pb-3.5 border-b border-[var(--color-sand-border)]">
         <div>
           <h1 className="fxs-page-title mb-1">File de validation</h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-terra)]"></span>
             {totalAValider} élément{totalAValider > 1 ? 's' : ''} à valider
           </div>
@@ -356,12 +348,12 @@ function Section({
 }) {
   return (
     <section>
-      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-navy-pale border-navy-light dark:bg-[#1B3A6B] dark:border-[#2A5298] mb-3">
-        <Icon size={18} className="text-navy dark:text-white" aria-hidden />
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border bg-navy-pale border-navy-light mb-3">
+        <Icon size={18} className="text-navy" aria-hidden />
         <div className="flex-1">
-          <h2 className="fxs-block-title text-navy dark:text-[#F0ECE4]">{title}</h2>
+          <h2 className="fxs-block-title text-navy">{title}</h2>
         </div>
-        <span className="text-sm font-extrabold text-navy dark:text-white">{count}</span>
+        <span className="fx-body font-semibold text-navy">{count}</span>
       </div>
 
       {children}
@@ -376,7 +368,7 @@ function Table({ head, children }: { head: string[]; children: ReactNode }) {
         <thead>
           <tr className="bg-sand">
             {head.map((h) => (
-              <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border whitespace-nowrap">
+              <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border whitespace-nowrap">
                 {h}
               </th>
             ))}

@@ -124,7 +124,7 @@ function resumeFactures(liste: FactureOdoo[]): string {
 
 function Pastille({ ton, children }: { ton: TonEtat; children: React.ReactNode }) {
   return (
-    <span className={'inline-block px-2 py-0.5 rounded-full border text-[11px] font-bold whitespace-nowrap ' + CLASSES_TON[ton]}>
+    <span className={'fx-badge inline-block px-2 py-0.5 rounded-full border font-semibold whitespace-nowrap ' + CLASSES_TON[ton]}>
       {children}
     </span>
   );
@@ -162,11 +162,11 @@ function EnTeteTriable({ cle, tri, onTri, children }: {
   const actif = tri.cle === cle;
   const Icone = !actif ? ArrowUpDown : tri.sens === 'asc' ? ArrowUp : ArrowDown;
   return (
-    <th aria-sort={actif ? (tri.sens === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-1 py-0.5 font-bold">
+    <th aria-sort={actif ? (tri.sens === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-1 py-0.5 font-semibold">
       <button
         type="button"
         onClick={() => onTri(cle)}
-        className={'inline-flex items-center gap-1 px-2 min-h-[36px] rounded-md uppercase tracking-wide whitespace-nowrap hover:bg-sand-hover ' + (actif ? 'text-navy' : '')}
+        className={'inline-flex items-center gap-1 px-2 min-h-[36px] rounded-lg uppercase tracking-wide whitespace-nowrap hover:bg-sand-hover ' + (actif ? 'text-navy' : '')}
       >
         {children}
         <Icone size={13} aria-hidden className={actif ? undefined : 'opacity-50'} />
@@ -323,16 +323,16 @@ export function OdooClient({
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="fxs-title-sm text-ink">Données Odoo</h2>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-navy-pale border border-navy-light text-navy text-[11px] font-bold">
+            <span className="fx-pill inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-navy-pale border border-navy-light text-navy font-semibold">
               <Lock size={12} aria-hidden /> Lecture seule
             </span>
           </div>
-          <div className="text-[13px] text-ink-mid">
+          <div className="fx-body text-ink-mid">
             Pièces comptabilisées dans Odoo{depuis ? ` depuis le ${fmtJour(depuis)}` : ''}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="text-[12px] text-ink-mid text-right">
+          <div className="fx-meta text-ink-mid text-right">
             Dernière synchronisation :{' '}
             <strong className="text-ink font-semibold">
               {fmtMoment(dernierPassageReussi?.terminee_le ?? null)}
@@ -343,7 +343,7 @@ export function OdooClient({
               type="button"
               onClick={basculerNocturne}
               disabled={pending}
-              className="text-navy font-bold underline hover:no-underline disabled:opacity-50"
+              className="text-navy font-semibold underline hover:no-underline disabled:opacity-50"
             >
               {nocturneActive ? 'Désactiver' : 'Activer'}
             </button>
@@ -352,7 +352,7 @@ export function OdooClient({
             type="button"
             onClick={synchroniser}
             disabled={pending}
-            className="bg-navy text-white px-4 rounded-lg text-[13px] font-bold hover:opacity-90 inline-flex items-center gap-2 min-h-[44px] disabled:opacity-50"
+            className="fx-body bg-navy text-cream px-4 rounded-lg font-semibold hover:opacity-90 inline-flex items-center gap-2 min-h-[44px] disabled:opacity-50"
           >
             <RefreshCw size={15} aria-hidden className={pending ? 'animate-spin' : undefined} />
             {pending ? 'Synchronisation en cours…' : 'Synchroniser maintenant'}
@@ -361,30 +361,29 @@ export function OdooClient({
       </div>
 
       {erreurChargement && (
-        <div className="text-[13px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+        <div className="fx-body text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           Erreur de chargement : {erreurChargement}
         </div>
       )}
       {retour && (
         <div
           role="status"
-          className={
-            'text-[13px] rounded-md px-3 py-2 border font-semibold ' +
-            (retour.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra')
+          className={'fx-body rounded-lg px-3 py-2 border font-semibold ' +
+            (retour.kind === 'ok' ? 'bg-ok-light border-ok-mid text-ok' : 'bg-terra-light border-terra-mid text-terra-ink')
           }
         >
           {retour.msg}
         </div>
       )}
       {!retour && dernierPassage?.statut === 'erreur' && (
-        <div className="text-[13px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+        <div className="fx-body text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           Le dernier passage ({fmtMoment(dernierPassage.demarree_le)}) a échoué : {dernierPassage.erreur ?? 'erreur inconnue'}.
           Les données affichées sont celles du dernier passage réussi.
         </div>
       )}
 
       {vide ? (
-        <div className="text-center py-14 text-ink-mid text-[13px] bg-cream rounded-xl border border-sand-border">
+        <div className="fx-body text-center py-14 text-ink-mid bg-cream rounded-xl border border-sand-border">
           Aucune donnée Odoo pour l&apos;instant. Cliquez sur « Synchroniser maintenant » pour une première recopie.
         </div>
       ) : (
@@ -397,23 +396,22 @@ export function OdooClient({
                   type="button"
                   onClick={() => choisirVue(t.cle)}
                   aria-pressed={vue === t.cle}
-                  className={
-                    'w-full flex-1 text-left bg-cream rounded-xl border-2 px-4 py-3.5 shadow-card flex flex-col gap-1.5 ' +
+                  className={'w-full flex-1 text-left bg-cream rounded-xl border-2 px-4 py-3.5 shadow-card flex flex-col gap-1.5 ' +
                     (vue === t.cle ? 'border-navy' : 'border-transparent hover:border-navy-light')
                   }
                 >
                   <span className="fxs-block-title text-ink">{t.label}</span>
-                  <span className="font-sora text-[30px] font-semibold leading-none tracking-tight tabular-nums text-ink">
+                  <span className="fx-kpi font-semibold leading-none tracking-tight tabular-nums text-ink">
                     {t.nombre}
                   </span>
-                  <span className="text-[12px] text-ink-mid">{t.detail}</span>
+                  <span className="fx-meta text-ink-mid">{t.detail}</span>
                 </button>
                 {t.cle === 'ventes' && (
                   <button
                     type="button"
                     onClick={() => setReconstruction((o) => !o)}
                     aria-expanded={reconstruction}
-                    className="self-start inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg border border-sand-border bg-white text-navy text-[12px] font-bold hover:border-navy-mid"
+                    className="fx-label self-start inline-flex items-center gap-1.5 min-h-[36px] px-3 rounded-lg border border-sand-border bg-cream text-navy font-semibold hover:border-navy-mid"
                     data-testid="odoo-reconstruction-ouvrir"
                   >
                     <FolderPlus size={14} aria-hidden /> Reconstruire les dossiers depuis Odoo
@@ -428,7 +426,7 @@ export function OdooClient({
           )}
 
           {nonRapproches > 0 && (
-            <div role="note" className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-light border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-deep)] text-[13px]">
+            <div role="note" className="fx-body flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-amber-light border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-deep)]">
               <Info size={17} aria-hidden className="flex-none mt-px" />
               <div>
                 <strong className="font-semibold">
@@ -450,26 +448,25 @@ export function OdooClient({
                     type="button"
                     onClick={() => setFiltre(f.cle)}
                     aria-pressed={filtre === f.cle}
-                    className={
-                      'min-h-[36px] px-3.5 rounded-full border text-[12px] font-bold ' +
+                    className={'fx-pill min-h-[36px] px-3.5 rounded-full border font-semibold ' +
                       (filtre === f.cle
-                        ? 'bg-navy text-white border-navy'
-                        : 'bg-white text-ink border-sand-border hover:border-navy-light')
+                        ? 'bg-navy text-cream border-navy'
+                        : 'bg-cream text-ink border-sand-border hover:border-navy-light')
                     }
                   >
                     {f.label}
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="odoo-recherche" className="text-[12px] font-semibold text-ink-mid">Rechercher</label>
+              <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">
+                <label htmlFor="odoo-recherche" className="fx-label font-semibold text-ink-mid">Rechercher</label>
                 <input
                   id="odoo-recherche"
                   type="search"
                   value={recherche}
                   onChange={(e) => setRecherche(e.target.value)}
                   placeholder="N°, dossier, adresse, montant"
-                  className="w-[250px] max-w-full min-h-[36px] px-3 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+                  className="fx-body w-[250px] max-w-full min-w-0 min-h-[36px] px-3 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                 />
               </div>
             </div>
@@ -478,16 +475,16 @@ export function OdooClient({
               {estFactures ? (
                 <table className="w-full text-left min-w-[1040px]">
                   <thead>
-                    <tr className="bg-sand-mid text-[11px] uppercase tracking-wide text-ink-mid">
+                    <tr className="fx-th bg-sand-mid text-ink-mid">
                       <EnTeteTriable cle="numero" tri={tri} onTri={choisirTri}>N° Odoo</EnTeteTriable>
                       <EnTeteTriable cle="dossier" tri={tri} onTri={choisirTri}>{vue === 'ventes' ? 'Dossier' : 'Réf. fournisseur'}</EnTeteTriable>
                       <EnTeteTriable cle="tiers" tri={tri} onTri={choisirTri}>{vue === 'ventes' ? 'Client' : 'Fournisseur'}</EnTeteTriable>
                       <EnTeteTriable cle="date" tri={tri} onTri={choisirTri}>Date</EnTeteTriable>
-                      <th className="px-3 py-2.5 font-bold">Échéance</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Montant TTC</th>
-                      <th className="px-3 py-2.5 font-bold">État</th>
-                      <th className="px-3 py-2.5 font-bold">Payée le</th>
-                      <th className="px-3 py-2.5 font-bold">Odoo</th>
+                      <th className="px-3 py-2.5 font-semibold">Échéance</th>
+                      <th className="px-3 py-2.5 font-semibold text-right">Montant TTC</th>
+                      <th className="px-3 py-2.5 font-semibold">État</th>
+                      <th className="px-3 py-2.5 font-semibold">Payée le</th>
+                      <th className="px-3 py-2.5 font-semibold">Odoo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -495,7 +492,7 @@ export function OdooClient({
                       const info = etatFacture(f.etat_paiement, f.sens);
                       const adresse = adresseDe(f);
                       return (
-                        <tr key={f.id} className="border-t border-sand-border text-[13px] hover:bg-sand-hover">
+                        <tr key={f.id} className="fx-body border-t border-sand-border hover:bg-sand-hover">
                           <td className="px-3 py-2.5 font-semibold text-ink whitespace-nowrap">
                             {f.numero ?? '—'}
                             {f.est_note_credit && (
@@ -506,12 +503,12 @@ export function OdooClient({
                             {vue === 'ventes' ? (
                               <>
                                 {f.dossier_ref && f.intervention_id && (
-                                  <Link href={`/admin/interventions/${f.intervention_id}`} className="font-bold text-navy hover:underline">
+                                  <Link href={`/admin/interventions/${f.intervention_id}`} className="font-semibold text-navy hover:underline">
                                     {f.dossier_ref}
                                   </Link>
                                 )}
                                 {f.dossier_ref && !f.intervention_id && (
-                                  <span className="font-bold text-ink-mid" title="Ce dossier n'existe pas dans FoxO">{f.dossier_ref}</span>
+                                  <span className="font-semibold text-ink-mid" title="Ce dossier n'existe pas dans FoxO">{f.dossier_ref}</span>
                                 )}
                                 {adresse && <span className="text-ink-mid">{f.dossier_ref ? ' ' : ''}{adresse}</span>}
                                 {!f.dossier_ref && !adresse && '—'}
@@ -533,7 +530,7 @@ export function OdooClient({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label={`Ouvrir ${f.numero ?? 'la pièce'} dans Odoo`}
-                                className="inline-flex items-center justify-center w-10 h-10 text-ink-mid hover:text-navy"
+                                className="inline-flex items-center justify-center w-11 h-11 text-ink-mid hover:text-navy"
                               >
                                 <ExternalLink size={15} aria-hidden />
                               </a>
@@ -547,20 +544,20 @@ export function OdooClient({
               ) : (
                 <table className="w-full text-left min-w-[980px]">
                   <thead>
-                    <tr className="bg-sand-mid text-[11px] uppercase tracking-wide text-ink-mid">
-                      <th className="px-3 py-2.5 font-bold">Date</th>
-                      <th className="px-3 py-2.5 font-bold text-right">Montant</th>
-                      <th className="px-3 py-2.5 font-bold">{vue === 'recus' ? 'Payeur' : 'Bénéficiaire'}</th>
-                      <th className="px-3 py-2.5 font-bold">Communication</th>
-                      <th className="px-3 py-2.5 font-bold">Facture liée</th>
-                      <th className="px-3 py-2.5 font-bold">État</th>
+                    <tr className="fx-th bg-sand-mid text-ink-mid">
+                      <th className="px-3 py-2.5 font-semibold">Date</th>
+                      <th className="px-3 py-2.5 font-semibold text-right">Montant</th>
+                      <th className="px-3 py-2.5 font-semibold">{vue === 'recus' ? 'Payeur' : 'Bénéficiaire'}</th>
+                      <th className="px-3 py-2.5 font-semibold">Communication</th>
+                      <th className="px-3 py-2.5 font-semibold">Facture liée</th>
+                      <th className="px-3 py-2.5 font-semibold">État</th>
                     </tr>
                   </thead>
                   <tbody>
                     {mouvementsAffiches.map((m) => {
                       const liees = m.odoo_move_id != null ? facturesParMouvement.get(m.odoo_move_id) ?? [] : [];
                       return (
-                        <tr key={m.id} className="border-t border-sand-border text-[13px] hover:bg-sand-hover">
+                        <tr key={m.id} className="fx-body border-t border-sand-border hover:bg-sand-hover">
                           <td className="px-3 py-2.5 tabular-nums whitespace-nowrap">{fmtJour(m.date_mouvement)}</td>
                           <td className="px-3 py-2.5 text-right font-semibold tabular-nums whitespace-nowrap">{fmtMontantSigne(m.montant)}</td>
                           <td className="px-3 py-2.5 text-ink-mid">{m.tiers_nom ?? '—'}</td>
@@ -578,13 +575,13 @@ export function OdooClient({
                 </table>
               )}
               {nbAffiches === 0 && (
-                <div className="px-4 py-7 border-t border-sand-border text-center text-[13px] text-ink-mid">
+                <div className="fx-body px-4 py-7 border-t border-sand-border text-center text-ink-mid">
                   Aucune ligne ne correspond à ce filtre ou à cette recherche.
                 </div>
               )}
             </div>
 
-            <div className="flex flex-wrap justify-between gap-2 text-[12px] text-ink-mid">
+            <div className="fx-meta flex flex-wrap justify-between gap-2 text-ink-mid">
               <div>{nbAffiches} ligne{nbAffiches > 1 ? 's' : ''} affichée{nbAffiches > 1 ? 's' : ''} sur {nbTotal}.</div>
               <div>Pour corriger une pièce, ouvrez-la dans Odoo : rien n&apos;est modifiable ici.</div>
             </div>

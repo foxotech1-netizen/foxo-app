@@ -44,23 +44,23 @@ export function ActionConfirmCard({ pendingAction }: { pendingAction: PendingAct
     return (
       <div className="bg-cream border border-sand-border rounded-lg px-3 py-2 inline-flex items-start gap-2">
         <Check size={14} className="text-ok mt-0.5 flex-shrink-0" aria-hidden />
-        <span className="text-[12px] text-ink font-semibold">{resultMsg}</span>
+        <span className="fx-label text-ink font-semibold">{resultMsg}</span>
       </div>
     );
   }
 
   if (status === 'cancelled') {
     return (
-      <div className="text-[12px] text-ink-muted italic px-3 py-2">Action annulée.</div>
+      <div className="fx-meta text-ink-mid italic px-3 py-2">Action annulée.</div>
     );
   }
 
   return (
     <div className="bg-navy-pale border border-navy-light rounded-lg px-3 py-2.5">
-      <div className="text-[10px] uppercase tracking-wider font-bold mb-1 text-navy">Action à confirmer</div>
-      <div className="text-[12px] text-ink mb-2 leading-relaxed">{pendingAction.summary}</div>
+      <div className="fx-eyebrow font-semibold mb-1 text-navy">Action à confirmer</div>
+      <div className="fx-meta text-ink mb-2 leading-relaxed">{pendingAction.summary}</div>
       {status === 'error' && errorMsg && (
-        <div className="bg-terra-light border border-terra-mid text-terra text-[11px] rounded-md px-2 py-1.5 mb-2 font-semibold">
+        <div className="fx-small bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-2 py-1.5 mb-2 font-semibold">
           {errorMsg}
         </div>
       )}
@@ -69,7 +69,7 @@ export function ActionConfirmCard({ pendingAction }: { pendingAction: PendingAct
           type="button"
           onClick={execute}
           disabled={status === 'executing'}
-          className="bg-navy text-white text-[12px] font-bold px-3 py-1.5 rounded-md hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
+          className="fx-label bg-navy text-cream font-semibold px-3 py-1.5 rounded-lg hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5"
         >
           {status === 'executing' ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Play size={13} aria-hidden />}
           {status === 'executing' ? 'Exécution…' : status === 'error' ? 'Réessayer' : 'Exécuter'}
@@ -78,7 +78,7 @@ export function ActionConfirmCard({ pendingAction }: { pendingAction: PendingAct
           type="button"
           onClick={() => setStatus('cancelled')}
           disabled={status === 'executing'}
-          className="bg-white border border-sand-border text-ink-mid text-[12px] font-semibold px-3 py-1.5 rounded-md hover:border-terra-mid hover:text-terra disabled:opacity-50 inline-flex items-center gap-1.5"
+          className="fx-label bg-cream border border-sand-border text-ink-mid font-semibold px-3 py-1.5 rounded-lg hover:border-terra-mid hover:text-terra-ink disabled:opacity-50 inline-flex items-center gap-1.5"
         >
           <X size={13} aria-hidden />
           Annuler

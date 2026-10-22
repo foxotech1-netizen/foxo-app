@@ -116,8 +116,8 @@ export function NotesAppelSection({
   const visible = expanded ? list : list.slice(0, VISIBLE);
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4">
-      <h2 className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-ink-mid mb-3">
+    <section className="bg-cream border border-sand-border rounded-modal p-4">
+      <h2 className="fx-th inline-flex items-center gap-1.5 font-medium text-ink-mid mb-3">
         <Phone size={12} /> Notes d&apos;appel{notes ? ` (${list.length})` : ''}
       </h2>
 
@@ -133,7 +133,7 @@ export function NotesAppelSection({
           maxLength={2000}
           disabled={sending}
           placeholder="Note d'appel : qui a appelé, ce qui a été dit, ce qui est convenu…"
-          className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y min-h-[56px] disabled:opacity-60"
+          className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y min-h-[56px] disabled:opacity-60"
         />
         <div className="flex flex-wrap items-center gap-2">
           {dossiers.length > 0 && (
@@ -142,7 +142,7 @@ export function NotesAppelSection({
               onChange={(e) => setIvId(e.target.value)}
               disabled={sending}
               aria-label="Rattacher à un dossier"
-              className="px-3 py-2 border border-sand-border rounded-lg text-[12px] bg-white text-ink-mid outline-none focus:border-navy-mid cursor-pointer disabled:opacity-60"
+              className="fx-meta px-3 py-2 border border-sand-border rounded-lg bg-cream text-ink-mid outline-none focus:border-navy-mid cursor-pointer disabled:opacity-60"
             >
               <option value="">— Rattacher à un dossier (optionnel) —</option>
               {dossiers.map((d) => (
@@ -156,13 +156,13 @@ export function NotesAppelSection({
             type="button"
             onClick={submit}
             disabled={!contenu.trim() || sending}
-            className="ml-auto px-3.5 py-2 rounded-lg text-[12px] font-bold bg-navy text-white hover:opacity-90 disabled:opacity-50"
+            className="fx-label ml-auto px-3.5 py-2 rounded-lg font-semibold bg-navy text-cream hover:opacity-90 disabled:opacity-50"
           >
             {sending ? 'Enregistrement…' : 'Enregistrer la note'}
           </button>
         </div>
         {sendError && (
-          <div className="px-3 py-1.5 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
+          <div className="fx-small px-3 py-1.5 bg-terra-light border border-terra-mid text-terra-ink rounded-lg font-semibold">
             {sendError}
           </div>
         )}
@@ -170,29 +170,29 @@ export function NotesAppelSection({
 
       {/* Liste */}
       {loadError ? (
-        <div className="px-3 py-2 bg-terra-light border border-terra-mid text-terra rounded-md text-[11px] font-semibold">
+        <div className="fx-small px-3 py-2 bg-terra-light border border-terra-mid text-terra-ink rounded-lg font-semibold">
           {loadError}
         </div>
       ) : notes === null ? (
-        <p className="text-[12px] text-ink-muted italic">Chargement…</p>
+        <p className="fx-meta text-ink-mid italic">Chargement…</p>
       ) : list.length === 0 ? (
-        <p className="text-[12px] text-ink-muted italic">Aucune note d&apos;appel.</p>
+        <p className="fx-meta text-ink-mid italic">Aucune note d&apos;appel.</p>
       ) : (
         <>
           <ul className="divide-y divide-sand-mid">
             {visible.map((n) => (
               <li key={n.id} className="py-2.5">
-                <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-muted">
-                  <span className="font-mono font-semibold">{fmtDateTime(n.created_at)}</span>
+                <div className="fx-small flex flex-wrap items-center gap-2 text-ink-mid">
+                  <span className="tabular-nums font-semibold">{fmtDateTime(n.created_at)}</span>
                   {n.created_by && <span>— {n.created_by}</span>}
                   {n.intervention_ref && (
-                    <span className="inline-block font-mono font-bold text-navy bg-navy-pale border border-navy-light rounded px-1.5 py-0.5">
+                    <span className="inline-block fx-ref font-semibold text-navy bg-navy-pale border border-navy-light rounded px-1.5 py-0.5">
                       {n.intervention_ref}
                     </span>
                   )}
                   {n.id.startsWith('temp-') && <span className="italic">envoi…</span>}
                 </div>
-                <p className="text-[13px] text-ink mt-1 whitespace-pre-wrap leading-relaxed">
+                <p className="fx-body text-ink mt-1 whitespace-pre-wrap leading-relaxed">
                   {n.contenu}
                 </p>
               </li>
@@ -202,7 +202,7 @@ export function NotesAppelSection({
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="mt-1 w-full py-2 text-[11px] font-bold text-navy hover:bg-sand-hover rounded-md"
+              className="fx-small mt-1 w-full py-2 font-semibold text-navy hover:bg-sand-hover rounded-lg"
             >
               Voir plus ({list.length - VISIBLE} de plus)
             </button>

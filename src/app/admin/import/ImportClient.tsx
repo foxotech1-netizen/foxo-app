@@ -24,7 +24,7 @@ interface ResultatLigne {
 const STATUS_BADGE: Record<ResultatLigne['status'], { label: string; cls: string }> = {
   ok:      { label: 'OK',      cls: 'bg-ok-light text-ok border-ok-mid' },
   doublon: { label: 'Doublon', cls: 'bg-sand-mid text-ink-mid border-sand-border' },
-  rejet:   { label: 'Rejet',   cls: 'bg-terra-light text-terra border-terra-mid' },
+  rejet:   { label: 'Rejet',   cls: 'bg-terra-light text-terra-ink border-terra-mid' },
 };
 
 export function ImportClient() {
@@ -80,8 +80,7 @@ export function ImportClient() {
       const headers = (grid[0] ?? []).map((h) => String(h).trim());
       for (let i = 0; i < COLONNES_IMPORT.length; i += 1) {
         if (headers[i] !== COLONNES_IMPORT[i].header) {
-          throw new Error(
-            `En-tête inattendu en colonne ${i + 1} : attendu « ${COLONNES_IMPORT[i].header} », lu « ${headers[i] || '(vide)'} ».`,
+          throw new Error( `En-tête inattendu en colonne ${i + 1} : attendu « ${COLONNES_IMPORT[i].header} », lu « ${headers[i] || '(vide)'} ».`,
           );
         }
       }
@@ -141,8 +140,7 @@ export function ImportClient() {
   function exportRejets() {
     const rejets = results.filter((r) => r.status === 'rejet');
     if (rejets.length === 0) return;
-    const lines = [
-      'ligne;ref;raison',
+    const lines = [ 'ligne;ref;raison',
       ...rejets.map((r) => [r.row, r.ref ?? '', (r.raison ?? '').replace(/;/g, ',')].join(';')),
     ];
     const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -155,7 +153,7 @@ export function ImportClient() {
   }
 
   return (
-    <section className="bg-cream border border-sand-border rounded-2xl p-4 space-y-3 max-w-[980px]">
+    <section className="bg-cream border border-sand-border rounded-modal p-4 space-y-3 max-w-[980px]">
       <h2 className="fxs-section-title text-ink flex items-center gap-1.5">
         <FileUp size={15} aria-hidden /> Fichier Excel (.xlsx)
       </h2>
@@ -169,11 +167,11 @@ export function ImportClient() {
           const f = e.target.files?.[0];
           if (f) void handleFile(f);
         }}
-        className="w-full text-[12px] file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-white file:text-[12px] file:font-bold file:cursor-pointer"
+        className="fx-meta w-full file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-navy file:text-cream file:font-semibold file:cursor-pointer"
       />
       {fileName && (
-        <div className="text-[11px] text-ink-mid">
-          Fichier : <span className="font-mono">{fileName}</span>
+        <div className="fx-small text-ink-mid">
+          Fichier : <span className="tabular-nums">{fileName}</span>
           {lignes.length > 0 && <> · <strong>{lignes.length}</strong> ligne(s) de données lue(s)</>}
           {' · '}
           <button type="button" onClick={reset} className="text-navy underline hover:no-underline">
@@ -183,7 +181,7 @@ export function ImportClient() {
       )}
 
       {busy && (
-        <div className="flex items-center gap-2 text-[12px] text-ink-mid font-semibold">
+        <div className="fx-label flex items-center gap-2 text-ink-mid font-semibold">
           <Loader2 size={14} className="animate-spin" aria-hidden />
           {phase === 'parsing' && 'Lecture du classeur…'}
           {phase === 'dryrun' && `Validation à blanc… ${progress ? `${progress.done}/${progress.total} lignes` : ''}`}
@@ -192,7 +190,7 @@ export function ImportClient() {
       )}
 
       {error && (
-        <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+        <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
           {error}
         </div>
       )}
@@ -202,32 +200,32 @@ export function ImportClient() {
         <div className="overflow-x-auto border border-sand-border rounded-lg">
           <table className="w-full text-left min-w-[720px]">
             <thead>
-              <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted bg-sand">
-                <th className="px-2.5 py-1.5 font-bold">Ligne</th>
-                <th className="px-2.5 py-1.5 font-bold">Réf. FoxO</th>
-                <th className="px-2.5 py-1.5 font-bold">Date</th>
-                <th className="px-2.5 py-1.5 font-bold">ACP / Résidence</th>
-                <th className="px-2.5 py-1.5 font-bold">Syndic</th>
-                <th className="px-2.5 py-1.5 font-bold">Type</th>
-                <th className="px-2.5 py-1.5 font-bold">Statut</th>
+              <tr className="fx-eyebrow border-b border-sand-border text-ink-mid bg-sand">
+                <th className="px-2.5 py-1.5 font-semibold">Ligne</th>
+                <th className="px-2.5 py-1.5 font-semibold">Réf. FoxO</th>
+                <th className="px-2.5 py-1.5 font-semibold">Date</th>
+                <th className="px-2.5 py-1.5 font-semibold">ACP / Résidence</th>
+                <th className="px-2.5 py-1.5 font-semibold">Syndic</th>
+                <th className="px-2.5 py-1.5 font-semibold">Type</th>
+                <th className="px-2.5 py-1.5 font-semibold">Statut</th>
               </tr>
             </thead>
             <tbody>
               {lignes.slice(0, 5).map((l) => (
-                <tr key={l.row} className="border-b border-sand-mid bg-white">
-                  <td className="px-2.5 py-1.5 text-[11px] font-mono text-ink-muted">{l.row}</td>
-                  <td className="px-2.5 py-1.5 text-[11px] font-mono font-bold text-navy whitespace-nowrap">{l.ref_foxo || '(auto)'}</td>
-                  <td className="px-2.5 py-1.5 text-[11px] font-mono whitespace-nowrap">{l.date}{l.heure ? ` ${l.heure}` : ''}</td>
-                  <td className="px-2.5 py-1.5 text-[11px]">{l.acp || '—'}</td>
-                  <td className="px-2.5 py-1.5 text-[11px]">{l.syndic || '—'}</td>
-                  <td className="px-2.5 py-1.5 text-[11px]">{l.type || '—'}</td>
-                  <td className="px-2.5 py-1.5 text-[11px]">{l.statut || '—'}</td>
+                <tr key={l.row} className="border-b border-sand-mid bg-cream">
+                  <td className="fx-small px-2.5 py-1.5 tabular-nums text-ink-mid">{l.row}</td>
+                  <td className="fx-small px-2.5 py-1.5 fx-ref font-semibold text-navy whitespace-nowrap">{l.ref_foxo || '(auto)'}</td>
+                  <td className="fx-small px-2.5 py-1.5 tabular-nums whitespace-nowrap">{l.date}{l.heure ? ` ${l.heure}` : ''}</td>
+                  <td className="fx-small px-2.5 py-1.5">{l.acp || '—'}</td>
+                  <td className="fx-small px-2.5 py-1.5">{l.syndic || '—'}</td>
+                  <td className="fx-small px-2.5 py-1.5">{l.type || '—'}</td>
+                  <td className="fx-small px-2.5 py-1.5">{l.statut || '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {lignes.length > 5 && (
-            <div className="px-2.5 py-1.5 text-[10px] text-ink-muted bg-sand">
+            <div className="fx-small px-2.5 py-1.5 text-ink-mid bg-sand">
               … et {lignes.length - 5} autre(s) ligne(s).
             </div>
           )}
@@ -237,21 +235,21 @@ export function ImportClient() {
       {/* Compteurs + journal */}
       {results.length > 0 && (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
-            <span className="px-2 py-1 rounded-md bg-ok-light text-ok border border-ok-mid">
+          <div className="fx-small flex flex-wrap items-center gap-2 font-semibold">
+            <span className="px-2 py-1 rounded-lg bg-ok-light text-ok border border-ok-mid">
               {compteurs.ok} {phase === 'done' ? 'créée(s)' : 'OK'}
             </span>
-            <span className="px-2 py-1 rounded-md bg-sand-mid text-ink-mid border border-sand-border">
+            <span className="px-2 py-1 rounded-lg bg-sand-mid text-ink-mid border border-sand-border">
               {compteurs.doublon} doublon(s) ignoré(s)
             </span>
-            <span className="px-2 py-1 rounded-md bg-terra-light text-terra border border-terra-mid">
+            <span className="px-2 py-1 rounded-lg bg-terra-light text-terra-ink border border-terra-mid">
               {compteurs.rejet} rejetée(s)
             </span>
             {compteurs.rejet > 0 && (
               <button
                 type="button"
                 onClick={exportRejets}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-sand-border bg-white text-ink-mid hover:border-navy-mid"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-sand-border bg-cream text-ink-mid hover:border-navy-mid"
               >
                 <Download size={12} aria-hidden /> Export CSV des rejets
               </button>
@@ -262,26 +260,26 @@ export function ImportClient() {
             <div className="max-h-[320px] overflow-y-auto">
               <table className="w-full text-left min-w-[640px]">
                 <thead className="sticky top-0">
-                  <tr className="border-b border-sand-border text-[10px] uppercase tracking-wider text-ink-muted bg-sand">
-                    <th className="px-2.5 py-1.5 font-bold">Ligne</th>
-                    <th className="px-2.5 py-1.5 font-bold">Réf.</th>
-                    <th className="px-2.5 py-1.5 font-bold">Résultat</th>
-                    <th className="px-2.5 py-1.5 font-bold">Raison / détails</th>
+                  <tr className="fx-eyebrow border-b border-sand-border text-ink-mid bg-sand">
+                    <th className="px-2.5 py-1.5 font-semibold">Ligne</th>
+                    <th className="px-2.5 py-1.5 font-semibold">Réf.</th>
+                    <th className="px-2.5 py-1.5 font-semibold">Résultat</th>
+                    <th className="px-2.5 py-1.5 font-semibold">Raison / détails</th>
                   </tr>
                 </thead>
                 <tbody>
                   {results.map((r) => {
                     const badge = STATUS_BADGE[r.status];
                     return (
-                      <tr key={`${r.row}-${r.status}`} className="border-b border-sand-mid bg-white">
-                        <td className="px-2.5 py-1.5 text-[11px] font-mono text-ink-muted">{r.row}</td>
-                        <td className="px-2.5 py-1.5 text-[11px] font-mono font-bold text-navy whitespace-nowrap">{r.ref ?? '—'}</td>
+                      <tr key={`${r.row}-${r.status}`} className="border-b border-sand-mid bg-cream">
+                        <td className="fx-small px-2.5 py-1.5 tabular-nums text-ink-mid">{r.row}</td>
+                        <td className="fx-small px-2.5 py-1.5 fx-ref font-semibold text-navy whitespace-nowrap">{r.ref ?? '—'}</td>
                         <td className="px-2.5 py-1.5">
-                          <span className={`text-[10px] font-bold border rounded-full px-2 py-0.5 whitespace-nowrap ${badge.cls}`}>
+                          <span className={`fx-badge font-semibold border rounded-full px-2 py-0.5 whitespace-nowrap ${badge.cls}`}>
                             {badge.label}
                           </span>
                         </td>
-                        <td className="px-2.5 py-1.5 text-[11px] text-ink-mid">{r.raison ?? r.details ?? '—'}</td>
+                        <td className="fx-small px-2.5 py-1.5 text-ink-mid">{r.raison ?? r.details ?? '—'}</td>
                       </tr>
                     );
                   })}
@@ -294,7 +292,7 @@ export function ImportClient() {
 
       {/* Actions */}
       {phase === 'done' ? (
-        <div className="flex items-center gap-2 text-[12px] font-bold text-ok">
+        <div className="fx-label flex items-center gap-2 font-semibold text-ok">
           <CheckCircle2 size={15} aria-hidden />
           Import terminé — {compteurs.ok} intervention(s) créée(s), {compteurs.doublon} doublon(s), {compteurs.rejet} rejet(s).
         </div>
@@ -305,7 +303,7 @@ export function ImportClient() {
               type="button"
               onClick={() => void run(true)}
               disabled={busy}
-              className="bg-white border-2 border-navy text-navy px-4 py-2.5 rounded-lg text-[13px] font-bold hover:bg-navy-pale disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+              className="fx-body bg-cream border-2 border-navy text-navy px-4 py-2.5 rounded-lg font-semibold hover:bg-navy-pale disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
             >
               <FlaskConical size={14} aria-hidden />
               Validation à blanc
@@ -315,13 +313,13 @@ export function ImportClient() {
               onClick={() => void run(false)}
               disabled={busy || !dryRunDone}
               title={dryRunDone ? undefined : 'Lance d\'abord la validation à blanc'}
-              className="bg-navy text-white px-4 py-2.5 rounded-lg text-[13px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+              className="fx-body bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
             >
               <Upload size={14} aria-hidden />
               Importer {lignes.length} ligne(s)
             </button>
             {!dryRunDone && lignes.length > 0 && (
-              <span className="text-[11px] text-ink-muted italic">
+              <span className="fx-small text-ink-mid italic">
                 La validation à blanc est obligatoire avant l&apos;import.
               </span>
             )}

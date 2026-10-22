@@ -73,13 +73,12 @@ export function LierDossierButton({
         title={interventionRef
           ? `Liée au dossier ${interventionRef} — cliquer pour changer.`
           : 'Rattacher cette facture à un dossier (rentabilité par dossier).'}
-        className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-lg text-[12px] font-bold hover:bg-sand-hover min-h-[44px] inline-flex items-center gap-1.5"
+        className="fx-label bg-cream text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-semibold hover:bg-sand-hover min-h-[44px] inline-flex items-center gap-1.5"
       >
         <Link2 size={14} aria-hidden />
         {interventionRef ? (
-          <>Dossier <span className="font-mono text-navy">{interventionRef}</span></>
-        ) : (
-          'Lier à un dossier'
+          <>Dossier <span className="fx-ref text-navy">{interventionRef}</span></>
+        ) : ( 'Lier à un dossier'
         )}
       </button>
 
@@ -92,15 +91,15 @@ export function LierDossierButton({
           aria-label="Lier la facture à un dossier"
         >
           <div
-            className="bg-cream rounded-2xl border border-sand-border p-5 w-full max-w-[440px] space-y-3"
+            className="bg-cream rounded-modal border border-sand-border p-5 w-full max-w-[440px] space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-[14px] font-bold text-ink">Lier à un dossier</h2>
+              <h2 className="fx-h3 font-semibold text-ink">Lier à un dossier</h2>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-ink-muted hover:text-ink p-1"
+                className="text-ink-mid hover:text-ink p-1"
                 aria-label="Fermer"
               >
                 <X size={16} aria-hidden />
@@ -108,15 +107,15 @@ export function LierDossierButton({
             </div>
 
             {interventionId && (
-              <div className="flex items-center justify-between gap-2 text-[12px] bg-navy-pale border border-navy-light rounded-lg px-3 py-2">
+              <div className="fx-meta flex items-center justify-between gap-2 bg-navy-pale border border-navy-light rounded-lg px-3 py-2">
                 <span>
-                  Actuellement liée à <span className="font-mono font-bold text-navy">{interventionRef ?? interventionId.slice(0, 8)}</span>
+                  Actuellement liée à <span className="fx-ref font-semibold text-navy">{interventionRef ?? interventionId.slice(0, 8)}</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => apply(null)}
                   disabled={pending}
-                  className="text-[11px] font-semibold text-terra hover:underline disabled:opacity-50"
+                  className="fx-small font-semibold text-terra-ink hover:underline disabled:opacity-50"
                 >
                   Délier
                 </button>
@@ -128,30 +127,30 @@ export function LierDossierButton({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="ex : 2026-012 ou Rue Willems…"
               autoFocus
-              className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+              className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
             />
             {showResults && (
-              <div className="bg-white border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[240px] overflow-y-auto">
+              <div className="bg-cream border border-sand-border rounded-lg divide-y divide-sand-mid max-h-[240px] overflow-y-auto">
                 {results.map((r) => (
                   <button
                     key={r.id}
                     type="button"
                     onClick={() => apply(r.id)}
                     disabled={pending}
-                    className="block w-full text-left px-3 py-2 text-[12px] hover:bg-sand disabled:opacity-50"
+                    className="fx-meta block w-full text-left px-3 py-2 hover:bg-sand disabled:opacity-50"
                   >
-                    <span className="font-mono font-bold text-navy">{r.ref ?? '—'}</span>
-                    <span className="text-ink-muted"> — {r.adresse ?? ''}</span>
+                    <span className="fx-ref font-semibold text-navy">{r.ref ?? '—'}</span>
+                    <span className="text-ink-mid"> — {r.adresse ?? ''}</span>
                   </button>
                 ))}
               </div>
             )}
             {query.trim().length >= 2 && results.length === 0 && (
-              <p className="text-[11px] text-ink-muted italic">Aucun dossier trouvé.</p>
+              <p className="fx-small text-ink-mid italic">Aucun dossier trouvé.</p>
             )}
 
             {error && (
-              <div className="text-[12px] text-terra bg-terra-light border border-terra-mid rounded-md px-3 py-2 font-semibold">
+              <div className="fx-label text-terra-ink bg-terra-light border border-terra-mid rounded-lg px-3 py-2 font-semibold">
                 {error}
               </div>
             )}

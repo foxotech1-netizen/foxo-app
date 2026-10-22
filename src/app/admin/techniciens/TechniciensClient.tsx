@@ -6,7 +6,8 @@ import type { Utilisateur } from '@/lib/types/database';
 import { createTech } from './actions';
 import { TechnicienDrawer } from './TechnicienDrawer';
 
-const DEFAULT_COLOR = '#1B3A6B';
+import { DEFAULT_TECH_COLOR as DEFAULT_COLOR, readableTextColor } from '@/lib/techniciens/couleurs';
+
 const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const INVITE_BANNER_TIMEOUT_MS = 10000;
 
@@ -56,18 +57,6 @@ function initials(t: Utilisateur): string {
   return (t.email ?? '?').charAt(0).toUpperCase();
 }
 
-// Calcule la luminance approx pour choisir un texte clair/foncé sur l'avatar.
-function readableTextColor(hex: string): string {
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex);
-  if (!m) return '#FFFFFF';
-  const v = m[1];
-  const r = parseInt(v.slice(0, 2), 16);
-  const g = parseInt(v.slice(2, 4), 16);
-  const b = parseInt(v.slice(4, 6), 16);
-  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return lum > 0.6 ? '#1A1A1A' : '#FFFFFF';
-}
-
 export function TechniciensClient({
   initial,
   loadError,
@@ -113,8 +102,7 @@ export function TechniciensClient({
       setTechs((arr) => [created, ...arr]);
       setOpen(false);
       setColor(DEFAULT_COLOR);
-      setInviteBanner(
-        `${created.prenom ?? ''} ${created.nom ?? ''} créé. Son compte de connexion est prêt : il se connectera sur tech.foxo.be avec son email (un code à 6 chiffres lui sera envoyé par email à la première connexion).`
+      setInviteBanner( `${created.prenom ?? ''} ${created.nom ?? ''} créé. Son compte de connexion est prêt : il se connectera sur tech.foxo.be avec son email (un code à 6 chiffres lui sera envoyé par email à la première connexion).`
       );
     });
   }
@@ -131,14 +119,14 @@ export function TechniciensClient({
           <h1 className="fxs-page-title mb-1">
             Techniciens
           </h1>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-ink-mid)] tracking-wide">
+          <div className="fx-small flex items-center gap-2 text-[var(--color-ink-mid)] tracking-wide">
             <span className="w-1 h-1 rounded-full bg-[var(--color-navy)]"></span>
             {techs.length} technicien{techs.length > 1 ? 's' : ''}
           </div>
         </div>
         <button
           onClick={() => { setOpen(true); setError(null); }}
-          className="bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-md text-xs font-medium shadow-sm inline-flex items-center gap-1.5"
+          className="fx-label bg-[var(--color-navy)] hover:bg-[var(--color-navy-dark)] text-[var(--color-cream)] px-3.5 py-2 rounded-lg font-medium shadow-sm inline-flex items-center gap-1.5"
         >
           <Plus size={14} />Nouveau technicien
         </button>
@@ -146,18 +134,18 @@ export function TechniciensClient({
 
       <div>
         {loadError && (
-          <div className="mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold">
+          <div className="fx-label mb-3 px-4 py-2.5 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold">
             Connexion à la base limitée : {loadError}
           </div>
         )}
 
         {inviteBanner && (
-          <div className="mb-3 px-4 py-3 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-[var(--color-amber-foxo)] rounded-lg text-xs font-semibold flex items-start justify-between gap-3">
+          <div className="fx-label mb-3 px-4 py-3 bg-[var(--color-amber-light)] border border-[var(--color-amber-foxo)]/30 text-amber-ink rounded-lg font-semibold flex items-start justify-between gap-3">
             <span className="flex-1">{inviteBanner}</span>
             <button
               type="button"
               onClick={() => setInviteBanner(null)}
-              className="bg-[#E8C896] text-[#8A5A1A] px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap hover:brightness-95"
+              className="fx-small bg-amber-light text-amber-ink px-2 py-1 rounded font-semibold whitespace-nowrap hover:brightness-95"
             >
               OK, compris
             </button>
@@ -169,7 +157,7 @@ export function TechniciensClient({
             <thead>
               <tr className="bg-sand">
                 {['Nom', 'Email', 'Téléphone', 'Couleur', 'Statut', 'Créé le'].map((h) => (
-                  <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold text-ink-muted uppercase tracking-wider border-b border-sand-border">
+                  <th key={h} className="fx-eyebrow px-3.5 py-2.5 text-left font-semibold text-ink-mid border-b border-sand-border">
                     {h}
                   </th>
                 ))}
@@ -178,7 +166,7 @@ export function TechniciensClient({
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-ink-muted text-[13px]">
+                  <td colSpan={6} className="fx-body-dense text-center py-12 text-ink-mid">
                     Aucun technicien enregistré
                   </td>
                 </tr>
@@ -193,34 +181,34 @@ export function TechniciensClient({
                     onClick={() => setDrawerTech(t)}
                     className={`border-b border-sand-mid hover:bg-sand-hover cursor-pointer ${inactive ? 'opacity-60' : ''}`}
                   >
-                    <td className="px-3.5 py-3 text-[13px]">
+                    <td className="fx-body-dense px-3.5 py-3">
                       <div className="flex items-center gap-2.5">
                         <div
-                          className="w-8 h-8 rounded-md flex items-center justify-center text-[11px] font-extrabold flex-shrink-0"
+                          className="fx-small w-8 h-8 rounded-lg flex items-center justify-center font-semibold flex-shrink-0"
                           style={{ background: c, color: readableTextColor(c) }}
                         >
                           {initials(t)}
                         </div>
-                        <span className={`font-bold ${inactive ? 'line-through text-ink-muted' : ''}`}>
+                        <span className={`font-semibold ${inactive ? 'line-through text-ink-mid' : ''}`}>
                           {fullName}
                         </span>
                       </div>
                     </td>
-                    <td className="px-3.5 py-3 text-xs font-mono text-ink-mid">{t.email ?? '—'}</td>
-                    <td className="px-3.5 py-3 text-xs">{t.telephone ?? '—'}</td>
-                    <td className="px-3.5 py-3 text-xs">
+                    <td className="fx-body-dense px-3.5 py-3 tabular-nums text-ink-mid">{t.email ?? '—'}</td>
+                    <td className="fx-body-dense px-3.5 py-3">{t.telephone ?? '—'}</td>
+                    <td className="fx-body-dense px-3.5 py-3">
                       <div className="flex items-center gap-2">
                         <span
                           className="w-4 h-4 rounded-full border border-sand-border flex-shrink-0"
                           style={{ background: c }}
                         />
-                        <span className="font-mono text-ink-muted">{c.toUpperCase()}</span>
+                        <span className="tabular-nums text-ink-mid">{c.toUpperCase()}</span>
                       </div>
                     </td>
-                    <td className="px-3.5 py-3 text-xs">
+                    <td className="fx-body-dense px-3.5 py-3">
                       <StatusCell status={status} now={now} />
                     </td>
-                    <td className="px-3.5 py-3 text-xs text-ink-muted">{formatDate(t.created_at)}</td>
+                    <td className="fx-body-dense px-3.5 py-3 text-ink-mid">{formatDate(t.created_at)}</td>
                   </tr>
                 );
               })}
@@ -238,13 +226,13 @@ export function TechniciensClient({
           <div className="bg-cream rounded-modal w-full max-w-[520px] max-h-[90vh] flex flex-col overflow-hidden shadow-overlay">
             <div className="px-6 py-5 border-b border-sand-border flex justify-between items-center flex-shrink-0 bg-cream">
               <div>
-                <div className="text-base font-extrabold text-ink">Nouveau technicien</div>
-                <div className="text-[11px] text-ink-muted mt-0.5">Profil terrain (équipe FoxO)</div>
+                <div className="fx-h2 font-semibold text-ink">Nouveau technicien</div>
+                <div className="fx-small text-ink-mid mt-0.5">Profil terrain (équipe FoxO)</div>
               </div>
               <button
                 onClick={() => { if (!pending) { setOpen(false); setColor(DEFAULT_COLOR); } }}
                 disabled={pending}
-                className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid hover:bg-sand-border disabled:opacity-50 inline-flex items-center justify-center"
+                className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid hover:bg-sand-border disabled:opacity-50 inline-flex items-center justify-center"
                 aria-label="Fermer"
               >
                 <X size={16} />
@@ -253,7 +241,7 @@ export function TechniciensClient({
 
             <form action={onSubmit} className="px-6 py-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
               <div className="bg-sand rounded-xl p-3.5 border border-sand-border space-y-3">
-                <div className="text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                <div className="fx-th font-semibold text-ink-mid">
                   Identité
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -265,7 +253,7 @@ export function TechniciensClient({
               </div>
 
               <div className="bg-sand rounded-xl p-3.5 border border-sand-border space-y-3">
-                <div className="text-[11px] font-bold text-ink-muted uppercase tracking-wider">
+                <div className="fx-th font-semibold text-ink-mid">
                   Couleur planning
                 </div>
                 <div className="flex items-center gap-3">
@@ -274,14 +262,14 @@ export function TechniciensClient({
                     name="couleur"
                     value={color}
                     onChange={(e) => setColor(e.target.value)}
-                    className="w-14 h-10 border border-sand-border rounded cursor-pointer bg-white"
+                    className="w-14 h-10 border border-sand-border rounded cursor-pointer bg-cream"
                   />
-                  <span className="font-mono text-xs text-ink-mid">{color.toUpperCase()}</span>
+                  <span className="fx-meta tabular-nums text-ink-mid">{color.toUpperCase()}</span>
                 </div>
               </div>
 
               {error && (
-                <div className="bg-terra-light border border-terra-mid text-terra rounded-lg px-3.5 py-2.5 text-xs">
+                <div className="fx-meta bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3.5 py-2.5">
                   {error}
                 </div>
               )}
@@ -291,14 +279,14 @@ export function TechniciensClient({
                   type="button"
                   onClick={() => { setOpen(false); setColor(DEFAULT_COLOR); }}
                   disabled={pending}
-                  className="bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  className="fx-label bg-sand-mid text-ink-mid px-4 py-2.5 rounded-lg font-semibold disabled:opacity-50"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className="bg-navy text-white px-4 py-2.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                  className="fx-label bg-navy text-cream px-4 py-2.5 rounded-lg font-semibold disabled:opacity-50"
                 >
                   {pending ? 'Création…' : 'Créer le technicien'}
                 </button>
@@ -322,7 +310,7 @@ export function TechniciensClient({
 function StatusCell({ status, now }: { status: TechStatus; now: number }) {
   if (status.kind === 'disabled') {
     return (
-      <span className="text-ink-muted line-through inline-flex items-center gap-1.5">
+      <span className="text-ink-mid line-through inline-flex items-center gap-1.5">
         <Ban size={12} />Désactivé
       </span>
     );
@@ -336,14 +324,14 @@ function StatusCell({ status, now }: { status: TechStatus; now: number }) {
   }
   if (status.kind === 'offline') {
     return (
-      <span className="text-ink-muted inline-flex items-center gap-1.5">
-        <Circle size={12} className="fill-ink-muted text-ink-muted" />Hors ligne <span className="text-ink-muted/80">({formatRelative(status.lastSeenAt, now)})</span>
+      <span className="text-ink-mid inline-flex items-center gap-1.5">
+        <Circle size={12} className="fill-ink-muted text-ink-mid" />Hors ligne <span className="text-ink-mid/80">({formatRelative(status.lastSeenAt, now)})</span>
       </span>
     );
   }
   return (
-    <span className="text-ink-muted inline-flex items-center gap-1.5">
-      <Circle size={12} className="fill-ink-muted text-ink-muted" />Jamais connecté
+    <span className="text-ink-mid inline-flex items-center gap-1.5">
+      <Circle size={12} className="fill-ink-muted text-ink-mid" />Jamais connecté
     </span>
   );
 }
@@ -355,13 +343,13 @@ function Field({
 }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-ink-mid block mb-1">{label}</label>
+      <label className="fx-label font-semibold text-ink-mid block mb-1">{label}</label>
       <input
         name={name}
         type={type}
         placeholder={placeholder}
         required={required}
-        className="w-full px-3 py-2.5 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+        className="fx-body w-full px-3 py-2.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
       />
     </div>
   );

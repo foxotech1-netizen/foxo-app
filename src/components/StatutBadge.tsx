@@ -4,6 +4,8 @@ import { type Lang } from '@/lib/portal/i18n';
 // Libelles de statut multilingues. Le FR reste la source historique (= STATUT_INFO.label)
 // ET le defaut : l'admin (qui n'envoie pas de prop lang) reste 100% en francais.
 // Les couleurs viennent toujours de STATUT_INFO (independantes de la langue).
+// Le portail admin (.fx-admin) les rebase sur ses quatre familles de pills via
+// l'attribut data-statut (cf. globals.css) ; les autres portails sont inchangés.
 // NOTE: traductions NL/EN generees par Claude — A FAIRE RELIRE par un natif NL.
 const STATUT_LABEL: Record<Lang, Record<StatutIntervention, string>> = {
   fr: { nouvelle: 'Nouvelle', attente: 'En attente', confirmee: 'Confirmée', realisee: 'Réalisée', rapport: 'Rapport dispo.', cloturee: 'Clôturée', en_suspens: 'En suspens' },
@@ -24,7 +26,8 @@ export function StatutBadge({
   const label = STATUT_LABEL[lang]?.[statut] ?? STATUT_INFO[statut].label;
   return (
     <span
-      className="inline-block rounded-full font-semibold whitespace-nowrap"
+      className="statut-badge inline-block rounded-full font-semibold whitespace-nowrap"
+      data-statut={statut}
       style={{
         color: info.fg,
         background: info.bg,

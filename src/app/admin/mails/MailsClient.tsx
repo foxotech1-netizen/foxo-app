@@ -1,6 +1,7 @@
 'use client';
 
 import { fmtTime, TZ_BRUSSELS } from '@/lib/format';
+import { GMAIL_LABEL_COLORS } from '@/lib/mails/couleurs-gmail';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -51,20 +52,12 @@ type BulkAction =
 // Vercel ~4,5 MB) — pré-check client : au-delà, pas de lien, pas d'appel.
 const MAX_PJ_DOWNLOAD_BYTES = 4 * 1024 * 1024;
 
-const HIDDEN_BADGE_LABEL_IDS = new Set([
-  'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT',
-  'SPAM', 'TRASH', 'CHAT',
+const HIDDEN_BADGE_LABEL_IDS = new Set([ 'INBOX', 'UNREAD', 'IMPORTANT', 'STARRED', 'SENT', 'DRAFT', 'SPAM', 'TRASH', 'CHAT',
 ]);
 
 const LABEL_COLORS: { name: string; text: string; bg: string }[] = [
   { name: 'Aucune', text: '', bg: '' },
-  { name: 'Rouge',   text: '#ffffff', bg: '#fb4c2f' },
-  { name: 'Orange',  text: '#ffffff', bg: '#ffad47' },
-  { name: 'Jaune',   text: '#000000', bg: '#fad165' },
-  { name: 'Vert',    text: '#ffffff', bg: '#16a766' },
-  { name: 'Bleu',    text: '#ffffff', bg: '#4a86e8' },
-  { name: 'Violet',  text: '#ffffff', bg: '#a479e2' },
-  { name: 'Rose',    text: '#ffffff', bg: '#f691b3' },
+  ...GMAIL_LABEL_COLORS,
 ];
 
 function fmtDate(iso: string): string {
@@ -539,8 +532,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         label: 'libellé appliqué',
         important: 'marqué(s) important',
         trash: 'envoyé(s) à la corbeille',
-        restore: 'restauré(s)',
-        'delete-permanent': 'supprimé(s) définitivement',
+        restore: 'restauré(s)', 'delete-permanent': 'supprimé(s) définitivement',
       };
       setFeedback({ kind: 'ok', msg: `${ids.length} mail(s) — ${labelMap[action]}` });
     } catch (e) {
@@ -802,8 +794,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           Masquée < sm quand un mail est ouvert (le volet occupe
           l'écran), comme la liste. */}
       <div
-        className={
-          'p-3 border-b border-sand-border bg-cream flex-shrink-0 flex-wrap items-center gap-2 ' +
+        className={'p-3 border-b border-sand-border bg-cream flex-shrink-0 flex-wrap items-center gap-2 ' +
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
@@ -811,29 +802,27 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher — expéditeur, sujet…"
-          className="order-1 w-full md:order-2 md:w-auto md:flex-1 md:min-w-[200px] md:max-w-[460px] h-9 px-3 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+          className="fx-body order-1 w-full md:order-2 md:w-auto md:flex-1 md:min-w-[200px] md:max-w-[460px] h-9 px-3 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
         />
         {/* Contrôle segmenté 3 vues — compteur non-lus sur « À traiter »
             uniquement (inboxUnread déjà chargé). */}
-        <div className="order-2 md:order-1 inline-flex rounded-lg border border-sand-border bg-white overflow-hidden">
+        <div className="order-2 md:order-1 inline-flex rounded-lg border border-sand-border bg-cream overflow-hidden">
           {SEGMENT_VIEWS.map(([f, label]) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={
-                'h-[34px] px-2.5 text-[11px] font-bold inline-flex items-center gap-1 border-r border-sand-border last:border-r-0 ' +
+              className={'fx-small h-[34px] px-2.5 font-semibold inline-flex items-center gap-1 border-r border-sand-border last:border-r-0 ' +
                 (filter === f
-                  ? 'bg-navy text-white'
-                  : 'bg-white text-ink-mid hover:bg-sand-hover')
+                  ? 'bg-navy text-cream'
+                  : 'bg-cream text-ink-mid hover:bg-sand-hover')
               }
             >
               {label}
               {f === 'a_traiter' && inboxUnread > 0 && (
                 <span
-                  className={
-                    'text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums ' +
-                    (filter === f ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
+                  className={'fx-badge font-semibold px-1.5 py-0.5 rounded-full tabular-nums ' +
+                    (filter === f ? 'bg-cream/25 text-cream' : 'bg-terra-light text-terra-ink')
                   }
                 >
                   {inboxUnread}
@@ -856,11 +845,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
             aria-label="Filtrer par catégorie"
-            className={
-              'md:order-3 w-full min-w-0 md:w-auto h-9 px-2 rounded text-[11px] font-bold border outline-none focus:border-navy-mid ' +
+            className={'fx-small md:order-3 w-full min-w-0 md:w-auto h-9 px-2 rounded font-semibold border outline-none focus:border-navy-mid ' +
               (categoryFilter !== 'toutes'
-                ? 'bg-navy text-white border-navy'
-                : 'bg-white text-ink-mid border-sand-border')
+                ? 'bg-navy text-cream border-navy'
+                : 'bg-cream text-ink-mid border-sand-border')
             }
           >
             <option value="toutes">Toutes les catégories</option>
@@ -877,7 +865,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             aria-label="Actualiser"
             title="Actualiser"
             disabled={loading}
-            className="md:order-5 flex-shrink-0 h-9 w-9 rounded-lg border border-sand-border bg-white text-ink-mid hover:text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center justify-center"
+            className="md:order-5 flex-shrink-0 h-9 w-9 rounded-lg border border-sand-border bg-cream text-ink-mid hover:text-navy hover:bg-sand-hover disabled:opacity-50 inline-flex items-center justify-center"
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} aria-hidden />
           </button>
@@ -894,8 +882,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           Largeur ~40% bornée : la lecture occupe ~60%, la liste ne flotte
           plus seule sur les grands écrans. */}
       <aside
-        className={
-          'relative flex flex-col w-full sm:w-[40%] sm:min-w-[340px] sm:max-w-[520px] border-r border-sand-border bg-cream ' +
+        className={'relative flex flex-col w-full sm:w-[40%] sm:min-w-[340px] sm:max-w-[520px] border-r border-sand-border bg-cream ' +
           (selectedId ? 'hidden sm:flex' : 'flex')
         }
       >
@@ -924,7 +911,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               type="button"
               onClick={toggleLabels}
               aria-expanded={labelsOpen}
-              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-ink-muted hover:text-navy min-h-[24px]"
+              className="fx-eyebrow inline-flex items-center gap-1.5 font-semibold text-ink-mid hover:text-navy min-h-[24px]"
             >
               Libellés{inboxUnread > 0 ? ` · ${inboxUnread} non lus` : ''}
               <span aria-hidden>{labelsOpen ? '▾' : '▸'}</span>
@@ -932,8 +919,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <button
               type="button"
               onClick={() => setCreateLabelOpen(true)}
-              className={
-                'text-[10px] font-bold text-navy hover:underline ' +
+              className={'fx-small font-semibold text-navy hover:underline ' +
                 (labelsOpen ? '' : 'hidden')
               }
             >
@@ -946,7 +932,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             <button
               type="button"
               onClick={() => setActiveLabel(null)}
-              className="w-full text-left mb-1.5 text-[11px] bg-amber-light border border-[#E8C896] rounded px-2 py-1 text-[#8A5A1A] font-semibold inline-flex items-center gap-1.5"
+              className="fx-small w-full text-left mb-1.5 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded px-2 py-1 text-amber-ink font-semibold inline-flex items-center gap-1.5"
             >
               <X size={12} />
               Filtre actif : {activeLabel}
@@ -960,7 +946,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <Skeleton className="h-3 w-4/5" />
             </div>
           ) : labels.length === 0 ? (
-            <div className="text-[11px] text-ink-muted italic">
+            <div className="fx-small text-ink-mid italic">
               Aucun libellé personnalisé.
             </div>
           ) : (
@@ -986,22 +972,20 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                         // Le clic bascule donc sur « Tous ».
                         setFilter('tous');
                       }}
-                      className={
-                        'w-full flex items-center gap-1.5 px-2 py-1 rounded text-[11px] transition-colors text-left ' +
+                      className={'fx-small w-full flex items-center gap-1.5 px-2 py-1 rounded transition-colors text-left ' +
                         (active
-                          ? 'bg-navy text-white'
+                          ? 'bg-navy text-cream'
                           : 'hover:bg-sand-hover text-ink')
                       }
                     >
                       <span
                         className="inline-block w-2.5 h-2.5 rounded-sm flex-shrink-0 border border-black/10"
-                        style={swatch ? { background: swatch.background_color } : { background: '#A17244' }}
+                        style={swatch ? { background: swatch.background_color } : { background: 'var(--color-amber-ink)' }}
                       />
                       <span className="font-semibold truncate flex-1">{l.name}</span>
                       {l.messages_unread > 0 && (
-                        <span className={
-                          'text-[9px] font-bold px-1.5 py-0.5 rounded-full ' +
-                          (active ? 'bg-white/25 text-white' : 'bg-terra-light text-terra')
+                        <span className={'fx-badge font-semibold px-1.5 py-0.5 rounded-full ' +
+                          (active ? 'bg-cream/25 text-cream' : 'bg-terra-light text-terra-ink')
                         }>
                           {l.messages_unread}
                         </span>
@@ -1023,9 +1007,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               checked={allFilteredSelected}
               onChange={toggleSelectAll}
               aria-label="Tout sélectionner"
-              className="w-4 h-4 accent-[#1B3A6B] cursor-pointer"
+              className="w-4 h-4 accent-[var(--color-navy)] cursor-pointer"
             />
-            <span className="text-[11px] text-ink-muted">
+            <span className="fx-small text-ink-mid">
               {selectedIds.size > 0
                 ? `${selectedIds.size} sélectionné(s)`
                 : `${filtered.length} affiché(s)${inTrash ? ' (corbeille)' : ''}`}
@@ -1036,7 +1020,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         {/* Liste — `min-h-0` permet le shrink en flex-col. */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {error && (
-            <div className="m-3 text-[12px] bg-terra-light border border-terra-mid text-terra rounded-md px-3 py-2 font-semibold">
+            <div className="fx-label m-3 bg-terra-light border border-terra-mid text-terra-ink rounded-lg px-3 py-2 font-semibold">
               {error}
             </div>
           )}
@@ -1058,7 +1042,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               searchPending ? (
                 /* Étage 1 sans résultat, étage 2 pas encore arrivé : pas de
                    « aucun résultat » définitif prématuré. */
-                <div className="text-[12px] text-ink-muted text-center py-10">
+                <div className="fx-meta text-ink-mid text-center py-10">
                   Recherche dans la boîte Gmail…
                 </div>
               ) : (
@@ -1066,11 +1050,11 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                    mots ne matchent que les mails chargés (étage 1) ; la
                    boîte complète est interrogée via Gmail par mots entiers,
                    dans le périmètre de la vue active (étage 2). */
-                <div className="text-[13px] text-ink-muted text-center py-10 px-4">
+                <div className="fx-body text-ink-mid text-center py-10 px-4">
                   <div className="font-semibold text-ink-mid">
                     Aucun résultat pour «&nbsp;{query.trim()}&nbsp;» dans cette vue
                   </div>
-                  <div className="text-[11px] mt-1">
+                  <div className="fx-small mt-1">
                     Les fragments de mots ne sont cherchés que dans les {mails.length} mails
                     chargés ; la boîte complète est interrogée via Gmail par mots entiers,
                     dans la vue active
@@ -1081,7 +1065,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <button
                         type="button"
                         onClick={() => setFilter('tous')}
-                        className="text-[12px] font-bold text-navy underline"
+                        className="fx-label font-semibold text-navy underline"
                       >
                         Chercher dans « Tous »
                       </button>
@@ -1089,7 +1073,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     <button
                       type="button"
                       onClick={() => setQuery('')}
-                      className="text-[12px] font-bold text-ink-muted underline"
+                      className="fx-label font-semibold text-ink-mid underline"
                     >
                       Effacer la recherche
                     </button>
@@ -1097,7 +1081,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 </div>
               )
             ) : (
-              <div className="text-[13px] text-ink-muted text-center py-12">
+              <div className="fx-body text-ink-mid text-center py-12">
                 {inTrash ? 'Corbeille vide.' : 'Aucun mail.'}
               </div>
             )
@@ -1111,8 +1095,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             return (
               <div
                 key={m.id}
-                className={
-                  'relative group flex items-start gap-2 px-3 py-4 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
+                className={'relative group flex items-start gap-2 px-3 py-4 border-b border-sand-mid hover:bg-sand-hover transition-colors ' +
                   (active ? 'bg-navy-pale' : '')
                 }
               >
@@ -1120,7 +1103,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     haut à droite sur fond sand pour ne pas chevaucher
                     l'heure/les badges. Mobile (<sm) : rien, le tap ouvre
                     le mail comme avant. */}
-                <div className="absolute right-2 top-1.5 z-10 hidden sm:group-hover:flex items-center gap-0.5 bg-sand-hover border border-sand-border rounded-md px-0.5 py-0.5">
+                <div className="absolute right-2 top-1.5 z-10 hidden sm:group-hover:flex items-center gap-0.5 bg-sand-hover border border-sand-border rounded-lg px-0.5 py-0.5">
                   {inTrash ? (
                     <RowQuickBtn
                       title="Restaurer"
@@ -1152,7 +1135,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   checked={checked}
                   onChange={() => toggleSelect(m.id)}
                   aria-label={`Sélectionner mail de ${senderName(m.from)}`}
-                  className="w-4 h-4 mt-1 accent-[#1B3A6B] cursor-pointer flex-shrink-0"
+                  className="w-4 h-4 mt-1 accent-[var(--color-navy)] cursor-pointer flex-shrink-0"
                   onClick={(e) => e.stopPropagation()}
                 />
                 <button
@@ -1165,26 +1148,25 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <span className="w-2 h-2 rounded-full bg-amber-foxo flex-shrink-0" aria-label="Non lu" />
                     )}
                     {isImportant && (
-                      <span className="flex-shrink-0 text-[#D4A547]" title="Marqué important" aria-label="Important">
+                      <span className="flex-shrink-0 text-amber-ink" title="Marqué important" aria-label="Important">
                         <Star size={12} fill="currentColor" />
                       </span>
                     )}
                     {/* Lisibilité (ergo2) : la graisse porte l'état non-lu —
                         gras seulement si non lu, sinon normal et atténué. */}
                     <div
-                      className={
-                        'text-base truncate flex-1 ' +
+                      className={'fx-body truncate flex-1 ' +
                         (m.unread ? 'font-semibold ' : 'font-normal ') +
-                        (active ? 'text-navy dark:text-white' : (m.unread ? 'text-ink' : 'text-ink-mid'))
+                        (active ? 'text-navy' : (m.unread ? 'text-ink' : 'text-ink-mid'))
                       }
                     >
                       {senderName(m.from)}
                     </div>
-                    <span className="text-[13px] text-ink-muted whitespace-nowrap">
+                    <span className="fx-body text-ink-mid whitespace-nowrap">
                       {fmtDate(m.date)}
                     </span>
                   </div>
-                  <div className={'text-[15px] truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
+                  <div className={'fx-body truncate ' + (m.unread ? 'font-semibold text-ink' : 'text-ink-mid')}>
                     {m.subject}
                   </div>
                   {badges.length > 0 && (
@@ -1199,7 +1181,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       <MailAnalyseBadges analyse={analyse} />
                     </div>
                   )}
-                  <div className="text-[13.5px] text-ink-muted truncate mt-0.5">
+                  <div className="fx-body text-ink-mid truncate mt-0.5">
                     {m.snippet}
                   </div>
                 </button>
@@ -1213,9 +1195,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
           {!loading && !error && filtered.length > 0 && (
             <div className="px-3 py-3 space-y-2 text-center">
               {searchPending && (
-                <div className="text-[11px] text-ink-muted">Recherche Gmail en cours…</div>
+                <div className="fx-small text-ink-mid">Recherche Gmail en cours…</div>
               )}
-              <div className="text-[11px] text-ink-muted tabular-nums">
+              <div className="fx-small text-ink-mid tabular-nums">
                 {filtered.length} mail{filtered.length > 1 ? 's' : ''} affiché{filtered.length > 1 ? 's' : ''}
               </div>
               {canLoadMore && (
@@ -1223,7 +1205,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   type="button"
                   onClick={loadMore}
                   disabled={loadingMore}
-                  className="w-full px-3 py-2 rounded-lg text-[12px] font-bold bg-white text-ink-mid border border-sand-border hover:bg-sand-hover disabled:opacity-50 min-h-[40px]"
+                  className="fx-label w-full px-3 py-2 rounded-lg font-semibold bg-cream text-ink-mid border border-sand-border hover:bg-sand-hover disabled:opacity-50 min-h-[40px]"
                 >
                   {loadingMore ? 'Chargement…' : 'Charger plus de mails'}
                 </button>
@@ -1236,19 +1218,18 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
       {/* Détail à droite (drawer sur mobile) */}
       <main
-        className={
-          'flex-1 bg-sand overflow-y-auto ' +
+        className={'flex-1 bg-sand overflow-y-auto ' +
           (selectedId ? 'flex' : 'hidden sm:flex') + ' flex-col'
         }
       >
         {!selectedId && (
           <div className="flex-1 flex items-center justify-center p-6">
             <div className="flex flex-col items-center gap-3 bg-cream border border-sand-border rounded-xl px-10 py-8 text-center">
-              <Mail size={28} className="text-ink-muted" aria-hidden />
-              <div className="text-[13px] font-bold text-ink-mid">
+              <Mail size={28} className="text-ink-mid" aria-hidden />
+              <div className="fx-body font-semibold text-ink-mid">
                 Sélectionne un mail pour le lire
               </div>
-              <div className="text-[11px] text-ink-muted">
+              <div className="fx-small text-ink-mid">
                 Le contenu, les libellés et les actions s&apos;affichent ici.
               </div>
             </div>
@@ -1263,7 +1244,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   <button
                     type="button"
                     onClick={() => setSelectedId(null)}
-                    className="sm:hidden text-[12px] text-navy underline"
+                    className="fx-meta sm:hidden text-navy underline"
                   >
                     ← Retour
                   </button>
@@ -1272,9 +1253,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   </h2>
                 </div>
                 {detail && (
-                  <div className="text-[11px] text-ink-muted mt-1">
+                  <div className="fx-small text-ink-mid mt-1">
                     <span className="font-semibold">{senderName(detail.from)}</span>
-                    <span className="ml-1 font-mono text-[10px]">&lt;{senderEmail(detail.from)}&gt;</span>
+                    <span className="fx-small ml-1 tabular-nums">&lt;{senderEmail(detail.from)}&gt;</span>
                     <span className="mx-1.5">·</span>
                     {new Date(detail.date).toLocaleString('fr-BE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: TZ_BRUSSELS })}
                   </div>
@@ -1283,7 +1264,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
               <button
                 type="button"
                 onClick={() => setSelectedId(null)}
-                className="hidden sm:inline-flex bg-sand-mid w-8 h-8 rounded-md text-ink-mid items-center justify-center dark:bg-[rgba(255,255,255,.06)]"
+                className="hidden sm:inline-flex bg-sand-mid w-8 h-8 rounded-lg text-ink-mid items-center justify-center"
                 aria-label="Fermer"
               ><X size={16} /></button>
             </header>
@@ -1300,7 +1281,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                   type="button"
                   onClick={runAnalyseDeep}
                   disabled={analyseLoading}
-                  className="bg-navy text-white px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
+                  className="fx-label bg-navy text-cream px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] inline-flex items-center gap-1.5"
                 >
                   <Sparkles size={14} />
                   {analysingThread === detail.thread_id ? 'Analyse en cours (5-15s)…' : 'Analyser avec IA'}
@@ -1310,11 +1291,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 type="button"
                 onClick={() => setReplyOpen((v) => !v)}
                 disabled={!detail}
-                className={
-                  'px-3 py-2 rounded-lg text-[12px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[44px] ' +
+                className={'fx-label px-3 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[44px] ' +
                   (detail && !detailAnalyse
-                    ? 'bg-white text-navy border border-navy'
-                    : 'bg-navy text-white')
+                    ? 'bg-cream text-navy border border-navy'
+                    : 'bg-navy text-cream')
                 }
               >
                 ↩ Répondre
@@ -1337,7 +1317,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 />
               )}
               {detail && detailAnalyse && analysingThread === detail.thread_id && (
-                <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-ink-mid">
+                <span className="fx-label inline-flex items-center gap-1.5 font-semibold text-ink-mid">
                   <RefreshCw size={13} className="animate-spin" aria-hidden />
                   Nouvelle analyse en cours (5-15 s)…
                 </span>
@@ -1346,11 +1326,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
             {feedback && (
               <div
-                className={
-                  'mx-4 mt-3 px-3 py-2 text-[12px] font-semibold border rounded-md ' +
+                className={'fx-label mx-4 mt-3 px-3 py-2 font-semibold border rounded-lg ' +
                   (feedback.kind === 'ok'
-                    ? 'bg-ok-light border-ok-mid text-ok dark:text-white'
-                    : 'bg-terra-light border-terra-mid text-terra')
+                    ? 'bg-ok-light border-ok-mid text-ok'
+                    : 'bg-terra-light border-terra-mid text-terra-ink')
                 }
               >
                 {feedback.msg}
@@ -1385,15 +1364,15 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             {/* Panel "Répondre" */}
             {replyOpen && detail && (
               <div className="mx-4 mt-3 bg-cream border border-navy rounded-xl p-3">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-ink-muted mb-1">
-                  Réponse à <span className="font-mono">{senderEmail(detail.from)}</span>
+                <div className="fx-eyebrow font-semibold text-ink-mid mb-1">
+                  Réponse à <span className="tabular-nums">{senderEmail(detail.from)}</span>
                 </div>
                 <textarea
                   value={replyBody}
                   onChange={(e) => setReplyBody(e.target.value)}
                   rows={6}
                   placeholder="Écris ta réponse ici. Le sujet et le threading sont gérés automatiquement."
-                  className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid resize-y disabled:opacity-60"
+                  className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid resize-y disabled:opacity-60"
                   disabled={aiDraftLoading}
                   autoFocus
                 />
@@ -1404,7 +1383,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                     type="button"
                     onClick={draftReplyWithAi}
                     disabled={aiDraftLoading || replyLoading}
-                    className="px-3 py-2 rounded-lg text-[12px] font-bold border border-navy bg-white text-navy disabled:opacity-50 inline-flex items-center gap-1.5"
+                    className="fx-label px-3 py-2 rounded-lg font-semibold border border-navy bg-cream text-navy disabled:opacity-50 inline-flex items-center gap-1.5"
                   >
                     <Sparkles size={14} />
                     {aiDraftLoading ? 'Rédaction en cours… (5-15 s)' : 'Rédiger avec l’IA'}
@@ -1414,7 +1393,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       type="button"
                       onClick={() => { setReplyOpen(false); setReplyBody(''); }}
                       disabled={replyLoading}
-                      className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
+                      className="fx-label px-3 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid"
                     >
                       Annuler
                     </button>
@@ -1422,7 +1401,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                       type="button"
                       onClick={sendReply}
                       disabled={replyLoading || !replyBody.trim()}
-                      className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50 inline-flex items-center gap-1.5"
+                      className="fx-label px-3 py-2 rounded-lg font-semibold bg-navy text-cream disabled:opacity-50 inline-flex items-center gap-1.5"
                     >
                       {replyLoading ? 'Envoi…' : (<><Mail size={14} />Envoyer</>)}
                     </button>
@@ -1448,13 +1427,13 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
             {detail && (
               <div className="mx-4 mt-3 bg-cream border border-sand-border rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+                  <span className="fx-eyebrow font-semibold text-ink-mid">
                     Libellés
                   </span>
                   <button
                     type="button"
                     onClick={() => setAddLabelMenuOpen((v) => !v)}
-                    className="text-[11px] font-bold text-navy hover:underline inline-flex items-center gap-1"
+                    className="fx-small font-semibold text-navy hover:underline inline-flex items-center gap-1"
                     aria-expanded={addLabelMenuOpen}
                   >
                     {addLabelMenuOpen ? (<><X size={12} />Annuler</>) : '+ Libellé'}
@@ -1463,7 +1442,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
                 <div className="flex flex-wrap gap-1.5">
                   {userBadgesForMail(detail).length === 0 && !addLabelMenuOpen && (
-                    <span className="text-[11px] text-ink-muted italic">
+                    <span className="fx-small text-ink-mid italic">
                       Aucun libellé sur ce mail.
                     </span>
                   )}
@@ -1482,7 +1461,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
 
                 {addLabelMenuOpen && (
                   <div className="mt-2 pt-2 border-t border-sand-border">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+                    <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
                       Choisir un libellé à ajouter
                     </div>
                     <div className="flex flex-wrap gap-1.5 max-h-[180px] overflow-y-auto">
@@ -1501,7 +1480,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           </button>
                         ))}
                       {labels.filter((l) => !detail.label_ids.includes(l.id)).length === 0 && (
-                        <span className="text-[11px] text-ink-muted italic">
+                        <span className="fx-small text-ink-mid italic">
                           Tous les libellés sont déjà appliqués.
                         </span>
                       )}
@@ -1522,19 +1501,19 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                 <div className="bg-cream border border-sand-border rounded-xl p-4 max-w-[800px]">
                   {detail.body_html ? (
                     <div
-                      className="text-[13px] text-ink"
+                      className="fx-body text-ink"
                       style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                       dangerouslySetInnerHTML={{ __html: detail.body_html }}
                     />
                   ) : (
-                    <pre className="text-[13px] text-ink whitespace-pre-wrap font-sans">
+                    <pre className="fx-body text-ink whitespace-pre-wrap font-sans">
                       {detail.body_text || detail.snippet}
                     </pre>
                   )}
                   {detail.attachments.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-sand-border">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-ink-muted">
+                        <span className="fx-eyebrow font-semibold text-ink-mid">
                           Pièces jointes
                         </span>
                         <AttachToDossierButton
@@ -1546,7 +1525,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           onDone={() => refreshAnalyse(detail.thread_id)}
                         />
                       </div>
-                      <ul className="text-[12px] text-ink-mid space-y-1">
+                      <ul className="fx-meta text-ink-mid space-y-1">
                         {detail.attachments.map((a, i) => {
                           const tooBig = a.size > MAX_PJ_DOWNLOAD_BYTES;
                           const sizeKb = `${Math.round(a.size / 1024)} KB`;
@@ -1554,10 +1533,10 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           // Vercel) — pas de lien, Gmail reste l'issue.
                           if (tooBig) {
                             return (
-                              <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full opacity-60">
+                              <li key={i} className="tabular-nums inline-flex items-center gap-1.5 w-full opacity-60">
                                 <Paperclip size={12} />
                                 {a.filename}
-                                <span className="text-ink-muted">· {sizeKb} · Trop volumineuse — voir dans Gmail</span>
+                                <span className="text-ink-mid">· {sizeKb} · Trop volumineuse — voir dans Gmail</span>
                               </li>
                             );
                           }
@@ -1565,9 +1544,9 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           // rendu inerte, comme avant.
                           if (!a.attachment_id) {
                             return (
-                              <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full">
+                              <li key={i} className="tabular-nums inline-flex items-center gap-1.5 w-full">
                                 <Paperclip size={12} />
-                                {a.filename} <span className="text-ink-muted">· {sizeKb}</span>
+                                {a.filename} <span className="text-ink-mid">· {sizeKb}</span>
                               </li>
                             );
                           }
@@ -1577,7 +1556,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                           const inline = (a.mime_type.startsWith('image/') && a.mime_type !== 'image/svg+xml')
                             || a.mime_type === 'application/pdf';
                           return (
-                            <li key={i} className="font-mono inline-flex items-center gap-1.5 w-full">
+                            <li key={i} className="tabular-nums inline-flex items-center gap-1.5 w-full">
                               <Paperclip size={12} />
                               <a
                                 href={href}
@@ -1588,7 +1567,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
                                 {a.filename}
                                 {inline ? <Eye size={12} aria-hidden /> : <Download size={12} aria-hidden />}
                               </a>
-                              <span className="text-ink-muted whitespace-nowrap">· {sizeKb}</span>
+                              <span className="text-ink-mid whitespace-nowrap">· {sizeKb}</span>
                             </li>
                           );
                         })}
@@ -1649,8 +1628,7 @@ export function MailsClient({ initialConnected }: { initialConnected: boolean })
         label: 'Libellé appliqué',
         important: 'Marqué important',
         trash: 'Mail envoyé à la corbeille',
-        restore: 'Mail restauré',
-        'delete-permanent': 'Mail supprimé définitivement',
+        restore: 'Mail restauré', 'delete-permanent': 'Mail supprimé définitivement',
       };
       setFeedback({ kind: 'ok', msg: oneActionMsg[action] });
     } finally {
@@ -1674,15 +1652,15 @@ function BulkActionBar({
   onRequestPermanentDelete: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-10 bg-white border-b border-sand-border px-3 py-2.5">
+    <div className="sticky top-0 z-10 bg-cream border-b border-sand-border px-3 py-2.5">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-navy">
+        <span className="fx-th font-semibold text-navy">
           {count} sélectionné(s)
         </span>
         <button
           type="button"
           onClick={onClear}
-          className="text-[11px] text-ink-muted hover:text-terra inline-flex items-center gap-1"
+          className="fx-small text-ink-mid hover:text-terra-ink inline-flex items-center gap-1"
           title="Désélectionner tout"
         >
           <X size={12} />
@@ -1731,7 +1709,7 @@ function BulkActionBar({
 
           {menuOpen && (
             <div className="absolute top-full left-3 right-3 mt-2 bg-cream border border-sand-border rounded-card p-2 shadow-raised max-h-[220px] overflow-y-auto z-20">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+              <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
                 Appliquer un libellé
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -1761,20 +1739,14 @@ function BulkBtn({
   color: 'navy' | 'navy-outline' | 'amber' | 'muted' | 'terra' | 'terra-soft';
   children: React.ReactNode;
 }) {
-  const className = {
-    'navy': 'bg-navy text-white border border-navy',
-    'navy-outline': 'bg-white text-navy border border-navy',
-    'amber': 'bg-amber-light text-[#8A5A1A] border border-[#E8C896]',
-    'muted': 'bg-sand-mid text-ink-mid border border-sand-border dark:bg-[rgba(255,255,255,.06)]',
-    'terra': 'bg-terra text-white border border-terra',
-    'terra-soft': 'bg-terra-light text-terra border border-terra-mid',
+  const className = { 'navy': 'bg-navy text-cream border border-navy', 'navy-outline': 'bg-cream text-navy border border-navy', 'amber': 'bg-amber-light text-amber-ink border border-[var(--color-amber-foxo)]/30', 'muted': 'bg-sand-mid text-ink-mid border border-sand-border', 'terra': 'bg-terra-deep text-cream border border-terra-deep', 'terra-soft': 'bg-terra-light text-terra-ink border border-terra-mid',
   }[color];
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={'px-2 py-2 rounded-lg text-[11px] font-bold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center justify-center gap-1.5 ' + className}
+      className={'fx-small px-2 py-2 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50 min-h-[40px] inline-flex items-center justify-center gap-1.5 ' + className}
     >
       {children}
     </button>
@@ -1808,8 +1780,7 @@ function AttachToDossierButton({
     if (!pickerOpen || search.trim().length < 2) { setResults([]); return; }
     const t = setTimeout(async () => {
       try {
-        const r = await fetch(
-          `/api/admin/interventions/search?q=${encodeURIComponent(search.trim())}`,
+        const r = await fetch( `/api/admin/interventions/search?q=${encodeURIComponent(search.trim())}`,
           { cache: 'no-store' },
         );
         const data = await r.json();
@@ -1845,8 +1816,7 @@ function AttachToDossierButton({
         return;
       }
       const dups = (data.skipped ?? []).filter((s: { reason: string }) => s.reason === 'doublon').length;
-      onFeedback('ok',
-        `${data.uploaded} PJ envoyée(s) vers le dossier ${target.ref ?? ''}`.trim()
+      onFeedback('ok', `${data.uploaded} PJ envoyée(s) vers le dossier ${target.ref ?? ''}`.trim()
         + (dups > 0 ? ` (${dups} doublon(s) ignoré(s))` : ''));
       onDone();
     } catch (e) {
@@ -1863,7 +1833,7 @@ function AttachToDossierButton({
           type="button"
           onClick={() => attach(dossier)}
           disabled={busy}
-          className="text-[11px] font-bold text-navy border border-navy bg-white px-2 py-1 rounded-md hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
+          className="fx-small font-semibold text-navy border border-navy bg-cream px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
         >
           <FolderInput size={12} aria-hidden />
           {busy ? 'Envoi…' : `Joindre au dossier ${dossier.ref ?? ''}`.trim()}
@@ -1874,7 +1844,7 @@ function AttachToDossierButton({
           onClick={() => setPickerOpen((v) => !v)}
           disabled={busy}
           aria-expanded={pickerOpen}
-          className="text-[11px] font-bold text-navy border border-navy bg-white px-2 py-1 rounded-md hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
+          className="fx-small font-semibold text-navy border border-navy bg-cream px-2 py-1 rounded-lg hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1"
         >
           <FolderInput size={12} aria-hidden />
           {busy ? 'Envoi…' : 'Joindre à un dossier…'}
@@ -1887,7 +1857,7 @@ function AttachToDossierButton({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ex : 2026-014, Bellevue…"
             autoFocus
-            className="w-full px-2 py-1.5 border border-sand-border rounded-md text-[12px] bg-white outline-none focus:border-navy-mid"
+            className="fx-meta w-full px-2 py-1.5 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
           />
           <div className="mt-1.5 max-h-[180px] overflow-y-auto space-y-0.5">
             {results.map((res) => (
@@ -1895,14 +1865,14 @@ function AttachToDossierButton({
                 key={res.id}
                 type="button"
                 onClick={() => attach(res)}
-                className="w-full text-left px-2 py-1.5 rounded text-[12px] hover:bg-sand-hover"
+                className="fx-meta w-full text-left px-2 py-1.5 rounded hover:bg-sand-hover"
               >
-                <span className="font-bold text-ink">{res.ref ?? 'Sans réf.'}</span>
-                {res.adresse && <span className="text-ink-muted"> — {res.adresse}</span>}
+                <span className="font-semibold text-ink">{res.ref ?? 'Sans réf.'}</span>
+                {res.adresse && <span className="text-ink-mid"> — {res.adresse}</span>}
               </button>
             ))}
             {search.trim().length >= 2 && results.length === 0 && (
-              <div className="px-2 py-1.5 text-[11px] text-ink-muted italic">Aucun dossier trouvé.</div>
+              <div className="fx-small px-2 py-1.5 text-ink-mid italic">Aucun dossier trouvé.</div>
             )}
           </div>
         </div>
@@ -1957,11 +1927,10 @@ function FilterMenu({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className={
-          'h-9 px-2.5 rounded-lg text-[11px] font-bold border inline-flex items-center gap-1 ' +
+        className={'fx-small h-9 px-2.5 rounded-lg font-semibold border inline-flex items-center gap-1 ' +
           (activeLabel
-            ? 'bg-navy text-white border-navy'
-            : 'bg-white text-ink-mid border-sand-border hover:bg-sand-hover')
+            ? 'bg-navy text-cream border-navy'
+            : 'bg-cream text-ink-mid border-sand-border hover:bg-sand-hover')
         }
       >
         {activeLabel ? `Filtres : ${activeLabel}` : 'Filtres'}
@@ -1978,8 +1947,7 @@ function FilterMenu({
               type="button"
               role="menuitem"
               onClick={() => { onSelect(f); setOpen(false); }}
-              className={
-                'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover min-h-[40px] ' +
+              className={'fx-label w-full text-left px-3 py-2.5 font-semibold inline-flex items-center gap-2 hover:bg-sand-hover min-h-[40px] ' +
                 (active === f ? 'text-navy bg-navy-pale' : 'text-ink')
               }
             >
@@ -2022,7 +1990,7 @@ function DetailMoreMenu({
   const [openLeftward, setOpenLeftward] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useCloseOnOutside(ref, open, () => setOpen(false));
-  const itemClass = 'w-full text-left px-3 py-2.5 text-[12px] font-semibold inline-flex items-center gap-2 hover:bg-sand-hover disabled:opacity-40 min-h-[44px] ';
+  const itemClass = 'fx-body-dense w-full text-left px-3 py-2.5 font-semibold inline-flex items-center gap-2 hover:bg-sand-hover disabled:opacity-40 min-h-[44px] ';
   function run(fn: () => void) { setOpen(false); fn(); }
   function toggle() {
     if (!open) {
@@ -2049,15 +2017,14 @@ function DetailMoreMenu({
         aria-haspopup="menu"
         aria-label="Plus d'actions"
         title="Plus d'actions"
-        className="bg-white text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-bold hover:bg-sand-hover min-h-[44px] inline-flex items-center"
+        className="bg-cream text-ink-mid border border-sand-border px-3 py-2 rounded-lg font-semibold hover:bg-sand-hover min-h-[44px] inline-flex items-center"
       >
         <MoreHorizontal size={16} />
       </button>
       {open && (
         <div
           role="menu"
-          className={
-            'absolute top-full mt-1 z-30 min-w-[230px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden '
+          className={'absolute top-full mt-1 z-30 min-w-[230px] bg-cream border border-sand-border rounded-lg shadow-raised overflow-hidden '
             + (openLeftward ? 'right-0' : 'left-0')
           }
         >
@@ -2085,7 +2052,7 @@ function DetailMoreMenu({
                 <Star size={14} aria-hidden />
                 {important ? 'Important ✓' : 'Marquer important'}
               </button>
-              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('trash'))} className={itemClass + 'text-terra'}>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(() => onAction('trash'))} className={itemClass + 'text-terra-ink'}>
                 <Trash2 size={14} aria-hidden />
                 Corbeille
               </button>
@@ -2096,7 +2063,7 @@ function DetailMoreMenu({
                 <Undo2 size={14} aria-hidden />
                 Restaurer
               </button>
-              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onRequestPermanentDelete)} className={itemClass + 'text-terra'}>
+              <button type="button" role="menuitem" disabled={disabled} onClick={() => run(onRequestPermanentDelete)} className={itemClass + 'text-terra-ink'}>
                 <Trash2 size={14} aria-hidden />
                 Supprimer définitivement
               </button>
@@ -2143,13 +2110,12 @@ function RowQuickBtn({
 }
 
 function LabelBadge({ label, small, removable }: { label: GmailLabel; small?: boolean; removable?: boolean }) {
-  const bg = label.color?.background_color ?? '#A17244';
-  const fg = label.color?.text_color ?? '#ffffff';
+  const bg = label.color?.background_color ?? 'var(--color-amber-ink)';
+  const fg = label.color?.text_color ?? 'var(--color-cream)';
   return (
     <span
-      className={
-        'inline-flex items-center gap-1 rounded font-semibold border border-black/10 ' +
-        (small ? 'text-[9px] px-1.5 py-0.5' : 'text-[11px] px-2 py-1')
+      className={'inline-flex items-center gap-1 rounded font-semibold border border-black/10 ' +
+        (small ? 'fx-small px-1.5 py-0.5' : 'fx-small px-2 py-1')
       }
       style={{ background: bg, color: fg }}
     >
@@ -2200,7 +2166,7 @@ function CreateLabelModal({
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-sand-border rounded-2xl p-5 w-full max-w-[420px]">
+      <div className="bg-cream border border-sand-border rounded-modal p-5 w-full max-w-[420px]">
         <div className="flex items-center justify-between mb-3">
           <h2 className="fxs-block-title text-ink">
             Nouveau libellé Gmail
@@ -2208,24 +2174,24 @@ function CreateLabelModal({
           <button
             type="button"
             onClick={onClose}
-            className="bg-sand-mid w-8 h-8 rounded-md text-ink-mid dark:bg-[rgba(255,255,255,.06)] inline-flex items-center justify-center"
+            className="bg-sand-mid w-8 h-8 rounded-lg text-ink-mid inline-flex items-center justify-center"
             aria-label="Fermer"
           ><X size={16} /></button>
         </div>
 
-        <label className="block text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1">
+        <label className="fx-eyebrow block font-semibold text-ink-mid mb-1">
           Nom du libellé
         </label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ex : Devis en cours"
-          className="w-full px-3 py-2 border border-sand-border rounded-lg text-[13px] bg-white outline-none focus:border-navy-mid"
+          className="fx-body w-full px-3 py-2 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
           autoFocus
         />
 
         <div className="mt-3">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-ink-muted mb-1.5">
+          <div className="fx-eyebrow font-semibold text-ink-mid mb-1.5">
             Couleur
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -2237,11 +2203,10 @@ function CreateLabelModal({
                   type="button"
                   onClick={() => setColorIdx(i)}
                   aria-label={c.name}
-                  className={
-                    'w-9 h-9 rounded-lg border-2 flex items-center justify-center text-[10px] font-bold ' +
+                  className={'fx-small w-9 h-9 rounded-lg border-2 flex items-center justify-center font-semibold ' +
                     (active ? 'border-navy ring-2 ring-navy/30' : 'border-sand-border')
                   }
-                  style={c.bg ? { background: c.bg, color: c.text } : { background: 'white', color: '#666' }}
+                  style={c.bg ? { background: c.bg, color: c.text } : { background: 'var(--color-cream)', color: 'var(--color-ink-mid)' }}
                 >
                   {!c.bg && '—'}
                 </button>
@@ -2255,7 +2220,7 @@ function CreateLabelModal({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
+            className="fx-label px-3 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid"
           >
             Annuler
           </button>
@@ -2263,7 +2228,7 @@ function CreateLabelModal({
             type="button"
             onClick={submit}
             disabled={submitting || !name.trim()}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold bg-navy text-white disabled:opacity-50"
+            className="fx-label px-3 py-2 rounded-lg font-semibold bg-navy text-cream disabled:opacity-50"
           >
             {submitting ? 'Création…' : 'Créer'}
           </button>
@@ -2286,14 +2251,14 @@ function ConfirmDeleteModal({
       onClick={(e) => { if (e.target === e.currentTarget && !pending) onCancel(); }}
       className="fixed inset-0 bg-navy-deep/50 z-50 flex items-center justify-center p-4"
     >
-      <div className="bg-cream border border-terra rounded-2xl p-5 w-full max-w-[420px]">
-        <h2 className="fxs-block-title text-terra mb-2 inline-flex items-center gap-1.5">
+      <div className="bg-cream border border-terra rounded-modal p-5 w-full max-w-[420px]">
+        <h2 className="fxs-block-title text-terra-ink mb-2 inline-flex items-center gap-1.5">
           <Trash2 size={14} />
           Supprimer définitivement
         </h2>
-        <p className="text-[12px] text-ink-mid leading-relaxed">
+        <p className="fx-meta text-ink-mid leading-relaxed">
           Tu vas supprimer définitivement <strong>{count} mail{count > 1 ? 's' : ''}</strong>.
-          Cette action est <strong className="text-terra">irréversible</strong> — les mails ne seront pas récupérables même depuis la corbeille Gmail.
+          Cette action est <strong className="text-terra-ink">irréversible</strong> — les mails ne seront pas récupérables même depuis la corbeille Gmail.
         </p>
 
         <div className="mt-4 flex justify-end gap-2">
@@ -2301,7 +2266,7 @@ function ConfirmDeleteModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold border border-sand-border bg-white text-ink-mid"
+            className="fx-label px-3 py-2 rounded-lg font-semibold border border-sand-border bg-cream text-ink-mid"
           >
             Annuler
           </button>
@@ -2309,7 +2274,7 @@ function ConfirmDeleteModal({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="px-3 py-2 rounded-lg text-[12px] font-bold bg-terra text-white disabled:opacity-50"
+            className="fx-label px-3 py-2 rounded-lg font-semibold bg-terra text-cream disabled:opacity-50"
           >
             {pending ? 'Suppression…' : 'Supprimer définitivement'}
           </button>
