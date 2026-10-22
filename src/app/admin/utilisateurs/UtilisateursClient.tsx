@@ -296,7 +296,7 @@ export function UtilisateursClient({
                 }
               >
                 {c.label}
-                <span className={'fx-small ml-1.5 font-semibold ' + (active ? 'opacity-80' : 'opacity-60')}>
+                <span className="fx-small ml-1.5 font-semibold">
                   ({n})
                 </span>
               </button>

@@ -577,9 +577,9 @@ export function PlanningCalendar({
 
       {/* Calendar — vue Semaine (créneaux fixes FoxO × 7 jours) */}
       {viewMode === 'week' && (
-        <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
+        <div className="bg-cream rounded-xl border border-sand-border overflow-x-auto">
           <div
-            className="grid"
+            className="grid min-w-[720px]"
             style={{ gridTemplateColumns: '90px repeat(7, 1fr)' }}
           >
             {/* Header — coin vide + 7 jours avec date */}
@@ -744,7 +744,7 @@ export function PlanningCalendar({
                             <span className="flex-1 truncate">
                               {heureReelle ? `Bloqué · ${heureReelle}` : 'Bloqué'}
                             </span>
-                            {techBadge && <span className="fx-small opacity-70">{techBadge}</span>}
+                            {techBadge && <span className="fx-small">{techBadge}</span>}
                           </div>
                         );
                       })}
@@ -770,8 +770,8 @@ export function PlanningCalendar({
 
       {/* Calendar — vue Mois (legacy) */}
       {viewMode === 'month' && (
-      <div className="bg-cream rounded-xl border border-sand-border overflow-hidden">
-        <div className="grid grid-cols-7 gap-px bg-sand-border">
+      <div className="bg-cream rounded-xl border border-sand-border overflow-x-auto">
+        <div className="grid grid-cols-7 gap-px bg-sand-border min-w-[640px]">
           {DAYS.map((d) => (
             <div key={d} className="fx-eyebrow bg-sand text-center py-2 font-semibold text-ink-mid">
               {d}

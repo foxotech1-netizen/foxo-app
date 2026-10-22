@@ -14,9 +14,9 @@ export const DEFAULT_PLANNING_COLORS = {
 // (utilisateurs.couleur IS NULL) — valeurs hex de données (mélangées en JS).
 export const TECH_COLORS_FALLBACK = [
   { bg: '#1B3A6B', soft: '#D6E4F7' },  // navy
-  { bg: '#A17244', soft: '#F0DCC4' },  // ambre
+  { bg: '#8A5E33', soft: '#F0DCC4' },  // ambre (lisible en crème : 5.4:1)
   { bg: '#1F6B45', soft: '#D4EDE2' },  // ok
-  { bg: '#C4622D', soft: '#F7EDE5' },  // terra
+  { bg: '#9A4A1F', soft: '#F7EDE5' },  // terra (lisible en crème : 6:1)
 ] as const;
 
 /** Hex #RRGGBB → version « soft » (mélange 20 % couleur / 80 % blanc). */

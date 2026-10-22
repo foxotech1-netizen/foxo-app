@@ -1769,3 +1769,38 @@ textarea::placeholder {
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+
+
+/* Tableaux : le conteneur direct défile horizontalement sur petit écran au
+   lieu de couper les colonnes (les tableaux de liste n'ont pas tous de
+   wrapper .fx-table-wrap). */
+.fx-admin *:has(> table) { overflow-x: auto; }
+
+/* Un texte .fx-* posé directement dans un contrôle ou une case colorés
+   (pill active navy, bouton primaire, créneau du planning avec fond inline…)
+   hérite de la couleur de ce contrôle au lieu de reprendre sa couleur par
+   défaut. Combinateur enfant volontaire : un wrapper de page avec fond
+   inline ne doit pas neutraliser les couleurs de tout son contenu. */
+.fx-admin :is(.fx-btn-primary, .fx-btn-secondary, .fx-btn-small, .fx-btn-small-navy, .fx-btn-danger,
+  .fx-chip, .fx-pill, .fx-badge, .fx-tile, .fx-nav-item, .fx-tab,
+  .bg-navy, .bg-navy-dark, .bg-navy-deep, .bg-navy-mid, .bg-terra, .bg-terra-deep, .bg-ok, .bg-ok-deep,
+  .bg-amber-foxo, .bg-amber-ink, .bg-ink, .bg-ink-mid, [class*="bg-[var(--color-navy"],
+  [style*="background:"], [style*="background-color:"])
+  > :is(.fx-small, .fx-meta, .fx-label, .fx-body, .fx-body-dense, .fx-ref, .fx-h3, .fx-h2, .fx-eyebrow, .fx-th, .fx-name) {
+  color: inherit;
+}
+
+
+/* Mobile : les boutons texte compacts (filtres, segments, actions de
+   table) passent à 44px de haut pour rester actionnables au doigt. Les
+   interrupteurs (role="switch") et la barre du bas gardent leurs dimensions. */
+@media (max-width: 768px) {
+  .fx-admin button:is(.fx-label, .fx-small, .fx-pill, .fx-btn-small, .fx-chip, .fx-meta, .fx-body-dense),
+  .fx-admin a:is(.fx-btn-small, .fx-chip, .fx-pill) {
+    min-height: 44px;
+  }
+  .fx-admin button:is(.w-8.h-8, .w-7.h-7) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

@@ -458,7 +458,7 @@ export function OdooClient({
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">
                 <label htmlFor="odoo-recherche" className="fx-label font-semibold text-ink-mid">Rechercher</label>
                 <input
                   id="odoo-recherche"
@@ -466,7 +466,7 @@ export function OdooClient({
                   value={recherche}
                   onChange={(e) => setRecherche(e.target.value)}
                   placeholder="N°, dossier, adresse, montant"
-                  className="fx-body w-[250px] max-w-full min-h-[36px] px-3 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
+                  className="fx-body w-[250px] max-w-full min-w-0 min-h-[36px] px-3 border border-sand-border rounded-lg bg-cream outline-none focus:border-navy-mid"
                 />
               </div>
             </div>
