@@ -169,7 +169,7 @@ export function ChatIA({ compact = false }: ChatIAProps) {
             <button
               type="submit"
               disabled={!value.trim() || loading}
-              className="flex-shrink-0 inline-flex items-center justify-center transition-opacity disabled:opacity-40"
+              className="flex-shrink-0 inline-flex items-center justify-center min-w-[44px] min-h-[44px] transition-opacity disabled:opacity-40"
               style={{
                 width: 30,
                 height: 30,

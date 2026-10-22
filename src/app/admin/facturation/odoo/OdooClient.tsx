@@ -530,7 +530,7 @@ export function OdooClient({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label={`Ouvrir ${f.numero ?? 'la pièce'} dans Odoo`}
-                                className="inline-flex items-center justify-center w-10 h-10 text-ink-mid hover:text-navy"
+                                className="inline-flex items-center justify-center w-11 h-11 text-ink-mid hover:text-navy"
                               >
                                 <ExternalLink size={15} aria-hidden />
                               </a>

@@ -1095,7 +1095,7 @@ textarea::placeholder {
   .fx-btn-small-navy { background: var(--color-navy); color: var(--color-cream); border-color: var(--color-navy); }
   .fx-btn-small-navy:hover { background: var(--color-navy-mid); border-color: var(--color-navy-mid); }
   .fx-btn-danger {
-    height: 42px;
+    height: 44px;
     padding: 0 14px;
     border-radius: 12px;
     font-size: 13px;
@@ -1795,9 +1795,11 @@ textarea::placeholder {
    table) passent à 44px de haut pour rester actionnables au doigt. Les
    interrupteurs (role="switch") et la barre du bas gardent leurs dimensions. */
 @media (max-width: 768px) {
-  .fx-admin button:is(.fx-label, .fx-small, .fx-pill, .fx-btn-small, .fx-chip, .fx-meta, .fx-body-dense),
+  .fx-admin button:is(.fx-label, .fx-small, .fx-pill, .fx-btn-small, .fx-chip, .fx-meta, .fx-body-dense, .fx-body, .underline),
+  .fx-admin th button,
   .fx-admin a:is(.fx-btn-small, .fx-chip, .fx-pill) {
     min-height: 44px;
+    min-width: 44px;
   }
   .fx-admin button:is(.w-8.h-8, .w-7.h-7) {
     min-width: 44px;

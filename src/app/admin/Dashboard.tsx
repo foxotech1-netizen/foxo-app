@@ -201,7 +201,7 @@ export function Dashboard({
               key={iv.id}
               type="button"
               onClick={() => onOpenIntervention(iv.id)}
-              className="w-full text-left bg-sand hover:bg-navy-pale border border-sand-mid rounded-lg px-3 py-2 flex items-center gap-3"
+              className="w-full text-left bg-sand hover:bg-navy-pale border border-sand-mid rounded-lg px-3 py-2 min-h-[44px] flex items-center gap-3"
             >
               <span className="fx-time">{fmtTime(iv.creneau_debut)}</span>
               <span className="fx-body font-medium text-ink truncate flex-1">{iv.acp?.nom ?? '—'}</span>
