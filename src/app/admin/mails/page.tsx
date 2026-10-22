@@ -25,8 +25,9 @@ export default async function MailsPage() {
 
       {!connected && (
         <div className="fx-body mx-6 mt-3 px-4 py-3 bg-amber-light border border-[var(--color-amber-foxo)]/30 rounded-lg text-amber-ink flex items-center justify-between gap-3 flex-shrink-0">
-          <span className="inline-flex items-center gap-1.5">
-            <AlertTriangle size={14} aria-hidden /> Connectez votre compte Google dans{' '}
+          <span className="min-w-0">
+            <AlertTriangle size={14} aria-hidden className="inline-block align-[-2px] mr-1.5" />
+            Connectez votre compte Google dans{' '}
             <Link href="/admin/parametres" className="underline font-semibold">Paramètres → Intégrations Google</Link>
             {' '}pour afficher la boîte mail.
           </span>

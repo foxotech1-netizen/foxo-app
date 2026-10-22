@@ -480,8 +480,8 @@ export function PlanningCalendar({
               <ResyncButton />
             </>
           ) : (
-            <span className="fx-small text-ink-mid italic inline-flex items-center gap-1.5">
-              <Calendar size={12} /> Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
+            <span className="fx-small text-ink-mid italic">
+              <Calendar size={12} className="inline-block align-[-2px] mr-1" aria-hidden /> Google Calendar : <Link href="/admin/parametres" className="underline">Connectez Google dans Paramètres</Link>
             </span>
           )}
         </div>

@@ -1412,7 +1412,7 @@ export function InterventionsClient({
         {nbAlertes > 0 && (
           <div className="fx-banner" role="status">
             <span className="fx-ico fx-ico-light-terra-solid"><AlertTriangle size={15} aria-hidden /></span>
-            <span className="flex-1 min-w-0">
+            <span className="flex-1 min-w-[180px]">
               <strong className="font-semibold">{nbAlertes} dossier{nbAlertes > 1 ? 's' : ''} en alerte</strong> : en suspens ou sans technicien.
             </span>
             <Link href="/admin/alertes" className="fx-link text-terra-ink whitespace-nowrap">Voir les alertes →</Link>

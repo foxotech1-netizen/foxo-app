@@ -1233,6 +1233,7 @@ textarea::placeholder {
   .fx-card-row:last-child { border-bottom: 0; }
   .fx-banner {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 12px;
     padding: 12px 16px;
